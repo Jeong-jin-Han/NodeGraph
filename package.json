@@ -1,0 +1,73 @@
+{
+  "name": "nodegraph",
+  "displayName": "NodeGraph",
+  "description": "Node-based knowledge graph for research paper analysis",
+  "version": "0.1.0",
+  "publisher": "jeongjin-han",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Visualization",
+    "Education"
+  ],
+  "activationEvents": [
+    "onCustomEditor:nodegraph.editor"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "nodegraph.editor",
+        "displayName": "NodeGraph Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.nodegraph.json"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      {
+        "command": "nodegraph.new",
+        "title": "NodeGraph: New Graph"
+      },
+      {
+        "command": "nodegraph.fitView",
+        "title": "NodeGraph: Fit to View"
+      },
+      {
+        "command": "nodegraph.collapseAll",
+        "title": "NodeGraph: Collapse All"
+      },
+      {
+        "command": "nodegraph.expandAll",
+        "title": "NodeGraph: Expand All"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "vscode:prepublish": "node esbuild.js --production"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "@types/katex": "^0.16.8",
+    "katex": "^0.17.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "files": [
+    "dist",
+    ".agent"
+  ]
+}

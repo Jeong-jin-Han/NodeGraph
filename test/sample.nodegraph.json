@@ -1,0 +1,169 @@
+{
+  "$schema": "../schema/nodegraph.schema.json",
+  "version": "1.0.0",
+  "title": "TrainingCXL — Full Analysis",
+  "created": "2026-07-02T10:00:00Z",
+  "modified": "2026-07-02T15:30:00Z",
+  "source": {
+    "pdf": "./trainingcxl.pdf",
+    "authors": "Miryeong Kwon, Junhyeok Jang, Hanjin Choi, Sangwon Lee, Myoungsoo Jung",
+    "venue": "IEEE Micro 2023",
+    "doi": "arXiv:2301.07492",
+    "pages": 14
+  },
+  "nodeTemplates": {
+    "main_topic":   { "label": "Main topic",     "color": "#4B8BBE", "icon": "file-text",      "shape": "sharp" },
+    "method":       { "label": "Method",         "color": "#2E86AB", "icon": "tool",           "shape": "sharp" },
+    "result":       { "label": "Result",         "color": "#1B998B", "icon": "chart-bar",      "shape": "sharp" },
+    "claim":        { "label": "Claim",          "color": "#3A506B", "icon": "quote",          "shape": "sharp" },
+    "question":     { "label": "Question",       "color": "#E5A835", "icon": "help-circle",    "shape": "rounded" },
+    "reference":    { "label": "Ext. reference", "color": "#9C6ADE", "icon": "external-link",  "shape": "rounded" },
+    "gap":          { "label": "Gap / Idea",     "color": "#E24B4A", "icon": "flame",          "shape": "rounded" },
+    "memo":         { "label": "Memo",           "color": "#6B7280", "icon": "note",           "shape": "rounded" }
+  },
+  "nodes": [
+    {
+      "id": "node_001",
+      "template": "main_topic",
+      "title": "Problem: RM checkpointing의 한계",
+      "content": "Recommendation model 학습에서 embedding table은 수십~수백 TB 규모.\n기존 checkpointing은 학습 중단 + 전체 상태 저장이 필요하여 overhead가 심각.\n장애 발생 시 복구에도 오랜 시간 소요.",
+      "original": {
+        "text": "Training recommendation models (RMs) that contain massive embedding tables spanning tens of terabytes requires frequent checkpointing, which significantly degrades training throughput and increases recovery time upon failures.",
+        "location": "§1, p.1"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": true,
+      "position": { "x": 0, "y": 0 },
+      "children": ["node_006", "node_007"],
+      "images": [],
+      "links": [{ "type": "pdf", "target": "./trainingcxl.pdf#page=1", "label": "원문 §1" }]
+    },
+    {
+      "id": "node_002",
+      "template": "main_topic",
+      "title": "CXL-based Architecture 제안",
+      "content": "CXL Type-2 디바이스 두 종류를 제안:\n- CXL-GPU: MLP 연산 담당\n- CXL-MEM: Embedding 연산 + checkpointing 담당\n\n두 디바이스가 cache-coherent domain을 형성하여 호스트와 일관된 메모리 접근 가능.",
+      "original": {
+        "text": "We propose TrainingCXL, which introduces two CXL Type-2 devices: CXL-GPU for MLP operations and CXL-MEM for embedding operations with integrated checkpointing capability, forming a cache-coherent domain.",
+        "location": "§3.1, p.5"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 0, "y": 300 },
+      "children": ["node_008"],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_003",
+      "template": "method",
+      "title": "Batch-aware Checkpoint 메커니즘",
+      "content": "Undo logging 기반 checkpoint.\nRM의 특성상 embedding indices를 미리 알 수 있어서 update 대상을 사전에 파악 가능.\n이를 활용하여 background에서 checkpoint 수행.",
+      "original": {
+        "text": "Since the sparse features include the indices of target embeddings, the checkpoint manager can identify which entries will be updated before the actual training computation begins.",
+        "location": "§4.1, p.9"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 0, "y": 600 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_004",
+      "template": "result",
+      "title": "실험 결과",
+      "content": "PMEM 기반 시스템 대비:\n- 5.2배 학습 속도 향상\n- 76% 에너지 절감\n\nGPU-only 대비 memory capacity 확장으로 더 큰 모델 학습 가능.",
+      "original": {
+        "text": "TrainingCXL achieves up to 5.2x training speedup and 76% energy savings compared to PMEM-based fault-tolerant training systems.",
+        "location": "§6, p.12"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 0, "y": 900 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_005",
+      "template": "gap",
+      "title": "한계: RM 외 모델에 적용 가능한가?",
+      "content": "TrainingCXL은 RM의 embedding index를 미리 알 수 있다는 특성에 의존.\nTransformer, RL 등에서는 이 가정이 성립하지 않음.\n\n→ 세미나에서 이 한계를 질문해볼 것.",
+      "original": {
+        "text": "The batch-aware checkpoint mechanism relies on the RM-specific property that embedding indices are known prior to computation.",
+        "location": "§4.1, p.9"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 400, "y": 900 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_006",
+      "template": "question",
+      "title": "왜 embedding table이 수십~수백 TB인가?",
+      "content": "RM은 user ID, item ID, context 등 수십억 개의 sparse categorical feature를 각각 embedding vector로 매핑.\n\n예: Meta DLRM\n- Category 수: ~10억\n- Embedding dim: 64~128\n- 단일 테이블: ~500GB\n- 전체 모델: 수~수십 TB",
+      "original": {
+        "text": "Modern RMs maintain embedding tables with billions of entries, each mapping a categorical feature to a dense vector representation.",
+        "location": "§2.1, p.2"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 400, "y": -80 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_007",
+      "template": "reference",
+      "title": "LightPC와의 접근 방식 차이",
+      "content": "LightPC (ISCA 2022): Pure NVM 시스템, DRAM 완전 제거, transparent persistence.\nTrainingCXL: CXL disaggregation + ML-specific optimization.\n\n공통점: 둘 다 CAMEL Lab, persistence를 투명하게.\n차이점: LightPC는 full system, TrainingCXL은 ML training 특화.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 400, "y": 80 },
+      "children": [],
+      "images": [],
+      "links": [{ "type": "url", "target": "https://dl.acm.org/doi/10.1145/3470496.3527397", "label": "LightPC paper" }]
+    },
+    {
+      "id": "node_008",
+      "template": "question",
+      "title": "CXL Type-2가 정확히 뭔가?",
+      "content": "CXL 디바이스 3종류:\n- Type-1: Accelerator (자체 캐시, 호스트 메모리 사용)\n- Type-2: Accelerator + 자체 메모리 (CXL-GPU, CXL-MEM이 이것)\n- Type-3: Memory expander (연산 없이 메모리만 제공)\n\nType-2는 자체 프로세싱 + 자체 메모리를 모두 가져서 embedding 연산을 offload할 수 있음.",
+      "original": {
+        "text": "CXL Type-2 devices contain both a device-attached memory and processing capability, enabling them to serve as accelerators with their own memory space while maintaining cache coherency with the host.",
+        "location": "§2.2, p.3"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 400, "y": 220 },
+      "children": [],
+      "images": [],
+      "links": []
+    }
+  ],
+  "edges": [
+    { "id": "edge_001", "source": "node_001", "target": "node_002", "type": "arrow", "label": "" },
+    { "id": "edge_002", "source": "node_002", "target": "node_003", "type": "arrow", "label": "" },
+    { "id": "edge_003", "source": "node_003", "target": "node_004", "type": "arrow", "label": "" },
+    { "id": "edge_004", "source": "node_001", "target": "node_006", "type": "line",  "label": "" },
+    { "id": "edge_005", "source": "node_001", "target": "node_007", "type": "line",  "label": "" },
+    { "id": "edge_006", "source": "node_002", "target": "node_008", "type": "line",  "label": "" },
+    { "id": "edge_007", "source": "node_004", "target": "node_005", "type": "line",  "label": "한계" },
+    { "id": "edge_008", "source": "node_007", "target": "node_002", "type": "line",  "label": "참고" }
+  ],
+  "viewport": { "x": -50, "y": -100, "zoom": 0.85 }
+}

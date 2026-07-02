@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/webview/styles/theme.css"],
+  "sourcesContent": ["/* NodeGraph theme \u2014 maps VSCode CSS variables */\n\n* { box-sizing: border-box; }\n\nbody {\n  margin: 0;\n  padding: 0;\n  overflow: hidden;\n  background: var(--vscode-editor-background, #1e1e1e);\n  color: var(--vscode-editor-foreground, #d4d4d4);\n  font-family: var(--vscode-font-family, system-ui, sans-serif);\n  font-size: var(--vscode-font-size, 13px);\n}\n\nbutton:focus-visible {\n  outline: 1px solid var(--vscode-focusBorder, #007fd4);\n  outline-offset: 1px;\n}\n\n::-webkit-scrollbar { width: 6px; height: 6px; }\n::-webkit-scrollbar-thumb {\n  background: var(--vscode-scrollbarSlider-background, rgba(128,128,128,0.4));\n  border-radius: 3px;\n}\n::-webkit-scrollbar-track { background: transparent; }\n"],
+  "mappings": ";AAEA;AAAI,cAAY;AAAY;AAE5B;AACE,UAAQ;AACR,WAAS;AACT,YAAU;AACV,cAAY,IAAI,0BAA0B,EAAE;AAC5C,SAAO,IAAI,0BAA0B,EAAE;AACvC,eAAa,IAAI,oBAAoB,EAAE,SAAS,EAAE;AAClD,aAAW,IAAI,kBAAkB,EAAE;AACrC;AAEA,MAAM;AACJ,WAAS,IAAI,MAAM,IAAI,oBAAoB,EAAE;AAC7C,kBAAgB;AAClB;AAEA;AAAsB,SAAO;AAAK,UAAQ;AAAK;AAC/C;AACE,cAAY,IAAI,mCAAmC,EAAE,KAAK,GAAG,CAAC,GAAG,CAAC,GAAG,CAAC;AACtE,iBAAe;AACjB;AACA;AAA4B,cAAY;AAAa;",
+  "names": []
+}

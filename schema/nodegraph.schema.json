@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/Jeong-jin-Han/nodegraph-vscode/main/schema/nodegraph.schema.json",
+  "title": "NodeGraph",
+  "type": "object",
+  "required": ["version", "title", "created", "modified", "nodeTemplates", "nodes", "edges", "viewport"],
+  "properties": {
+    "version": { "type": "string" },
+    "title": { "type": "string" },
+    "created": { "type": "string", "format": "date-time" },
+    "modified": { "type": "string", "format": "date-time" },
+    "source": {
+      "type": "object",
+      "properties": {
+        "pdf": { "type": "string" },
+        "authors": { "type": "string" },
+        "venue": { "type": "string" },
+        "doi": { "type": "string" },
+        "pages": { "type": "number" }
+      }
+    },
+    "nodeTemplates": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["label", "color", "icon", "shape"],
+        "properties": {
+          "label": { "type": "string" },
+          "color": { "type": "string" },
+          "icon": { "type": "string" },
+          "shape": { "type": "string", "enum": ["sharp", "rounded"] }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "template", "title", "content", "contentExpanded", "originalExpanded", "childrenExpanded", "position", "children", "images", "links"],
+        "properties": {
+          "id": { "type": "string" },
+          "template": { "type": "string" },
+          "title": { "type": "string" },
+          "content": { "type": "string" },
+          "original": {
+            "type": "object",
+            "properties": {
+              "text": { "type": "string" },
+              "location": { "type": "string" }
+            }
+          },
+          "contentExpanded": { "type": "boolean" },
+          "originalExpanded": { "type": "boolean" },
+          "childrenExpanded": { "type": "boolean" },
+          "position": {
+            "type": "object",
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" }
+            }
+          },
+          "children": { "type": "array", "items": { "type": "string" } },
+          "images": { "type": "array" },
+          "links": { "type": "array" }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "source", "target", "type", "label"],
+        "properties": {
+          "id": { "type": "string" },
+          "source": { "type": "string" },
+          "target": { "type": "string" },
+          "type": { "type": "string", "enum": ["line", "arrow"] },
+          "label": { "type": "string" }
+        }
+      }
+    },
+    "viewport": {
+      "type": "object",
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "zoom": { "type": "number" }
+      }
+    }
+  }
+}

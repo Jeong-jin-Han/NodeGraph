@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=/home/hanjeongjin/Workspace_ubuntu/2026_self/dev/NodeGraph"
+      ],
+      "outFiles": [
+        "/home/hanjeongjin/Workspace_ubuntu/2026_self/dev/NodeGraph/dist/**/*.js"
+      ],
+      "preLaunchTask": "npm: compile"
+    }
+  ]
+}
