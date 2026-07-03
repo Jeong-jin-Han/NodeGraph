@@ -82,7 +82,6 @@
         "node_006",
         "node_007"
       ],
-      "images": [],
       "links": [
         {
           "type": "pdf",
@@ -110,7 +109,6 @@
       "children": [
         "node_008"
       ],
-      "images": [],
       "links": []
     },
     {
@@ -130,7 +128,6 @@
         "y": 600
       },
       "children": [],
-      "images": [],
       "links": []
     },
     {
@@ -150,7 +147,6 @@
         "y": 900
       },
       "children": [],
-      "images": [],
       "links": []
     },
     {
@@ -170,7 +166,6 @@
         "y": 900
       },
       "children": [],
-      "images": [],
       "links": []
     },
     {
@@ -190,7 +185,6 @@
         "y": -80
       },
       "children": [],
-      "images": [],
       "links": []
     },
     {
@@ -206,7 +200,6 @@
         "y": 80
       },
       "children": [],
-      "images": [],
       "links": [
         {
           "type": "url",
@@ -228,7 +221,6 @@
         "y": 1200
       },
       "children": [],
-      "images": [],
       "links": []
     },
     {
@@ -244,7 +236,6 @@
         "y": 0
       },
       "children": [],
-      "images": [],
       "links": []
     },
     {
@@ -265,7 +256,6 @@
         "y": 220
       },
       "children": [],
-      "images": [],
       "links": [],
       "toggleItems": [
         {

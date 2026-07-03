@@ -91,8 +91,6 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
             } catch { /* image file not found */ }
           }
           for (const node of data.nodes) {
-            for (const img of node.images) await loadImg(img.filename)
-            // Also collect [[IMG:filename]] tokens embedded in content text
             INLINE_IMG_RE.lastIndex = 0
             let m: RegExpExecArray | null
             while ((m = INLINE_IMG_RE.exec(node.content ?? '')) !== null) await loadImg(m[1])

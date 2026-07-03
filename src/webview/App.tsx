@@ -9,7 +9,7 @@ export function App() {
     updateNodePosition, autoSaveNodePosition, toggleContent, toggleOriginal,
     updateNodeField, addNode, deleteNodes, addEdge, deleteEdge,
     addToggle, updateToggle, deleteToggle, expandToggle, deleteOriginal,
-    saveImage, deleteImage, updateNodeContentAndImages,
+    saveImage,
     addCanvasImage, addFilenameToNode, saveCanvasImage, updateCanvasImage, removeCanvasImage, moveCanvasImageToNode,
     lastAddedCanvasImageId,
     setNodeWidth, setNodeHeight, setNodeFontSize, bumpFontSize, setFontSizeExact, pushHistory,
@@ -95,8 +95,6 @@ export function App() {
       onExportHtml={exportHtml}
       imageUris={imageUris}
       onSaveImage={saveImage}
-      onDeleteImage={deleteImage}
-      onUpdateContentAndImages={updateNodeContentAndImages}
       onAddCanvasImage={addCanvasImage}
       onAddFilenameToNode={addFilenameToNode}
       onSaveCanvasImage={saveCanvasImage}

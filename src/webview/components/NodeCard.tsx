@@ -39,9 +39,7 @@ interface NodeCardProps {
   onOpenLink: (link: NodeLink) => void
   onSetNodeTemplate: (nodeId: string, template: string) => void
   imageUris: Record<string, string>
-  onSaveImage: (nodeId: string, base64: string, ext: string, position?: number, insertAsToken?: boolean) => void
-  onDeleteImage: (nodeId: string, filename: string) => void
-  onUpdateContentAndImages: (nodeId: string, content: string, images: import('../types/graph').NodeImage[]) => void
+  onSaveImage: (nodeId: string, base64: string, ext: string, position?: number) => void
   canvasClipboardRef?: React.RefObject<{ filename: string; width: number; height: number } | null>
   onAddFilenameToNode?: (nodeId: string, filename: string) => void
 }
@@ -72,7 +70,7 @@ export function NodeCard({
   selected, isMultiSelected, extraDragNodes, onSelect, onHoverStart, onHoverEnd, onToggleContent, onToggleOriginal, onResize,
   onPortDragStart, onAddToggle, onUpdateToggle, onDeleteToggle, onExpandToggle, onDeleteOriginal,
   onAddOriginal, onAddLink, onDeleteLink, onOpenLink, onSetNodeTemplate,
-  imageUris, onSaveImage, onDeleteImage, onUpdateContentAndImages,
+  imageUris, onSaveImage,
   canvasClipboardRef, onAddFilenameToNode,
 }: NodeCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
@@ -82,7 +80,6 @@ export function NodeCard({
   const [editingSegmentIdx, setEditingSegmentIdx] = useState<number | null>(null)
   const [isHovered, setIsHovered] = useState(false)
   const [editingToggle, setEditingToggle] = useState<{ id: string; field: 'title' | 'content'; initVal: string } | null>(null)
-  const [hoveredImgIdx, setHoveredImgIdx] = useState<number | null>(null)
   const [hoveredToggleId, setHoveredToggleId] = useState<string | null>(null)
   const [hoveredOriginal, setHoveredOriginal] = useState(false)
   const [hoveredLinkIdx, setHoveredLinkIdx] = useState<number | null>(null)
@@ -366,40 +363,7 @@ export function NodeCard({
         {node.contentExpanded && (
           <div style={{ padding: '8px 10px' }}>
             {(() => {
-              const inlineImgs = node.images
-                .filter(img => img.position !== undefined)
-                .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-              const bottomImgs = node.images.filter(img => img.position === undefined)
-
-              const renderImgBlock = (img: typeof node.images[0], origIdx: number) => {
-                const uri = imageUris[img.filename]
-                return (
-                  <div key={img.filename}
-                    style={{ position: 'relative', display: 'inline-block', width: '100%', marginTop: 4, marginBottom: 2, cursor: uri ? 'zoom-in' : 'default' }}
-                    onMouseEnter={() => setHoveredImgIdx(origIdx)}
-                    onMouseLeave={() => setHoveredImgIdx(null)}
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                    {uri ? (
-                      <img src={uri} alt={img.caption || img.filename}
-                        onClick={() => setLightboxSrc(uri)}
-                        style={{ display: 'block', maxWidth: '100%', borderRadius: 3, border: '1px solid rgba(128,128,128,0.2)' }}
-                      />
-                    ) : (
-                      <div style={{ fontSize: 10, opacity: 0.5, padding: '4px 6px', background: 'rgba(128,128,128,0.1)', borderRadius: 3 }}>{img.filename}</div>
-                    )}
-                    {hoveredImgIdx === origIdx && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onDeleteImage(node.id, img.filename) }}
-                        style={{ ...btnStyle, position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 10, width: 18, height: 18, opacity: 1, borderRadius: 3 }}
-                        title="이미지 삭제"
-                      >✕</button>
-                    )}
-                  </div>
-                )
-              }
-
-              // --- 셀 내 콘텐츠 렌더러 (LaTeX + [[IMG:filename|WxH]] 토큰 지원) ---
+              // --- 셀 내 콘텐츠 렌더러 (LaTeX + [[IMG:filename:WxH]] 토큰 지원) ---
               const renderCellContent = (cellText: string): React.ReactNode => {
                 const IMG_RE = /\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g
                 const parts: React.ReactNode[] = []
@@ -451,225 +415,11 @@ export function NodeCard({
                 )
               }
 
-              // --- TABLE MODE: content에 마크다운 표가 있는 경우 ---
+              // --- TABLE MODE ---
               const hasTbl = hasTable(node.content ?? '')
               if (hasTbl) {
-                // Edit: 전체 content textarea 표시
                 if (editingField === 'content') {
                   return (
-                    <>
-                      <textarea
-                        ref={setEditRef as React.RefCallback<HTMLTextAreaElement>}
-                        value={editValue}
-                        onChange={handleTextareaChange}
-                        onBlur={commitEdit}
-                        onKeyDown={(e) => {
-                          e.stopPropagation()
-                          // canvas clipboard paste → [[IMG:filename|WxH]] at cursor
-                          if ((e.ctrlKey || e.metaKey) && e.key === 'v' && canvasClipboardRef?.current) {
-                            e.preventDefault()
-                            const { filename, width: cw, height: ch } = canvasClipboardRef.current
-                            const ta = e.target as HTMLTextAreaElement
-                            const pos = ta.selectionStart ?? 0
-                            const token = `[[IMG:${filename}:${Math.round(cw)}x${Math.round(ch)}]]`
-                            const newVal = editValue.slice(0, pos) + token + editValue.slice(pos)
-                            setEditValue(newVal)
-                            setTimeout(() => { ta.selectionStart = ta.selectionEnd = pos + token.length }, 0)
-                            return
-                          }
-                          if (e.key === 'Escape') cancelEdit()
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onPaste={(e) => {
-                          const items = Array.from(e.clipboardData?.items ?? [])
-                          const imageItem = items.find(it => it.type.startsWith('image/'))
-                          if (!imageItem) return
-                          e.preventDefault()
-                          e.stopPropagation()
-                          const blob = imageItem.getAsFile()
-                          if (!blob) return
-                          const pos = (e.target as HTMLTextAreaElement).selectionStart
-                          const ext = imageItem.type.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
-                          commitEdit()
-                          const reader = new FileReader()
-                          reader.onload = () => {
-                            const base64 = (reader.result as string).split(',')[1]
-                            onSaveImage(node.id, base64, ext, pos, true)  // [[IMG:filename]] 커서 위치에 삽입
-                          }
-                          reader.readAsDataURL(blob)
-                        }}
-                        style={{ ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: 'none', overflow: 'hidden', minHeight: 20, display: 'block' }}
-                      />
-                      {bottomImgs.length > 0 && (
-                        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {bottomImgs.map(img => renderImgBlock(img, node.images.indexOf(img)))}
-                        </div>
-                      )}
-                    </>
-                  )
-                }
-
-                // View: 블록별 렌더링 (텍스트 + 표 혼재)
-                const blocks = parseTableBlocks(node.content ?? '')
-                return (
-                  <>
-                    <div ref={tableBodyRef} style={{ fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word' }}>
-                      {blocks.map((block, bi) => {
-                        if (block.type === 'table') return renderTableBlock(block, bi)
-                        // 텍스트 블록: 해당 char 범위 안에 있는 inline 이미지도 배치
-                        const blockImgs = inlineImgs.filter(
-                          img => img.position! >= block.startChar && img.position! < block.endChar
-                        )
-                        if (blockImgs.length > 0) {
-                          const segs: string[] = []
-                          let last = block.startChar
-                          for (const img of blockImgs) {
-                            segs.push(block.text.slice(last - block.startChar, img.position! - block.startChar))
-                            last = img.position!
-                          }
-                          segs.push(block.text.slice(last - block.startChar))
-                          return (
-                            <div key={bi}>
-                              {segs.map((seg, k) => (
-                                <React.Fragment key={k}>
-                                  <div onClick={(e) => startEdit('content', node.content, e)} style={{ cursor: 'text' }}>
-                                    {seg ? renderCellContent(seg) : null}
-                                  </div>
-                                  {k < blockImgs.length && renderImgBlock(blockImgs[k], node.images.indexOf(blockImgs[k]))}
-                                </React.Fragment>
-                              ))}
-                            </div>
-                          )
-                        }
-                        return (
-                          <div key={bi} onClick={(e) => startEdit('content', node.content, e)}
-                            style={{ cursor: 'text', minHeight: bi === blocks.length - 1 ? 20 : undefined }}
-                          >
-                            {block.text
-                              ? renderCellContent(block.text)
-                              : bi === blocks.length - 1 ? <span style={{ opacity: 0.35, fontStyle: 'italic' }}>Click to add content…</span> : null
-                            }
-                          </div>
-                        )
-                      })}
-                    </div>
-                    {bottomImgs.length > 0 && (
-                      <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {bottomImgs.map(img => renderImgBlock(img, node.images.indexOf(img)))}
-                      </div>
-                    )}
-                  </>
-                )
-              }
-
-              // SEGMENT MODE: inline images present — split text into segments, each independently editable
-              if (inlineImgs.length > 0) {
-                const segments: string[] = []
-                let lastPos = 0
-                for (const img of inlineImgs) {
-                  const pos = Math.min(img.position!, node.content.length)
-                  segments.push(node.content.slice(lastPos, pos))
-                  lastPos = pos
-                }
-                segments.push(node.content.slice(lastPos))
-
-                const commitSegment = (segIdx: number, value: string) => {
-                  const origSeg = segments[segIdx]
-                  const delta = value.length - origSeg.length
-                  const segStart = segIdx === 0 ? 0 : (inlineImgs[segIdx - 1].position ?? 0)
-                  const threshold = segStart + origSeg.length
-                  const newSegs = [...segments]
-                  newSegs[segIdx] = value
-                  const newContent = newSegs.join('')
-                  const updatedImages = node.images.map(img =>
-                    img.position !== undefined && img.position >= threshold
-                      ? { ...img, position: img.position + delta }
-                      : img
-                  )
-                  onUpdateContentAndImages(node.id, newContent, updatedImages)
-                  setEditingSegmentIdx(null)
-                }
-
-                return (
-                  <>
-                    <div style={{ fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word' }}>
-                      {segments.map((seg, k) => (
-                        <React.Fragment key={k}>
-                          {editingSegmentIdx === k ? (
-                            <textarea
-                              ref={setEditRef as React.RefCallback<HTMLTextAreaElement>}
-                              value={editValue}
-                              onChange={handleTextareaChange}
-                              onBlur={() => commitSegment(k, editValue)}
-                              onKeyDown={(e) => {
-                                e.stopPropagation()
-                                // canvas clipboard paste → add image at absolute cursor position
-                                if ((e.ctrlKey || e.metaKey) && e.key === 'v' && canvasClipboardRef?.current) {
-                                  e.preventDefault()
-                                  const { filename, width: cw, height: ch } = canvasClipboardRef.current
-                                  const ta = e.target as HTMLTextAreaElement
-                                  const pos = ta.selectionStart ?? 0
-                                  const token = `[[IMG:${filename}:${Math.round(cw)}x${Math.round(ch)}]]`
-                                  const newVal = editValue.slice(0, pos) + token + editValue.slice(pos)
-                                  setEditValue(newVal)
-                                  setTimeout(() => { ta.selectionStart = ta.selectionEnd = pos + token.length }, 0)
-                                  return
-                                }
-                                if (e.key === 'Escape') { commitSegment(k, editValue) }
-                              }}
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onPaste={(e) => {
-                                const items = Array.from(e.clipboardData?.items ?? [])
-                                const imageItem = items.find(it => it.type.startsWith('image/'))
-                                if (!imageItem) return
-                                e.preventDefault()
-                                e.stopPropagation()
-                                const blob = imageItem.getAsFile()
-                                if (!blob) return
-                                const localPos = (e.target as HTMLTextAreaElement).selectionStart
-                                const segStart = k === 0 ? 0 : (inlineImgs[k - 1].position ?? 0)
-                                const absolutePos = segStart + localPos
-                                const ext = imageItem.type.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
-                                commitSegment(k, editValue)
-                                const reader = new FileReader()
-                                reader.onload = () => {
-                                  const base64 = (reader.result as string).split(',')[1]
-                                  onSaveImage(node.id, base64, ext, absolutePos, true)  // [[IMG:filename]] 커서 위치에 삽입
-                                }
-                                reader.readAsDataURL(blob)
-                              }}
-                              style={{ ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: 'none', overflow: 'hidden', minHeight: 20, display: 'block' }}
-                            />
-                          ) : (
-                            <div
-                              onClick={(e) => { e.stopPropagation(); setEditingSegmentIdx(k); setEditValue(seg) }}
-                              style={{ cursor: 'text', minHeight: k === segments.length - 1 ? 20 : undefined }}
-                            >
-                              {seg
-                                ? renderCellContent(seg)
-                                : (k === segments.length - 1
-                                    ? <span style={{ opacity: 0.35, fontStyle: 'italic' }}>Click to add content…</span>
-                                    : null)
-                              }
-                            </div>
-                          )}
-                          {k < inlineImgs.length && renderImgBlock(inlineImgs[k], node.images.indexOf(inlineImgs[k]))}
-                        </React.Fragment>
-                      ))}
-                    </div>
-                    {bottomImgs.length > 0 && (
-                      <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {bottomImgs.map(img => renderImgBlock(img, node.images.indexOf(img)))}
-                      </div>
-                    )}
-                  </>
-                )
-              }
-
-              // NO INLINE IMAGES — single textarea mode
-              if (editingField === 'content') {
-                return (
-                  <>
                     <textarea
                       ref={setEditRef as React.RefCallback<HTMLTextAreaElement>}
                       value={editValue}
@@ -677,7 +427,6 @@ export function NodeCard({
                       onBlur={commitEdit}
                       onKeyDown={(e) => {
                         e.stopPropagation()
-                        // canvas clipboard paste → add image at cursor position in content
                         if ((e.ctrlKey || e.metaKey) && e.key === 'v' && canvasClipboardRef?.current) {
                           e.preventDefault()
                           const { filename, width: cw, height: ch } = canvasClipboardRef.current
@@ -706,38 +455,90 @@ export function NodeCard({
                         const reader = new FileReader()
                         reader.onload = () => {
                           const base64 = (reader.result as string).split(',')[1]
-                          onSaveImage(node.id, base64, ext, pos, true)
+                          onSaveImage(node.id, base64, ext, pos)
                         }
                         reader.readAsDataURL(blob)
                       }}
                       style={{ ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: 'none', overflow: 'hidden', minHeight: 20, display: 'block' }}
                     />
-                    {bottomImgs.length > 0 && (
-                      <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {bottomImgs.map(img => renderImgBlock(img, node.images.indexOf(img)))}
-                      </div>
-                    )}
-                  </>
+                  )
+                }
+                const blocks = parseTableBlocks(node.content ?? '')
+                return (
+                  <div ref={tableBodyRef} style={{ fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word' }}>
+                    {blocks.map((block, bi) => {
+                      if (block.type === 'table') return renderTableBlock(block, bi)
+                      return (
+                        <div key={bi} onClick={(e) => startEdit('content', node.content, e)}
+                          style={{ cursor: 'text', minHeight: bi === blocks.length - 1 ? 20 : undefined }}
+                        >
+                          {block.text
+                            ? renderCellContent(block.text)
+                            : bi === blocks.length - 1 ? <span style={{ opacity: 0.35, fontStyle: 'italic' }}>Click to add content…</span> : null
+                          }
+                        </div>
+                      )
+                    })}
+                  </div>
                 )
               }
-              // View mode (no inline images)
+
+              // PLAIN MODE — single textarea / view
+              if (editingField === 'content') {
+                return (
+                  <textarea
+                    ref={setEditRef as React.RefCallback<HTMLTextAreaElement>}
+                    value={editValue}
+                    onChange={handleTextareaChange}
+                    onBlur={commitEdit}
+                    onKeyDown={(e) => {
+                      e.stopPropagation()
+                      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && canvasClipboardRef?.current) {
+                        e.preventDefault()
+                        const { filename, width: cw, height: ch } = canvasClipboardRef.current
+                        const ta = e.target as HTMLTextAreaElement
+                        const pos = ta.selectionStart ?? 0
+                        const token = `[[IMG:${filename}:${Math.round(cw)}x${Math.round(ch)}]]`
+                        const newVal = editValue.slice(0, pos) + token + editValue.slice(pos)
+                        setEditValue(newVal)
+                        setTimeout(() => { ta.selectionStart = ta.selectionEnd = pos + token.length }, 0)
+                        return
+                      }
+                      if (e.key === 'Escape') cancelEdit()
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onPaste={(e) => {
+                      const items = Array.from(e.clipboardData?.items ?? [])
+                      const imageItem = items.find(it => it.type.startsWith('image/'))
+                      if (!imageItem) return
+                      e.preventDefault()
+                      e.stopPropagation()
+                      const blob = imageItem.getAsFile()
+                      if (!blob) return
+                      const pos = (e.target as HTMLTextAreaElement).selectionStart
+                      const ext = imageItem.type.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
+                      commitEdit()
+                      const reader = new FileReader()
+                      reader.onload = () => {
+                        const base64 = (reader.result as string).split(',')[1]
+                        onSaveImage(node.id, base64, ext, pos)
+                      }
+                      reader.readAsDataURL(blob)
+                    }}
+                    style={{ ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: 'none', overflow: 'hidden', minHeight: 20, display: 'block' }}
+                  />
+                )
+              }
               return (
-                <>
-                  <div
-                    onClick={(e) => startEdit('content', node.content, e)}
-                    style={{ fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word', cursor: 'text', minHeight: 20 }}
-                  >
-                    {node.content
-                      ? renderCellContent(node.content)
-                      : <span style={{ opacity: 0.35, fontStyle: 'italic' }}>Click to add content…</span>
-                    }
-                  </div>
-                  {bottomImgs.length > 0 && (
-                    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {bottomImgs.map(img => renderImgBlock(img, node.images.indexOf(img)))}
-                    </div>
-                  )}
-                </>
+                <div
+                  onClick={(e) => startEdit('content', node.content, e)}
+                  style={{ fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word', cursor: 'text', minHeight: 20 }}
+                >
+                  {node.content
+                    ? renderCellContent(node.content)
+                    : <span style={{ opacity: 0.35, fontStyle: 'italic' }}>Click to add content…</span>
+                  }
+                </div>
               )
             })()}
 

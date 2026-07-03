@@ -24561,7 +24561,6 @@ function useGraph() {
           const pending = pendingImagePositionRef.current.get(msg.nodeId);
           pendingImagePositionRef.current.delete(msg.nodeId);
           const position = pending?.position;
-          const insertAsToken = pending?.insertAsToken ?? false;
           const token = `[[IMG:${msg.filename}]]`;
           setGraphState((prev) => {
             if (!prev)
@@ -24574,12 +24573,7 @@ function useGraph() {
               nodes: prev.nodes.map((n) => n.id !== msg.nodeId ? n : {
                 ...n,
                 contentExpanded: true,
-                ...insertAsToken ? {
-                  // [[IMG:filename]] 토큰을 position 위치에 삽입 (없으면 content 끝에 추가)
-                  content: position !== void 0 ? (n.content ?? "").slice(0, position) + token + (n.content ?? "").slice(position) : (n.content ?? "") + ((n.content ?? "").trim() ? "\n" : "") + token
-                } : {
-                  images: [...n.images, { filename: msg.filename, caption: "", source: "user", position }]
-                }
+                content: position !== void 0 ? (n.content ?? "").slice(0, position) + token + (n.content ?? "").slice(position) : (n.content ?? "") + ((n.content ?? "").trim() ? "\n" : "") + token
               })
             };
           });
@@ -24698,7 +24692,6 @@ function useGraph() {
           childrenExpanded: false,
           position: { x, y },
           children: [],
-          images: [],
           links: []
         }]
       };
@@ -24799,8 +24792,8 @@ function useGraph() {
       )
     }), true);
   }, [setGraph]);
-  const saveImage = (0, import_react.useCallback)((nodeId, base64, ext = "png", position, insertAsToken = false) => {
-    pendingImagePositionRef.current.set(nodeId, { position, insertAsToken });
+  const saveImage = (0, import_react.useCallback)((nodeId, base64, ext = "png", position) => {
+    pendingImagePositionRef.current.set(nodeId, { position });
     vscode.postMessage({ type: "saveImage", nodeId, data: base64, ext });
   }, []);
   const addCanvasImage = (0, import_react.useCallback)((ci) => {
@@ -24847,46 +24840,19 @@ ${token}` : token
       const targetNode = g.nodes.find((n) => n.id === nodeId);
       if (!targetNode)
         return g;
-      const newNodeImage = { filename: ci.filename, caption: "", source: "user" };
-      const newContent = tableCell ? insertImgTokenInCell(targetNode.content, tableCell.tableIdx, tableCell.rowIdx, tableCell.colIdx, ci.filename) : targetNode.content;
+      const token = `[[IMG:${ci.filename}]]`;
+      const newContent = tableCell ? insertImgTokenInCell(targetNode.content, tableCell.tableIdx, tableCell.rowIdx, tableCell.colIdx, ci.filename) : targetNode.content ? `${targetNode.content}
+${token}` : token;
       return {
         ...g,
         canvasImages: (g.canvasImages ?? []).filter((c) => c.id !== imgId),
         nodes: g.nodes.map((n) => n.id !== nodeId ? n : {
           ...n,
           content: newContent,
-          images: [...n.images, newNodeImage],
           contentExpanded: true
         })
       };
     }, true);
-  }, [setGraph]);
-  const deleteImage = (0, import_react.useCallback)((nodeId, filename) => {
-    setGraphState((prev) => {
-      if (!prev)
-        return prev;
-      isDirtyRef.current = true;
-      const updated = {
-        ...prev,
-        nodes: prev.nodes.map((n) => n.id !== nodeId ? n : {
-          ...n,
-          images: n.images.filter((img) => img.filename !== filename)
-        })
-      };
-      const stillReferenced = updated.nodes.some(
-        (n) => n.images.some((img) => img.filename === filename) || (n.content?.includes(`[[IMG:${filename}`) ?? false)
-      ) || (updated.canvasImages ?? []).some((ci) => ci.filename === filename);
-      if (!stillReferenced)
-        vscode.postMessage({ type: "deleteImageFile", filename });
-      vscode.postMessage({ type: "save", data: updated });
-      return updated;
-    });
-  }, []);
-  const updateNodeContentAndImages = (0, import_react.useCallback)((id, content, images) => {
-    setGraph((g) => ({
-      ...g,
-      nodes: g.nodes.map((n) => n.id !== id ? n : { ...n, content, images })
-    }), true);
   }, [setGraph]);
   function getAllDescendants(g, nodeId, visited = /* @__PURE__ */ new Set(), stopAtMain = false) {
     if (visited.has(nodeId))
@@ -25033,8 +24999,6 @@ ${token}` : token
     expandToggle,
     deleteOriginal,
     saveImage,
-    deleteImage,
-    updateNodeContentAndImages,
     setNodeWidth,
     setNodeHeight,
     setNodeFontSize,
@@ -39673,8 +39637,6 @@ function NodeCard({
   onSetNodeTemplate,
   imageUris,
   onSaveImage,
-  onDeleteImage,
-  onUpdateContentAndImages,
   canvasClipboardRef,
   onAddFilenameToNode
 }) {
@@ -39685,7 +39647,6 @@ function NodeCard({
   const [editingSegmentIdx, setEditingSegmentIdx] = (0, import_react5.useState)(null);
   const [isHovered, setIsHovered] = (0, import_react5.useState)(false);
   const [editingToggle, setEditingToggle] = (0, import_react5.useState)(null);
-  const [hoveredImgIdx, setHoveredImgIdx] = (0, import_react5.useState)(null);
   const [hoveredToggleId, setHoveredToggleId] = (0, import_react5.useState)(null);
   const [hoveredOriginal, setHoveredOriginal] = (0, import_react5.useState)(false);
   const [hoveredLinkIdx, setHoveredLinkIdx] = (0, import_react5.useState)(null);
@@ -39989,44 +39950,6 @@ function NodeCard({
           ),
           node.contentExpanded && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { padding: "8px 10px" }, children: [
             (() => {
-              const inlineImgs = node.images.filter((img) => img.position !== void 0).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-              const bottomImgs = node.images.filter((img) => img.position === void 0);
-              const renderImgBlock = (img, origIdx) => {
-                const uri = imageUris[img.filename];
-                return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
-                  "div",
-                  {
-                    style: { position: "relative", display: "inline-block", width: "100%", marginTop: 4, marginBottom: 2, cursor: uri ? "zoom-in" : "default" },
-                    onMouseEnter: () => setHoveredImgIdx(origIdx),
-                    onMouseLeave: () => setHoveredImgIdx(null),
-                    onMouseDown: (e) => e.stopPropagation(),
-                    children: [
-                      uri ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-                        "img",
-                        {
-                          src: uri,
-                          alt: img.caption || img.filename,
-                          onClick: () => setLightboxSrc(uri),
-                          style: { display: "block", maxWidth: "100%", borderRadius: 3, border: "1px solid rgba(128,128,128,0.2)" }
-                        }
-                      ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 10, opacity: 0.5, padding: "4px 6px", background: "rgba(128,128,128,0.1)", borderRadius: 3 }, children: img.filename }),
-                      hoveredImgIdx === origIdx && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-                        "button",
-                        {
-                          onClick: (e) => {
-                            e.stopPropagation();
-                            onDeleteImage(node.id, img.filename);
-                          },
-                          style: { ...btnStyle, position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.65)", color: "#fff", fontSize: 10, width: 18, height: 18, opacity: 1, borderRadius: 3 },
-                          title: "\uC774\uBBF8\uC9C0 \uC0AD\uC81C",
-                          children: "\u2715"
-                        }
-                      )
-                    ]
-                  },
-                  img.filename
-                );
-              };
               const renderCellContent = (cellText) => {
                 const IMG_RE = /\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g;
                 const parts = [];
@@ -40089,189 +40012,7 @@ function NodeCard({
               const hasTbl = hasTable(node.content ?? "");
               if (hasTbl) {
                 if (editingField === "content") {
-                  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-                      "textarea",
-                      {
-                        ref: setEditRef,
-                        value: editValue,
-                        onChange: handleTextareaChange,
-                        onBlur: commitEdit,
-                        onKeyDown: (e) => {
-                          e.stopPropagation();
-                          if ((e.ctrlKey || e.metaKey) && e.key === "v" && canvasClipboardRef?.current) {
-                            e.preventDefault();
-                            const { filename, width: cw, height: ch } = canvasClipboardRef.current;
-                            const ta = e.target;
-                            const pos = ta.selectionStart ?? 0;
-                            const token = `[[IMG:${filename}:${Math.round(cw)}x${Math.round(ch)}]]`;
-                            const newVal = editValue.slice(0, pos) + token + editValue.slice(pos);
-                            setEditValue(newVal);
-                            setTimeout(() => {
-                              ta.selectionStart = ta.selectionEnd = pos + token.length;
-                            }, 0);
-                            return;
-                          }
-                          if (e.key === "Escape")
-                            cancelEdit();
-                        },
-                        onMouseDown: (e) => e.stopPropagation(),
-                        onPaste: (e) => {
-                          const items = Array.from(e.clipboardData?.items ?? []);
-                          const imageItem = items.find((it) => it.type.startsWith("image/"));
-                          if (!imageItem)
-                            return;
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const blob = imageItem.getAsFile();
-                          if (!blob)
-                            return;
-                          const pos = e.target.selectionStart;
-                          const ext = imageItem.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
-                          commitEdit();
-                          const reader = new FileReader();
-                          reader.onload = () => {
-                            const base64 = reader.result.split(",")[1];
-                            onSaveImage(node.id, base64, ext, pos, true);
-                          };
-                          reader.readAsDataURL(blob);
-                        },
-                        style: { ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: "none", overflow: "hidden", minHeight: 20, display: "block" }
-                      }
-                    ),
-                    bottomImgs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }, children: bottomImgs.map((img) => renderImgBlock(img, node.images.indexOf(img))) })
-                  ] });
-                }
-                const blocks = parseTableBlocks(node.content ?? "");
-                return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { ref: tableBodyRef, style: { fontSize: fs, lineHeight: 1.6, wordBreak: "break-word" }, children: blocks.map((block, bi) => {
-                    if (block.type === "table")
-                      return renderTableBlock(block, bi);
-                    const blockImgs = inlineImgs.filter(
-                      (img) => img.position >= block.startChar && img.position < block.endChar
-                    );
-                    if (blockImgs.length > 0) {
-                      const segs = [];
-                      let last = block.startChar;
-                      for (const img of blockImgs) {
-                        segs.push(block.text.slice(last - block.startChar, img.position - block.startChar));
-                        last = img.position;
-                      }
-                      segs.push(block.text.slice(last - block.startChar));
-                      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { children: segs.map((seg, k) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_react5.default.Fragment, { children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { onClick: (e) => startEdit("content", node.content, e), style: { cursor: "text" }, children: seg ? renderCellContent(seg) : null }),
-                        k < blockImgs.length && renderImgBlock(blockImgs[k], node.images.indexOf(blockImgs[k]))
-                      ] }, k)) }, bi);
-                    }
-                    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-                      "div",
-                      {
-                        onClick: (e) => startEdit("content", node.content, e),
-                        style: { cursor: "text", minHeight: bi === blocks.length - 1 ? 20 : void 0 },
-                        children: block.text ? renderCellContent(block.text) : bi === blocks.length - 1 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { opacity: 0.35, fontStyle: "italic" }, children: "Click to add content\u2026" }) : null
-                      },
-                      bi
-                    );
-                  }) }),
-                  bottomImgs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }, children: bottomImgs.map((img) => renderImgBlock(img, node.images.indexOf(img))) })
-                ] });
-              }
-              if (inlineImgs.length > 0) {
-                const segments = [];
-                let lastPos = 0;
-                for (const img of inlineImgs) {
-                  const pos = Math.min(img.position, node.content.length);
-                  segments.push(node.content.slice(lastPos, pos));
-                  lastPos = pos;
-                }
-                segments.push(node.content.slice(lastPos));
-                const commitSegment = (segIdx, value) => {
-                  const origSeg = segments[segIdx];
-                  const delta = value.length - origSeg.length;
-                  const segStart = segIdx === 0 ? 0 : inlineImgs[segIdx - 1].position ?? 0;
-                  const threshold = segStart + origSeg.length;
-                  const newSegs = [...segments];
-                  newSegs[segIdx] = value;
-                  const newContent = newSegs.join("");
-                  const updatedImages = node.images.map(
-                    (img) => img.position !== void 0 && img.position >= threshold ? { ...img, position: img.position + delta } : img
-                  );
-                  onUpdateContentAndImages(node.id, newContent, updatedImages);
-                  setEditingSegmentIdx(null);
-                };
-                return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: fs, lineHeight: 1.6, wordBreak: "break-word" }, children: segments.map((seg, k) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_react5.default.Fragment, { children: [
-                    editingSegmentIdx === k ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-                      "textarea",
-                      {
-                        ref: setEditRef,
-                        value: editValue,
-                        onChange: handleTextareaChange,
-                        onBlur: () => commitSegment(k, editValue),
-                        onKeyDown: (e) => {
-                          e.stopPropagation();
-                          if ((e.ctrlKey || e.metaKey) && e.key === "v" && canvasClipboardRef?.current) {
-                            e.preventDefault();
-                            const { filename, width: cw, height: ch } = canvasClipboardRef.current;
-                            const ta = e.target;
-                            const pos = ta.selectionStart ?? 0;
-                            const token = `[[IMG:${filename}:${Math.round(cw)}x${Math.round(ch)}]]`;
-                            const newVal = editValue.slice(0, pos) + token + editValue.slice(pos);
-                            setEditValue(newVal);
-                            setTimeout(() => {
-                              ta.selectionStart = ta.selectionEnd = pos + token.length;
-                            }, 0);
-                            return;
-                          }
-                          if (e.key === "Escape") {
-                            commitSegment(k, editValue);
-                          }
-                        },
-                        onMouseDown: (e) => e.stopPropagation(),
-                        onPaste: (e) => {
-                          const items = Array.from(e.clipboardData?.items ?? []);
-                          const imageItem = items.find((it) => it.type.startsWith("image/"));
-                          if (!imageItem)
-                            return;
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const blob = imageItem.getAsFile();
-                          if (!blob)
-                            return;
-                          const localPos = e.target.selectionStart;
-                          const segStart = k === 0 ? 0 : inlineImgs[k - 1].position ?? 0;
-                          const absolutePos = segStart + localPos;
-                          const ext = imageItem.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
-                          commitSegment(k, editValue);
-                          const reader = new FileReader();
-                          reader.onload = () => {
-                            const base64 = reader.result.split(",")[1];
-                            onSaveImage(node.id, base64, ext, absolutePos, true);
-                          };
-                          reader.readAsDataURL(blob);
-                        },
-                        style: { ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: "none", overflow: "hidden", minHeight: 20, display: "block" }
-                      }
-                    ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-                      "div",
-                      {
-                        onClick: (e) => {
-                          e.stopPropagation();
-                          setEditingSegmentIdx(k);
-                          setEditValue(seg);
-                        },
-                        style: { cursor: "text", minHeight: k === segments.length - 1 ? 20 : void 0 },
-                        children: seg ? renderCellContent(seg) : k === segments.length - 1 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { opacity: 0.35, fontStyle: "italic" }, children: "Click to add content\u2026" }) : null
-                      }
-                    ),
-                    k < inlineImgs.length && renderImgBlock(inlineImgs[k], node.images.indexOf(inlineImgs[k]))
-                  ] }, k)) }),
-                  bottomImgs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }, children: bottomImgs.map((img) => renderImgBlock(img, node.images.indexOf(img))) })
-                ] });
-              }
-              if (editingField === "content") {
-                return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+                  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                     "textarea",
                     {
                       ref: setEditRef,
@@ -40313,27 +40054,88 @@ function NodeCard({
                         const reader = new FileReader();
                         reader.onload = () => {
                           const base64 = reader.result.split(",")[1];
-                          onSaveImage(node.id, base64, ext, pos, true);
+                          onSaveImage(node.id, base64, ext, pos);
                         };
                         reader.readAsDataURL(blob);
                       },
                       style: { ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: "none", overflow: "hidden", minHeight: 20, display: "block" }
                     }
-                  ),
-                  bottomImgs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }, children: bottomImgs.map((img) => renderImgBlock(img, node.images.indexOf(img))) })
-                ] });
+                  );
+                }
+                const blocks = parseTableBlocks(node.content ?? "");
+                return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { ref: tableBodyRef, style: { fontSize: fs, lineHeight: 1.6, wordBreak: "break-word" }, children: blocks.map((block, bi) => {
+                  if (block.type === "table")
+                    return renderTableBlock(block, bi);
+                  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+                    "div",
+                    {
+                      onClick: (e) => startEdit("content", node.content, e),
+                      style: { cursor: "text", minHeight: bi === blocks.length - 1 ? 20 : void 0 },
+                      children: block.text ? renderCellContent(block.text) : bi === blocks.length - 1 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { opacity: 0.35, fontStyle: "italic" }, children: "Click to add content\u2026" }) : null
+                    },
+                    bi
+                  );
+                }) });
               }
-              return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-                  "div",
+              if (editingField === "content") {
+                return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+                  "textarea",
                   {
-                    onClick: (e) => startEdit("content", node.content, e),
-                    style: { fontSize: fs, lineHeight: 1.6, wordBreak: "break-word", cursor: "text", minHeight: 20 },
-                    children: node.content ? renderCellContent(node.content) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { opacity: 0.35, fontStyle: "italic" }, children: "Click to add content\u2026" })
+                    ref: setEditRef,
+                    value: editValue,
+                    onChange: handleTextareaChange,
+                    onBlur: commitEdit,
+                    onKeyDown: (e) => {
+                      e.stopPropagation();
+                      if ((e.ctrlKey || e.metaKey) && e.key === "v" && canvasClipboardRef?.current) {
+                        e.preventDefault();
+                        const { filename, width: cw, height: ch } = canvasClipboardRef.current;
+                        const ta = e.target;
+                        const pos = ta.selectionStart ?? 0;
+                        const token = `[[IMG:${filename}:${Math.round(cw)}x${Math.round(ch)}]]`;
+                        const newVal = editValue.slice(0, pos) + token + editValue.slice(pos);
+                        setEditValue(newVal);
+                        setTimeout(() => {
+                          ta.selectionStart = ta.selectionEnd = pos + token.length;
+                        }, 0);
+                        return;
+                      }
+                      if (e.key === "Escape")
+                        cancelEdit();
+                    },
+                    onMouseDown: (e) => e.stopPropagation(),
+                    onPaste: (e) => {
+                      const items = Array.from(e.clipboardData?.items ?? []);
+                      const imageItem = items.find((it) => it.type.startsWith("image/"));
+                      if (!imageItem)
+                        return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const blob = imageItem.getAsFile();
+                      if (!blob)
+                        return;
+                      const pos = e.target.selectionStart;
+                      const ext = imageItem.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
+                      commitEdit();
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const base64 = reader.result.split(",")[1];
+                        onSaveImage(node.id, base64, ext, pos);
+                      };
+                      reader.readAsDataURL(blob);
+                    },
+                    style: { ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: "none", overflow: "hidden", minHeight: 20, display: "block" }
                   }
-                ),
-                bottomImgs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }, children: bottomImgs.map((img) => renderImgBlock(img, node.images.indexOf(img))) })
-              ] });
+                );
+              }
+              return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+                "div",
+                {
+                  onClick: (e) => startEdit("content", node.content, e),
+                  style: { fontSize: fs, lineHeight: 1.6, wordBreak: "break-word", cursor: "text", minHeight: 20 },
+                  children: node.content ? renderCellContent(node.content) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { opacity: 0.35, fontStyle: "italic" }, children: "Click to add content\u2026" })
+                }
+              );
             })(),
             node.original && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
               "div",
@@ -41212,7 +41014,7 @@ function computeRenderPositions(nodes, nodeSizes, nodeTemplates) {
         if (!(node.position.x < other.position.x + otherW && other.position.x < node.position.x + nodeW))
           continue;
         if (nodeIsMain) {
-          if (isDescendantOf(other.id, node.id))
+          if (isDescendantOf(other.id, node.id) && otherBottom <= node.position.y)
             continue;
           const wasPushed = otherY > other.position.y;
           if (!other.contentExpanded && !wasPushed)
@@ -41290,8 +41092,6 @@ function Canvas({
   onExportHtml,
   imageUris,
   onSaveImage,
-  onDeleteImage,
-  onUpdateContentAndImages,
   onAddCanvasImage,
   onAddFilenameToNode,
   onSaveCanvasImage,
@@ -42139,8 +41939,6 @@ function Canvas({
                   onSetNodeTemplate,
                   imageUris,
                   onSaveImage,
-                  onDeleteImage,
-                  onUpdateContentAndImages,
                   canvasClipboardRef,
                   onAddFilenameToNode
                 },
@@ -42197,8 +41995,6 @@ function App() {
     expandToggle,
     deleteOriginal,
     saveImage,
-    deleteImage,
-    updateNodeContentAndImages,
     addCanvasImage,
     addFilenameToNode,
     saveCanvasImage,
@@ -42313,8 +42109,6 @@ function App() {
       onExportHtml: exportHtml,
       imageUris,
       onSaveImage: saveImage,
-      onDeleteImage: deleteImage,
-      onUpdateContentAndImages: updateNodeContentAndImages,
       onAddCanvasImage: addCanvasImage,
       onAddFilenameToNode: addFilenameToNode,
       onSaveCanvasImage: saveCanvasImage,

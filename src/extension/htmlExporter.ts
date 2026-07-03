@@ -1,4 +1,4 @@
-import { NodeGraph, GraphNode, NodeTemplate, NodeImage } from '../webview/types/graph'
+import { NodeGraph, GraphNode, NodeTemplate } from '../webview/types/graph'
 
 function escHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -104,70 +104,21 @@ function renderNodeCard(
   const nx = Math.round(node.position.x + offsetX)
   const ny = Math.round(node.position.y + offsetY)
 
-  // Separate inline (position-anchored) vs bottom images — mirrors NodeCard.tsx SEGMENT MODE
-  const inlineImgs = node.images.filter(img => img.position !== undefined)
-    .sort((a, b) => a.position! - b.position!)
-  const bottomImgs = node.images.filter(img => img.position === undefined)
-
-  const renderImg = (img: NodeImage): string => {
-    const src = imageData[img.filename]
-    if (!src) return `<div class="ng-img-missing">${escHtml(img.filename)}</div>`
-    return `<img class="ng-img" src="${src}" alt="${escHtml(img.caption || img.filename)}" onclick="showLightbox(this.src)" title="클릭하여 확대">`
-  }
-
   let bodyHtml = ''
   const content = node.content ?? ''
   if (hasHtmlTable(content)) {
-    // TABLE MODE: 마크다운 표를 블록별로 렌더링, inline 이미지도 블록에 배치
     const blocks = parseHtmlTableBlocks(content)
     bodyHtml += '<div class="ng-content">'
     for (const block of blocks) {
       if (block.type === 'table') {
         bodyHtml += renderTableBlockHtml(block, imageData)
-      } else {
-        // 텍스트 블록: 해당 char 범위 내 inline 이미지 배치
-        const blockImgs = inlineImgs.filter(
-          img => img.position! >= block.startChar && img.position! < block.endChar
-        )
-        if (blockImgs.length > 0) {
-          const segs: string[] = []
-          let last = block.startChar
-          for (const img of blockImgs) {
-            segs.push(block.text.slice(last - block.startChar, img.position! - block.startChar))
-            last = img.position!
-          }
-          segs.push(block.text.slice(last - block.startChar))
-          for (let k = 0; k < segs.length; k++) {
-            if (segs[k]) bodyHtml += `<div class="ng-seg">${renderCellHtml(segs[k], imageData).replace(/\n/g, '<br>')}</div>`
-            if (k < blockImgs.length) bodyHtml += `<div class="ng-img-wrap">${renderImg(blockImgs[k])}</div>`
-          }
-        } else if (block.text) {
-          bodyHtml += `<div class="ng-seg">${renderCellHtml(block.text, imageData).replace(/\n/g, '<br>')}</div>`
-        }
+      } else if (block.text) {
+        bodyHtml += `<div class="ng-seg">${renderCellHtml(block.text, imageData).replace(/\n/g, '<br>')}</div>`
       }
-    }
-    bodyHtml += '</div>'
-  } else if (inlineImgs.length > 0) {
-    // SEGMENT MODE: split content at image character positions, interleave inline
-    const segments: string[] = []
-    let lastPos = 0
-    for (const img of inlineImgs) {
-      const pos = Math.min(img.position!, content.length)
-      segments.push(content.slice(lastPos, pos))
-      lastPos = pos
-    }
-    segments.push(content.slice(lastPos))
-    bodyHtml += '<div class="ng-content">'
-    for (let k = 0; k < segments.length; k++) {
-      if (segments[k]) bodyHtml += `<div class="ng-seg">${renderCellHtml(segments[k], imageData).replace(/\n/g, '<br>')}</div>`
-      if (k < inlineImgs.length) bodyHtml += `<div class="ng-img-wrap">${renderImg(inlineImgs[k])}</div>`
     }
     bodyHtml += '</div>'
   } else if (content) {
     bodyHtml += `<div class="ng-content">${renderCellHtml(content, imageData).replace(/\n/g, '<br>')}</div>`
-  }
-  if (bottomImgs.length) {
-    bodyHtml += `<div class="ng-images">${bottomImgs.map(renderImg).join('')}</div>`
   }
   if (node.original) {
     const origTitle = escHtml(node.original.title ?? 'Original')
@@ -499,6 +450,12 @@ function applyFold(nodeIds, expand) {
   setTimeout(recomputePositions, 0);
 }
 
+// <details> 토글(toggle items / original) 시 노드 높이가 변하므로 화살표 재계산
+// toggle 이벤트는 버블링하지 않아 capture phase 필요
+canvas.addEventListener('toggle', function() {
+  setTimeout(recomputePositions, 0);
+}, true);
+
 // Toolbar: context-aware expand/collapse
 function doExpand() {
   if (selectedNodeId) {
@@ -607,8 +564,8 @@ function recomputePositions() {
         var oW = otherEl ? otherEl.offsetWidth : 300;
         if (!(n.lx < other.lx + oW && other.lx < n.lx + nW)) return;
         if (nIsMain) {
-          // Rounded → main: only if pushed/expanded AND not own descendant
-          if (isDescendantOf(other.id, n.id)) return;
+          // Rounded → main: skip only if descendant AND doesn't actually reach this node's Y
+          if (isDescendantOf(other.id, n.id) && otherBottom <= n.ly) return;
           var wasPushed = otherY > other.ly;
           if (!other.contentExpanded && !wasPushed) return;
           y = Math.max(y, otherBottom + 48);
@@ -701,9 +658,25 @@ function initKatex() {
 }
 
 window.addEventListener('load', function() {
+  // KaTeX 먼저 렌더링해야 노드 높이가 정확함
+  initKatex();
   recomputePositions();
   drawEdges();
   fitView();
+  // 이미지 로드 후 노드 높이 재계산 (base64 이미지도 비동기로 높이 확정됨)
+  var imgs = Array.from(document.querySelectorAll('.ng-node img'));
+  var pending = imgs.filter(function(img) { return !img.complete; }).length;
+  if (pending === 0) return;
+  function onImgSettle() {
+    pending--;
+    if (pending <= 0) { recomputePositions(); drawEdges(); }
+  }
+  imgs.forEach(function(img) {
+    if (!img.complete) {
+      img.addEventListener('load', onImgSettle);
+      img.addEventListener('error', onImgSettle);
+    }
+  });
 });
 </script>
 </body>

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import { NodeGraph, NodeImage, NodeLink, CanvasImage } from '../types/graph'
+import { NodeGraph, NodeLink, CanvasImage } from '../types/graph'
 
 function insertImgTokenInCell(content: string, tableIdx: number, rowIdx: number, colIdx: number, filename: string): string {
   const lines = content.split('\n')
@@ -54,7 +54,7 @@ export function useGraph() {
   const isDirtyRef = useRef(false)
   const historyRef = useRef<NodeGraph[]>([])
   const futureRef = useRef<NodeGraph[]>([])
-  const pendingImagePositionRef = useRef<Map<string, { position?: number; insertAsToken?: boolean }>>(new Map())
+  const pendingImagePositionRef = useRef<Map<string, { position?: number }>>(new Map())
   const pendingCanvasImageRef = useRef<{ x: number; y: number } | null>(null)
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
@@ -116,7 +116,6 @@ export function useGraph() {
           const pending = pendingImagePositionRef.current.get(msg.nodeId)
           pendingImagePositionRef.current.delete(msg.nodeId)
           const position = pending?.position
-          const insertAsToken = pending?.insertAsToken ?? false
           const token = `[[IMG:${msg.filename}]]`
           setGraphState(prev => {
             if (!prev) return prev
@@ -128,17 +127,9 @@ export function useGraph() {
               nodes: prev.nodes.map(n => n.id !== msg.nodeId ? n : {
                 ...n,
                 contentExpanded: true,
-                ...(insertAsToken
-                  ? {
-                      // [[IMG:filename]] 토큰을 position 위치에 삽입 (없으면 content 끝에 추가)
-                      content: position !== undefined
-                        ? (n.content ?? '').slice(0, position) + token + (n.content ?? '').slice(position)
-                        : ((n.content ?? '') + ((n.content ?? '').trim() ? '\n' : '') + token),
-                    }
-                  : {
-                      images: [...n.images, { filename: msg.filename, caption: '', source: 'user' as const, position }],
-                    }
-                ),
+                content: position !== undefined
+                  ? (n.content ?? '').slice(0, position) + token + (n.content ?? '').slice(position)
+                  : ((n.content ?? '') + ((n.content ?? '').trim() ? '\n' : '') + token),
               }),
             }
           })
@@ -249,7 +240,7 @@ export function useGraph() {
         nodes: [...g.nodes, {
           id, template: resolved, title: 'New Node', content: '',
           contentExpanded: false, originalExpanded: false, childrenExpanded: false,
-          position: { x, y }, children: [], images: [], links: [],
+          position: { x, y }, children: [], links: [],
         }],
       }
     }, true)
@@ -366,8 +357,8 @@ export function useGraph() {
   }, [setGraph])
 
 
-  const saveImage = useCallback((nodeId: string, base64: string, ext = 'png', position?: number, insertAsToken = false) => {
-    pendingImagePositionRef.current.set(nodeId, { position, insertAsToken })
+  const saveImage = useCallback((nodeId: string, base64: string, ext = 'png', position?: number) => {
+    pendingImagePositionRef.current.set(nodeId, { position })
     vscode.postMessage({ type: 'saveImage', nodeId, data: base64, ext })
   }, [])
 
@@ -418,52 +409,22 @@ export function useGraph() {
       if (!ci) return g
       const targetNode = g.nodes.find(n => n.id === nodeId)
       if (!targetNode) return g
-      const newNodeImage: NodeImage = { filename: ci.filename, caption: '', source: 'user' as const }
+      const token = `[[IMG:${ci.filename}]]`
       const newContent = tableCell
         ? insertImgTokenInCell(targetNode.content, tableCell.tableIdx, tableCell.rowIdx, tableCell.colIdx, ci.filename)
-        : targetNode.content
+        : (targetNode.content ? `${targetNode.content}\n${token}` : token)
       return {
         ...g,
         canvasImages: (g.canvasImages ?? []).filter(c => c.id !== imgId),
         nodes: g.nodes.map(n => n.id !== nodeId ? n : {
           ...n,
           content: newContent,
-          images: [...n.images, newNodeImage],
           contentExpanded: true,
         }),
       }
     }, true)
   }, [setGraph])
 
-  const deleteImage = useCallback((nodeId: string, filename: string) => {
-    setGraphState(prev => {
-      if (!prev) return prev
-      isDirtyRef.current = true
-      const updated = {
-        ...prev,
-        nodes: prev.nodes.map(n => n.id !== nodeId ? n : {
-          ...n,
-          images: n.images.filter(img => img.filename !== filename),
-        }),
-      }
-      // Delete the physical file only if no other node or canvas image references it
-      const stillReferenced = updated.nodes.some(n =>
-        n.images.some(img => img.filename === filename) ||
-        (n.content?.includes(`[[IMG:${filename}`) ?? false)
-      ) || (updated.canvasImages ?? []).some(ci => ci.filename === filename)
-      if (!stillReferenced) vscode.postMessage({ type: 'deleteImageFile', filename })
-      vscode.postMessage({ type: 'save', data: updated })
-      return updated
-    })
-    // No history push → undo cannot restore deleted image files
-  }, [])
-
-  const updateNodeContentAndImages = useCallback((id: string, content: string, images: NodeImage[]) => {
-    setGraph(g => ({
-      ...g,
-      nodes: g.nodes.map(n => n.id !== id ? n : { ...n, content, images }),
-    }), true)
-  }, [setGraph])
 
   // stopAtMain=true: main_topic 템플릿 자식은 건너뜀 (펼치기 전용)
   function getAllDescendants(g: NodeGraph, nodeId: string, visited = new Set<string>(), stopAtMain = false): string[] {
@@ -602,7 +563,7 @@ export function useGraph() {
     updateNodePosition, autoSaveNodePosition, toggleContent, toggleOriginal,
     updateNodeField, addNode, deleteNodes, addEdge, deleteEdge,
     addToggle, updateToggle, deleteToggle, expandToggle, deleteOriginal,
-    saveImage, deleteImage, updateNodeContentAndImages,
+    saveImage,
     setNodeWidth, setNodeHeight, setNodeFontSize, bumpFontSize, setFontSizeExact, pushHistory,
     collapseAll, expandAll, expandNodes, collapseNodes, setNodeTemplate, addOriginal, addLink, deleteLink, openLink, exportHtml,
     undo, redo, canUndo, canRedo,

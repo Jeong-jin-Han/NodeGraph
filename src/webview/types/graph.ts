@@ -59,16 +59,7 @@ export interface GraphNode {
   nodeHeight?: number
   nodeNaturalY?: number   // original Y before auto-save pushes; updated only on drag
   toggleItems?: ToggleItem[]
-  images: NodeImage[]
   links: NodeLink[]
-}
-
-export interface NodeImage {
-  filename: string
-  caption: string
-  source: 'paper' | 'user' | 'agent'
-  page?: number
-  position?: number  // character index in node.content where image was pasted inline
 }
 
 export interface NodeLink {

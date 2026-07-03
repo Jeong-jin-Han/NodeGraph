@@ -58,8 +58,6 @@ function computeImageUris(webview, documentUri, graph) {
       uris[fn] = getImageWebviewUri(webview, documentUri, fn);
   };
   for (const node of graph.nodes) {
-    for (const img of node.images)
-      add(img.filename);
     INLINE_IMG_RE.lastIndex = 0;
     let m;
     while ((m = INLINE_IMG_RE.exec(node.content ?? "")) !== null)
@@ -180,14 +178,6 @@ function renderNodeCard(node, template, offsetX, offsetY, imageData) {
   const label = escHtml(template?.label ?? node.template);
   const nx = Math.round(node.position.x + offsetX);
   const ny = Math.round(node.position.y + offsetY);
-  const inlineImgs = node.images.filter((img) => img.position !== void 0).sort((a, b) => a.position - b.position);
-  const bottomImgs = node.images.filter((img) => img.position === void 0);
-  const renderImg = (img) => {
-    const src = imageData[img.filename];
-    if (!src)
-      return `<div class="ng-img-missing">${escHtml(img.filename)}</div>`;
-    return `<img class="ng-img" src="${src}" alt="${escHtml(img.caption || img.filename)}" onclick="showLightbox(this.src)" title="\uD074\uB9AD\uD558\uC5EC \uD655\uB300">`;
-  };
   let bodyHtml = "";
   const content = node.content ?? "";
   if (hasHtmlTable(content)) {
@@ -196,52 +186,13 @@ function renderNodeCard(node, template, offsetX, offsetY, imageData) {
     for (const block of blocks) {
       if (block.type === "table") {
         bodyHtml += renderTableBlockHtml(block, imageData);
-      } else {
-        const blockImgs = inlineImgs.filter(
-          (img) => img.position >= block.startChar && img.position < block.endChar
-        );
-        if (blockImgs.length > 0) {
-          const segs = [];
-          let last = block.startChar;
-          for (const img of blockImgs) {
-            segs.push(block.text.slice(last - block.startChar, img.position - block.startChar));
-            last = img.position;
-          }
-          segs.push(block.text.slice(last - block.startChar));
-          for (let k = 0; k < segs.length; k++) {
-            if (segs[k])
-              bodyHtml += `<div class="ng-seg">${renderCellHtml(segs[k], imageData).replace(/\n/g, "<br>")}</div>`;
-            if (k < blockImgs.length)
-              bodyHtml += `<div class="ng-img-wrap">${renderImg(blockImgs[k])}</div>`;
-          }
-        } else if (block.text) {
-          bodyHtml += `<div class="ng-seg">${renderCellHtml(block.text, imageData).replace(/\n/g, "<br>")}</div>`;
-        }
+      } else if (block.text) {
+        bodyHtml += `<div class="ng-seg">${renderCellHtml(block.text, imageData).replace(/\n/g, "<br>")}</div>`;
       }
-    }
-    bodyHtml += "</div>";
-  } else if (inlineImgs.length > 0) {
-    const segments = [];
-    let lastPos = 0;
-    for (const img of inlineImgs) {
-      const pos = Math.min(img.position, content.length);
-      segments.push(content.slice(lastPos, pos));
-      lastPos = pos;
-    }
-    segments.push(content.slice(lastPos));
-    bodyHtml += '<div class="ng-content">';
-    for (let k = 0; k < segments.length; k++) {
-      if (segments[k])
-        bodyHtml += `<div class="ng-seg">${renderCellHtml(segments[k], imageData).replace(/\n/g, "<br>")}</div>`;
-      if (k < inlineImgs.length)
-        bodyHtml += `<div class="ng-img-wrap">${renderImg(inlineImgs[k])}</div>`;
     }
     bodyHtml += "</div>";
   } else if (content) {
     bodyHtml += `<div class="ng-content">${renderCellHtml(content, imageData).replace(/\n/g, "<br>")}</div>`;
-  }
-  if (bottomImgs.length) {
-    bodyHtml += `<div class="ng-images">${bottomImgs.map(renderImg).join("")}</div>`;
   }
   if (node.original) {
     const origTitle = escHtml(node.original.title ?? "Original");
@@ -567,6 +518,12 @@ function applyFold(nodeIds, expand) {
   setTimeout(recomputePositions, 0);
 }
 
+// <details> \uD1A0\uAE00(toggle items / original) \uC2DC \uB178\uB4DC \uB192\uC774\uAC00 \uBCC0\uD558\uBBC0\uB85C \uD654\uC0B4\uD45C \uC7AC\uACC4\uC0B0
+// toggle \uC774\uBCA4\uD2B8\uB294 \uBC84\uBE14\uB9C1\uD558\uC9C0 \uC54A\uC544 capture phase \uD544\uC694
+canvas.addEventListener('toggle', function() {
+  setTimeout(recomputePositions, 0);
+}, true);
+
 // Toolbar: context-aware expand/collapse
 function doExpand() {
   if (selectedNodeId) {
@@ -675,8 +632,8 @@ function recomputePositions() {
         var oW = otherEl ? otherEl.offsetWidth : 300;
         if (!(n.lx < other.lx + oW && other.lx < n.lx + nW)) return;
         if (nIsMain) {
-          // Rounded \u2192 main: only if pushed/expanded AND not own descendant
-          if (isDescendantOf(other.id, n.id)) return;
+          // Rounded \u2192 main: skip only if descendant AND doesn't actually reach this node's Y
+          if (isDescendantOf(other.id, n.id) && otherBottom <= n.ly) return;
           var wasPushed = otherY > other.ly;
           if (!other.contentExpanded && !wasPushed) return;
           y = Math.max(y, otherBottom + 48);
@@ -769,9 +726,25 @@ function initKatex() {
 }
 
 window.addEventListener('load', function() {
+  // KaTeX \uBA3C\uC800 \uB80C\uB354\uB9C1\uD574\uC57C \uB178\uB4DC \uB192\uC774\uAC00 \uC815\uD655\uD568
+  initKatex();
   recomputePositions();
   drawEdges();
   fitView();
+  // \uC774\uBBF8\uC9C0 \uB85C\uB4DC \uD6C4 \uB178\uB4DC \uB192\uC774 \uC7AC\uACC4\uC0B0 (base64 \uC774\uBBF8\uC9C0\uB3C4 \uBE44\uB3D9\uAE30\uB85C \uB192\uC774 \uD655\uC815\uB428)
+  var imgs = Array.from(document.querySelectorAll('.ng-node img'));
+  var pending = imgs.filter(function(img) { return !img.complete; }).length;
+  if (pending === 0) return;
+  function onImgSettle() {
+    pending--;
+    if (pending <= 0) { recomputePositions(); drawEdges(); }
+  }
+  imgs.forEach(function(img) {
+    if (!img.complete) {
+      img.addEventListener('load', onImgSettle);
+      img.addEventListener('error', onImgSettle);
+    }
+  });
 });
 </script>
 </body>
@@ -855,8 +828,6 @@ var NodeGraphEditorProvider = class _NodeGraphEditorProvider {
             }
           };
           for (const node of data.nodes) {
-            for (const img of node.images)
-              await loadImg(img.filename);
             INLINE_IMG_RE2.lastIndex = 0;
             let m;
             while ((m = INLINE_IMG_RE2.exec(node.content ?? "")) !== null)

@@ -26,8 +26,6 @@ export function computeImageUris(
   const uris: Record<string, string> = {}
   const add = (fn: string) => { if (fn && !uris[fn]) uris[fn] = getImageWebviewUri(webview, documentUri, fn) }
   for (const node of graph.nodes) {
-    for (const img of node.images) add(img.filename)
-    // Also pick up [[IMG:filename]] tokens embedded directly in content text
     INLINE_IMG_RE.lastIndex = 0
     let m: RegExpExecArray | null
     while ((m = INLINE_IMG_RE.exec(node.content ?? '')) !== null) add(m[1])

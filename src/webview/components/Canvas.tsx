@@ -51,9 +51,7 @@ interface CanvasProps {
   onCollapseNodes: (ids: string[]) => void
   onExportHtml: () => void
   imageUris: Record<string, string>
-  onSaveImage: (nodeId: string, base64: string, ext?: string, position?: number, insertAsToken?: boolean) => void
-  onDeleteImage: (nodeId: string, filename: string) => void
-  onUpdateContentAndImages: (nodeId: string, content: string, images: import('../types/graph').NodeImage[]) => void
+  onSaveImage: (nodeId: string, base64: string, ext?: string, position?: number) => void
   onAddCanvasImage: (ci: CanvasImage) => void
   onAddFilenameToNode: (nodeId: string, filename: string, width?: number, height?: number) => void
   onSaveCanvasImage: (base64: string, ext: string, x: number, y: number) => void
@@ -121,8 +119,8 @@ function computeRenderPositions(
         if (!(node.position.x < other.position.x + otherW && other.position.x < node.position.x + nodeW)) continue
 
         if (nodeIsMain) {
-          // Rounded → main: only if pushed/expanded AND not this node's own descendant
-          if (isDescendantOf(other.id, node.id)) continue
+          // Rounded → main: skip only if it's a descendant AND doesn't actually reach this node's Y
+          if (isDescendantOf(other.id, node.id) && otherBottom <= node.position.y) continue
           const wasPushed = otherY > other.position.y
           if (!other.contentExpanded && !wasPushed) continue
           y = Math.max(y, otherBottom + 48)
@@ -172,7 +170,7 @@ export function Canvas({
   onAddToggle, onUpdateToggle, onDeleteToggle, onExpandToggle, onDeleteOriginal,
   onAddOriginal, onAddLink, onDeleteLink, onOpenLink, onSetNodeTemplate,
   onCollapseAll, onExpandAll, onExpandNodes, onCollapseNodes, onExportHtml,
-  imageUris, onSaveImage, onDeleteImage, onUpdateContentAndImages,
+  imageUris, onSaveImage,
   onAddCanvasImage, onAddFilenameToNode, onSaveCanvasImage, onUpdateCanvasImage, onRemoveCanvasImage, onMoveCanvasImageToNode,
   lastAddedCanvasImageId,
 }: CanvasProps) {
@@ -990,8 +988,6 @@ export function Canvas({
                   onSetNodeTemplate={onSetNodeTemplate}
                   imageUris={imageUris}
                   onSaveImage={onSaveImage}
-                  onDeleteImage={onDeleteImage}
-                  onUpdateContentAndImages={onUpdateContentAndImages}
                   canvasClipboardRef={canvasClipboardRef}
                   onAddFilenameToNode={onAddFilenameToNode}
                 />
