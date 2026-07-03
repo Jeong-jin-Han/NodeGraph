@@ -279,14 +279,16 @@ function generateHtml(graph, imageData = {}) {
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#f4f4f5;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden;height:100vh}
-#toolbar{position:fixed;top:0;left:0;right:0;height:38px;background:#ffffff;border-bottom:1px solid #d4d4d4;display:flex;align-items:center;gap:8px;padding:0 12px;z-index:200;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-#tb-title{font-weight:600;color:#1a1a1a;margin-right:4px;flex-shrink:0}
-#tb-source{opacity:.5;font-size:11px;flex-shrink:0;color:#555}
-#tb-sel{opacity:.7;font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#0066cc}
-button{background:#fff;color:#1a1a1a;border:1px solid #c0c0c0;border-radius:3px;padding:3px 10px;font-size:11px;cursor:pointer;flex-shrink:0}
+#toolbar{position:fixed;top:0;left:0;right:0;background:#ffffff;border-bottom:1px solid #d4d4d4;z-index:200;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+#tb-row1{display:flex;align-items:baseline;gap:10px;padding:6px 12px 4px;border-bottom:1px solid #ececec;min-height:0}
+#tb-row2{display:flex;align-items:center;gap:6px;padding:3px 12px 4px}
+#tb-title{font-weight:700;color:#1a1a1a;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw}
+#tb-source{opacity:.5;font-size:11px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tb-sel{opacity:.7;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#0066cc}
+button{background:#fff;color:#1a1a1a;border:1px solid #c0c0c0;border-radius:3px;padding:2px 10px;font-size:11px;cursor:pointer;flex-shrink:0}
 button:hover{background:#e8e8e8;border-color:#aaa}
-.tb-sep{width:1px;height:16px;background:#d4d4d4;flex-shrink:0}
-#viewport{position:fixed;top:38px;left:0;right:0;bottom:0;overflow:hidden;cursor:grab}
+.tb-sep{width:1px;height:14px;background:#d4d4d4;flex-shrink:0}
+#viewport{position:fixed;top:0;left:0;right:0;bottom:0;overflow:hidden;cursor:grab}
 #viewport.pan-drag{cursor:grabbing}
 #canvas{position:absolute;transform-origin:0 0}
 #wire-svg{position:absolute;top:0;left:0;width:10000px;height:10000px;pointer-events:none;overflow:visible}
@@ -335,15 +337,18 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 </head>
 <body>
 <div id="toolbar">
-  <span id="tb-title">${escHtml(graph.title)}</span>
-  <span id="tb-source">${source}</span>
-  <div class="tb-sep"></div>
-  <button onclick="fitView()">Fit View</button>
-  <div class="tb-sep"></div>
-  <button onclick="doExpand()" title="\uC120\uD0DD \uB178\uB4DC+\uD558\uC704 \uD3BC\uCE58\uAE30 (\uC120\uD0DD \uC5C6\uC73C\uBA74 \uC804\uCCB4)">\uD3BC\uCE58\uAE30\u2193</button>
-  <button onclick="doCollapse()" title="\uC120\uD0DD \uB178\uB4DC+\uD558\uC704 \uC811\uAE30 (\uC120\uD0DD \uC5C6\uC73C\uBA74 \uC804\uCCB4)">\uC811\uAE30\u2191</button>
-  <div class="tb-sep"></div>
-  <span id="tb-sel" style="opacity:.35">\uD074\uB9AD\uC73C\uB85C \uB178\uB4DC \uC120\uD0DD</span>
+  <div id="tb-row1">
+    <span id="tb-title">${escHtml(graph.title)}</span>
+    <span id="tb-source">${source}</span>
+  </div>
+  <div id="tb-row2">
+    <button onclick="fitView()">Fit View</button>
+    <div class="tb-sep"></div>
+    <button onclick="doExpand()" title="\uC120\uD0DD \uB178\uB4DC+\uD558\uC704 \uD3BC\uCE58\uAE30 (\uC120\uD0DD \uC5C6\uC73C\uBA74 \uC804\uCCB4)">\uD3BC\uCE58\uAE30\u2193</button>
+    <button onclick="doCollapse()" title="\uC120\uD0DD \uB178\uB4DC+\uD558\uC704 \uC811\uAE30 (\uC120\uD0DD \uC5C6\uC73C\uBA74 \uC804\uCCB4)">\uC811\uAE30\u2191</button>
+    <div class="tb-sep"></div>
+    <span id="tb-sel" style="opacity:.35">\uD074\uB9AD\uC73C\uB85C \uB178\uB4DC \uC120\uD0DD</span>
+  </div>
 </div>
 <div id="viewport">
   <div id="canvas">
@@ -368,6 +373,12 @@ var HEADER_H = 36;
 
 var vp = document.getElementById('viewport');
 var canvas = document.getElementById('canvas');
+
+// Set viewport top to match actual toolbar height
+(function() {
+  var tb = document.getElementById('toolbar');
+  vp.style.top = tb.offsetHeight + 'px';
+})();
 var tx = 0, ty = 0, scale = 1;
 
 function applyTransform() {
@@ -606,7 +617,10 @@ function recomputePositions() {
     }
     return false;
   }
-  var sorted = NODES_DATA.slice().sort(function(a, b) { return a.ly - b.ly; });
+  var sorted = NODES_DATA.slice().sort(function(a, b) {
+    if (a.ly !== b.ly) return a.ly - b.ly;
+    return a.lx - b.lx;
+  });
   var renderY = {};
   sorted.forEach(function(n) {
     var nIsMain = n.isMain;
@@ -615,7 +629,8 @@ function recomputePositions() {
     var nW = nEl ? nEl.offsetWidth : 300;
     sorted.forEach(function(other) {
       if (other.id === n.id) return;
-      if (other.ly >= n.ly) return;
+      if (other.ly > n.ly) return;
+      if (other.ly === n.ly && other.lx >= n.lx) return;
       var otherY = renderY[other.id] !== undefined ? renderY[other.id] : other.ly;
       var otherEl = document.getElementById('node-' + other.id);
       var h = otherEl ? otherEl.offsetHeight : HEADER_H;
