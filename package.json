@@ -3,7 +3,7 @@
   "displayName": "NodeGraph",
   "description": "Node-based knowledge graph for research paper analysis",
   "version": "0.1.0",
-  "publisher": "jeongjin-han",
+  "publisher": "JeongjinHan",
   "engines": {
     "vscode": "^1.85.0"
   },
