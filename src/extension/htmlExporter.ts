@@ -4,7 +4,7 @@ function escHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
-// ── 마크다운 표 파싱 (htmlExporter 전용 TypeScript 버전) ──────────────────────
+// ── Markdown table parser (htmlExporter-specific TypeScript version) ──────────
 interface HtmlTextBlock { type: 'text'; text: string; startChar: number; endChar: number }
 interface HtmlTableBlock { type: 'table'; headers: string[]; rows: string[][]; startChar: number; endChar: number }
 type HtmlContentBlock = HtmlTextBlock | HtmlTableBlock
@@ -61,7 +61,7 @@ function hasHtmlTable(content: string): boolean {
   return false
 }
 
-// 텍스트 → HTML ([[IMG:filename|WxH]] 토큰 파싱, LaTeX 구분자는 그대로 유지해 KaTeX auto-render가 처리)
+// Text → HTML: parse [[IMG:filename|WxH]] tokens; LaTeX delimiters are left as-is for KaTeX auto-render
 function renderCellHtml(cellText: string, imageData: Record<string, string>): string {
   const IMG_RE = /\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g
   let result = ''
@@ -75,7 +75,7 @@ function renderCellHtml(cellText: string, imageData: Record<string, string>): st
     const sizeAttr = (imgW && imgH) ? ` width="${imgW}" height="${imgH}"` : ''
     const src = imageData[filename]
     result += src
-      ? `<img class="ng-img${sizeAttr ? ' ng-img-sized' : ''}" src="${src}"${sizeAttr} alt="${escHtml(filename)}" onclick="showLightbox(this.src)" title="클릭하여 확대">`
+      ? `<img class="ng-img${sizeAttr ? ' ng-img-sized' : ''}" src="${src}"${sizeAttr} alt="${escHtml(filename)}" onclick="showLightbox(this.src)" title="Click to enlarge">`
       : `<span class="ng-img-missing">${escHtml(filename)}</span>`
     lastIdx = match.index + match[0].length
   }
@@ -127,7 +127,7 @@ function renderNodeCard(
 <div class="ng-orig-text">${escHtml(node.original.text).replace(/\n/g, '<br>')}</div></details>`
   }
   for (const t of node.toggleItems ?? []) {
-    bodyHtml += `<details class="ng-toggle"${t.expanded ? ' open' : ''}><summary>${escHtml(t.title || '(제목 없음)')}</summary>
+    bodyHtml += `<details class="ng-toggle"${t.expanded ? ' open' : ''}><summary>${escHtml(t.title || '(untitled)')}</summary>
 <div class="ng-toggle-body">${escHtml(t.content).replace(/\n/g, '<br>')}</div></details>`
   }
   if (node.links.length) {
@@ -143,7 +143,7 @@ function renderNodeCard(
   const childrenAttr = node.children.length ? ` data-children="${node.children.join(',')}"` : ''
   const hasTableClass = hasHtmlTable(content) ? ' ng-has-table' : ''
 
-  // content의 [[IMG:...:WxH]] 토큰에서 필요한 최소 너비 계산 (NodeCard.tsx autoMinWidth와 동일 로직)
+  // Compute required min-width from [[IMG:...:WxH]] tokens (mirrors NodeCard.tsx autoMinWidth logic)
   const IMG_SIZE_RE = /\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g
   let maxImgW = 0
   let _m: RegExpExecArray | null
@@ -158,10 +158,10 @@ function renderNodeCard(
   ].filter(Boolean).join(';')
 
   return `<div class="ng-node${hasTableClass}" id="node-${escHtml(node.id)}"${childrenAttr} style="--color:${color};border-radius:${borderRadius};left:${nx}px;top:${ny}px${extraStyle ? ';' + extraStyle : ''}">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="클릭: 노드 선택">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
     <span class="ng-tag" style="background:color-mix(in srgb,${color} 22%,transparent);color:${color}">${label}</span>
     <span class="ng-title">${escHtml(node.title)}</span>
-    ${hasBody ? `<span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="이 노드만 접기/펼치기">${node.contentExpanded ? '▲' : '▼'}</span>` : ''}
+    ${hasBody ? `<span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">${node.contentExpanded ? '▲' : '▼'}</span>` : ''}
   </div>
   ${hasBody ? `<div class="ng-body"${bodyDisplay}${node.fontSize ? ` style="font-size:${node.fontSize}px"` : ''}>${bodyHtml}</div>` : ''}
 </div>`
@@ -198,7 +198,7 @@ export function generateHtml(graph: NodeGraph, imageData: Record<string, string>
   const source = graph.source ? `${escHtml(graph.source.authors)} · ${escHtml(graph.source.venue)}` : ''
 
   return `<!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -276,10 +276,10 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
   <div id="tb-row2">
     <button onclick="fitView()">Fit View</button>
     <div class="tb-sep"></div>
-    <button onclick="doExpand()" title="선택 노드+하위 펼치기 (선택 없으면 전체)">펼치기↓</button>
-    <button onclick="doCollapse()" title="선택 노드+하위 접기 (선택 없으면 전체)">접기↑</button>
+    <button onclick="doExpand()" title="Expand selected node + children (all if none selected)">Expand↓</button>
+    <button onclick="doCollapse()" title="Collapse selected node + children (all if none selected)">Collapse↑</button>
     <div class="tb-sep"></div>
-    <span id="tb-sel" style="opacity:.35">클릭으로 노드 선택</span>
+    <span id="tb-sel" style="opacity:.35">Click a node to select</span>
   </div>
 </div>
 <div id="viewport">
@@ -360,9 +360,9 @@ function selectNode(nodeId) {
     var el = document.getElementById('node-' + nodeId);
     if (el) el.classList.add('ng-selected');
     var titleEl = el ? el.querySelector('.ng-title') : null;
-    if (label) { label.textContent = '선택: ' + (titleEl ? titleEl.textContent : nodeId); label.style.opacity = '0.9'; }
+    if (label) { label.textContent = 'Selected: ' + (titleEl ? titleEl.textContent : nodeId); label.style.opacity = '0.9'; }
   } else {
-    if (label) { label.textContent = '클릭으로 노드 선택'; label.style.opacity = '0.35'; }
+    if (label) { label.textContent = 'Click a node to select'; label.style.opacity = '0.35'; }
   }
 }
 
@@ -392,7 +392,7 @@ function toggleFold(e, hdr) {
   setTimeout(recomputePositions, 0);
 }
 
-// 노드 데이터 조회
+// Get node datum by id
 function getNodeDatum(nodeId) {
   for (var i = 0; i < NODES_DATA.length; i++) {
     if (NODES_DATA[i].id === nodeId) return NODES_DATA[i];
@@ -400,7 +400,7 @@ function getNodeDatum(nodeId) {
   return null;
 }
 
-// 모든 하위 노드 수집 (접기용 — 제한 없이 전체)
+// Collect all descendants recursively (for collapse — no depth limit)
 function getAllDescendants(nodeId, visited) {
   visited = visited || [];
   if (visited.indexOf(nodeId) !== -1) return [];
@@ -408,7 +408,7 @@ function getAllDescendants(nodeId, visited) {
   var result = [];
   var datum = getNodeDatum(nodeId);
   if (!datum) return result;
-  // children 배열 + edges 양쪽 모두 포함
+  // Include both children array and edge targets
   var childIds = (datum.children || []).slice();
   EDGES.forEach(function(e) { if (e.source === nodeId && childIds.indexOf(e.target) === -1) childIds.push(e.target); });
   childIds.forEach(function(childId) {
@@ -418,22 +418,22 @@ function getAllDescendants(nodeId, visited) {
   return result;
 }
 
-// 펼치기용 하위 노드 수집 — main_topic 자식은 건너뜀 (그 하위도 포함 안 함)
-// outgoing + incoming(non-main) 양방향 edge 포함하여 다중 부모 sub-node를 지원
+// Collect descendants for expand — skip main_topic children (and their subtrees)
+// Includes both outgoing and incoming (non-main) edges to support multi-parent sub-nodes
 function getExpandDescendants(nodeId, isRoot, visited) {
   visited = visited || [];
   if (visited.indexOf(nodeId) !== -1) return [];
   visited.push(nodeId);
   var datum = getNodeDatum(nodeId);
   if (!datum) return [];
-  // 직사각형(sharp/main) 자식은 포함하지 않음
+  // Do not recurse into other main (sharp) nodes
   if (!isRoot && datum.isMain) return [];
   var result = [nodeId];
   var childIds = (datum.children || []).slice();
   EDGES.forEach(function(e) {
-    // outgoing: 이 노드에서 나가는 edge
+    // Outgoing edges from this node
     if (e.source === nodeId && childIds.indexOf(e.target) === -1) childIds.push(e.target);
-    // incoming from non-main: non-main 노드가 이 노드를 향하는 edge (다중 부모 sub-node 지원)
+    // Incoming from non-main: support sub-nodes with multiple parents
     if (e.target === nodeId && childIds.indexOf(e.source) === -1) {
       var srcDatum = getNodeDatum(e.source);
       if (srcDatum && !srcDatum.isMain) childIds.push(e.source);
@@ -461,8 +461,8 @@ function applyFold(nodeIds, expand) {
   setTimeout(recomputePositions, 0);
 }
 
-// <details> 토글(toggle items / original) 시 노드 높이가 변하므로 화살표 재계산
-// toggle 이벤트는 버블링하지 않아 capture phase 필요
+// Recompute positions when <details> toggles change node height.
+// 'toggle' does not bubble so we use capture phase.
 canvas.addEventListener('toggle', function() {
   setTimeout(recomputePositions, 0);
 }, true);
@@ -472,7 +472,7 @@ function doExpand() {
   if (selectedNodeId) {
     applyFold(getExpandDescendants(selectedNodeId, true), true);
   } else {
-    // 전체 펼치기 — main_topic는 포함하되 그 하위 main_topic는 skip
+    // Expand all — include main_topic roots but skip nested main_topic subtrees
     var toExpand = [];
     NODES_DATA.forEach(function(n) {
       if (toExpand.indexOf(n.id) !== -1) return;
@@ -520,7 +520,7 @@ function onNodeHeaderMousedown(e, nodeEl) {
   window.addEventListener('mouseup', onUp);
 }
 
-// 노드 위치를 원래 배치 그대로 유지 — 접기/펼치기 시 다른 노드를 밀지 않음
+// Keep original node positions — collapse/expand does not push other nodes
 function getNodeRootId(nodeId) {
   var childToParent = getChildToParentMap();
   var cur = nodeId;
@@ -595,8 +595,7 @@ function recomputePositions() {
     renderY[n.id] = y;
   });
 
-  // Pass 2: 서브노드가 부모 backbone 노드의 push delta만큼 따라 내려가도록 보정
-  // 부모 main 노드가 밀려 내려갔으면 자식 서브노드도 동일 delta 적용
+  // Pass 2: sub-nodes follow their parent main node's push delta
   NODES_DATA.forEach(function(n) {
     if (n.isMain) return;
     var parentMain = null;
@@ -623,6 +622,48 @@ function recomputePositions() {
         renderY[n.id] = Math.max(cur, n.ly + parentPush);
       }
     }
+  });
+
+  // Pass 3: normalize Y spacing within each bus group (same source, same X column)
+  var lineBySource = {};
+  EDGES.forEach(function(e) {
+    if (e.type !== 'line') return;
+    if (!lineBySource[e.source]) lineBySource[e.source] = [];
+    lineBySource[e.source].push(e.target);
+  });
+  var ndMap = {};
+  NODES_DATA.forEach(function(n) { ndMap[n.id] = n; });
+  Object.keys(lineBySource).forEach(function(srcId) {
+    var targetIds = lineBySource[srcId].filter(function(id) { return ndMap[id]; });
+    if (targetIds.length < 2) return;
+    // Group targets by X column
+    var xGroups = [];
+    targetIds.forEach(function(id) {
+      var el = document.getElementById('node-' + id);
+      var nx = ndMap[id].lx; var nw = el ? el.offsetWidth : 300;
+      var placed = false;
+      for (var gi = 0; gi < xGroups.length; gi++) {
+        var firstId = xGroups[gi][0];
+        var fEl = document.getElementById('node-' + firstId);
+        var fx = ndMap[firstId].lx; var fw = fEl ? fEl.offsetWidth : 300;
+        if (nx < fx + fw && fx < nx + nw) { xGroups[gi].push(id); placed = true; break; }
+      }
+      if (!placed) xGroups.push([id]);
+    });
+    // Sort and space within each X column group
+    xGroups.forEach(function(grp) {
+      if (grp.length < 2) return;
+      var sorted = grp.map(function(id) {
+        var el = document.getElementById('node-' + id);
+        return { id: id, y: renderY[id] !== undefined ? renderY[id] : ndMap[id].ly, h: el ? el.offsetHeight : HEADER_H };
+      }).sort(function(a, b) { return a.y - b.y; });
+      for (var i = 1; i < sorted.length; i++) {
+        var minY = sorted[i-1].y + sorted[i-1].h + 20;
+        var newY = Math.max(sorted[i].y, minY);
+        sorted[i].y = newY;
+        renderY[sorted[i].id] = newY;
+      }
+    });
   });
 
   NODES_DATA.forEach(function(n) {
@@ -653,7 +694,7 @@ function drawEdges() {
   var svg=document.getElementById('wire-svg');
   svg.querySelectorAll('.ng-eg').forEach(function(el){el.remove();});
 
-  // 같은 source에서 나가는 line 엣지를 grouping → bus 라우팅 후보
+  // Group line edges by source for bus routing
   var lineBySource={};
   EDGES.forEach(function(e){
     if(e.type!=='line') return;
@@ -663,7 +704,7 @@ function drawEdges() {
 
   var busDrawn={};
 
-  // Bus 라우팅: source 하나 → 복수의 line 타겟이 모두 같은 방향(우측 or 좌측)일 때
+  // Bus routing: one source → multiple line targets all on the same side (right)
   Object.keys(lineBySource).forEach(function(srcId){
     var group=lineBySource[srcId];
     if(group.length<2) return;
@@ -677,7 +718,7 @@ function drawEdges() {
       targets.push({e:e,r:getNodeRect(tEl)});
     });
     if(targets.length<2) return;
-    // 모두 오른쪽에 있는지 확인
+    // Check all targets are to the right
     var allRight=targets.every(function(t){return t.r.x>=sr.x+sr.w-5;});
     if(!allRight) return;
 
@@ -701,7 +742,7 @@ function drawEdges() {
     svg.appendChild(g);
   });
 
-  // 나머지 엣지: Bezier 곡선
+  // Remaining edges: Bezier curves
   EDGES.forEach(function(edge){
     if(busDrawn[edge.source+'-'+edge.target]) return;
     var srcEl=document.getElementById('node-'+edge.source), tgtEl=document.getElementById('node-'+edge.target);
@@ -757,12 +798,12 @@ function initKatex() {
 }
 
 window.addEventListener('load', function() {
-  // KaTeX 먼저 렌더링해야 노드 높이가 정확함
+  // Render KaTeX first so node heights are accurate
   initKatex();
   recomputePositions();
   drawEdges();
   fitView();
-  // 이미지 로드 후 노드 높이 재계산 (base64 이미지도 비동기로 높이 확정됨)
+  // Recompute after images load (base64 images also finalize height asynchronously)
   var imgs = Array.from(document.querySelectorAll('.ng-node img'));
   var pending = imgs.filter(function(img) { return !img.complete; }).length;
   if (pending === 0) return;

@@ -35,6 +35,7 @@ interface CanvasProps {
   onToggleOriginal: (id: string) => void
   onAddEdge: (sourceId: string, targetId: string) => void
   onDeleteEdge: (id: string) => void
+  onDeleteEdges: (ids: string[]) => void
   onAddToggle: (nodeId: string) => void
   onUpdateToggle: (nodeId: string, toggleId: string, field: 'title' | 'content', value: string) => void
   onDeleteToggle: (nodeId: string, toggleId: string) => void
@@ -63,11 +64,40 @@ interface CanvasProps {
 
 const HEADER_H = 36
 
+function findRedundantEdges(edges: { id: string; source: string; target: string }[]): string[] {
+  const adj = new Map<string, string[]>()
+  for (const e of edges) {
+    if (!adj.has(e.source)) adj.set(e.source, [])
+    adj.get(e.source)!.push(e.target)
+  }
+  const redundant: string[] = []
+  for (const edge of edges) {
+    const { source: u, target: v, id } = edge
+    // BFS from u's neighbors (skip direct u→v hop), check if v is reachable
+    const visited = new Set<string>([u])
+    const queue: string[] = []
+    for (const n of (adj.get(u) ?? [])) {
+      if (n === v) continue
+      if (!visited.has(n)) { visited.add(n); queue.push(n) }
+    }
+    let found = false
+    while (queue.length > 0 && !found) {
+      const curr = queue.shift()!
+      if (curr === v) { found = true; break }
+      for (const n of (adj.get(curr) ?? [])) {
+        if (!visited.has(n)) { visited.add(n); queue.push(n) }
+      }
+    }
+    if (found) redundant.push(id)
+  }
+  return redundant
+}
+
 function computeRenderPositions(
   nodes: GraphNode[],
   nodeSizes: Record<string, { width: number; height: number }>,
   nodeTemplates: Record<string, { shape: 'sharp' | 'rounded' }>,
-  edges: { source: string; target: string }[]
+  edges: { source: string; target: string; type?: string }[]
 ): Record<string, { x: number; y: number }> {
   const childToParent = new Map<string, string>()
   for (const n of nodes) {
@@ -97,67 +127,122 @@ function computeRenderPositions(
   })
   const renderY: Record<string, number> = {}
 
-  for (const node of sorted) {
-    const nodeIsMain = isMainNode(node)
-    let y = node.position.y
+  // Pass 1+2 수렴 루프: Pass 2가 서브노드를 독립적으로 이동시켜 생긴 겹침을
+  // 다음 Pass 1 이터레이션이 감지·해소할 수 있도록 안정될 때까지 반복
+  const MAX_ITER = 8
+  for (let iter = 0; iter < MAX_ITER; iter++) {
+    const prevSnapshot: Record<string, number> = { ...renderY }
 
-    for (const other of sorted) {
-      if (other.id === node.id) continue
-      if (other.position.y > node.position.y) continue
-      if (other.position.y === node.position.y && other.position.x >= node.position.x) continue
+    // Pass 1: Y-overlap push-down (stored Y 오름차순)
+    for (const node of sorted) {
+      const nodeIsMain = isMainNode(node)
+      let y = node.position.y
 
-      const otherY = renderY[other.id] ?? other.position.y
-      const otherH = nodeSizes[other.id]?.height ?? (other.nodeHeight ?? HEADER_H)
-      const otherBottom = otherY + otherH
-      if (otherBottom <= y) continue
+      for (const other of sorted) {
+        if (other.id === node.id) continue
+        if (other.position.y > node.position.y) continue
+        if (other.position.y === node.position.y && other.position.x >= node.position.x) continue
 
-      if (nodeIsMain && isMainNode(other)) {
-        const naturalBottom = other.position.y + (other.nodeHeight ?? HEADER_H)
-        const delta = (otherY + otherH) - naturalBottom
-        const nodeNaturalY = node.nodeNaturalY ?? node.position.y
-        y = Math.max(y, nodeNaturalY + delta, otherBottom + 20)
-      } else {
-        const nodeW = nodeSizes[node.id]?.width ?? 300
-        const otherW = nodeSizes[other.id]?.width ?? 300
-        if (!(node.position.x < other.position.x + otherW && other.position.x < node.position.x + nodeW)) continue
+        const otherY = renderY[other.id] ?? other.position.y
+        const otherH = nodeSizes[other.id]?.height ?? (other.nodeHeight ?? HEADER_H)
+        const otherBottom = otherY + otherH
+        if (otherBottom <= y) continue
 
-        if (nodeIsMain) {
-          if (isDescendantOf(other.id, node.id) && otherBottom <= node.position.y) continue
-          const wasPushed = otherY > other.position.y
-          if (!other.contentExpanded && !wasPushed) continue
-          y = Math.max(y, otherBottom + 48)
+        if (nodeIsMain && isMainNode(other)) {
+          // 다른 X 열의 main 노드는 밀어내지 않음 (side-by-side main 노드 cascade 방지)
+          const nodeW = nodeSizes[node.id]?.width ?? 300
+          const otherW = nodeSizes[other.id]?.width ?? 300
+          if (!(node.position.x < other.position.x + otherW && other.position.x < node.position.x + nodeW)) continue
+          const naturalBottom = other.position.y + (other.nodeHeight ?? HEADER_H)
+          const delta = (otherY + otherH) - naturalBottom
+          const nodeNaturalY = node.nodeNaturalY ?? node.position.y
+          y = Math.max(y, nodeNaturalY + delta, otherBottom + 20)
         } else {
-          const wasPushed = otherY > other.position.y
-          if (!other.contentExpanded && !wasPushed) continue
-          const isSameRoot = getRootId(other.id) === getRootId(node.id)
-          y = Math.max(y, otherBottom + (isSameRoot ? 30 : 48))
+          // other → node 방향 엣지가 있으면 X overlap 없어도 밀어냄
+          const isDirectedConnected = edges.some(e => e.source === other.id && e.target === node.id)
+          if (!isDirectedConnected) {
+            const nodeW = nodeSizes[node.id]?.width ?? 300
+            const otherW = nodeSizes[other.id]?.width ?? 300
+            if (!(node.position.x < other.position.x + otherW && other.position.x < node.position.x + nodeW)) continue
+          }
+
+          if (nodeIsMain) {
+            if (isDescendantOf(other.id, node.id) && otherBottom <= node.position.y) continue
+            y = Math.max(y, otherBottom + 48)
+          } else {
+            const isSameRoot = getRootId(other.id) === getRootId(node.id)
+            y = Math.max(y, otherBottom + (isSameRoot ? 30 : 48))
+          }
+        }
+      }
+
+      renderY[node.id] = y
+    }
+
+    // Pass 2: 서브노드가 부모 backbone의 push delta만큼 따라 내려가도록 보정
+    for (const node of nodes) {
+      if (isMainNode(node)) continue
+      let parentMain: GraphNode | null = null
+      let bestDist = Infinity
+      for (const m of nodes) {
+        if (!isMainNode(m)) continue
+        const connected =
+          m.children.includes(node.id) ||
+          edges.some(e => (e.source === m.id && e.target === node.id) || (e.target === m.id && e.source === node.id))
+        if (connected) {
+          const dist = Math.abs(m.position.y - node.position.y)
+          if (dist < bestDist) { bestDist = dist; parentMain = m }
+        }
+      }
+      if (parentMain) {
+        const parentPush = (renderY[parentMain.id] ?? parentMain.position.y) - parentMain.position.y
+        if (parentPush > 0) {
+          const cur = renderY[node.id] ?? node.position.y
+          renderY[node.id] = Math.max(cur, node.position.y + parentPush)
         }
       }
     }
 
-    renderY[node.id] = y
+    // 수렴 확인: 모든 노드의 renderY가 이전 이터레이션과 동일하면 종료
+    if (nodes.every(n => (renderY[n.id] ?? n.position.y) === (prevSnapshot[n.id] ?? n.position.y))) break
   }
 
-  // Pass 2: 서브노드가 부모 backbone의 push delta만큼 따라 내려가도록 보정
-  for (const node of nodes) {
-    if (isMainNode(node)) continue
-    let parentMain: GraphNode | null = null
-    let bestDist = Infinity
-    for (const m of nodes) {
-      if (!isMainNode(m)) continue
-      const connected =
-        m.children.includes(node.id) ||
-        edges.some(e => (e.source === m.id && e.target === node.id) || (e.target === m.id && e.source === node.id))
-      if (connected) {
-        const dist = Math.abs(m.position.y - node.position.y)
-        if (dist < bestDist) { bestDist = dist; parentMain = m }
+  // Pass 3: line 엣지 버스 그룹 Y 정규화 — 같은 소스·같은 X 컬럼 타겟들 간격 일관화
+  const nodeById = new Map(nodes.map(n => [n.id, n]))
+  const lineBySource = new Map<string, string[]>()
+  for (const edge of edges) {
+    if (edge.type !== 'line') continue
+    if (!nodeById.has(edge.source) || !nodeById.has(edge.target)) continue
+    if (!lineBySource.has(edge.source)) lineBySource.set(edge.source, [])
+    lineBySource.get(edge.source)!.push(edge.target)
+  }
+  for (const [, targetIds] of lineBySource) {
+    if (targetIds.length < 2) continue
+    // 타겟들을 X 컬럼별로 서브그룹 분류 (X 범위가 겹치는 노드끼리 묶음)
+    const xGroups: string[][] = []
+    for (const id of targetIds) {
+      const nx = nodeById.get(id)!.position.x
+      const nw = nodeSizes[id]?.width ?? 300
+      let placed = false
+      for (const grp of xGroups) {
+        const firstId = grp[0]
+        const fx = nodeById.get(firstId)!.position.x
+        const fw = nodeSizes[firstId]?.width ?? 300
+        if (nx < fx + fw && fx < nx + nw) { grp.push(id); placed = true; break }
       }
+      if (!placed) xGroups.push([id])
     }
-    if (parentMain) {
-      const parentPush = (renderY[parentMain.id] ?? parentMain.position.y) - parentMain.position.y
-      if (parentPush > 0) {
-        const cur = renderY[node.id] ?? node.position.y
-        renderY[node.id] = Math.max(cur, node.position.y + parentPush)
+    // 각 X 컬럼 서브그룹 내에서 최소 간격 보장 (올리지 않고 내리기만)
+    for (const grp of xGroups) {
+      if (grp.length < 2) continue
+      const sorted = grp
+        .map(id => ({ id, y: renderY[id] ?? nodeById.get(id)!.position.y, h: nodeSizes[id]?.height ?? HEADER_H }))
+        .sort((a, b) => a.y - b.y)
+      for (let i = 1; i < sorted.length; i++) {
+        const minY = sorted[i - 1].y + sorted[i - 1].h + 30
+        const newY = Math.max(sorted[i].y, minY)
+        sorted[i].y = newY
+        renderY[sorted[i].id] = newY
       }
     }
   }
@@ -191,7 +276,7 @@ export function Canvas({
   onSetNodeWidth, onSetNodeHeight,
   onPushHistory, onUndo, onRedo, canUndo, canRedo,
   onToggleContent, onToggleOriginal,
-  onAddEdge, onDeleteEdge,
+  onAddEdge, onDeleteEdge, onDeleteEdges,
   onAddToggle, onUpdateToggle, onDeleteToggle, onExpandToggle, onDeleteOriginal,
   onAddOriginal, onAddLink, onDeleteLink, onOpenLink, onSetNodeTemplate,
   onCollapseAll, onExpandAll, onExpandNodes, onCollapseNodes, onExportHtml,
@@ -215,13 +300,14 @@ export function Canvas({
     })
   }, [])
 
-  const [selectedCanvasImgId, _setSelectedCanvasImgId] = useState<string | null>(null)
-  const selectedCanvasImgIdRef = useRef<string | null>(null)
-  const setSelectedCanvasImgId = useCallback((val: string | null) => {
-    selectedCanvasImgIdRef.current = val
-    _setSelectedCanvasImgId(val)
+  const [selectedCanvasImgIds, _setSelectedCanvasImgIds] = useState<Set<string>>(new Set())
+  const selectedCanvasImgIdsRef = useRef<Set<string>>(new Set())
+  const setSelectedCanvasImgIds = useCallback((val: Set<string>) => {
+    selectedCanvasImgIdsRef.current = val
+    _setSelectedCanvasImgIds(val)
   }, [])
   const canvasClipboardRef = useRef<{ filename: string; width: number; height: number } | null>(null)
+  const pasteBlockedRef = useRef(false)
   const mousePosRef = useRef({ x: 0, y: 0 })
 
   const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null)
@@ -272,12 +358,27 @@ export function Canvas({
 
       if (e.key === 'Escape') {
         setSelectedIds(new Set())
-        setSelectedCanvasImgId(null)
+        setSelectedCanvasImgIds(new Set())
+        if (canvasClipboardRef.current !== null) pasteBlockedRef.current = true
         canvasClipboardRef.current = null
         return
       }
 
-      const imgId = selectedCanvasImgIdRef.current
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (canvasClipboardRef.current !== null) pasteBlockedRef.current = true
+        canvasClipboardRef.current = null
+        const delImgIds = selectedCanvasImgIdsRef.current
+        if (delImgIds.size > 0) {
+          for (const imgId of delImgIds) onRemoveCanvasImage(imgId)
+          setSelectedCanvasImgIds(new Set())
+          e.preventDefault()
+        }
+        return
+      }
+
+      const imgId = selectedCanvasImgIdsRef.current.size === 1
+        ? [...selectedCanvasImgIdsRef.current][0]
+        : null
       console.log('[KB] imgId:', imgId, 'clipboard:', canvasClipboardRef.current, 'selectedNodes:', selectedIdsRef.current.size)
       if ((e.ctrlKey || e.metaKey)) {
         if (imgId) {
@@ -285,13 +386,15 @@ export function Canvas({
           console.log('[KB] found img:', img)
           if (e.key === 'c' && img) {
             canvasClipboardRef.current = { filename: img.filename, width: img.width, height: img.height }
+            pasteBlockedRef.current = false
             console.log('[KB] Ctrl+C: clipboard set to', canvasClipboardRef.current)
             e.preventDefault()
             return
           } else if (e.key === 'x' && img) {
             canvasClipboardRef.current = { filename: img.filename, width: img.width, height: img.height }
+            pasteBlockedRef.current = false
             onRemoveCanvasImage(imgId)
-            setSelectedCanvasImgId(null)
+            setSelectedCanvasImgIds(new Set())
             e.preventDefault()
             return
           }
@@ -334,7 +437,11 @@ export function Canvas({
             return
           }
 
-          // 2. 시스템 clipboard → navigator.clipboard.read()로 이미지 읽기
+          // 2. 시스템 clipboard — Delete/Esc로 무효화된 상태면 차단
+          if (pasteBlockedRef.current) {
+            pasteBlockedRef.current = false
+            return
+          }
           ;(async () => {
             const nodeId = targetNodeId
             console.log('[KB] Ctrl+V system paste: nodeId=', nodeId)
@@ -468,7 +575,7 @@ export function Canvas({
   // 새로 생성된 canvas image 자동 선택
   useEffect(() => {
     if (lastAddedCanvasImageId) {
-      setSelectedCanvasImgId(lastAddedCanvasImageId)
+      setSelectedCanvasImgIds(new Set([lastAddedCanvasImageId]))
       divRef.current?.focus({ preventScroll: true })
     }
   }, [lastAddedCanvasImageId])
@@ -512,7 +619,7 @@ export function Canvas({
 
   // 노드 선택 (shift/ctrl: 추가선택, 이미 다중선택 중인 노드 클릭 시 유지)
   const handleNodeSelect = useCallback((id: string, additive: boolean) => {
-    setSelectedCanvasImgId(null)
+    setSelectedCanvasImgIds(new Set())
     setSelectedIds(prev => {
       if (additive) {
         const next = new Set(prev)
@@ -523,7 +630,7 @@ export function Canvas({
       if (prev.has(id) && prev.size > 1) return prev  // 멀티드래그 허용
       return new Set([id])
     })
-  }, [setSelectedCanvasImgId])
+  }, [setSelectedCanvasImgIds])
 
   // 포트 드래그로 엣지 생성
   const handlePortDragStart = useCallback((nodeId: string, port: Port, clientX: number, clientY: number) => {
@@ -597,13 +704,24 @@ export function Canvas({
               hit.add(node.id)
             }
           }
-          // 노드가 하나라도 있을 때만 선택 변경 — 빈 캔버스 드래그로 선택 해제되는 문제 방지
-          if (hit.size > 0) { setSelectedIds(hit); setSelectedCanvasImgId(null) }
-          else setSelectedIds(new Set())
+          const hitImgs = new Set<string>()
+          for (const img of canvasImagesRef.current ?? []) {
+            if (img.position.x < cx2 && img.position.x + img.width > cx1 &&
+                img.position.y < cy2 && img.position.y + img.height > cy1) {
+              hitImgs.add(img.id)
+            }
+          }
+          if (hit.size > 0 || hitImgs.size > 0) {
+            setSelectedIds(hit)
+            setSelectedCanvasImgIds(hitImgs)
+          } else {
+            setSelectedIds(new Set())
+            setSelectedCanvasImgIds(new Set())
+          }
         } else {
           // 단순 클릭 → 선택 해제만 (클론 배치는 Ctrl+V로만)
           setSelectedIds(new Set())
-          setSelectedCanvasImgId(null)
+          setSelectedCanvasImgIds(new Set())
         }
       }
 
@@ -884,8 +1002,8 @@ export function Canvas({
             if (ids.length > 0) onCollapseNodes(ids)
             else onCollapseAll()
           }}
-          title={selCount > 0 ? '선택 노드 + 하위 노드 접기' : '모든 노드 접기'}
-        >접기↑</button>
+          title={selCount > 0 ? 'Collapse selected nodes' : 'Collapse all nodes'}
+        >Collapse↑</button>
         <button
           style={toolbarBtnStyle}
           onClick={() => {
@@ -893,20 +1011,28 @@ export function Canvas({
             if (ids.length > 0) onExpandNodes(ids)
             else onExpandAll()
           }}
-          title={selCount > 0 ? '선택 노드 + 하위 노드 펼치기' : '모든 노드 펼치기'}
-        >펼치기↓</button>
-        <button style={toolbarBtnStyle} onClick={handleFitView} title="모든 노드가 보이게 화면 맞추기">Fit View</button>
+          title={selCount > 0 ? 'Expand selected nodes' : 'Expand all nodes'}
+        >Expand↓</button>
+        <button style={toolbarBtnStyle} onClick={handleFitView} title="Fit all nodes into view">Fit View</button>
 
         <div style={{ width: 1, height: 18, background: '#d1d5db', margin: '0 4px' }} />
         <button
+          style={toolbarBtnStyle}
+          onClick={() => {
+            const redundant = findRedundantEdges(graph.edges)
+            if (redundant.length > 0) onDeleteEdges(redundant)
+          }}
+          title="Remove redundant edges (transitive reduction): if A→B→C exists, remove A→C"
+        >Reduce Edges</button>
+        <button
           style={{ ...toolbarBtnStyle, background: '#15803d', color: '#ffffff', borderColor: '#166534' }}
           onClick={onExportHtml}
-          title="HTML로 내보내기"
-        >HTML 내보내기</button>
+          title="Export as HTML"
+        >Export HTML</button>
 
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 10, color: '#aaa', whiteSpace: 'nowrap' }}>
-          우클릭: 이동 · 스크롤: 줌 · 드래그: 선택
+          Right-click: pan · Scroll: zoom · Drag: select
         </span>
       </div>
 
@@ -939,14 +1065,11 @@ export function Canvas({
               canvasImages={graph.canvasImages ?? []}
               imageUris={imageUris}
               viewport={viewport}
-              selectedId={selectedCanvasImgId}
+              selectedIds={selectedCanvasImgIds}
               onSelect={(id) => {
-                setSelectedCanvasImgId(id)
-                if (id) {
-                  setSelectedIds(new Set())
-                  // focus the canvas div so keyboard / paste events are received
-                  divRef.current?.focus({ preventScroll: true })
-                }
+                setSelectedCanvasImgIds(new Set([id]))
+                setSelectedIds(new Set())
+                divRef.current?.focus({ preventScroll: true })
               }}
               onUpdatePosition={(id, x, y) => onUpdateCanvasImage(id, { position: { x, y } })}
               onUpdateSize={(id, w, h) => onUpdateCanvasImage(id, { width: w, height: h })}

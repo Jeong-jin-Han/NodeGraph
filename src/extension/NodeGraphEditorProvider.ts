@@ -54,6 +54,7 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
           )
           edit.replace(document.uri, fullRange, JSON.stringify(msg.data, null, 2))
           await vscode.workspace.applyEdit(edit)
+          await document.save()
         } finally {
           this._pendingSaves.delete(docKey)
         }

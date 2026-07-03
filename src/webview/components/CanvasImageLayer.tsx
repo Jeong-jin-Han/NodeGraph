@@ -5,15 +5,15 @@ interface CanvasImageLayerProps {
   canvasImages: CanvasImage[]
   imageUris: Record<string, string>
   viewport: Viewport
-  selectedId: string | null
-  onSelect: (id: string | null) => void
+  selectedIds: Set<string>
+  onSelect: (id: string) => void
   onUpdatePosition: (id: string, x: number, y: number) => void
   onUpdateSize: (id: string, width: number, height: number) => void
   onDrop: (imgId: string, clientX: number, clientY: number) => void
 }
 
 export function CanvasImageLayer({
-  canvasImages, imageUris, viewport, selectedId,
+  canvasImages, imageUris, viewport, selectedIds,
   onSelect, onUpdatePosition, onUpdateSize, onDrop,
 }: CanvasImageLayerProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -83,7 +83,7 @@ export function CanvasImageLayer({
     <>
       {canvasImages.map(img => {
         const uri = imageUris[img.filename]
-        const isSelected = img.id === selectedId
+        const isSelected = selectedIds.has(img.id)
         const isDragging = img.id === draggingId
 
         return (

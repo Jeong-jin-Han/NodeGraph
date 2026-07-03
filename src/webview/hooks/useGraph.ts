@@ -267,6 +267,11 @@ export function useGraph() {
     setGraph(g => ({ ...g, edges: g.edges.filter(e => e.id !== id) }), true)
   }, [setGraph])
 
+  const deleteEdges = useCallback((ids: string[]) => {
+    const idSet = new Set(ids)
+    setGraph(g => ({ ...g, edges: g.edges.filter(e => !idSet.has(e.id)) }), true)
+  }, [setGraph])
+
   const addToggle = useCallback((nodeId: string) => {
     setGraph(g => ({
       ...g,
@@ -561,7 +566,7 @@ export function useGraph() {
   return {
     graph, imageUris,
     updateNodePosition, autoSaveNodePosition, toggleContent, toggleOriginal,
-    updateNodeField, addNode, deleteNodes, addEdge, deleteEdge,
+    updateNodeField, addNode, deleteNodes, addEdge, deleteEdge, deleteEdges,
     addToggle, updateToggle, deleteToggle, expandToggle, deleteOriginal,
     saveImage,
     setNodeWidth, setNodeHeight, setNodeFontSize, bumpFontSize, setFontSizeExact, pushHistory,

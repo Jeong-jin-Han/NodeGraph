@@ -1,276 +1,23 @@
-"use strict";
-var __create = Object.create;
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
-};
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  // If the importer is in node compatibility mode or this is not an ESM
-  // file that has been converted to a CommonJS file using a Babel-
-  // compatible transform (i.e. "__esModule" has not been set), then set
-  // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
-));
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-
-// src/extension/extension.ts
-var extension_exports = {};
-__export(extension_exports, {
-  activate: () => activate,
-  deactivate: () => deactivate
-});
-module.exports = __toCommonJS(extension_exports);
-
-// src/extension/NodeGraphEditorProvider.ts
-var vscode2 = __toESM(require("vscode"));
-var path = __toESM(require("path"));
-
-// src/extension/imageManager.ts
-var vscode = __toESM(require("vscode"));
-function getImgsFolder(documentUri) {
-  const documentDir = vscode.Uri.joinPath(documentUri, "..");
-  const baseName = documentUri.path.split("/").pop()?.replace(/\.nodegraph\.json$/, "") ?? "graph";
-  return vscode.Uri.joinPath(documentDir, `.${baseName}-imgs`);
-}
-function getImageWebviewUri(webview, documentUri, filename) {
-  const imageUri = vscode.Uri.joinPath(getImgsFolder(documentUri), filename);
-  return webview.asWebviewUri(imageUri).toString();
-}
-var INLINE_IMG_RE = /\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;
-function computeImageUris(webview, documentUri, graph) {
-  const uris = {};
-  const add = (fn) => {
-    if (fn && !uris[fn])
-      uris[fn] = getImageWebviewUri(webview, documentUri, fn);
-  };
-  for (const node of graph.nodes) {
-    INLINE_IMG_RE.lastIndex = 0;
-    let m;
-    while ((m = INLINE_IMG_RE.exec(node.content ?? "")) !== null)
-      add(m[1]);
-  }
-  for (const ci of graph.canvasImages ?? [])
-    add(ci.filename);
-  return uris;
-}
-async function saveImageToAssetsFolder(webview, documentUri, base64Data, ext = "png") {
-  const imgsFolder = getImgsFolder(documentUri);
-  try {
-    await vscode.workspace.fs.createDirectory(imgsFolder);
-  } catch {
-  }
-  const filename = `img_${Date.now()}.${ext}`;
-  const imageUri = vscode.Uri.joinPath(imgsFolder, filename);
-  await vscode.workspace.fs.writeFile(imageUri, Buffer.from(base64Data, "base64"));
-  return { filename, webviewUri: webview.asWebviewUri(imageUri).toString() };
-}
-async function deleteImageFile(documentUri, filename) {
-  const imgUri = vscode.Uri.joinPath(getImgsFolder(documentUri), filename);
-  try {
-    await vscode.workspace.fs.delete(imgUri);
-  } catch {
-  }
-}
-
-// src/extension/htmlExporter.ts
-function escHtml(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-function isHtmlTableLine(line) {
-  return /^\s*\|/.test(line) && line.indexOf("|", 1) !== -1;
-}
-function isHtmlSepLine(line) {
-  return /^\s*\|[\s\-:|]+\|\s*$/.test(line) && !/[a-zA-Z0-9]/.test(line);
-}
-function parseHtmlCells(line) {
-  return line.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((s) => s.trim());
-}
-function parseHtmlTableBlocks(content) {
-  if (!content)
-    return [{ type: "text", text: "", startChar: 0, endChar: 0 }];
-  const lines = content.split("\n");
-  const blocks = [];
-  let i = 0;
-  let charPos = 0;
-  const lineLen = (idx) => lines[idx].length + (idx < lines.length - 1 ? 1 : 0);
-  while (i < lines.length) {
-    const isStart = isHtmlTableLine(lines[i]) && i + 1 < lines.length && isHtmlSepLine(lines[i + 1]);
-    if (isStart) {
-      const startChar = charPos;
-      const tLines = [];
-      while (i < lines.length && isHtmlTableLine(lines[i])) {
-        tLines.push(lines[i]);
-        charPos += lineLen(i);
-        i++;
-      }
-      if (tLines.length >= 3) {
-        blocks.push({ type: "table", headers: parseHtmlCells(tLines[0]), rows: tLines.slice(2).map(parseHtmlCells), startChar, endChar: charPos });
-      } else {
-        blocks.push({ type: "text", text: tLines.join("\n"), startChar, endChar: charPos });
-      }
-    } else {
-      const startChar = charPos;
-      const tLines = [];
-      while (i < lines.length) {
-        if (isHtmlTableLine(lines[i]) && i + 1 < lines.length && isHtmlSepLine(lines[i + 1]))
-          break;
-        tLines.push(lines[i]);
-        charPos += lineLen(i);
-        i++;
-      }
-      blocks.push({ type: "text", text: tLines.join("\n"), startChar, endChar: charPos });
-    }
-  }
-  return blocks;
-}
-function hasHtmlTable(content) {
-  const lines = content.split("\n");
-  for (let i = 0; i + 1 < lines.length; i++) {
-    if (isHtmlTableLine(lines[i]) && isHtmlSepLine(lines[i + 1]))
-      return true;
-  }
-  return false;
-}
-function renderCellHtml(cellText, imageData) {
-  const IMG_RE = /\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g;
-  let result = "";
-  let lastIdx = 0;
-  let match;
-  while ((match = IMG_RE.exec(cellText)) !== null) {
-    if (match.index > lastIdx)
-      result += escHtml(cellText.slice(lastIdx, match.index));
-    const filename = match[1];
-    const imgW = match[2];
-    const imgH = match[3];
-    const sizeAttr = imgW && imgH ? ` width="${imgW}" height="${imgH}"` : "";
-    const src = imageData[filename];
-    result += src ? `<img class="ng-img${sizeAttr ? " ng-img-sized" : ""}" src="${src}"${sizeAttr} alt="${escHtml(filename)}" onclick="showLightbox(this.src)" title="\uD074\uB9AD\uD558\uC5EC \uD655\uB300">` : `<span class="ng-img-missing">${escHtml(filename)}</span>`;
-    lastIdx = match.index + match[0].length;
-  }
-  if (lastIdx < cellText.length)
-    result += escHtml(cellText.slice(lastIdx));
-  return result;
-}
-function renderTableBlockHtml(block, imageData) {
-  const th = block.headers.map((h) => `<th>${renderCellHtml(h, imageData)}</th>`).join("");
-  const rows = block.rows.map(
-    (row) => `<tr>${row.map((cell) => `<td>${renderCellHtml(cell, imageData)}</td>`).join("")}</tr>`
-  ).join("");
-  return `<div class="ng-table-wrap"><table class="ng-table"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>`;
-}
-function renderNodeCard(node, template, offsetX, offsetY, imageData) {
-  const color = template?.color ?? "#888";
-  const borderRadius = template?.shape === "rounded" ? "22px" : "2px";
-  const label = escHtml(template?.label ?? node.template);
-  const nx = Math.round(node.position.x + offsetX);
-  const ny = Math.round(node.position.y + offsetY);
-  let bodyHtml = "";
-  const content = node.content ?? "";
-  if (hasHtmlTable(content)) {
-    const blocks = parseHtmlTableBlocks(content);
-    bodyHtml += '<div class="ng-content">';
-    for (const block of blocks) {
-      if (block.type === "table") {
-        bodyHtml += renderTableBlockHtml(block, imageData);
-      } else if (block.text) {
-        bodyHtml += `<div class="ng-seg">${renderCellHtml(block.text, imageData).replace(/\n/g, "<br>")}</div>`;
-      }
-    }
-    bodyHtml += "</div>";
-  } else if (content) {
-    bodyHtml += `<div class="ng-content">${renderCellHtml(content, imageData).replace(/\n/g, "<br>")}</div>`;
-  }
-  if (node.original) {
-    const origTitle = escHtml(node.original.title ?? "Original");
-    const openAttr = node.originalExpanded ? " open" : "";
-    bodyHtml += `<details class="ng-original"${openAttr}><summary>${origTitle}${node.original.location ? ` <span class="ng-loc">${escHtml(node.original.location)}</span>` : ""}</summary>
-<div class="ng-orig-text">${escHtml(node.original.text).replace(/\n/g, "<br>")}</div></details>`;
-  }
-  for (const t of node.toggleItems ?? []) {
-    bodyHtml += `<details class="ng-toggle"${t.expanded ? " open" : ""}><summary>${escHtml(t.title || "(\uC81C\uBAA9 \uC5C6\uC74C)")}</summary>
-<div class="ng-toggle-body">${escHtml(t.content).replace(/\n/g, "<br>")}</div></details>`;
-  }
-  if (node.links.length) {
-    bodyHtml += `<div class="ng-links">${node.links.map((l) => {
-      const icon = l.type === "url" ? "\u{1F517}" : l.type === "pdf" ? "\u{1F4C4}" : l.type === "obsidian" ? "\u{1F7E3}" : "\u2B21";
-      const href = l.type === "url" || l.type === "pdf" ? ` href="${escHtml(l.target)}" target="_blank"` : "";
-      return `<a class="ng-link"${href}>${icon} ${escHtml(l.label || l.target)}</a>`;
-    }).join("")}</div>`;
-  }
-  const hasBody = !!bodyHtml;
-  const bodyDisplay = node.contentExpanded ? "" : ' style="display:none"';
-  const childrenAttr = node.children.length ? ` data-children="${node.children.join(",")}"` : "";
-  const hasTableClass = hasHtmlTable(content) ? " ng-has-table" : "";
-  const IMG_SIZE_RE = /\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g;
-  let maxImgW = 0;
-  let _m;
-  while ((_m = IMG_SIZE_RE.exec(content)) !== null)
-    maxImgW = Math.max(maxImgW, Number(_m[1]));
-  const autoMinWidth = maxImgW > 0 ? hasHtmlTable(content) ? maxImgW + 280 : maxImgW + 32 : 0;
-  const extraStyle = [
-    node.nodeWidth ? `min-width:${node.nodeWidth}px` : autoMinWidth > 220 ? `min-width:${autoMinWidth}px` : "",
-    node.nodeHeight ? `min-height:${node.nodeHeight}px` : ""
-  ].filter(Boolean).join(";");
-  return `<div class="ng-node${hasTableClass}" id="node-${escHtml(node.id)}"${childrenAttr} style="--color:${color};border-radius:${borderRadius};left:${nx}px;top:${ny}px${extraStyle ? ";" + extraStyle : ""}">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="\uD074\uB9AD: \uB178\uB4DC \uC120\uD0DD">
-    <span class="ng-tag" style="background:color-mix(in srgb,${color} 22%,transparent);color:${color}">${label}</span>
-    <span class="ng-title">${escHtml(node.title)}</span>
-    ${hasBody ? `<span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="\uC774 \uB178\uB4DC\uB9CC \uC811\uAE30/\uD3BC\uCE58\uAE30">${node.contentExpanded ? "\u25B2" : "\u25BC"}</span>` : ""}
+"use strict";var j=Object.create;var D=Object.defineProperty;var z=Object.getOwnPropertyDescriptor;var F=Object.getOwnPropertyNames;var G=Object.getPrototypeOf,X=Object.prototype.hasOwnProperty;var q=(e,t)=>{for(var n in t)D(e,n,{get:t[n],enumerable:!0})},H=(e,t,n,o)=>{if(t&&typeof t=="object"||typeof t=="function")for(let i of F(t))!X.call(e,i)&&i!==n&&D(e,i,{get:()=>t[i],enumerable:!(o=z(t,i))||o.enumerable});return e};var $=(e,t,n)=>(n=e!=null?j(G(e)):{},H(t||!e||!e.__esModule?D(n,"default",{value:e,enumerable:!0}):n,e)),K=e=>H(D({},"__esModule",{value:!0}),e);var re={};q(re,{activate:()=>te,deactivate:()=>ne});module.exports=K(re);var d=$(require("vscode")),W=$(require("path"));var v=$(require("vscode"));function T(e){let t=v.Uri.joinPath(e,".."),n=e.path.split("/").pop()?.replace(/\.nodegraph\.json$/,"")??"graph";return v.Uri.joinPath(t,`.${n}-imgs`)}function J(e,t,n){let o=v.Uri.joinPath(T(t),n);return e.asWebviewUri(o).toString()}var P=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;function O(e,t,n){let o={},i=a=>{a&&!o[a]&&(o[a]=J(e,t,a))};for(let a of n.nodes){P.lastIndex=0;let c;for(;(c=P.exec(a.content??""))!==null;)i(c[1])}for(let a of n.canvasImages??[])i(a.filename);return o}async function U(e,t,n,o="png"){let i=T(t);try{await v.workspace.fs.createDirectory(i)}catch{}let a=`img_${Date.now()}.${o}`,c=v.Uri.joinPath(i,a);return await v.workspace.fs.writeFile(c,Buffer.from(n,"base64")),{filename:a,webviewUri:e.asWebviewUri(c).toString()}}async function R(e,t){let n=v.Uri.joinPath(T(e),t);try{await v.workspace.fs.delete(n)}catch{}}function g(e){return e.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function k(e){return/^\s*\|/.test(e)&&e.indexOf("|",1)!==-1}function Y(e){return/^\s*\|[\s\-:|]+\|\s*$/.test(e)&&!/[a-zA-Z0-9]/.test(e)}function L(e){return e.replace(/^\s*\|/,"").replace(/\|\s*$/,"").split("|").map(t=>t.trim())}function V(e){if(!e)return[{type:"text",text:"",startChar:0,endChar:0}];let t=e.split(`
+`),n=[],o=0,i=0,a=c=>t[c].length+(c<t.length-1?1:0);for(;o<t.length;)if(k(t[o])&&o+1<t.length&&Y(t[o+1])){let u=i,s=[];for(;o<t.length&&k(t[o]);)s.push(t[o]),i+=a(o),o++;s.length>=3?n.push({type:"table",headers:L(s[0]),rows:s.slice(2).map(L),startChar:u,endChar:i}):n.push({type:"text",text:s.join(`
+`),startChar:u,endChar:i})}else{let u=i,s=[];for(;o<t.length&&!(k(t[o])&&o+1<t.length&&Y(t[o+1]));)s.push(t[o]),i+=a(o),o++;n.push({type:"text",text:s.join(`
+`),startChar:u,endChar:i})}return n}function C(e){let t=e.split(`
+`);for(let n=0;n+1<t.length;n++)if(k(t[n])&&Y(t[n+1]))return!0;return!1}function S(e,t){let n=/\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g,o="",i=0,a;for(;(a=n.exec(e))!==null;){a.index>i&&(o+=g(e.slice(i,a.index)));let c=a[1],u=a[2],s=a[3],l=u&&s?` width="${u}" height="${s}"`:"",r=t[c];o+=r?`<img class="ng-img${l?" ng-img-sized":""}" src="${r}"${l} alt="${g(c)}" onclick="showLightbox(this.src)" title="Click to enlarge">`:`<span class="ng-img-missing">${g(c)}</span>`,i=a.index+a[0].length}return i<e.length&&(o+=g(e.slice(i))),o}function Z(e,t){let n=e.headers.map(i=>`<th>${S(i,t)}</th>`).join(""),o=e.rows.map(i=>`<tr>${i.map(a=>`<td>${S(a,t)}</td>`).join("")}</tr>`).join("");return`<div class="ng-table-wrap"><table class="ng-table"><thead><tr>${n}</tr></thead><tbody>${o}</tbody></table></div>`}function Q(e,t,n,o,i){let a=t?.color??"#888",c=t?.shape==="rounded"?"22px":"2px",u=g(t?.label??e.template),s=Math.round(e.position.x+n),l=Math.round(e.position.y+o),r="",h=e.content??"";if(C(h)){let p=V(h);r+='<div class="ng-content">';for(let f of p)f.type==="table"?r+=Z(f,i):f.text&&(r+=`<div class="ng-seg">${S(f.text,i).replace(/\n/g,"<br>")}</div>`);r+="</div>"}else h&&(r+=`<div class="ng-content">${S(h,i).replace(/\n/g,"<br>")}</div>`);if(e.original){let p=g(e.original.title??"Original"),f=e.originalExpanded?" open":"";r+=`<details class="ng-original"${f}><summary>${p}${e.original.location?` <span class="ng-loc">${g(e.original.location)}</span>`:""}</summary>
+<div class="ng-orig-text">${g(e.original.text).replace(/\n/g,"<br>")}</div></details>`}for(let p of e.toggleItems??[])r+=`<details class="ng-toggle"${p.expanded?" open":""}><summary>${g(p.title||"(untitled)")}</summary>
+<div class="ng-toggle-body">${g(p.content).replace(/\n/g,"<br>")}</div></details>`;e.links.length&&(r+=`<div class="ng-links">${e.links.map(p=>{let f=p.type==="url"?"\u{1F517}":p.type==="pdf"?"\u{1F4C4}":p.type==="obsidian"?"\u{1F7E3}":"\u2B21";return`<a class="ng-link"${p.type==="url"||p.type==="pdf"?` href="${g(p.target)}" target="_blank"`:""}>${f} ${g(p.label||p.target)}</a>`}).join("")}</div>`);let E=!!r,b=e.contentExpanded?"":' style="display:none"',I=e.children.length?` data-children="${e.children.join(",")}"`:"",M=C(h)?" ng-has-table":"",N=/\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g,x=0,w;for(;(w=N.exec(h))!==null;)x=Math.max(x,Number(w[1]));let m=x>0?C(h)?x+280:x+32:0,y=[e.nodeWidth?`min-width:${e.nodeWidth}px`:m>220?`min-width:${m}px`:"",e.nodeHeight?`min-height:${e.nodeHeight}px`:""].filter(Boolean).join(";");return`<div class="ng-node${M}" id="node-${g(e.id)}"${I} style="--color:${a};border-radius:${c};left:${s}px;top:${l}px${y?";"+y:""}">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,${a} 22%,transparent);color:${a}">${u}</span>
+    <span class="ng-title">${g(e.title)}</span>
+    ${E?`<span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">${e.contentExpanded?"\u25B2":"\u25BC"}</span>`:""}
   </div>
-  ${hasBody ? `<div class="ng-body"${bodyDisplay}${node.fontSize ? ` style="font-size:${node.fontSize}px"` : ""}>${bodyHtml}</div>` : ""}
-</div>`;
-}
-function generateHtml(graph, imageData = {}) {
-  let minX = Infinity, minY = Infinity;
-  for (const n of graph.nodes) {
-    minX = Math.min(minX, n.position.x);
-    minY = Math.min(minY, n.position.y);
-  }
-  if (!isFinite(minX)) {
-    minX = 0;
-    minY = 0;
-  }
-  const offsetX = -minX + 100;
-  const offsetY = -minY + 100;
-  const nodesHtml = graph.nodes.map((n) => renderNodeCard(n, graph.nodeTemplates[n.template], offsetX, offsetY, imageData)).join("\n");
-  const nodesData = JSON.stringify(graph.nodes.map((n) => ({
-    id: n.id,
-    lx: Math.round(n.position.x + offsetX),
-    ly: Math.round(n.position.y + offsetY),
-    children: n.children ?? [],
-    template: n.template,
-    contentExpanded: n.contentExpanded,
-    isMain: (graph.nodeTemplates[n.template]?.shape ?? "sharp") === "sharp",
-    nodeHeight: n.nodeHeight ?? null,
-    naturalY: Math.round((n.nodeNaturalY ?? n.position.y) + offsetY)
-  })));
-  const edgeData = JSON.stringify(graph.edges.map((e) => ({
-    source: e.source,
-    target: e.target,
-    type: e.type,
-    label: e.label || ""
-  })));
-  const source = graph.source ? `${escHtml(graph.source.authors)} \xB7 ${escHtml(graph.source.venue)}` : "";
-  return `<!DOCTYPE html>
-<html lang="ko">
+  ${E?`<div class="ng-body"${b}${e.fontSize?` style="font-size:${e.fontSize}px"`:""}>${r}</div>`:""}
+</div>`}function _(e,t={}){let n=1/0,o=1/0;for(let r of e.nodes)n=Math.min(n,r.position.x),o=Math.min(o,r.position.y);isFinite(n)||(n=0,o=0);let i=-n+100,a=-o+100,c=e.nodes.map(r=>Q(r,e.nodeTemplates[r.template],i,a,t)).join(`
+`),u=JSON.stringify(e.nodes.map(r=>({id:r.id,lx:Math.round(r.position.x+i),ly:Math.round(r.position.y+a),children:r.children??[],template:r.template,contentExpanded:r.contentExpanded,isMain:(e.nodeTemplates[r.template]?.shape??"sharp")==="sharp",nodeHeight:r.nodeHeight??null,naturalY:Math.round((r.nodeNaturalY??r.position.y)+a)}))),s=JSON.stringify(e.edges.map(r=>({source:r.source,target:r.target,type:r.type,label:r.label||""}))),l=e.source?`${g(e.source.authors)} \xB7 ${g(e.source.venue)}`:"";return`<!DOCTYPE html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escHtml(graph.title)}</title>
+<title>${g(e.title)}</title>
 <!-- KaTeX for LaTeX rendering -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.js"></script>
@@ -338,16 +85,16 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 <body>
 <div id="toolbar">
   <div id="tb-row1">
-    <span id="tb-title">${escHtml(graph.title)}</span>
-    <span id="tb-source">${source}</span>
+    <span id="tb-title">${g(e.title)}</span>
+    <span id="tb-source">${l}</span>
   </div>
   <div id="tb-row2">
     <button onclick="fitView()">Fit View</button>
     <div class="tb-sep"></div>
-    <button onclick="doExpand()" title="\uC120\uD0DD \uB178\uB4DC+\uD558\uC704 \uD3BC\uCE58\uAE30 (\uC120\uD0DD \uC5C6\uC73C\uBA74 \uC804\uCCB4)">\uD3BC\uCE58\uAE30\u2193</button>
-    <button onclick="doCollapse()" title="\uC120\uD0DD \uB178\uB4DC+\uD558\uC704 \uC811\uAE30 (\uC120\uD0DD \uC5C6\uC73C\uBA74 \uC804\uCCB4)">\uC811\uAE30\u2191</button>
+    <button onclick="doExpand()" title="Expand selected node + children (all if none selected)">Expand\u2193</button>
+    <button onclick="doCollapse()" title="Collapse selected node + children (all if none selected)">Collapse\u2191</button>
     <div class="tb-sep"></div>
-    <span id="tb-sel" style="opacity:.35">\uD074\uB9AD\uC73C\uB85C \uB178\uB4DC \uC120\uD0DD</span>
+    <span id="tb-sel" style="opacity:.35">Click a node to select</span>
   </div>
 </div>
 <div id="viewport">
@@ -359,7 +106,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
         </marker>
       </defs>
     </svg>
-    ${nodesHtml}
+    ${c}
   </div>
 </div>
 <div id="lightbox" onclick="closeLightbox()">
@@ -367,8 +114,8 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
   <span id="lightbox-close" onclick="closeLightbox()">\u2715</span>
 </div>
 <script>
-var NODES_DATA = ${nodesData};
-var EDGES = ${edgeData};
+var NODES_DATA = ${u};
+var EDGES = ${s};
 var HEADER_H = 36;
 
 var vp = document.getElementById('viewport');
@@ -428,9 +175,9 @@ function selectNode(nodeId) {
     var el = document.getElementById('node-' + nodeId);
     if (el) el.classList.add('ng-selected');
     var titleEl = el ? el.querySelector('.ng-title') : null;
-    if (label) { label.textContent = '\uC120\uD0DD: ' + (titleEl ? titleEl.textContent : nodeId); label.style.opacity = '0.9'; }
+    if (label) { label.textContent = 'Selected: ' + (titleEl ? titleEl.textContent : nodeId); label.style.opacity = '0.9'; }
   } else {
-    if (label) { label.textContent = '\uD074\uB9AD\uC73C\uB85C \uB178\uB4DC \uC120\uD0DD'; label.style.opacity = '0.35'; }
+    if (label) { label.textContent = 'Click a node to select'; label.style.opacity = '0.35'; }
   }
 }
 
@@ -460,7 +207,7 @@ function toggleFold(e, hdr) {
   setTimeout(recomputePositions, 0);
 }
 
-// \uB178\uB4DC \uB370\uC774\uD130 \uC870\uD68C
+// Get node datum by id
 function getNodeDatum(nodeId) {
   for (var i = 0; i < NODES_DATA.length; i++) {
     if (NODES_DATA[i].id === nodeId) return NODES_DATA[i];
@@ -468,7 +215,7 @@ function getNodeDatum(nodeId) {
   return null;
 }
 
-// \uBAA8\uB4E0 \uD558\uC704 \uB178\uB4DC \uC218\uC9D1 (\uC811\uAE30\uC6A9 \u2014 \uC81C\uD55C \uC5C6\uC774 \uC804\uCCB4)
+// Collect all descendants recursively (for collapse \u2014 no depth limit)
 function getAllDescendants(nodeId, visited) {
   visited = visited || [];
   if (visited.indexOf(nodeId) !== -1) return [];
@@ -476,7 +223,7 @@ function getAllDescendants(nodeId, visited) {
   var result = [];
   var datum = getNodeDatum(nodeId);
   if (!datum) return result;
-  // children \uBC30\uC5F4 + edges \uC591\uCABD \uBAA8\uB450 \uD3EC\uD568
+  // Include both children array and edge targets
   var childIds = (datum.children || []).slice();
   EDGES.forEach(function(e) { if (e.source === nodeId && childIds.indexOf(e.target) === -1) childIds.push(e.target); });
   childIds.forEach(function(childId) {
@@ -486,22 +233,22 @@ function getAllDescendants(nodeId, visited) {
   return result;
 }
 
-// \uD3BC\uCE58\uAE30\uC6A9 \uD558\uC704 \uB178\uB4DC \uC218\uC9D1 \u2014 main_topic \uC790\uC2DD\uC740 \uAC74\uB108\uB700 (\uADF8 \uD558\uC704\uB3C4 \uD3EC\uD568 \uC548 \uD568)
-// outgoing + incoming(non-main) \uC591\uBC29\uD5A5 edge \uD3EC\uD568\uD558\uC5EC \uB2E4\uC911 \uBD80\uBAA8 sub-node\uB97C \uC9C0\uC6D0
+// Collect descendants for expand \u2014 skip main_topic children (and their subtrees)
+// Includes both outgoing and incoming (non-main) edges to support multi-parent sub-nodes
 function getExpandDescendants(nodeId, isRoot, visited) {
   visited = visited || [];
   if (visited.indexOf(nodeId) !== -1) return [];
   visited.push(nodeId);
   var datum = getNodeDatum(nodeId);
   if (!datum) return [];
-  // \uC9C1\uC0AC\uAC01\uD615(sharp/main) \uC790\uC2DD\uC740 \uD3EC\uD568\uD558\uC9C0 \uC54A\uC74C
+  // Do not recurse into other main (sharp) nodes
   if (!isRoot && datum.isMain) return [];
   var result = [nodeId];
   var childIds = (datum.children || []).slice();
   EDGES.forEach(function(e) {
-    // outgoing: \uC774 \uB178\uB4DC\uC5D0\uC11C \uB098\uAC00\uB294 edge
+    // Outgoing edges from this node
     if (e.source === nodeId && childIds.indexOf(e.target) === -1) childIds.push(e.target);
-    // incoming from non-main: non-main \uB178\uB4DC\uAC00 \uC774 \uB178\uB4DC\uB97C \uD5A5\uD558\uB294 edge (\uB2E4\uC911 \uBD80\uBAA8 sub-node \uC9C0\uC6D0)
+    // Incoming from non-main: support sub-nodes with multiple parents
     if (e.target === nodeId && childIds.indexOf(e.source) === -1) {
       var srcDatum = getNodeDatum(e.source);
       if (srcDatum && !srcDatum.isMain) childIds.push(e.source);
@@ -529,8 +276,8 @@ function applyFold(nodeIds, expand) {
   setTimeout(recomputePositions, 0);
 }
 
-// <details> \uD1A0\uAE00(toggle items / original) \uC2DC \uB178\uB4DC \uB192\uC774\uAC00 \uBCC0\uD558\uBBC0\uB85C \uD654\uC0B4\uD45C \uC7AC\uACC4\uC0B0
-// toggle \uC774\uBCA4\uD2B8\uB294 \uBC84\uBE14\uB9C1\uD558\uC9C0 \uC54A\uC544 capture phase \uD544\uC694
+// Recompute positions when <details> toggles change node height.
+// 'toggle' does not bubble so we use capture phase.
 canvas.addEventListener('toggle', function() {
   setTimeout(recomputePositions, 0);
 }, true);
@@ -540,7 +287,7 @@ function doExpand() {
   if (selectedNodeId) {
     applyFold(getExpandDescendants(selectedNodeId, true), true);
   } else {
-    // \uC804\uCCB4 \uD3BC\uCE58\uAE30 \u2014 main_topic\uB294 \uD3EC\uD568\uD558\uB418 \uADF8 \uD558\uC704 main_topic\uB294 skip
+    // Expand all \u2014 include main_topic roots but skip nested main_topic subtrees
     var toExpand = [];
     NODES_DATA.forEach(function(n) {
       if (toExpand.indexOf(n.id) !== -1) return;
@@ -588,7 +335,7 @@ function onNodeHeaderMousedown(e, nodeEl) {
   window.addEventListener('mouseup', onUp);
 }
 
-// \uB178\uB4DC \uC704\uCE58\uB97C \uC6D0\uB798 \uBC30\uCE58 \uADF8\uB300\uB85C \uC720\uC9C0 \u2014 \uC811\uAE30/\uD3BC\uCE58\uAE30 \uC2DC \uB2E4\uB978 \uB178\uB4DC\uB97C \uBC00\uC9C0 \uC54A\uC74C
+// Keep original node positions \u2014 collapse/expand does not push other nodes
 function getNodeRootId(nodeId) {
   var childToParent = getChildToParentMap();
   var cur = nodeId;
@@ -663,8 +410,7 @@ function recomputePositions() {
     renderY[n.id] = y;
   });
 
-  // Pass 2: \uC11C\uBE0C\uB178\uB4DC\uAC00 \uBD80\uBAA8 backbone \uB178\uB4DC\uC758 push delta\uB9CC\uD07C \uB530\uB77C \uB0B4\uB824\uAC00\uB3C4\uB85D \uBCF4\uC815
-  // \uBD80\uBAA8 main \uB178\uB4DC\uAC00 \uBC00\uB824 \uB0B4\uB824\uAC14\uC73C\uBA74 \uC790\uC2DD \uC11C\uBE0C\uB178\uB4DC\uB3C4 \uB3D9\uC77C delta \uC801\uC6A9
+  // Pass 2: sub-nodes follow their parent main node's push delta
   NODES_DATA.forEach(function(n) {
     if (n.isMain) return;
     var parentMain = null;
@@ -691,6 +437,48 @@ function recomputePositions() {
         renderY[n.id] = Math.max(cur, n.ly + parentPush);
       }
     }
+  });
+
+  // Pass 3: normalize Y spacing within each bus group (same source, same X column)
+  var lineBySource = {};
+  EDGES.forEach(function(e) {
+    if (e.type !== 'line') return;
+    if (!lineBySource[e.source]) lineBySource[e.source] = [];
+    lineBySource[e.source].push(e.target);
+  });
+  var ndMap = {};
+  NODES_DATA.forEach(function(n) { ndMap[n.id] = n; });
+  Object.keys(lineBySource).forEach(function(srcId) {
+    var targetIds = lineBySource[srcId].filter(function(id) { return ndMap[id]; });
+    if (targetIds.length < 2) return;
+    // Group targets by X column
+    var xGroups = [];
+    targetIds.forEach(function(id) {
+      var el = document.getElementById('node-' + id);
+      var nx = ndMap[id].lx; var nw = el ? el.offsetWidth : 300;
+      var placed = false;
+      for (var gi = 0; gi < xGroups.length; gi++) {
+        var firstId = xGroups[gi][0];
+        var fEl = document.getElementById('node-' + firstId);
+        var fx = ndMap[firstId].lx; var fw = fEl ? fEl.offsetWidth : 300;
+        if (nx < fx + fw && fx < nx + nw) { xGroups[gi].push(id); placed = true; break; }
+      }
+      if (!placed) xGroups.push([id]);
+    });
+    // Sort and space within each X column group
+    xGroups.forEach(function(grp) {
+      if (grp.length < 2) return;
+      var sorted = grp.map(function(id) {
+        var el = document.getElementById('node-' + id);
+        return { id: id, y: renderY[id] !== undefined ? renderY[id] : ndMap[id].ly, h: el ? el.offsetHeight : HEADER_H };
+      }).sort(function(a, b) { return a.y - b.y; });
+      for (var i = 1; i < sorted.length; i++) {
+        var minY = sorted[i-1].y + sorted[i-1].h + 20;
+        var newY = Math.max(sorted[i].y, minY);
+        sorted[i].y = newY;
+        renderY[sorted[i].id] = newY;
+      }
+    });
   });
 
   NODES_DATA.forEach(function(n) {
@@ -721,7 +509,7 @@ function drawEdges() {
   var svg=document.getElementById('wire-svg');
   svg.querySelectorAll('.ng-eg').forEach(function(el){el.remove();});
 
-  // \uAC19\uC740 source\uC5D0\uC11C \uB098\uAC00\uB294 line \uC5E3\uC9C0\uB97C grouping \u2192 bus \uB77C\uC6B0\uD305 \uD6C4\uBCF4
+  // Group line edges by source for bus routing
   var lineBySource={};
   EDGES.forEach(function(e){
     if(e.type!=='line') return;
@@ -731,7 +519,7 @@ function drawEdges() {
 
   var busDrawn={};
 
-  // Bus \uB77C\uC6B0\uD305: source \uD558\uB098 \u2192 \uBCF5\uC218\uC758 line \uD0C0\uAC9F\uC774 \uBAA8\uB450 \uAC19\uC740 \uBC29\uD5A5(\uC6B0\uCE21 or \uC88C\uCE21)\uC77C \uB54C
+  // Bus routing: one source \u2192 multiple line targets all on the same side (right)
   Object.keys(lineBySource).forEach(function(srcId){
     var group=lineBySource[srcId];
     if(group.length<2) return;
@@ -745,7 +533,7 @@ function drawEdges() {
       targets.push({e:e,r:getNodeRect(tEl)});
     });
     if(targets.length<2) return;
-    // \uBAA8\uB450 \uC624\uB978\uCABD\uC5D0 \uC788\uB294\uC9C0 \uD655\uC778
+    // Check all targets are to the right
     var allRight=targets.every(function(t){return t.r.x>=sr.x+sr.w-5;});
     if(!allRight) return;
 
@@ -769,7 +557,7 @@ function drawEdges() {
     svg.appendChild(g);
   });
 
-  // \uB098\uBA38\uC9C0 \uC5E3\uC9C0: Bezier \uACE1\uC120
+  // Remaining edges: Bezier curves
   EDGES.forEach(function(edge){
     if(busDrawn[edge.source+'-'+edge.target]) return;
     var srcEl=document.getElementById('node-'+edge.source), tgtEl=document.getElementById('node-'+edge.target);
@@ -825,12 +613,12 @@ function initKatex() {
 }
 
 window.addEventListener('load', function() {
-  // KaTeX \uBA3C\uC800 \uB80C\uB354\uB9C1\uD574\uC57C \uB178\uB4DC \uB192\uC774\uAC00 \uC815\uD655\uD568
+  // Render KaTeX first so node heights are accurate
   initKatex();
   recomputePositions();
   drawEdges();
   fitView();
-  // \uC774\uBBF8\uC9C0 \uB85C\uB4DC \uD6C4 \uB178\uB4DC \uB192\uC774 \uC7AC\uACC4\uC0B0 (base64 \uC774\uBBF8\uC9C0\uB3C4 \uBE44\uB3D9\uAE30\uB85C \uB192\uC774 \uD655\uC815\uB428)
+  // Recompute after images load (base64 images also finalize height asynchronously)
   var imgs = Array.from(document.querySelectorAll('.ng-node img'));
   var pending = imgs.filter(function(img) { return !img.complete; }).length;
   if (pending === 0) return;
@@ -847,151 +635,14 @@ window.addEventListener('load', function() {
 });
 </script>
 </body>
-</html>`;
-}
-
-// src/extension/NodeGraphEditorProvider.ts
-var NodeGraphEditorProvider = class _NodeGraphEditorProvider {
-  constructor(context) {
-    this.context = context;
-    this._pendingSaves = /* @__PURE__ */ new Set();
-  }
-  static register(context) {
-    const provider = new _NodeGraphEditorProvider(context);
-    return vscode2.window.registerCustomEditorProvider(
-      "nodegraph.editor",
-      provider,
-      { webviewOptions: { retainContextWhenHidden: true } }
-    );
-  }
-  async resolveCustomTextEditor(document, webviewPanel, _token) {
-    const documentDir = vscode2.Uri.joinPath(document.uri, "..");
-    webviewPanel.webview.options = {
-      enableScripts: true,
-      localResourceRoots: [this.context.extensionUri, documentDir]
-    };
-    webviewPanel.webview.html = this._getHtmlForWebview(webviewPanel.webview);
-    const sendGraph = (type) => {
-      try {
-        const data = JSON.parse(document.getText());
-        const imageUris = computeImageUris(webviewPanel.webview, document.uri, data);
-        webviewPanel.webview.postMessage({ type, data, imageUris });
-      } catch {
-      }
-    };
-    const msgDisposable = webviewPanel.webview.onDidReceiveMessage(async (msg) => {
-      if (msg.type === "ready") {
-        sendGraph("load");
-      } else if (msg.type === "save") {
-        const docKey = document.uri.toString();
-        this._pendingSaves.add(docKey);
-        try {
-          const edit = new vscode2.WorkspaceEdit();
-          const fullRange = new vscode2.Range(
-            document.positionAt(0),
-            document.positionAt(document.getText().length)
-          );
-          edit.replace(document.uri, fullRange, JSON.stringify(msg.data, null, 2));
-          await vscode2.workspace.applyEdit(edit);
-        } finally {
-          this._pendingSaves.delete(docKey);
-        }
-      } else if (msg.type === "openLink") {
-        const link = msg.link;
-        if (link.type === "url") {
-          vscode2.env.openExternal(vscode2.Uri.parse(link.target));
-        } else if (link.type === "pdf") {
-          const pdfUri = vscode2.Uri.joinPath(vscode2.Uri.joinPath(document.uri, ".."), link.target);
-          vscode2.env.openExternal(pdfUri);
-        } else if (link.type === "obsidian") {
-          vscode2.env.openExternal(vscode2.Uri.parse(link.target));
-        }
-      } else if (msg.type === "exportHtml") {
-        try {
-          const data = msg.data;
-          const docDir = vscode2.Uri.joinPath(document.uri, "..");
-          const baseName = path.basename(document.uri.fsPath, ".nodegraph.json");
-          const imgsFolder = vscode2.Uri.joinPath(docDir, `.${baseName}-imgs`);
-          const imageData = {};
-          const INLINE_IMG_RE2 = /\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;
-          const loadImg = async (filename) => {
-            if (!filename || imageData[filename])
-              return;
-            try {
-              const imgUri = vscode2.Uri.joinPath(imgsFolder, filename);
-              const bytes = await vscode2.workspace.fs.readFile(imgUri);
-              const ext = filename.split(".").pop()?.toLowerCase() ?? "png";
-              const mime = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "gif" ? "image/gif" : ext === "webp" ? "image/webp" : "image/png";
-              imageData[filename] = `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
-            } catch {
-            }
-          };
-          for (const node of data.nodes) {
-            INLINE_IMG_RE2.lastIndex = 0;
-            let m;
-            while ((m = INLINE_IMG_RE2.exec(node.content ?? "")) !== null)
-              await loadImg(m[1]);
-          }
-          const htmlContent = generateHtml(data, imageData);
-          const outUri = vscode2.Uri.joinPath(docDir, `${baseName}.html`);
-          await vscode2.workspace.fs.writeFile(outUri, Buffer.from(htmlContent, "utf-8"));
-          const choice = await vscode2.window.showInformationMessage(
-            `HTML exported: ${baseName}.html`,
-            "Open in Browser",
-            "Show in Explorer"
-          );
-          if (choice === "Open in Browser") {
-            vscode2.env.openExternal(outUri);
-          } else if (choice === "Show in Explorer") {
-            vscode2.commands.executeCommand("revealFileInOS", outUri);
-          }
-        } catch (err) {
-          vscode2.window.showErrorMessage(`HTML export failed: ${err}`);
-        }
-      } else if (msg.type === "saveImage") {
-        try {
-          const { filename, webviewUri } = await saveImageToAssetsFolder(
-            webviewPanel.webview,
-            document.uri,
-            msg.data,
-            msg.ext ?? "png"
-          );
-          webviewPanel.webview.postMessage({ type: "imageSaved", nodeId: msg.nodeId, filename, webviewUri });
-        } catch (err) {
-          vscode2.window.showErrorMessage(`Failed to save image: ${err}`);
-        }
-      } else if (msg.type === "deleteImageFile") {
-        await deleteImageFile(document.uri, msg.filename);
-      }
-    });
-    const changeDisposable = vscode2.workspace.onDidChangeTextDocument((e) => {
-      if (e.document.uri.toString() !== document.uri.toString())
-        return;
-      if (this._pendingSaves.has(document.uri.toString()))
-        return;
-      sendGraph("externalChange");
-    });
-    webviewPanel.onDidDispose(() => {
-      msgDisposable.dispose();
-      changeDisposable.dispose();
-    });
-  }
-  _getHtmlForWebview(webview) {
-    const scriptUri = webview.asWebviewUri(
-      vscode2.Uri.joinPath(this.context.extensionUri, "dist", "webview.js")
-    );
-    const katexCssUri = webview.asWebviewUri(
-      vscode2.Uri.joinPath(this.context.extensionUri, "dist", "katex", "katex.min.css")
-    );
-    const nonce = getNonce();
-    return `<!DOCTYPE html>
+</html>`}var A=class e{constructor(t){this.context=t;this._pendingSaves=new Set}static register(t){let n=new e(t);return d.window.registerCustomEditorProvider("nodegraph.editor",n,{webviewOptions:{retainContextWhenHidden:!0}})}async resolveCustomTextEditor(t,n,o){let i=d.Uri.joinPath(t.uri,"..");n.webview.options={enableScripts:!0,localResourceRoots:[this.context.extensionUri,i]},n.webview.html=this._getHtmlForWebview(n.webview);let a=s=>{try{let l=JSON.parse(t.getText()),r=O(n.webview,t.uri,l);n.webview.postMessage({type:s,data:l,imageUris:r})}catch{}},c=n.webview.onDidReceiveMessage(async s=>{if(s.type==="ready")a("load");else if(s.type==="save"){let l=t.uri.toString();this._pendingSaves.add(l);try{let r=new d.WorkspaceEdit,h=new d.Range(t.positionAt(0),t.positionAt(t.getText().length));r.replace(t.uri,h,JSON.stringify(s.data,null,2)),await d.workspace.applyEdit(r),await t.save()}finally{this._pendingSaves.delete(l)}}else if(s.type==="openLink"){let l=s.link;if(l.type==="url")d.env.openExternal(d.Uri.parse(l.target));else if(l.type==="pdf"){let r=d.Uri.joinPath(d.Uri.joinPath(t.uri,".."),l.target);d.env.openExternal(r)}else l.type==="obsidian"&&d.env.openExternal(d.Uri.parse(l.target))}else if(s.type==="exportHtml")try{let l=s.data,r=d.Uri.joinPath(t.uri,".."),h=W.basename(t.uri.fsPath,".nodegraph.json"),E=d.Uri.joinPath(r,`.${h}-imgs`),b={},I=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g,M=async m=>{if(!(!m||b[m]))try{let y=d.Uri.joinPath(E,m),p=await d.workspace.fs.readFile(y),f=m.split(".").pop()?.toLowerCase()??"png",B=f==="jpg"||f==="jpeg"?"image/jpeg":f==="gif"?"image/gif":f==="webp"?"image/webp":"image/png";b[m]=`data:${B};base64,${Buffer.from(p).toString("base64")}`}catch{}};for(let m of l.nodes){I.lastIndex=0;let y;for(;(y=I.exec(m.content??""))!==null;)await M(y[1])}let N=_(l,b),x=d.Uri.joinPath(r,`${h}.html`);await d.workspace.fs.writeFile(x,Buffer.from(N,"utf-8"));let w=await d.window.showInformationMessage(`HTML exported: ${h}.html`,"Open in Browser","Show in Explorer");w==="Open in Browser"?d.env.openExternal(x):w==="Show in Explorer"&&d.commands.executeCommand("revealFileInOS",x)}catch(l){d.window.showErrorMessage(`HTML export failed: ${l}`)}else if(s.type==="saveImage")try{let{filename:l,webviewUri:r}=await U(n.webview,t.uri,s.data,s.ext??"png");n.webview.postMessage({type:"imageSaved",nodeId:s.nodeId,filename:l,webviewUri:r})}catch(l){d.window.showErrorMessage(`Failed to save image: ${l}`)}else s.type==="deleteImageFile"&&await R(t.uri,s.filename)}),u=d.workspace.onDidChangeTextDocument(s=>{s.document.uri.toString()===t.uri.toString()&&(this._pendingSaves.has(t.uri.toString())||a("externalChange"))});n.onDidDispose(()=>{c.dispose(),u.dispose()})}_getHtmlForWebview(t){let n=t.asWebviewUri(d.Uri.joinPath(this.context.extensionUri,"dist","webview.js")),o=t.asWebviewUri(d.Uri.joinPath(this.context.extensionUri,"dist","katex","katex.min.css")),i=ee();return`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} blob: data:; script-src 'nonce-${nonce}'; style-src 'unsafe-inline' ${webview.cspSource}; font-src ${webview.cspSource};">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${t.cspSource} blob: data:; script-src 'nonce-${i}'; style-src 'unsafe-inline' ${t.cspSource}; font-src ${t.cspSource};">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NodeGraph</title>
-  <link rel="stylesheet" href="${katexCssUri}">
+  <link rel="stylesheet" href="${o}">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #root { height: 100%; overflow: hidden; }
@@ -1007,31 +658,6 @@ var NodeGraphEditorProvider = class _NodeGraphEditorProvider {
 </head>
 <body>
   <div id="root"></div>
-  <script nonce="${nonce}" src="${scriptUri}"></script>
+  <script nonce="${i}" src="${n}"></script>
 </body>
-</html>`;
-  }
-};
-function getNonce() {
-  let text = "";
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  for (let i = 0; i < 32; i++) {
-    text += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return text;
-}
-
-// src/extension/extension.ts
-function activate(context) {
-  context.subscriptions.push(
-    NodeGraphEditorProvider.register(context)
-  );
-}
-function deactivate() {
-}
-// Annotate the CommonJS export names for ESM import in node:
-0 && (module.exports = {
-  activate,
-  deactivate
-});
-//# sourceMappingURL=extension.js.map
+</html>`}};function ee(){let e="",t="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";for(let n=0;n<32;n++)e+=t.charAt(Math.floor(Math.random()*t.length));return e}function te(e){e.subscriptions.push(A.register(e))}function ne(){}0&&(module.exports={activate,deactivate});
