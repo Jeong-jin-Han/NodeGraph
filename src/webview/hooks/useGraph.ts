@@ -1,5 +1,43 @@
 import { useState, useCallback, useRef } from 'react'
-import { NodeGraph, NodeLink } from '../types/graph'
+import { NodeGraph, NodeImage, NodeLink, CanvasImage } from '../types/graph'
+
+function insertImgTokenInCell(content: string, tableIdx: number, rowIdx: number, colIdx: number, filename: string): string {
+  const lines = content.split('\n')
+  let tableCount = 0
+  let i = 0
+
+  while (i < lines.length) {
+    const isStart =
+      /^\s*\|/.test(lines[i]) &&
+      lines[i].indexOf('|', 1) !== -1 &&
+      i + 1 < lines.length &&
+      /^\s*\|[\s\-:|]+\|\s*$/.test(lines[i + 1]) &&
+      !/[a-zA-Z0-9]/.test(lines[i + 1])
+
+    if (!isStart) { i++; continue }
+
+    if (tableCount < tableIdx) {
+      tableCount++
+      while (i < lines.length && /^\s*\|/.test(lines[i])) i++
+      continue
+    }
+
+    // rowIdx 0 = header, 1+ = data rows (skip separator at i+1)
+    const targetLineIdx = rowIdx === 0 ? i : i + rowIdx + 1
+    if (targetLineIdx < lines.length && /^\s*\|/.test(lines[targetLineIdx])) {
+      const cells = lines[targetLineIdx]
+        .replace(/^\s*\|/, '').replace(/\|\s*$/, '')
+        .split('|').map(s => s.trim())
+      while (cells.length <= colIdx) cells.push('')
+      const token = `[[IMG:${filename}]]`
+      cells[colIdx] = cells[colIdx] ? `${cells[colIdx]} ${token}` : token
+      lines[targetLineIdx] = '| ' + cells.join(' | ') + ' |'
+    }
+    break
+  }
+
+  return lines.join('\n')
+}
 
 declare function acquireVsCodeApi(): {
   postMessage: (msg: unknown) => void
@@ -16,8 +54,11 @@ export function useGraph() {
   const isDirtyRef = useRef(false)
   const historyRef = useRef<NodeGraph[]>([])
   const futureRef = useRef<NodeGraph[]>([])
+  const pendingImagePositionRef = useRef<Map<string, { position?: number; insertAsToken?: boolean }>>(new Map())
+  const pendingCanvasImageRef = useRef<{ x: number; y: number } | null>(null)
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
+  const [lastAddedCanvasImageId, setLastAddedCanvasImageId] = useState<string | null>(null)
 
   const updateHistoryState = useCallback(() => {
     setCanUndo(historyRef.current.length > 0)
@@ -54,20 +95,54 @@ export function useGraph() {
         }
       } else if (msg.type === 'imageSaved') {
         setImageUris(prev => ({ ...prev, [msg.filename]: msg.webviewUri }))
-        setGraphState(prev => {
-          if (!prev) return prev
-          historyRef.current = [...historyRef.current.slice(-(MAX_HISTORY - 1)), prev]
-          futureRef.current = []
-          isDirtyRef.current = true
-          return {
-            ...prev,
-            nodes: prev.nodes.map(n => n.id !== msg.nodeId ? n : {
-              ...n,
-              contentExpanded: true,
-              images: [...n.images, { filename: msg.filename, caption: '', source: 'user' as const }],
-            }),
-          }
-        })
+        if (msg.nodeId === '__canvas__') {
+          const pos = pendingCanvasImageRef.current ?? { x: 0, y: 0 }
+          pendingCanvasImageRef.current = null
+          const newId = `cimg_${Date.now()}`
+          setLastAddedCanvasImageId(newId)
+          setGraphState(prev => {
+            if (!prev) return prev
+            isDirtyRef.current = true
+            const ci: CanvasImage = {
+              id: newId,
+              filename: msg.filename,
+              position: pos,
+              width: 400,
+              height: 300,
+            }
+            return { ...prev, canvasImages: [...(prev.canvasImages ?? []), ci] }
+          })
+        } else {
+          const pending = pendingImagePositionRef.current.get(msg.nodeId)
+          pendingImagePositionRef.current.delete(msg.nodeId)
+          const position = pending?.position
+          const insertAsToken = pending?.insertAsToken ?? false
+          const token = `[[IMG:${msg.filename}]]`
+          setGraphState(prev => {
+            if (!prev) return prev
+            historyRef.current = [...historyRef.current.slice(-(MAX_HISTORY - 1)), prev]
+            futureRef.current = []
+            isDirtyRef.current = true
+            return {
+              ...prev,
+              nodes: prev.nodes.map(n => n.id !== msg.nodeId ? n : {
+                ...n,
+                contentExpanded: true,
+                ...(insertAsToken
+                  ? {
+                      // [[IMG:filename]] 토큰을 position 위치에 삽입 (없으면 content 끝에 추가)
+                      content: position !== undefined
+                        ? (n.content ?? '').slice(0, position) + token + (n.content ?? '').slice(position)
+                        : ((n.content ?? '') + ((n.content ?? '').trim() ? '\n' : '') + token),
+                    }
+                  : {
+                      images: [...n.images, { filename: msg.filename, caption: '', source: 'user' as const, position }],
+                    }
+                ),
+              }),
+            }
+          })
+        }
       }
     }
     window.addEventListener('message', handlerRef.current)
@@ -124,6 +199,11 @@ export function useGraph() {
   }, [updateHistoryState])
 
   const updateNodePosition = useCallback((id: string, x: number, y: number) => {
+    setGraph(g => ({ ...g, nodes: g.nodes.map(n => n.id === id ? { ...n, position: { x, y }, nodeNaturalY: y } : n) }))
+  }, [setGraph])
+
+  // Auto-save pushed position without changing nodeNaturalY (prevents delta compounding)
+  const autoSaveNodePosition = useCallback((id: string, x: number, y: number) => {
     setGraph(g => ({ ...g, nodes: g.nodes.map(n => n.id === id ? { ...n, position: { x, y } } : n) }))
   }, [setGraph])
 
@@ -250,20 +330,27 @@ export function useGraph() {
     }))
   }, [setGraph])
 
+  const setNodeHeight = useCallback((id: string, height: number) => {
+    setGraph(g => ({
+      ...g,
+      nodes: g.nodes.map(n => n.id !== id ? n : { ...n, nodeHeight: Math.max(60, Math.round(height)) }),
+    }))
+  }, [setGraph])
+
   // 드래그 중 폰트 사이즈 적용 (히스토리 저장 안 함, pushHistory를 드래그 시작 전에 호출)
   const setNodeFontSize = useCallback((id: string, size: number) => {
     setGraph(g => ({
       ...g,
-      nodes: g.nodes.map(n => n.id === id ? { ...n, fontSize: Math.max(8, Math.min(32, size)) } : n),
+      nodes: g.nodes.map(n => n.id === id ? { ...n, fontSize: Math.max(8, Math.min(72, size)) } : n),
     }))
   }, [setGraph])
 
-  // 툴바 +/- 버튼 (히스토리 저장)
+  // 툴바 +/- or delta (히스토리 저장), 각 노드의 현재 크기에서 delta만큼 이동 (비율 유지)
   const bumpFontSize = useCallback((ids: string[], delta: number) => {
     setGraph(g => ({
       ...g,
       nodes: g.nodes.map(n =>
-        ids.includes(n.id) ? { ...n, fontSize: Math.max(8, Math.min(32, (n.fontSize ?? 14) + delta)) } : n
+        ids.includes(n.id) ? { ...n, fontSize: Math.max(8, Math.min(72, (n.fontSize ?? 14) + delta)) } : n
       ),
     }), true)
   }, [setGraph])
@@ -279,26 +366,122 @@ export function useGraph() {
   }, [setGraph])
 
 
-  const saveImage = useCallback((nodeId: string, base64: string, ext = 'png') => {
+  const saveImage = useCallback((nodeId: string, base64: string, ext = 'png', position?: number, insertAsToken = false) => {
+    pendingImagePositionRef.current.set(nodeId, { position, insertAsToken })
     vscode.postMessage({ type: 'saveImage', nodeId, data: base64, ext })
   }, [])
 
-  const deleteImage = useCallback((nodeId: string, filename: string) => {
+  const addCanvasImage = useCallback((ci: CanvasImage) => {
+    setGraph(g => ({ ...g, canvasImages: [...(g.canvasImages ?? []), ci] }), true)
+  }, [setGraph])
+
+  const addFilenameToNode = useCallback((nodeId: string, filename: string, width?: number, height?: number) => {
+    setGraphState(prev => {
+      if (!prev) return prev
+      isDirtyRef.current = true
+      const token = (width && height) ? `[[IMG:${filename}:${Math.round(width)}x${Math.round(height)}]]` : `[[IMG:${filename}]]`
+      const updated: NodeGraph = {
+        ...prev,
+        nodes: prev.nodes.map(n => n.id !== nodeId ? n : {
+          ...n,
+          contentExpanded: true,
+          // 이미 content에 동일 토큰이 있으면 중복 추가하지 않음
+          content: (n.content ?? '').includes(token)
+            ? n.content
+            : (n.content ? `${n.content}\n${token}` : token),
+        }),
+      }
+      vscode.postMessage({ type: 'save', data: updated })
+      return updated
+    })
+  }, [])
+
+  const saveCanvasImage = useCallback((base64: string, ext = 'png', x: number, y: number) => {
+    pendingCanvasImageRef.current = { x, y }
+    vscode.postMessage({ type: 'saveImage', nodeId: '__canvas__', data: base64, ext })
+  }, [])
+
+  const updateCanvasImage = useCallback((id: string, updates: Partial<CanvasImage>) => {
     setGraph(g => ({
       ...g,
-      nodes: g.nodes.map(n => n.id !== nodeId ? n : {
-        ...n,
-        images: n.images.filter(img => img.filename !== filename),
-      }),
+      canvasImages: (g.canvasImages ?? []).map(ci => ci.id === id ? { ...ci, ...updates } : ci),
+    }))
+  }, [setGraph])
+
+  const removeCanvasImage = useCallback((id: string) => {
+    setGraph(g => ({ ...g, canvasImages: (g.canvasImages ?? []).filter(ci => ci.id !== id) }), true)
+  }, [setGraph])
+
+  const moveCanvasImageToNode = useCallback((imgId: string, nodeId: string, tableCell?: { tableIdx: number; rowIdx: number; colIdx: number }) => {
+    setGraph(g => {
+      const ci = (g.canvasImages ?? []).find(c => c.id === imgId)
+      if (!ci) return g
+      const targetNode = g.nodes.find(n => n.id === nodeId)
+      if (!targetNode) return g
+      const newNodeImage: NodeImage = { filename: ci.filename, caption: '', source: 'user' as const }
+      const newContent = tableCell
+        ? insertImgTokenInCell(targetNode.content, tableCell.tableIdx, tableCell.rowIdx, tableCell.colIdx, ci.filename)
+        : targetNode.content
+      return {
+        ...g,
+        canvasImages: (g.canvasImages ?? []).filter(c => c.id !== imgId),
+        nodes: g.nodes.map(n => n.id !== nodeId ? n : {
+          ...n,
+          content: newContent,
+          images: [...n.images, newNodeImage],
+          contentExpanded: true,
+        }),
+      }
+    }, true)
+  }, [setGraph])
+
+  const deleteImage = useCallback((nodeId: string, filename: string) => {
+    setGraphState(prev => {
+      if (!prev) return prev
+      isDirtyRef.current = true
+      const updated = {
+        ...prev,
+        nodes: prev.nodes.map(n => n.id !== nodeId ? n : {
+          ...n,
+          images: n.images.filter(img => img.filename !== filename),
+        }),
+      }
+      // Delete the physical file only if no other node or canvas image references it
+      const stillReferenced = updated.nodes.some(n =>
+        n.images.some(img => img.filename === filename) ||
+        (n.content?.includes(`[[IMG:${filename}`) ?? false)
+      ) || (updated.canvasImages ?? []).some(ci => ci.filename === filename)
+      if (!stillReferenced) vscode.postMessage({ type: 'deleteImageFile', filename })
+      vscode.postMessage({ type: 'save', data: updated })
+      return updated
+    })
+    // No history push → undo cannot restore deleted image files
+  }, [])
+
+  const updateNodeContentAndImages = useCallback((id: string, content: string, images: NodeImage[]) => {
+    setGraph(g => ({
+      ...g,
+      nodes: g.nodes.map(n => n.id !== id ? n : { ...n, content, images }),
     }), true)
   }, [setGraph])
 
-  function getAllDescendants(g: NodeGraph, nodeId: string): string[] {
+  // stopAtMain=true: main_topic 템플릿 자식은 건너뜀 (펼치기 전용)
+  function getAllDescendants(g: NodeGraph, nodeId: string, visited = new Set<string>(), stopAtMain = false): string[] {
+    if (visited.has(nodeId)) return []
+    visited.add(nodeId)
     const node = g.nodes.find(n => n.id === nodeId)
     if (!node) return []
     const result: string[] = [nodeId]
-    for (const childId of node.children) {
-      result.push(...getAllDescendants(g, childId))
+    const childIds = new Set([
+      ...node.children,
+      ...g.edges.filter(e => e.source === nodeId).map(e => e.target),
+    ])
+    for (const childId of childIds) {
+      if (stopAtMain) {
+        const childNode = g.nodes.find(n => n.id === childId)
+        if ((g.nodeTemplates[childNode?.template ?? '']?.shape ?? 'sharp') === 'sharp') continue  // 직사각형(sharp) 자식은 펼치기에서 제외
+      }
+      result.push(...getAllDescendants(g, childId, visited, stopAtMain))
     }
     return result
   }
@@ -317,11 +500,37 @@ export function useGraph() {
     }), true)
   }, [setGraph])
 
-  // 선택 노드 + 하위 노드 일괄 접기/펼치기
+  // 선택 노드 + 하위 노드 일괄 접기/펼치기 (펼치기 시 main_topic 자식 제외)
+  // outgoing edges 뿐 아니라, 이 노드를 향하는 incoming edge의 non-main 소스도 포함
   const expandNodes = useCallback((ids: string[]) => {
     setGraph(g => {
+      const isMain = (n: GraphNode) => (g.nodeTemplates[n.template]?.shape ?? 'sharp') === 'sharp'
+
+      function getExpandDesc(nodeId: string, visited = new Set<string>()): string[] {
+        if (visited.has(nodeId)) return []
+        visited.add(nodeId)
+        const node = g.nodes.find(n => n.id === nodeId)
+        if (!node) return []
+        const result: string[] = [nodeId]
+        const childIds = new Set([
+          ...node.children,
+          ...g.edges.filter(e => e.source === nodeId).map(e => e.target),
+          // non-main 노드가 이 노드를 향하는 incoming edge도 포함 (다중 부모 sub-node 지원)
+          ...g.edges.filter(e => e.target === nodeId).map(e => e.source).filter(srcId => {
+            const src = g.nodes.find(n => n.id === srcId)
+            return src && !isMain(src)
+          }),
+        ])
+        for (const childId of childIds) {
+          const child = g.nodes.find(n => n.id === childId)
+          if (child && isMain(child)) continue
+          result.push(...getExpandDesc(childId, visited))
+        }
+        return result
+      }
+
       const toExpand = new Set<string>()
-      for (const id of ids) getAllDescendants(g, id).forEach(d => toExpand.add(d))
+      for (const id of ids) getExpandDesc(id).forEach(d => toExpand.add(d))
       return { ...g, nodes: g.nodes.map(n => toExpand.has(n.id) ? { ...n, contentExpanded: true } : n) }
     }, true)
   }, [setGraph])
@@ -390,13 +599,15 @@ export function useGraph() {
 
   return {
     graph, imageUris,
-    updateNodePosition, toggleContent, toggleOriginal,
+    updateNodePosition, autoSaveNodePosition, toggleContent, toggleOriginal,
     updateNodeField, addNode, deleteNodes, addEdge, deleteEdge,
     addToggle, updateToggle, deleteToggle, expandToggle, deleteOriginal,
-    saveImage, deleteImage,
-    setNodeWidth, setNodeFontSize, bumpFontSize, setFontSizeExact, pushHistory,
+    saveImage, deleteImage, updateNodeContentAndImages,
+    setNodeWidth, setNodeHeight, setNodeFontSize, bumpFontSize, setFontSizeExact, pushHistory,
     collapseAll, expandAll, expandNodes, collapseNodes, setNodeTemplate, addOriginal, addLink, deleteLink, openLink, exportHtml,
     undo, redo, canUndo, canRedo,
     saveGraph, setGraph,
+    addCanvasImage, addFilenameToNode, saveCanvasImage, updateCanvasImage, removeCanvasImage, moveCanvasImageToNode,
+    lastAddedCanvasImageId,
   }
 }

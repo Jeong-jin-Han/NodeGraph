@@ -33,11 +33,11 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
       viewBox={`${CANVAS_OFFSET} ${CANVAS_OFFSET} ${CANVAS_SIZE} ${CANVAS_SIZE}`}
     >
       <defs>
-        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-          <polygon points="0 0, 10 3.5, 0 7" fill="var(--vscode-editorWidget-border, #888)" />
+        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#2d3748" />
         </marker>
-        <marker id="arrowhead-preview" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-          <polygon points="0 0, 10 3.5, 0 7" fill="var(--vscode-focusBorder, #007acc)" />
+        <marker id="arrowhead-preview" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#007acc" />
         </marker>
       </defs>
       {edges.map((edge) => {
@@ -68,28 +68,16 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
             <path
               d={d}
               fill="none"
-              stroke="var(--vscode-editorWidget-border, #555)"
-              strokeWidth={1.5}
+              stroke="#2d3748"
+              strokeWidth={2.5}
               markerEnd={edge.type === 'arrow' ? 'url(#arrowhead)' : undefined}
               style={{ pointerEvents: 'none' }}
             />
             {edge.type === 'line' && (
               <>
-                <circle cx={srcPt.x} cy={srcPt.y} r={4} fill="var(--vscode-editorWidget-border, #555)" />
-                <circle cx={tgtPt.x} cy={tgtPt.y} r={4} fill="var(--vscode-editorWidget-border, #555)" />
+                <circle cx={srcPt.x} cy={srcPt.y} r={4} fill="#2d3748" />
+                <circle cx={tgtPt.x} cy={tgtPt.y} r={4} fill="#2d3748" />
               </>
-            )}
-            {edge.label && (
-              <text
-                x={(srcPt.x + tgtPt.x) / 2}
-                y={(srcPt.y + tgtPt.y) / 2 - 6}
-                fill="var(--vscode-editor-foreground, #ccc)"
-                fontSize={11}
-                textAnchor="middle"
-                opacity={0.7}
-              >
-                {edge.label}
-              </text>
             )}
           </g>
         )
@@ -103,7 +91,7 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
         const srcPt = getPortPosition(srcRect, wirePreview.srcPort)
         return (
           <line x1={srcPt.x} y1={srcPt.y} x2={wirePreview.curX} y2={wirePreview.curY}
-            stroke="var(--vscode-focusBorder, #007acc)" strokeWidth={1.5} strokeDasharray="6 3"
+            stroke="#007acc" strokeWidth={2} strokeDasharray="6 3"
             markerEnd="url(#arrowhead-preview)" style={{ pointerEvents: 'none' }} />
         )
       })()}

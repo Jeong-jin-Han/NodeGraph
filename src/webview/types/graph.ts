@@ -1,3 +1,11 @@
+export interface CanvasImage {
+  id: string
+  filename: string
+  position: { x: number; y: number }
+  width: number
+  height: number
+}
+
 export interface NodeGraph {
   version: string
   title: string
@@ -14,6 +22,7 @@ export interface NodeGraph {
   nodes: GraphNode[]
   edges: GraphEdge[]
   viewport: Viewport
+  canvasImages?: CanvasImage[]
 }
 
 export interface NodeTemplate {
@@ -47,6 +56,8 @@ export interface GraphNode {
   children: string[]
   fontSize?: number
   nodeWidth?: number
+  nodeHeight?: number
+  nodeNaturalY?: number   // original Y before auto-save pushes; updated only on drag
   toggleItems?: ToggleItem[]
   images: NodeImage[]
   links: NodeLink[]
@@ -57,6 +68,7 @@ export interface NodeImage {
   caption: string
   source: 'paper' | 'user' | 'agent'
   page?: number
+  position?: number  // character index in node.content where image was pasted inline
 }
 
 export interface NodeLink {

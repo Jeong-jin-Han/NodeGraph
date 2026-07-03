@@ -62,7 +62,6 @@ export function useViewport(initial: Viewport = { x: 0, y: 0, zoom: 1 }) {
 
   const onMouseLeave = useCallback(() => {
     panState.current = null
-    zoomState.current = null
     setCursor('default')
   }, [])
 

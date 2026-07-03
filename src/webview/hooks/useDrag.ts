@@ -1,4 +1,6 @@
-import { useCallback, useRef } from 'react'
+import { useState, useCallback, useRef } from 'react'
+
+const DRAG_THRESHOLD = 5 // screen pixels before drag activates
 
 interface UseDragOptions {
   nodeId: string
@@ -8,11 +10,13 @@ interface UseDragOptions {
 }
 
 export function useDrag({ nodeId, position, viewportZoom, onUpdatePosition }: UseDragOptions) {
+  const [isDragging, setIsDragging] = useState(false)
   const dragState = useRef<{
     startMouseX: number
     startMouseY: number
     startNodeX: number
     startNodeY: number
+    active: boolean
   } | null>(null)
 
   const onMouseDown = useCallback((e: React.MouseEvent<HTMLElement>) => {
@@ -23,16 +27,26 @@ export function useDrag({ nodeId, position, viewportZoom, onUpdatePosition }: Us
       startMouseY: e.clientY,
       startNodeX: position.x,
       startNodeY: position.y,
+      active: false,
     }
 
     const onMove = (ev: MouseEvent) => {
-      if (!dragState.current) return
-      const dx = (ev.clientX - dragState.current.startMouseX) / viewportZoom
-      const dy = (ev.clientY - dragState.current.startMouseY) / viewportZoom
-      onUpdatePosition(nodeId, dragState.current.startNodeX + dx, dragState.current.startNodeY + dy)
+      const ds = dragState.current
+      if (!ds) return
+      const rawDx = ev.clientX - ds.startMouseX
+      const rawDy = ev.clientY - ds.startMouseY
+      if (!ds.active) {
+        if (Math.abs(rawDx) < DRAG_THRESHOLD && Math.abs(rawDy) < DRAG_THRESHOLD) return
+        ds.active = true
+        setIsDragging(true)
+      }
+      const dx = rawDx / viewportZoom
+      const dy = rawDy / viewportZoom
+      onUpdatePosition(nodeId, ds.startNodeX + dx, ds.startNodeY + dy)
     }
 
     const onUp = () => {
+      if (dragState.current?.active) setIsDragging(false)
       dragState.current = null
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
@@ -42,5 +56,5 @@ export function useDrag({ nodeId, position, viewportZoom, onUpdatePosition }: Us
     document.addEventListener('mouseup', onUp)
   }, [nodeId, position.x, position.y, viewportZoom, onUpdatePosition])
 
-  return { onMouseDown }
+  return { onMouseDown, isDragging }
 }

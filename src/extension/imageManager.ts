@@ -16,19 +16,23 @@ export function getImageWebviewUri(
   return webview.asWebviewUri(imageUri).toString()
 }
 
+const INLINE_IMG_RE = /\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g
+
 export function computeImageUris(
   webview: vscode.Webview,
   documentUri: vscode.Uri,
   graph: NodeGraph
 ): Record<string, string> {
   const uris: Record<string, string> = {}
+  const add = (fn: string) => { if (fn && !uris[fn]) uris[fn] = getImageWebviewUri(webview, documentUri, fn) }
   for (const node of graph.nodes) {
-    for (const img of node.images) {
-      if (img.filename && !uris[img.filename]) {
-        uris[img.filename] = getImageWebviewUri(webview, documentUri, img.filename)
-      }
-    }
+    for (const img of node.images) add(img.filename)
+    // Also pick up [[IMG:filename]] tokens embedded directly in content text
+    INLINE_IMG_RE.lastIndex = 0
+    let m: RegExpExecArray | null
+    while ((m = INLINE_IMG_RE.exec(node.content ?? '')) !== null) add(m[1])
   }
+  for (const ci of graph.canvasImages ?? []) add(ci.filename)
   return uris
 }
 
@@ -46,4 +50,9 @@ export async function saveImageToAssetsFolder(
   await vscode.workspace.fs.writeFile(imageUri, Buffer.from(base64Data, 'base64'))
 
   return { filename, webviewUri: webview.asWebviewUri(imageUri).toString() }
+}
+
+export async function deleteImageFile(documentUri: vscode.Uri, filename: string): Promise<void> {
+  const imgUri = vscode.Uri.joinPath(getImgsFolder(documentUri), filename)
+  try { await vscode.workspace.fs.delete(imgUri) } catch { /* file missing or already deleted */ }
 }

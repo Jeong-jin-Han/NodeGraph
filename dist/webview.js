@@ -1083,7 +1083,7 @@ var require_react_development = __commonJS({
           }
           return dispatcher.useContext(Context);
         }
-        function useState5(initialState) {
+        function useState7(initialState) {
           var dispatcher = resolveDispatcher();
           return dispatcher.useState(initialState);
         }
@@ -1091,7 +1091,7 @@ var require_react_development = __commonJS({
           var dispatcher = resolveDispatcher();
           return dispatcher.useReducer(reducer, initialArg, init);
         }
-        function useRef6(initialValue) {
+        function useRef7(initialValue) {
           var dispatcher = resolveDispatcher();
           return dispatcher.useRef(initialValue);
         }
@@ -1111,7 +1111,7 @@ var require_react_development = __commonJS({
           var dispatcher = resolveDispatcher();
           return dispatcher.useCallback(callback, deps);
         }
-        function useMemo3(create, deps) {
+        function useMemo4(create, deps) {
           var dispatcher = resolveDispatcher();
           return dispatcher.useMemo(create, deps);
         }
@@ -1883,10 +1883,10 @@ var require_react_development = __commonJS({
         exports.useImperativeHandle = useImperativeHandle;
         exports.useInsertionEffect = useInsertionEffect;
         exports.useLayoutEffect = useLayoutEffect;
-        exports.useMemo = useMemo3;
+        exports.useMemo = useMemo4;
         exports.useReducer = useReducer;
-        exports.useRef = useRef6;
-        exports.useState = useState5;
+        exports.useRef = useRef7;
+        exports.useState = useState7;
         exports.useSyncExternalStore = useSyncExternalStore;
         exports.useTransition = useTransition;
         exports.version = ReactVersion;
@@ -2382,9 +2382,9 @@ var require_react_dom_development = __commonJS({
         if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== "undefined" && typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart === "function") {
           __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
         }
-        var React5 = require_react();
+        var React6 = require_react();
         var Scheduler = require_scheduler();
-        var ReactSharedInternals = React5.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+        var ReactSharedInternals = React6.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
         var suppressWarning = false;
         function setSuppressWarning(newSuppressWarning) {
           {
@@ -2433,7 +2433,7 @@ var require_react_dom_development = __commonJS({
         var HostPortal = 4;
         var HostComponent = 5;
         var HostText = 6;
-        var Fragment4 = 7;
+        var Fragment5 = 7;
         var Mode = 8;
         var ContextConsumer = 9;
         var ContextProvider = 10;
@@ -3589,7 +3589,7 @@ var require_react_dom_development = __commonJS({
               return "DehydratedFragment";
             case ForwardRef:
               return getWrappedName$1(type, type.render, "ForwardRef");
-            case Fragment4:
+            case Fragment5:
               return "Fragment";
             case HostComponent:
               return type;
@@ -3989,7 +3989,7 @@ var require_react_dom_development = __commonJS({
           {
             if (props.value == null) {
               if (typeof props.children === "object" && props.children !== null) {
-                React5.Children.forEach(props.children, function(child) {
+                React6.Children.forEach(props.children, function(child) {
                   if (child == null) {
                     return;
                   }
@@ -11990,7 +11990,7 @@ var require_react_dom_development = __commonJS({
             }
           }
           function updateFragment2(returnFiber, current2, fragment, lanes, key) {
-            if (current2 === null || current2.tag !== Fragment4) {
+            if (current2 === null || current2.tag !== Fragment5) {
               var created = createFiberFromFragment(fragment, returnFiber.mode, lanes, key);
               created.return = returnFiber;
               return created;
@@ -12393,7 +12393,7 @@ var require_react_dom_development = __commonJS({
               if (child.key === key) {
                 var elementType = element.type;
                 if (elementType === REACT_FRAGMENT_TYPE) {
-                  if (child.tag === Fragment4) {
+                  if (child.tag === Fragment5) {
                     deleteRemainingChildren(returnFiber, child.sibling);
                     var existing = useFiber(child, element.props.children);
                     existing.return = returnFiber;
@@ -17870,7 +17870,7 @@ var require_react_dom_development = __commonJS({
               var _resolvedProps2 = workInProgress2.elementType === type ? _unresolvedProps2 : resolveDefaultProps(type, _unresolvedProps2);
               return updateForwardRef(current2, workInProgress2, type, _resolvedProps2, renderLanes2);
             }
-            case Fragment4:
+            case Fragment5:
               return updateFragment(current2, workInProgress2, renderLanes2);
             case Mode:
               return updateMode(current2, workInProgress2, renderLanes2);
@@ -18143,7 +18143,7 @@ var require_react_dom_development = __commonJS({
             case SimpleMemoComponent:
             case FunctionComponent:
             case ForwardRef:
-            case Fragment4:
+            case Fragment5:
             case Mode:
             case Profiler:
             case ContextConsumer:
@@ -22402,7 +22402,7 @@ var require_react_dom_development = __commonJS({
           return fiber;
         }
         function createFiberFromFragment(elements, mode, lanes, key) {
-          var fiber = createFiber(Fragment4, elements, key, mode);
+          var fiber = createFiber(Fragment5, elements, key, mode);
           fiber.lanes = lanes;
           return fiber;
         }
@@ -23558,7 +23558,7 @@ var require_react_jsx_runtime_development = __commonJS({
     if (true) {
       (function() {
         "use strict";
-        var React5 = require_react();
+        var React6 = require_react();
         var REACT_ELEMENT_TYPE = Symbol.for("react.element");
         var REACT_PORTAL_TYPE = Symbol.for("react.portal");
         var REACT_FRAGMENT_TYPE = Symbol.for("react.fragment");
@@ -23584,7 +23584,7 @@ var require_react_jsx_runtime_development = __commonJS({
           }
           return null;
         }
-        var ReactSharedInternals = React5.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+        var ReactSharedInternals = React6.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
         function error(format) {
           {
             {
@@ -24434,11 +24434,11 @@ var require_react_jsx_runtime_development = __commonJS({
             return jsxWithValidation(type, props, key, false);
           }
         }
-        var jsx7 = jsxWithValidationDynamic;
-        var jsxs4 = jsxWithValidationStatic;
+        var jsx8 = jsxWithValidationDynamic;
+        var jsxs5 = jsxWithValidationStatic;
         exports.Fragment = REACT_FRAGMENT_TYPE;
-        exports.jsx = jsx7;
-        exports.jsxs = jsxs4;
+        exports.jsx = jsx8;
+        exports.jsxs = jsxs5;
       })();
     }
   }
@@ -24460,10 +24460,39 @@ var require_jsx_runtime = __commonJS({
 var import_client = __toESM(require_client());
 
 // src/webview/App.tsx
-var import_react7 = __toESM(require_react());
+var import_react8 = __toESM(require_react());
 
 // src/webview/hooks/useGraph.ts
 var import_react = __toESM(require_react());
+function insertImgTokenInCell(content, tableIdx, rowIdx, colIdx, filename) {
+  const lines = content.split("\n");
+  let tableCount = 0;
+  let i = 0;
+  while (i < lines.length) {
+    const isStart = /^\s*\|/.test(lines[i]) && lines[i].indexOf("|", 1) !== -1 && i + 1 < lines.length && /^\s*\|[\s\-:|]+\|\s*$/.test(lines[i + 1]) && !/[a-zA-Z0-9]/.test(lines[i + 1]);
+    if (!isStart) {
+      i++;
+      continue;
+    }
+    if (tableCount < tableIdx) {
+      tableCount++;
+      while (i < lines.length && /^\s*\|/.test(lines[i]))
+        i++;
+      continue;
+    }
+    const targetLineIdx = rowIdx === 0 ? i : i + rowIdx + 1;
+    if (targetLineIdx < lines.length && /^\s*\|/.test(lines[targetLineIdx])) {
+      const cells = lines[targetLineIdx].replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((s) => s.trim());
+      while (cells.length <= colIdx)
+        cells.push("");
+      const token = `[[IMG:${filename}]]`;
+      cells[colIdx] = cells[colIdx] ? `${cells[colIdx]} ${token}` : token;
+      lines[targetLineIdx] = "| " + cells.join(" | ") + " |";
+    }
+    break;
+  }
+  return lines.join("\n");
+}
 var vscode = acquireVsCodeApi();
 var MAX_HISTORY = 50;
 function useGraph() {
@@ -24472,8 +24501,11 @@ function useGraph() {
   const isDirtyRef = (0, import_react.useRef)(false);
   const historyRef = (0, import_react.useRef)([]);
   const futureRef = (0, import_react.useRef)([]);
+  const pendingImagePositionRef = (0, import_react.useRef)(/* @__PURE__ */ new Map());
+  const pendingCanvasImageRef = (0, import_react.useRef)(null);
   const [canUndo, setCanUndo] = (0, import_react.useState)(false);
   const [canRedo, setCanRedo] = (0, import_react.useState)(false);
+  const [lastAddedCanvasImageId, setLastAddedCanvasImageId] = (0, import_react.useState)(null);
   const updateHistoryState = (0, import_react.useCallback)(() => {
     setCanUndo(historyRef.current.length > 0);
     setCanRedo(futureRef.current.length > 0);
@@ -24507,21 +24539,51 @@ function useGraph() {
         }
       } else if (msg.type === "imageSaved") {
         setImageUris((prev) => ({ ...prev, [msg.filename]: msg.webviewUri }));
-        setGraphState((prev) => {
-          if (!prev)
-            return prev;
-          historyRef.current = [...historyRef.current.slice(-(MAX_HISTORY - 1)), prev];
-          futureRef.current = [];
-          isDirtyRef.current = true;
-          return {
-            ...prev,
-            nodes: prev.nodes.map((n) => n.id !== msg.nodeId ? n : {
-              ...n,
-              contentExpanded: true,
-              images: [...n.images, { filename: msg.filename, caption: "", source: "user" }]
-            })
-          };
-        });
+        if (msg.nodeId === "__canvas__") {
+          const pos = pendingCanvasImageRef.current ?? { x: 0, y: 0 };
+          pendingCanvasImageRef.current = null;
+          const newId = `cimg_${Date.now()}`;
+          setLastAddedCanvasImageId(newId);
+          setGraphState((prev) => {
+            if (!prev)
+              return prev;
+            isDirtyRef.current = true;
+            const ci = {
+              id: newId,
+              filename: msg.filename,
+              position: pos,
+              width: 400,
+              height: 300
+            };
+            return { ...prev, canvasImages: [...prev.canvasImages ?? [], ci] };
+          });
+        } else {
+          const pending = pendingImagePositionRef.current.get(msg.nodeId);
+          pendingImagePositionRef.current.delete(msg.nodeId);
+          const position = pending?.position;
+          const insertAsToken = pending?.insertAsToken ?? false;
+          const token = `[[IMG:${msg.filename}]]`;
+          setGraphState((prev) => {
+            if (!prev)
+              return prev;
+            historyRef.current = [...historyRef.current.slice(-(MAX_HISTORY - 1)), prev];
+            futureRef.current = [];
+            isDirtyRef.current = true;
+            return {
+              ...prev,
+              nodes: prev.nodes.map((n) => n.id !== msg.nodeId ? n : {
+                ...n,
+                contentExpanded: true,
+                ...insertAsToken ? {
+                  // [[IMG:filename]] 토큰을 position 위치에 삽입 (없으면 content 끝에 추가)
+                  content: position !== void 0 ? (n.content ?? "").slice(0, position) + token + (n.content ?? "").slice(position) : (n.content ?? "") + ((n.content ?? "").trim() ? "\n" : "") + token
+                } : {
+                  images: [...n.images, { filename: msg.filename, caption: "", source: "user", position }]
+                }
+              })
+            };
+          });
+        }
       }
     };
     window.addEventListener("message", handlerRef.current);
@@ -24578,6 +24640,9 @@ function useGraph() {
     updateHistoryState();
   }, [updateHistoryState]);
   const updateNodePosition = (0, import_react.useCallback)((id, x, y) => {
+    setGraph((g) => ({ ...g, nodes: g.nodes.map((n) => n.id === id ? { ...n, position: { x, y }, nodeNaturalY: y } : n) }));
+  }, [setGraph]);
+  const autoSaveNodePosition = (0, import_react.useCallback)((id, x, y) => {
     setGraph((g) => ({ ...g, nodes: g.nodes.map((n) => n.id === id ? { ...n, position: { x, y } } : n) }));
   }, [setGraph]);
   const toggleContent = (0, import_react.useCallback)((id) => {
@@ -24706,17 +24771,23 @@ function useGraph() {
       nodes: g.nodes.map((n) => n.id !== id ? n : { ...n, nodeWidth: Math.max(160, Math.round(width)) })
     }));
   }, [setGraph]);
+  const setNodeHeight = (0, import_react.useCallback)((id, height) => {
+    setGraph((g) => ({
+      ...g,
+      nodes: g.nodes.map((n) => n.id !== id ? n : { ...n, nodeHeight: Math.max(60, Math.round(height)) })
+    }));
+  }, [setGraph]);
   const setNodeFontSize = (0, import_react.useCallback)((id, size) => {
     setGraph((g) => ({
       ...g,
-      nodes: g.nodes.map((n) => n.id === id ? { ...n, fontSize: Math.max(8, Math.min(32, size)) } : n)
+      nodes: g.nodes.map((n) => n.id === id ? { ...n, fontSize: Math.max(8, Math.min(72, size)) } : n)
     }));
   }, [setGraph]);
   const bumpFontSize = (0, import_react.useCallback)((ids, delta) => {
     setGraph((g) => ({
       ...g,
       nodes: g.nodes.map(
-        (n) => ids.includes(n.id) ? { ...n, fontSize: Math.max(8, Math.min(32, (n.fontSize ?? 14) + delta)) } : n
+        (n) => ids.includes(n.id) ? { ...n, fontSize: Math.max(8, Math.min(72, (n.fontSize ?? 14) + delta)) } : n
       )
     }), true);
   }, [setGraph]);
@@ -24728,25 +24799,114 @@ function useGraph() {
       )
     }), true);
   }, [setGraph]);
-  const saveImage = (0, import_react.useCallback)((nodeId, base64, ext = "png") => {
+  const saveImage = (0, import_react.useCallback)((nodeId, base64, ext = "png", position, insertAsToken = false) => {
+    pendingImagePositionRef.current.set(nodeId, { position, insertAsToken });
     vscode.postMessage({ type: "saveImage", nodeId, data: base64, ext });
   }, []);
-  const deleteImage = (0, import_react.useCallback)((nodeId, filename) => {
+  const addCanvasImage = (0, import_react.useCallback)((ci) => {
+    setGraph((g) => ({ ...g, canvasImages: [...g.canvasImages ?? [], ci] }), true);
+  }, [setGraph]);
+  const addFilenameToNode = (0, import_react.useCallback)((nodeId, filename, width, height) => {
+    setGraphState((prev) => {
+      if (!prev)
+        return prev;
+      isDirtyRef.current = true;
+      const token = width && height ? `[[IMG:${filename}:${Math.round(width)}x${Math.round(height)}]]` : `[[IMG:${filename}]]`;
+      const updated = {
+        ...prev,
+        nodes: prev.nodes.map((n) => n.id !== nodeId ? n : {
+          ...n,
+          contentExpanded: true,
+          // 이미 content에 동일 토큰이 있으면 중복 추가하지 않음
+          content: (n.content ?? "").includes(token) ? n.content : n.content ? `${n.content}
+${token}` : token
+        })
+      };
+      vscode.postMessage({ type: "save", data: updated });
+      return updated;
+    });
+  }, []);
+  const saveCanvasImage = (0, import_react.useCallback)((base64, ext = "png", x, y) => {
+    pendingCanvasImageRef.current = { x, y };
+    vscode.postMessage({ type: "saveImage", nodeId: "__canvas__", data: base64, ext });
+  }, []);
+  const updateCanvasImage = (0, import_react.useCallback)((id, updates) => {
     setGraph((g) => ({
       ...g,
-      nodes: g.nodes.map((n) => n.id !== nodeId ? n : {
-        ...n,
-        images: n.images.filter((img) => img.filename !== filename)
-      })
+      canvasImages: (g.canvasImages ?? []).map((ci) => ci.id === id ? { ...ci, ...updates } : ci)
+    }));
+  }, [setGraph]);
+  const removeCanvasImage = (0, import_react.useCallback)((id) => {
+    setGraph((g) => ({ ...g, canvasImages: (g.canvasImages ?? []).filter((ci) => ci.id !== id) }), true);
+  }, [setGraph]);
+  const moveCanvasImageToNode = (0, import_react.useCallback)((imgId, nodeId, tableCell) => {
+    setGraph((g) => {
+      const ci = (g.canvasImages ?? []).find((c) => c.id === imgId);
+      if (!ci)
+        return g;
+      const targetNode = g.nodes.find((n) => n.id === nodeId);
+      if (!targetNode)
+        return g;
+      const newNodeImage = { filename: ci.filename, caption: "", source: "user" };
+      const newContent = tableCell ? insertImgTokenInCell(targetNode.content, tableCell.tableIdx, tableCell.rowIdx, tableCell.colIdx, ci.filename) : targetNode.content;
+      return {
+        ...g,
+        canvasImages: (g.canvasImages ?? []).filter((c) => c.id !== imgId),
+        nodes: g.nodes.map((n) => n.id !== nodeId ? n : {
+          ...n,
+          content: newContent,
+          images: [...n.images, newNodeImage],
+          contentExpanded: true
+        })
+      };
+    }, true);
+  }, [setGraph]);
+  const deleteImage = (0, import_react.useCallback)((nodeId, filename) => {
+    setGraphState((prev) => {
+      if (!prev)
+        return prev;
+      isDirtyRef.current = true;
+      const updated = {
+        ...prev,
+        nodes: prev.nodes.map((n) => n.id !== nodeId ? n : {
+          ...n,
+          images: n.images.filter((img) => img.filename !== filename)
+        })
+      };
+      const stillReferenced = updated.nodes.some(
+        (n) => n.images.some((img) => img.filename === filename) || (n.content?.includes(`[[IMG:${filename}`) ?? false)
+      ) || (updated.canvasImages ?? []).some((ci) => ci.filename === filename);
+      if (!stillReferenced)
+        vscode.postMessage({ type: "deleteImageFile", filename });
+      vscode.postMessage({ type: "save", data: updated });
+      return updated;
+    });
+  }, []);
+  const updateNodeContentAndImages = (0, import_react.useCallback)((id, content, images) => {
+    setGraph((g) => ({
+      ...g,
+      nodes: g.nodes.map((n) => n.id !== id ? n : { ...n, content, images })
     }), true);
   }, [setGraph]);
-  function getAllDescendants(g, nodeId) {
+  function getAllDescendants(g, nodeId, visited = /* @__PURE__ */ new Set(), stopAtMain = false) {
+    if (visited.has(nodeId))
+      return [];
+    visited.add(nodeId);
     const node = g.nodes.find((n) => n.id === nodeId);
     if (!node)
       return [];
     const result = [nodeId];
-    for (const childId of node.children) {
-      result.push(...getAllDescendants(g, childId));
+    const childIds = /* @__PURE__ */ new Set([
+      ...node.children,
+      ...g.edges.filter((e) => e.source === nodeId).map((e) => e.target)
+    ]);
+    for (const childId of childIds) {
+      if (stopAtMain) {
+        const childNode = g.nodes.find((n) => n.id === childId);
+        if ((g.nodeTemplates[childNode?.template ?? ""]?.shape ?? "sharp") === "sharp")
+          continue;
+      }
+      result.push(...getAllDescendants(g, childId, visited, stopAtMain));
     }
     return result;
   }
@@ -24764,9 +24924,35 @@ function useGraph() {
   }, [setGraph]);
   const expandNodes = (0, import_react.useCallback)((ids) => {
     setGraph((g) => {
+      const isMain = (n) => (g.nodeTemplates[n.template]?.shape ?? "sharp") === "sharp";
+      function getExpandDesc(nodeId, visited = /* @__PURE__ */ new Set()) {
+        if (visited.has(nodeId))
+          return [];
+        visited.add(nodeId);
+        const node = g.nodes.find((n) => n.id === nodeId);
+        if (!node)
+          return [];
+        const result = [nodeId];
+        const childIds = /* @__PURE__ */ new Set([
+          ...node.children,
+          ...g.edges.filter((e) => e.source === nodeId).map((e) => e.target),
+          // non-main 노드가 이 노드를 향하는 incoming edge도 포함 (다중 부모 sub-node 지원)
+          ...g.edges.filter((e) => e.target === nodeId).map((e) => e.source).filter((srcId) => {
+            const src = g.nodes.find((n) => n.id === srcId);
+            return src && !isMain(src);
+          })
+        ]);
+        for (const childId of childIds) {
+          const child = g.nodes.find((n) => n.id === childId);
+          if (child && isMain(child))
+            continue;
+          result.push(...getExpandDesc(childId, visited));
+        }
+        return result;
+      }
       const toExpand = /* @__PURE__ */ new Set();
       for (const id of ids)
-        getAllDescendants(g, id).forEach((d) => toExpand.add(d));
+        getExpandDesc(id).forEach((d) => toExpand.add(d));
       return { ...g, nodes: g.nodes.map((n) => toExpand.has(n.id) ? { ...n, contentExpanded: true } : n) };
     }, true);
   }, [setGraph]);
@@ -24833,6 +25019,7 @@ function useGraph() {
     graph,
     imageUris,
     updateNodePosition,
+    autoSaveNodePosition,
     toggleContent,
     toggleOriginal,
     updateNodeField,
@@ -24847,7 +25034,9 @@ function useGraph() {
     deleteOriginal,
     saveImage,
     deleteImage,
+    updateNodeContentAndImages,
     setNodeWidth,
+    setNodeHeight,
     setNodeFontSize,
     bumpFontSize,
     setFontSizeExact,
@@ -24867,7 +25056,14 @@ function useGraph() {
     canUndo,
     canRedo,
     saveGraph,
-    setGraph
+    setGraph,
+    addCanvasImage,
+    addFilenameToNode,
+    saveCanvasImage,
+    updateCanvasImage,
+    removeCanvasImage,
+    moveCanvasImageToNode,
+    lastAddedCanvasImageId
   };
 }
 
@@ -24928,7 +25124,6 @@ function useViewport(initial = { x: 0, y: 0, zoom: 1 }) {
   }, []);
   const onMouseLeave = (0, import_react2.useCallback)(() => {
     panState.current = null;
-    zoomState.current = null;
     setCursor("default");
   }, []);
   const onContextMenu = (0, import_react2.useCallback)((e) => {
@@ -24948,7 +25143,7 @@ function useViewport(initial = { x: 0, y: 0, zoom: 1 }) {
 }
 
 // src/webview/components/Canvas.tsx
-var import_react6 = __toESM(require_react());
+var import_react7 = __toESM(require_react());
 
 // src/webview/components/NodeCard.tsx
 var import_react5 = __toESM(require_react());
@@ -24956,7 +25151,9 @@ var import_react_dom = __toESM(require_react_dom());
 
 // src/webview/hooks/useDrag.ts
 var import_react3 = __toESM(require_react());
+var DRAG_THRESHOLD = 5;
 function useDrag({ nodeId, position, viewportZoom, onUpdatePosition }) {
+  const [isDragging, setIsDragging] = (0, import_react3.useState)(false);
   const dragState = (0, import_react3.useRef)(null);
   const onMouseDown = (0, import_react3.useCallback)((e) => {
     e.stopPropagation();
@@ -24965,16 +25162,28 @@ function useDrag({ nodeId, position, viewportZoom, onUpdatePosition }) {
       startMouseX: e.clientX,
       startMouseY: e.clientY,
       startNodeX: position.x,
-      startNodeY: position.y
+      startNodeY: position.y,
+      active: false
     };
     const onMove = (ev) => {
-      if (!dragState.current)
+      const ds = dragState.current;
+      if (!ds)
         return;
-      const dx = (ev.clientX - dragState.current.startMouseX) / viewportZoom;
-      const dy = (ev.clientY - dragState.current.startMouseY) / viewportZoom;
-      onUpdatePosition(nodeId, dragState.current.startNodeX + dx, dragState.current.startNodeY + dy);
+      const rawDx = ev.clientX - ds.startMouseX;
+      const rawDy = ev.clientY - ds.startMouseY;
+      if (!ds.active) {
+        if (Math.abs(rawDx) < DRAG_THRESHOLD && Math.abs(rawDy) < DRAG_THRESHOLD)
+          return;
+        ds.active = true;
+        setIsDragging(true);
+      }
+      const dx = rawDx / viewportZoom;
+      const dy = rawDy / viewportZoom;
+      onUpdatePosition(nodeId, ds.startNodeX + dx, ds.startNodeY + dy);
     };
     const onUp = () => {
+      if (dragState.current?.active)
+        setIsDragging(false);
       dragState.current = null;
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
@@ -24982,7 +25191,7 @@ function useDrag({ nodeId, position, viewportZoom, onUpdatePosition }) {
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   }, [nodeId, position.x, position.y, viewportZoom, onUpdatePosition]);
-  return { onMouseDown };
+  return { onMouseDown, isDragging };
 }
 
 // src/webview/components/MathText.tsx
@@ -39348,6 +39557,69 @@ function MathText({ text: text2, style }) {
   return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { dangerouslySetInnerHTML: { __html: html }, style });
 }
 
+// src/webview/utils/tableParser.ts
+function isTableLine(line) {
+  return /^\s*\|/.test(line) && line.indexOf("|", 1) !== -1;
+}
+function isSepLine(line) {
+  return /^\s*\|[\s\-:|]+\|\s*$/.test(line) && !/[a-zA-Z0-9]/.test(line);
+}
+function parseCells(line) {
+  return line.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((s) => s.trim());
+}
+function parseTableBlocks(content) {
+  if (!content)
+    return [{ type: "text", text: "", startChar: 0, endChar: 0 }];
+  const lines = content.split("\n");
+  const blocks = [];
+  let i = 0;
+  let charPos = 0;
+  const lineCharLen = (idx) => lines[idx].length + (idx < lines.length - 1 ? 1 : 0);
+  while (i < lines.length) {
+    const isTableStart = isTableLine(lines[i]) && i + 1 < lines.length && isSepLine(lines[i + 1]);
+    if (isTableStart) {
+      const startChar = charPos;
+      const tableLines = [];
+      while (i < lines.length && isTableLine(lines[i])) {
+        tableLines.push(lines[i]);
+        charPos += lineCharLen(i);
+        i++;
+      }
+      if (tableLines.length >= 3) {
+        blocks.push({
+          type: "table",
+          headers: parseCells(tableLines[0]),
+          rows: tableLines.slice(2).map(parseCells),
+          startChar,
+          endChar: charPos
+        });
+      } else {
+        blocks.push({ type: "text", text: tableLines.join("\n"), startChar, endChar: charPos });
+      }
+    } else {
+      const startChar = charPos;
+      const textLines = [];
+      while (i < lines.length) {
+        if (isTableLine(lines[i]) && i + 1 < lines.length && isSepLine(lines[i + 1]))
+          break;
+        textLines.push(lines[i]);
+        charPos += lineCharLen(i);
+        i++;
+      }
+      blocks.push({ type: "text", text: textLines.join("\n"), startChar, endChar: charPos });
+    }
+  }
+  return blocks;
+}
+function hasTable(content) {
+  const lines = content.split("\n");
+  for (let i = 0; i + 1 < lines.length; i++) {
+    if (isTableLine(lines[i]) && isSepLine(lines[i + 1]))
+      return true;
+  }
+  return false;
+}
+
 // src/webview/components/NodeCard.tsx
 var import_jsx_runtime2 = __toESM(require_jsx_runtime());
 var btnStyle = {
@@ -39376,12 +39648,15 @@ function NodeCard({
   onUpdatePosition,
   onUpdateNode,
   onSetNodeWidth,
+  onSetNodeHeight,
   onSetFontSize,
   onPushHistory,
   selected,
   isMultiSelected,
   extraDragNodes,
   onSelect,
+  onHoverStart,
+  onHoverEnd,
   onToggleContent,
   onToggleOriginal,
   onResize,
@@ -39398,11 +39673,16 @@ function NodeCard({
   onSetNodeTemplate,
   imageUris,
   onSaveImage,
-  onDeleteImage
+  onDeleteImage,
+  onUpdateContentAndImages,
+  canvasClipboardRef,
+  onAddFilenameToNode
 }) {
   const cardRef = (0, import_react5.useRef)(null);
+  const tableBodyRef = (0, import_react5.useRef)(null);
   const [editingField, setEditingField] = (0, import_react5.useState)(null);
   const [editValue, setEditValue] = (0, import_react5.useState)("");
+  const [editingSegmentIdx, setEditingSegmentIdx] = (0, import_react5.useState)(null);
   const [isHovered, setIsHovered] = (0, import_react5.useState)(false);
   const [editingToggle, setEditingToggle] = (0, import_react5.useState)(null);
   const [hoveredImgIdx, setHoveredImgIdx] = (0, import_react5.useState)(null);
@@ -39426,7 +39706,7 @@ function NodeCard({
     reader.readAsDataURL(file);
     e.target.value = "";
   }, [node.id, onSaveImage]);
-  const { onMouseDown: onDragStart } = useDrag({
+  const { onMouseDown: onDragStart, isDragging } = useDrag({
     nodeId: node.id,
     position: node.position,
     viewportZoom,
@@ -39454,6 +39734,19 @@ function NodeCard({
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [lightboxSrc]);
+  (0, import_react5.useEffect)(() => {
+    if (!node.contentExpanded)
+      return;
+    if (!tableBodyRef.current)
+      return;
+    const tbl = tableBodyRef.current.querySelector("table");
+    if (!tbl)
+      return;
+    const needed = tbl.scrollWidth + 24;
+    const current = node.nodeWidth ?? 0;
+    if (needed > current)
+      onSetNodeWidth(node.id, needed);
+  }, [node.content, node.contentExpanded, node.nodeWidth, node.id, onSetNodeWidth]);
   const setEditRef = (0, import_react5.useCallback)((el) => {
     if (!el)
       return;
@@ -39488,17 +39781,25 @@ function NodeCard({
     e.target.style.height = e.target.scrollHeight + "px";
   };
   const color = template?.color ?? "#888888";
-  const borderRadius = template?.shape === "rounded" ? 12 : 2;
+  const borderRadius = template?.shape === "rounded" ? 22 : 2;
   const fs = node.fontSize ?? 14;
   const handleResizeStart = (0, import_react5.useCallback)((e, axis) => {
     e.stopPropagation();
     e.preventDefault();
     onPushHistory();
     const startX = e.clientX;
+    const startY = e.clientY;
     const startWidth = node.nodeWidth ?? (cardRef.current?.offsetWidth ?? 240);
+    const startHeight = node.nodeHeight ?? (cardRef.current?.offsetHeight ?? 120);
     const onMove = (ev) => {
-      const dx = (ev.clientX - startX) / viewportZoom;
-      onSetNodeWidth(node.id, startWidth + dx);
+      if (axis !== "y") {
+        const dx = (ev.clientX - startX) / viewportZoom;
+        onSetNodeWidth(node.id, startWidth + dx);
+      }
+      if (axis !== "x") {
+        const dy = (ev.clientY - startY) / viewportZoom;
+        onSetNodeHeight(node.id, Math.max(60, startHeight + dy));
+      }
     };
     const onUp = () => {
       document.removeEventListener("mousemove", onMove);
@@ -39506,7 +39807,7 @@ function NodeCard({
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
-  }, [node.id, node.nodeWidth, viewportZoom, onSetNodeWidth, onPushHistory]);
+  }, [node.id, node.nodeWidth, node.nodeHeight, viewportZoom, onSetNodeWidth, onSetNodeHeight, onPushHistory]);
   const baseEditStyle = {
     background: "transparent",
     border: "none",
@@ -39518,6 +39819,17 @@ function NodeCard({
     boxSizing: "border-box",
     width: "100%"
   };
+  const autoMinWidth = (0, import_react5.useMemo)(() => {
+    const content = node.content ?? "";
+    const IMG_SIZE_RE = /\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g;
+    let maxW = 0;
+    let m;
+    while ((m = IMG_SIZE_RE.exec(content)) !== null)
+      maxW = Math.max(maxW, Number(m[1]));
+    if (maxW === 0)
+      return 240;
+    return hasTable(content) ? maxW + 280 : maxW + 32;
+  }, [node.content]);
   return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
     /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
       "div",
@@ -39527,26 +39839,35 @@ function NodeCard({
           position: "absolute",
           left: renderPosition.x,
           top: renderPosition.y,
-          minWidth: 240,
+          minWidth: node.nodeWidth ? 240 : Math.max(240, autoMinWidth),
           width: node.nodeWidth ?? void 0,
+          minHeight: node.nodeHeight ?? void 0,
           background: `color-mix(in srgb, ${color} 15%, var(--vscode-editor-background, #1e1e1e))`,
           border: selected ? `2px solid ${color}` : `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
           borderRadius,
           fontFamily: "var(--vscode-font-family)",
           fontSize: "var(--vscode-font-size)",
           color: "var(--vscode-editor-foreground)",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
-          zIndex: 1
+          boxShadow: isDragging ? "0 6px 20px rgba(0,0,0,0.35)" : "0 2px 8px rgba(0,0,0,0.25)",
+          transition: isDragging ? "box-shadow 0.1s" : "left 0.35s ease, top 0.35s ease, box-shadow 0.1s",
+          zIndex: isDragging ? 10 : 1
         },
+        "data-node-id": node.id,
         onMouseDown: (e) => {
           e.stopPropagation();
-          onSelect(node.id);
+          onSelect(node.id, false);
         },
         onDoubleClick: (e) => e.stopPropagation(),
-        onMouseEnter: () => setIsHovered(true),
-        onMouseLeave: () => setIsHovered(false),
+        onMouseEnter: () => {
+          setIsHovered(true);
+          onHoverStart(node.id);
+        },
+        onMouseLeave: () => {
+          setIsHovered(false);
+          onHoverEnd(node.id);
+        },
         children: [
-          (isHovered || selected) && ["top", "right", "bottom", "left"].map((port) => {
+          isHovered && !selected && ["top", "right", "bottom", "left"].map((port) => {
             const portStyle = port === "top" ? { top: -5, left: "50%", transform: "translateX(-50%)" } : port === "bottom" ? { bottom: -5, left: "50%", transform: "translateX(-50%)" } : port === "left" ? { left: -5, top: "50%", transform: "translateY(-50%)" } : { right: -5, top: "50%", transform: "translateY(-50%)" };
             return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               "div",
@@ -39565,7 +39886,7 @@ function NodeCard({
                   background: color,
                   border: "2px solid var(--vscode-editor-background)",
                   cursor: "crosshair",
-                  zIndex: 10,
+                  zIndex: 25,
                   boxSizing: "border-box"
                 }
               },
@@ -39667,78 +39988,353 @@ function NodeCard({
             }
           ),
           node.contentExpanded && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { padding: "8px 10px" }, children: [
-            editingField === "content" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-              "textarea",
-              {
-                ref: setEditRef,
-                value: editValue,
-                onChange: handleTextareaChange,
-                onBlur: commitEdit,
-                onKeyDown: (e) => {
-                  e.stopPropagation();
-                  if (e.key === "Escape")
-                    cancelEdit();
-                },
-                onMouseDown: (e) => e.stopPropagation(),
-                style: { ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: "none", overflow: "hidden", minHeight: 20, display: "block" }
-              }
-            ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-              "div",
-              {
-                onClick: (e) => startEdit("content", node.content, e),
-                style: { fontSize: fs, lineHeight: 1.6, wordBreak: "break-word", cursor: "text", minHeight: 20 },
-                children: node.content ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MathText, { text: node.content, style: { fontSize: fs, lineHeight: 1.6 } }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { opacity: 0.35, fontStyle: "italic" }, children: "Click to add content\u2026" })
-              }
-            ),
-            node.images.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }, children: node.images.map((img, i) => {
-              const uri = imageUris[img.filename];
-              const hovered = hoveredImgIdx === i;
-              return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
-                "div",
-                {
-                  style: { position: "relative", display: "inline-block", cursor: uri ? "zoom-in" : "default" },
-                  onMouseEnter: () => setHoveredImgIdx(i),
-                  onMouseLeave: () => setHoveredImgIdx(null),
-                  onMouseDown: (e) => e.stopPropagation(),
-                  children: [
+            (() => {
+              const inlineImgs = node.images.filter((img) => img.position !== void 0).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+              const bottomImgs = node.images.filter((img) => img.position === void 0);
+              const renderImgBlock = (img, origIdx) => {
+                const uri = imageUris[img.filename];
+                return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+                  "div",
+                  {
+                    style: { position: "relative", display: "inline-block", width: "100%", marginTop: 4, marginBottom: 2, cursor: uri ? "zoom-in" : "default" },
+                    onMouseEnter: () => setHoveredImgIdx(origIdx),
+                    onMouseLeave: () => setHoveredImgIdx(null),
+                    onMouseDown: (e) => e.stopPropagation(),
+                    children: [
+                      uri ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+                        "img",
+                        {
+                          src: uri,
+                          alt: img.caption || img.filename,
+                          onClick: () => setLightboxSrc(uri),
+                          style: { display: "block", maxWidth: "100%", borderRadius: 3, border: "1px solid rgba(128,128,128,0.2)" }
+                        }
+                      ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 10, opacity: 0.5, padding: "4px 6px", background: "rgba(128,128,128,0.1)", borderRadius: 3 }, children: img.filename }),
+                      hoveredImgIdx === origIdx && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+                        "button",
+                        {
+                          onClick: (e) => {
+                            e.stopPropagation();
+                            onDeleteImage(node.id, img.filename);
+                          },
+                          style: { ...btnStyle, position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.65)", color: "#fff", fontSize: 10, width: 18, height: 18, opacity: 1, borderRadius: 3 },
+                          title: "\uC774\uBBF8\uC9C0 \uC0AD\uC81C",
+                          children: "\u2715"
+                        }
+                      )
+                    ]
+                  },
+                  img.filename
+                );
+              };
+              const renderCellContent = (cellText) => {
+                const IMG_RE = /\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g;
+                const parts = [];
+                let lastIdx = 0;
+                let match;
+                let key = 0;
+                IMG_RE.lastIndex = 0;
+                while ((match = IMG_RE.exec(cellText)) !== null) {
+                  if (match.index > lastIdx) {
+                    parts.push(/* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MathText, { text: cellText.slice(lastIdx, match.index) }, key++));
+                  }
+                  const filename = match[1];
+                  const imgW = match[2] ? Number(match[2]) : void 0;
+                  const imgH = match[3] ? Number(match[3]) : void 0;
+                  const uri = imageUris[filename];
+                  parts.push(
                     uri ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                       "img",
                       {
                         src: uri,
-                        alt: img.caption || img.filename,
+                        alt: filename,
                         onClick: () => setLightboxSrc(uri),
-                        style: { display: "block", maxWidth: "100%", borderRadius: 3, border: "1px solid rgba(128,128,128,0.2)" }
+                        style: {
+                          display: "block",
+                          maxWidth: imgW ? void 0 : "100%",
+                          marginTop: 2,
+                          cursor: "zoom-in",
+                          ...imgW ? { width: imgW } : {},
+                          ...imgH ? { height: imgH } : {}
+                        }
+                      },
+                      key++
+                    ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: { opacity: 0.5, fontSize: 10 }, children: [
+                      "[IMG:",
+                      filename,
+                      "]"
+                    ] }, key++)
+                  );
+                  lastIdx = match.index + match[0].length;
+                }
+                if (lastIdx < cellText.length)
+                  parts.push(/* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MathText, { text: cellText.slice(lastIdx) }, key++));
+                return parts.length === 0 ? null : parts.length === 1 ? parts[0] : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_jsx_runtime2.Fragment, { children: parts });
+              };
+              const renderTableBlock = (block, blockIdx) => {
+                const thSt = { padding: "5px 10px", border: "1px solid #ddd", background: "#f8f9fa", fontWeight: 600, textAlign: "left", verticalAlign: "top", whiteSpace: "pre-wrap", wordBreak: "normal", cursor: "text" };
+                const tdSt = { padding: "5px 10px", border: "1px solid #ddd", verticalAlign: "top", whiteSpace: "pre-wrap", wordBreak: "normal", cursor: "text" };
+                return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { overflowX: "auto", margin: "6px 0" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+                  "table",
+                  {
+                    onClick: (e) => startEdit("content", node.content, e),
+                    style: { borderCollapse: "collapse", background: "#ffffff", fontSize: "inherit", tableLayout: "auto" },
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("tr", { children: block.headers.map((h, ci) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("th", { style: thSt, children: renderCellContent(h) }, ci)) }) }),
+                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("tbody", { children: block.rows.map((row, ri) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("tr", { children: row.map((cell, ci) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("td", { style: tdSt, children: renderCellContent(cell) }, ci)) }, ri)) })
+                    ]
+                  }
+                ) }, `tbl-wrap-${blockIdx}`);
+              };
+              const hasTbl = hasTable(node.content ?? "");
+              if (hasTbl) {
+                if (editingField === "content") {
+                  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+                      "textarea",
+                      {
+                        ref: setEditRef,
+                        value: editValue,
+                        onChange: handleTextareaChange,
+                        onBlur: commitEdit,
+                        onKeyDown: (e) => {
+                          e.stopPropagation();
+                          if ((e.ctrlKey || e.metaKey) && e.key === "v" && canvasClipboardRef?.current) {
+                            e.preventDefault();
+                            const { filename, width: cw, height: ch } = canvasClipboardRef.current;
+                            const ta = e.target;
+                            const pos = ta.selectionStart ?? 0;
+                            const token = `[[IMG:${filename}:${Math.round(cw)}x${Math.round(ch)}]]`;
+                            const newVal = editValue.slice(0, pos) + token + editValue.slice(pos);
+                            setEditValue(newVal);
+                            setTimeout(() => {
+                              ta.selectionStart = ta.selectionEnd = pos + token.length;
+                            }, 0);
+                            return;
+                          }
+                          if (e.key === "Escape")
+                            cancelEdit();
+                        },
+                        onMouseDown: (e) => e.stopPropagation(),
+                        onPaste: (e) => {
+                          const items = Array.from(e.clipboardData?.items ?? []);
+                          const imageItem = items.find((it) => it.type.startsWith("image/"));
+                          if (!imageItem)
+                            return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const blob = imageItem.getAsFile();
+                          if (!blob)
+                            return;
+                          const pos = e.target.selectionStart;
+                          const ext = imageItem.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
+                          commitEdit();
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const base64 = reader.result.split(",")[1];
+                            onSaveImage(node.id, base64, ext, pos, true);
+                          };
+                          reader.readAsDataURL(blob);
+                        },
+                        style: { ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: "none", overflow: "hidden", minHeight: 20, display: "block" }
                       }
-                    ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 10, opacity: 0.5, padding: "4px 6px", background: "rgba(128,128,128,0.1)", borderRadius: 3 }, children: img.filename }),
-                    hovered && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-                      "button",
+                    ),
+                    bottomImgs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }, children: bottomImgs.map((img) => renderImgBlock(img, node.images.indexOf(img))) })
+                  ] });
+                }
+                const blocks = parseTableBlocks(node.content ?? "");
+                return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { ref: tableBodyRef, style: { fontSize: fs, lineHeight: 1.6, wordBreak: "break-word" }, children: blocks.map((block, bi) => {
+                    if (block.type === "table")
+                      return renderTableBlock(block, bi);
+                    const blockImgs = inlineImgs.filter(
+                      (img) => img.position >= block.startChar && img.position < block.endChar
+                    );
+                    if (blockImgs.length > 0) {
+                      const segs = [];
+                      let last = block.startChar;
+                      for (const img of blockImgs) {
+                        segs.push(block.text.slice(last - block.startChar, img.position - block.startChar));
+                        last = img.position;
+                      }
+                      segs.push(block.text.slice(last - block.startChar));
+                      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { children: segs.map((seg, k) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_react5.default.Fragment, { children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { onClick: (e) => startEdit("content", node.content, e), style: { cursor: "text" }, children: seg ? renderCellContent(seg) : null }),
+                        k < blockImgs.length && renderImgBlock(blockImgs[k], node.images.indexOf(blockImgs[k]))
+                      ] }, k)) }, bi);
+                    }
+                    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+                      "div",
+                      {
+                        onClick: (e) => startEdit("content", node.content, e),
+                        style: { cursor: "text", minHeight: bi === blocks.length - 1 ? 20 : void 0 },
+                        children: block.text ? renderCellContent(block.text) : bi === blocks.length - 1 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { opacity: 0.35, fontStyle: "italic" }, children: "Click to add content\u2026" }) : null
+                      },
+                      bi
+                    );
+                  }) }),
+                  bottomImgs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }, children: bottomImgs.map((img) => renderImgBlock(img, node.images.indexOf(img))) })
+                ] });
+              }
+              if (inlineImgs.length > 0) {
+                const segments = [];
+                let lastPos = 0;
+                for (const img of inlineImgs) {
+                  const pos = Math.min(img.position, node.content.length);
+                  segments.push(node.content.slice(lastPos, pos));
+                  lastPos = pos;
+                }
+                segments.push(node.content.slice(lastPos));
+                const commitSegment = (segIdx, value) => {
+                  const origSeg = segments[segIdx];
+                  const delta = value.length - origSeg.length;
+                  const segStart = segIdx === 0 ? 0 : inlineImgs[segIdx - 1].position ?? 0;
+                  const threshold = segStart + origSeg.length;
+                  const newSegs = [...segments];
+                  newSegs[segIdx] = value;
+                  const newContent = newSegs.join("");
+                  const updatedImages = node.images.map(
+                    (img) => img.position !== void 0 && img.position >= threshold ? { ...img, position: img.position + delta } : img
+                  );
+                  onUpdateContentAndImages(node.id, newContent, updatedImages);
+                  setEditingSegmentIdx(null);
+                };
+                return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: fs, lineHeight: 1.6, wordBreak: "break-word" }, children: segments.map((seg, k) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_react5.default.Fragment, { children: [
+                    editingSegmentIdx === k ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+                      "textarea",
+                      {
+                        ref: setEditRef,
+                        value: editValue,
+                        onChange: handleTextareaChange,
+                        onBlur: () => commitSegment(k, editValue),
+                        onKeyDown: (e) => {
+                          e.stopPropagation();
+                          if ((e.ctrlKey || e.metaKey) && e.key === "v" && canvasClipboardRef?.current) {
+                            e.preventDefault();
+                            const { filename, width: cw, height: ch } = canvasClipboardRef.current;
+                            const ta = e.target;
+                            const pos = ta.selectionStart ?? 0;
+                            const token = `[[IMG:${filename}:${Math.round(cw)}x${Math.round(ch)}]]`;
+                            const newVal = editValue.slice(0, pos) + token + editValue.slice(pos);
+                            setEditValue(newVal);
+                            setTimeout(() => {
+                              ta.selectionStart = ta.selectionEnd = pos + token.length;
+                            }, 0);
+                            return;
+                          }
+                          if (e.key === "Escape") {
+                            commitSegment(k, editValue);
+                          }
+                        },
+                        onMouseDown: (e) => e.stopPropagation(),
+                        onPaste: (e) => {
+                          const items = Array.from(e.clipboardData?.items ?? []);
+                          const imageItem = items.find((it) => it.type.startsWith("image/"));
+                          if (!imageItem)
+                            return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const blob = imageItem.getAsFile();
+                          if (!blob)
+                            return;
+                          const localPos = e.target.selectionStart;
+                          const segStart = k === 0 ? 0 : inlineImgs[k - 1].position ?? 0;
+                          const absolutePos = segStart + localPos;
+                          const ext = imageItem.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
+                          commitSegment(k, editValue);
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const base64 = reader.result.split(",")[1];
+                            onSaveImage(node.id, base64, ext, absolutePos, true);
+                          };
+                          reader.readAsDataURL(blob);
+                        },
+                        style: { ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: "none", overflow: "hidden", minHeight: 20, display: "block" }
+                      }
+                    ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+                      "div",
                       {
                         onClick: (e) => {
                           e.stopPropagation();
-                          onDeleteImage(node.id, img.filename);
+                          setEditingSegmentIdx(k);
+                          setEditValue(seg);
                         },
-                        style: {
-                          ...btnStyle,
-                          position: "absolute",
-                          top: 4,
-                          right: 4,
-                          background: "rgba(0,0,0,0.65)",
-                          color: "#fff",
-                          fontSize: 10,
-                          width: 18,
-                          height: 18,
-                          opacity: 1,
-                          borderRadius: 3
-                        },
-                        title: "\uC774\uBBF8\uC9C0 \uC0AD\uC81C",
-                        children: "\u2715"
+                        style: { cursor: "text", minHeight: k === segments.length - 1 ? 20 : void 0 },
+                        children: seg ? renderCellContent(seg) : k === segments.length - 1 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { opacity: 0.35, fontStyle: "italic" }, children: "Click to add content\u2026" }) : null
                       }
-                    )
-                  ]
-                },
-                i
-              );
-            }) }),
+                    ),
+                    k < inlineImgs.length && renderImgBlock(inlineImgs[k], node.images.indexOf(inlineImgs[k]))
+                  ] }, k)) }),
+                  bottomImgs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }, children: bottomImgs.map((img) => renderImgBlock(img, node.images.indexOf(img))) })
+                ] });
+              }
+              if (editingField === "content") {
+                return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+                    "textarea",
+                    {
+                      ref: setEditRef,
+                      value: editValue,
+                      onChange: handleTextareaChange,
+                      onBlur: commitEdit,
+                      onKeyDown: (e) => {
+                        e.stopPropagation();
+                        if ((e.ctrlKey || e.metaKey) && e.key === "v" && canvasClipboardRef?.current) {
+                          e.preventDefault();
+                          const { filename, width: cw, height: ch } = canvasClipboardRef.current;
+                          const ta = e.target;
+                          const pos = ta.selectionStart ?? 0;
+                          const token = `[[IMG:${filename}:${Math.round(cw)}x${Math.round(ch)}]]`;
+                          const newVal = editValue.slice(0, pos) + token + editValue.slice(pos);
+                          setEditValue(newVal);
+                          setTimeout(() => {
+                            ta.selectionStart = ta.selectionEnd = pos + token.length;
+                          }, 0);
+                          return;
+                        }
+                        if (e.key === "Escape")
+                          cancelEdit();
+                      },
+                      onMouseDown: (e) => e.stopPropagation(),
+                      onPaste: (e) => {
+                        const items = Array.from(e.clipboardData?.items ?? []);
+                        const imageItem = items.find((it) => it.type.startsWith("image/"));
+                        if (!imageItem)
+                          return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const blob = imageItem.getAsFile();
+                        if (!blob)
+                          return;
+                        const pos = e.target.selectionStart;
+                        const ext = imageItem.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
+                        commitEdit();
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          const base64 = reader.result.split(",")[1];
+                          onSaveImage(node.id, base64, ext, pos, true);
+                        };
+                        reader.readAsDataURL(blob);
+                      },
+                      style: { ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: "none", overflow: "hidden", minHeight: 20, display: "block" }
+                    }
+                  ),
+                  bottomImgs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }, children: bottomImgs.map((img) => renderImgBlock(img, node.images.indexOf(img))) })
+                ] });
+              }
+              return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+                  "div",
+                  {
+                    onClick: (e) => startEdit("content", node.content, e),
+                    style: { fontSize: fs, lineHeight: 1.6, wordBreak: "break-word", cursor: "text", minHeight: 20 },
+                    children: node.content ? renderCellContent(node.content) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { opacity: 0.35, fontStyle: "italic" }, children: "Click to add content\u2026" })
+                  }
+                ),
+                bottomImgs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }, children: bottomImgs.map((img) => renderImgBlock(img, node.images.indexOf(img))) })
+              ] });
+            })(),
             node.original && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
               "div",
               {
@@ -40174,43 +40770,60 @@ function NodeCard({
               )
             ] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-            "div",
-            {
-              onMouseDown: (e) => handleResizeStart(e, "x"),
-              style: {
-                position: "absolute",
-                top: 0,
-                right: -4,
-                width: 8,
-                height: "100%",
-                cursor: "ew-resize",
-                zIndex: 20
+          selected && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+              "div",
+              {
+                onMouseDown: (e) => handleResizeStart(e, "x"),
+                style: {
+                  position: "absolute",
+                  top: 0,
+                  right: -4,
+                  width: 8,
+                  height: "100%",
+                  cursor: "ew-resize",
+                  zIndex: 20
+                }
               }
-            }
-          ),
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-            "div",
-            {
-              onMouseDown: (e) => handleResizeStart(e, "both"),
-              title: "\uB4DC\uB798\uADF8\uD558\uC5EC \uB108\uBE44 \uC870\uC808",
-              style: {
-                position: "absolute",
-                bottom: 0,
-                right: 0,
-                width: 12,
-                height: 12,
-                cursor: "nwse-resize",
-                zIndex: 21,
-                display: "flex",
-                alignItems: "flex-end",
-                justifyContent: "flex-end",
-                padding: "2px",
-                opacity: isHovered || selected ? 0.5 : 0.15
-              },
-              children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("svg", { width: "6", height: "6", viewBox: "0 0 6 6", style: { display: "block" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { d: "M0 6 L6 0 M3 6 L6 3 M6 6 L6 6", stroke: "currentColor", strokeWidth: "1", strokeLinecap: "round" }) })
-            }
-          )
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+              "div",
+              {
+                onMouseDown: (e) => handleResizeStart(e, "y"),
+                style: {
+                  position: "absolute",
+                  bottom: -6,
+                  left: 0,
+                  right: 24,
+                  height: 12,
+                  cursor: "ns-resize",
+                  zIndex: 20
+                }
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+              "div",
+              {
+                onMouseDown: (e) => handleResizeStart(e, "both"),
+                style: {
+                  position: "absolute",
+                  bottom: -6,
+                  right: -4,
+                  width: 28,
+                  height: 18,
+                  cursor: "nwse-resize",
+                  zIndex: 21,
+                  display: "flex",
+                  alignItems: "flex-end",
+                  justifyContent: "flex-end",
+                  paddingBottom: "2px",
+                  paddingRight: "4px",
+                  opacity: 0.5
+                },
+                children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("svg", { width: "7", height: "7", viewBox: "0 0 6 6", style: { display: "block" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { d: "M0 6 L6 0 M3 6 L6 3 M6 6 L6 6", stroke: "currentColor", strokeWidth: "1", strokeLinecap: "round" }) })
+              }
+            )
+          ] })
         ]
       }
     ),
@@ -40335,8 +40948,8 @@ function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, onDe
       viewBox: `${CANVAS_OFFSET} ${CANVAS_OFFSET} ${CANVAS_SIZE} ${CANVAS_SIZE}`,
       children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("defs", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("marker", { id: "arrowhead", markerWidth: "10", markerHeight: "7", refX: "9", refY: "3.5", orient: "auto", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("polygon", { points: "0 0, 10 3.5, 0 7", fill: "var(--vscode-editorWidget-border, #888)" }) }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("marker", { id: "arrowhead-preview", markerWidth: "10", markerHeight: "7", refX: "9", refY: "3.5", orient: "auto", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("polygon", { points: "0 0, 10 3.5, 0 7", fill: "var(--vscode-focusBorder, #007acc)" }) })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("marker", { id: "arrowhead", markerWidth: "8", markerHeight: "6", refX: "7", refY: "3", orient: "auto", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("polygon", { points: "0 0, 8 3, 0 6", fill: "#2d3748" }) }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("marker", { id: "arrowhead-preview", markerWidth: "8", markerHeight: "6", refX: "7", refY: "3", orient: "auto", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("polygon", { points: "0 0, 8 3, 0 6", fill: "#007acc" }) })
         ] }),
         edges.map((edge) => {
           const srcNode = nodeMap.get(edge.source);
@@ -40370,28 +40983,16 @@ function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, onDe
               {
                 d,
                 fill: "none",
-                stroke: "var(--vscode-editorWidget-border, #555)",
-                strokeWidth: 1.5,
+                stroke: "#2d3748",
+                strokeWidth: 2.5,
                 markerEnd: edge.type === "arrow" ? "url(#arrowhead)" : void 0,
                 style: { pointerEvents: "none" }
               }
             ),
             edge.type === "line" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("circle", { cx: srcPt.x, cy: srcPt.y, r: 4, fill: "var(--vscode-editorWidget-border, #555)" }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("circle", { cx: tgtPt.x, cy: tgtPt.y, r: 4, fill: "var(--vscode-editorWidget-border, #555)" })
-            ] }),
-            edge.label && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-              "text",
-              {
-                x: (srcPt.x + tgtPt.x) / 2,
-                y: (srcPt.y + tgtPt.y) / 2 - 6,
-                fill: "var(--vscode-editor-foreground, #ccc)",
-                fontSize: 11,
-                textAnchor: "middle",
-                opacity: 0.7,
-                children: edge.label
-              }
-            )
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("circle", { cx: srcPt.x, cy: srcPt.y, r: 4, fill: "#2d3748" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("circle", { cx: tgtPt.x, cy: tgtPt.y, r: 4, fill: "#2d3748" })
+            ] })
           ] }, edge.id);
         }),
         wirePreview && (() => {
@@ -40409,8 +41010,8 @@ function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, onDe
               y1: srcPt.y,
               x2: wirePreview.curX,
               y2: wirePreview.curY,
-              stroke: "var(--vscode-focusBorder, #007acc)",
-              strokeWidth: 1.5,
+              stroke: "#007acc",
+              strokeWidth: 2,
               strokeDasharray: "6 3",
               markerEnd: "url(#arrowhead-preview)",
               style: { pointerEvents: "none" }
@@ -40422,36 +41023,224 @@ function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, onDe
   );
 }
 
-// src/webview/components/Canvas.tsx
+// src/webview/components/CanvasImageLayer.tsx
+var import_react6 = __toESM(require_react());
 var import_jsx_runtime4 = __toESM(require_jsx_runtime());
+function CanvasImageLayer({
+  canvasImages,
+  imageUris,
+  viewport,
+  selectedId,
+  onSelect,
+  onUpdatePosition,
+  onUpdateSize,
+  onDrop
+}) {
+  const [draggingId, setDraggingId] = (0, import_react6.useState)(null);
+  const viewportRef = (0, import_react6.useRef)(viewport);
+  viewportRef.current = viewport;
+  const handleMouseDown = (e, img) => {
+    if (e.button !== 0)
+      return;
+    e.stopPropagation();
+    console.log("[CANVAS_IMG] mousedown, selecting", img.id);
+    onSelect(img.id);
+    const zoom = viewportRef.current.zoom;
+    const startClientX = e.clientX;
+    const startClientY = e.clientY;
+    const startX = img.position.x;
+    const startY = img.position.y;
+    let moved = false;
+    const onMove = (ev) => {
+      const dx = (ev.clientX - startClientX) / zoom;
+      const dy = (ev.clientY - startClientY) / zoom;
+      if (!moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+        moved = true;
+        setDraggingId(img.id);
+      }
+      if (moved)
+        onUpdatePosition(img.id, startX + dx, startY + dy);
+    };
+    const onUp = (ev) => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      setDraggingId(null);
+      if (moved)
+        onDrop(img.id, ev.clientX, ev.clientY);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
+  const handleResizeMouseDown = (e, img) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const zoom = viewportRef.current.zoom;
+    const startClientX = e.clientX;
+    const startW = img.width;
+    const startH = img.height;
+    const aspect = startH > 0 && startW > 0 ? startH / startW : 0.75;
+    const onMove = (ev) => {
+      const dx = (ev.clientX - startClientX) / zoom;
+      const newW = Math.max(80, startW + dx);
+      onUpdateSize(img.id, Math.round(newW), Math.round(newW * aspect));
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_jsx_runtime4.Fragment, { children: canvasImages.map((img) => {
+    const uri = imageUris[img.filename];
+    const isSelected = img.id === selectedId;
+    const isDragging = img.id === draggingId;
+    return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+      "div",
+      {
+        className: "canvas-image-item",
+        style: {
+          position: "absolute",
+          left: img.position.x,
+          top: img.position.y,
+          width: img.width,
+          height: img.height,
+          boxSizing: "border-box",
+          border: isSelected ? "2px solid #3b82f6" : "1px dashed rgba(100,130,200,0.4)",
+          borderRadius: 3,
+          cursor: "move",
+          zIndex: isDragging ? 100 : 0,
+          userSelect: "none",
+          pointerEvents: isDragging ? "none" : "auto"
+        },
+        onMouseDown: (e) => handleMouseDown(e, img),
+        children: [
+          uri ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+            "img",
+            {
+              src: uri,
+              style: { width: "100%", height: "100%", objectFit: "contain", display: "block", pointerEvents: "none" },
+              draggable: false
+            }
+          ) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: {
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(100,130,200,0.08)",
+            fontSize: 11,
+            opacity: 0.6,
+            pointerEvents: "none"
+          }, children: img.filename }),
+          isSelected && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+            "div",
+            {
+              onMouseDown: (e) => handleResizeMouseDown(e, img),
+              style: {
+                position: "absolute",
+                right: -5,
+                bottom: -5,
+                width: 12,
+                height: 12,
+                background: "#3b82f6",
+                border: "2px solid white",
+                borderRadius: 2,
+                cursor: "se-resize",
+                zIndex: 1,
+                boxSizing: "border-box",
+                pointerEvents: "auto"
+              }
+            }
+          )
+        ]
+      },
+      img.id
+    );
+  }) });
+}
+
+// src/webview/components/Canvas.tsx
+var import_jsx_runtime5 = __toESM(require_jsx_runtime());
 var HEADER_H = 36;
-function computeRenderPositions(nodes, nodeSizes) {
-  const result = {};
-  for (const node of nodes) {
-    let yOffset = 0;
-    for (const other of nodes) {
+function computeRenderPositions(nodes, nodeSizes, nodeTemplates) {
+  const childToParent = /* @__PURE__ */ new Map();
+  for (const n of nodes) {
+    for (const childId of n.children) {
+      childToParent.set(childId, n.id);
+    }
+  }
+  const getRootId = (id) => {
+    let cur = id;
+    while (childToParent.has(cur))
+      cur = childToParent.get(cur);
+    return cur;
+  };
+  const isDescendantOf = (descendant, ancestor) => {
+    let cur = descendant;
+    while (childToParent.has(cur)) {
+      cur = childToParent.get(cur);
+      if (cur === ancestor)
+        return true;
+    }
+    return false;
+  };
+  const isMainNode = (node) => (nodeTemplates[node.template]?.shape ?? "sharp") === "sharp";
+  const sorted = [...nodes].sort((a, b) => a.position.y - b.position.y);
+  const renderY = {};
+  for (const node of sorted) {
+    const nodeIsMain = isMainNode(node);
+    let y = node.position.y;
+    for (const other of sorted) {
       if (other.id === node.id)
-        continue;
-      if (!other.contentExpanded)
         continue;
       if (other.position.y >= node.position.y)
         continue;
-      const h = nodeSizes[other.id]?.height ?? HEADER_H;
-      yOffset += Math.max(0, h - HEADER_H);
+      const otherY = renderY[other.id] ?? other.position.y;
+      const otherH = nodeSizes[other.id]?.height ?? (other.nodeHeight ?? HEADER_H);
+      const otherBottom = otherY + otherH;
+      if (otherBottom <= y)
+        continue;
+      if (nodeIsMain && isMainNode(other)) {
+        const naturalBottom = other.position.y + (other.nodeHeight ?? HEADER_H);
+        const delta = otherY + otherH - naturalBottom;
+        const nodeNaturalY = node.nodeNaturalY ?? node.position.y;
+        y = Math.max(y, nodeNaturalY + delta, otherBottom + 20);
+      } else {
+        const nodeW = nodeSizes[node.id]?.width ?? 300;
+        const otherW = nodeSizes[other.id]?.width ?? 300;
+        if (!(node.position.x < other.position.x + otherW && other.position.x < node.position.x + nodeW))
+          continue;
+        if (nodeIsMain) {
+          if (isDescendantOf(other.id, node.id))
+            continue;
+          const wasPushed = otherY > other.position.y;
+          if (!other.contentExpanded && !wasPushed)
+            continue;
+          y = Math.max(y, otherBottom + 48);
+        } else {
+          const wasPushed = otherY > other.position.y;
+          if (!other.contentExpanded && !wasPushed)
+            continue;
+          const isSameRoot = getRootId(other.id) === getRootId(node.id);
+          y = Math.max(y, otherBottom + (isSameRoot ? 20 : 48));
+        }
+      }
     }
-    result[node.id] = { x: node.position.x, y: node.position.y + yOffset };
+    renderY[node.id] = y;
   }
-  return result;
+  return Object.fromEntries(nodes.map((n) => [n.id, { x: n.position.x, y: renderY[n.id] ?? n.position.y }]));
 }
 var toolbarBtnStyle = {
-  background: "var(--vscode-button-background, #0e639c)",
-  color: "var(--vscode-button-foreground, #fff)",
-  border: "none",
+  background: "#ffffff",
+  color: "#374151",
+  border: "1px solid #d1d5db",
   borderRadius: 3,
-  padding: "3px 10px",
+  padding: "3px 9px",
   fontSize: 11,
   cursor: "pointer",
-  whiteSpace: "nowrap"
+  whiteSpace: "nowrap",
+  lineHeight: "1.4"
 };
 var FONT_PRESETS = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72];
 function Canvas({
@@ -40466,6 +41255,7 @@ function Canvas({
   onSetViewport,
   graph,
   onUpdateNodePosition,
+  onAutoSaveNodePosition,
   onUpdateNode,
   onAddNode,
   onDeleteNodes,
@@ -40473,6 +41263,7 @@ function Canvas({
   onBumpFontSize,
   onSetFontSizeExact,
   onSetNodeWidth,
+  onSetNodeHeight,
   onPushHistory,
   onUndo,
   onRedo,
@@ -40499,28 +41290,176 @@ function Canvas({
   onExportHtml,
   imageUris,
   onSaveImage,
-  onDeleteImage
+  onDeleteImage,
+  onUpdateContentAndImages,
+  onAddCanvasImage,
+  onAddFilenameToNode,
+  onSaveCanvasImage,
+  onUpdateCanvasImage,
+  onRemoveCanvasImage,
+  onMoveCanvasImageToNode,
+  lastAddedCanvasImageId
 }) {
-  const divRef = (0, import_react6.useRef)(null);
-  const [nodeSizes, setNodeSizes] = (0, import_react6.useState)({});
-  const [selectedIds, setSelectedIds] = (0, import_react6.useState)(/* @__PURE__ */ new Set());
-  const [selectionBox, setSelectionBox] = (0, import_react6.useState)(null);
-  const [selectedTemplate, setSelectedTemplate] = (0, import_react6.useState)("");
-  const [fontInputVal, setFontInputVal] = (0, import_react6.useState)("14");
-  const selBoxRef = (0, import_react6.useRef)(null);
-  const [wireDrawing, setWireDrawing] = (0, import_react6.useState)(null);
-  const selectedIdsRef = (0, import_react6.useRef)(/* @__PURE__ */ new Set());
-  (0, import_react6.useEffect)(() => {
+  const divRef = (0, import_react7.useRef)(null);
+  const [nodeSizes, setNodeSizes] = (0, import_react7.useState)({});
+  const [fontDropOpen, setFontDropOpen] = (0, import_react7.useState)(false);
+  const fontInputRef = (0, import_react7.useRef)(null);
+  const [selectedIds, _setSelectedIds] = (0, import_react7.useState)(/* @__PURE__ */ new Set());
+  const selectedIdsRef = (0, import_react7.useRef)(/* @__PURE__ */ new Set());
+  const hoveredNodeIdRef = (0, import_react7.useRef)(null);
+  const setSelectedIds = (0, import_react7.useCallback)((val) => {
+    _setSelectedIds((prev) => {
+      const next = typeof val === "function" ? val(prev) : val;
+      selectedIdsRef.current = next;
+      return next;
+    });
+  }, []);
+  const [selectedCanvasImgId, _setSelectedCanvasImgId] = (0, import_react7.useState)(null);
+  const selectedCanvasImgIdRef = (0, import_react7.useRef)(null);
+  const setSelectedCanvasImgId = (0, import_react7.useCallback)((val) => {
+    selectedCanvasImgIdRef.current = val;
+    _setSelectedCanvasImgId(val);
+  }, []);
+  const canvasClipboardRef = (0, import_react7.useRef)(null);
+  const mousePosRef = (0, import_react7.useRef)({ x: 0, y: 0 });
+  const [selectionBox, setSelectionBox] = (0, import_react7.useState)(null);
+  const [selectedTemplate, setSelectedTemplate] = (0, import_react7.useState)("");
+  const selBoxRef = (0, import_react7.useRef)(null);
+  const [wireDrawing, setWireDrawing] = (0, import_react7.useState)(null);
+  const lastToolbarInteractionRef = (0, import_react7.useRef)(0);
+  const viewportRef = (0, import_react7.useRef)(viewport);
+  viewportRef.current = viewport;
+  const graphNodesRef = (0, import_react7.useRef)(graph.nodes);
+  graphNodesRef.current = graph.nodes;
+  const canvasImagesRef = (0, import_react7.useRef)(graph.canvasImages);
+  canvasImagesRef.current = graph.canvasImages;
+  const renderPositionsRef = (0, import_react7.useRef)({});
+  const nodeSizesRef = (0, import_react7.useRef)({});
+  (0, import_react7.useEffect)(() => {
     const el = divRef.current;
     if (!el)
       return;
     el.addEventListener("wheel", nativeWheelHandler, { passive: false });
     return () => el.removeEventListener("wheel", nativeWheelHandler);
   }, [nativeWheelHandler]);
-  (0, import_react6.useEffect)(() => {
-    selectedIdsRef.current = selectedIds;
-  }, [selectedIds]);
-  (0, import_react6.useEffect)(() => {
+  (0, import_react7.useEffect)(() => {
+    const onMove = (e) => {
+      mousePosRef.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, []);
+  (0, import_react7.useEffect)(() => {
+    const handler = (e) => {
+      const active = document.activeElement;
+      console.log("[KB]", e.key, "ctrl:", e.ctrlKey, "meta:", e.metaKey, "active:", active?.tagName, active?.id);
+      if (active?.tagName === "TEXTAREA" || active?.tagName === "INPUT") {
+        if ((e.ctrlKey || e.metaKey) && e.key === "v" && canvasClipboardRef.current) {
+          e.preventDefault();
+        }
+        return;
+      }
+      if (e.key === "Escape") {
+        setSelectedIds(/* @__PURE__ */ new Set());
+        setSelectedCanvasImgId(null);
+        canvasClipboardRef.current = null;
+        return;
+      }
+      const imgId = selectedCanvasImgIdRef.current;
+      console.log("[KB] imgId:", imgId, "clipboard:", canvasClipboardRef.current, "selectedNodes:", selectedIdsRef.current.size);
+      if (e.ctrlKey || e.metaKey) {
+        if (imgId) {
+          const img = canvasImagesRef.current?.find((ci) => ci.id === imgId);
+          console.log("[KB] found img:", img);
+          if (e.key === "c" && img) {
+            canvasClipboardRef.current = { filename: img.filename, width: img.width, height: img.height };
+            console.log("[KB] Ctrl+C: clipboard set to", canvasClipboardRef.current);
+            e.preventDefault();
+            return;
+          } else if (e.key === "x" && img) {
+            canvasClipboardRef.current = { filename: img.filename, width: img.width, height: img.height };
+            onRemoveCanvasImage(imgId);
+            setSelectedCanvasImgId(null);
+            e.preventDefault();
+            return;
+          }
+        }
+        if (e.key === "v") {
+          e.preventDefault();
+          const getTargetNodeId = () => {
+            if (selectedIdsRef.current.size === 1)
+              return [...selectedIdsRef.current][0];
+            const el = document.elementFromPoint(mousePosRef.current.x, mousePosRef.current.y);
+            const nodeEl = el?.closest("[data-node-id]");
+            if (nodeEl?.dataset.nodeId)
+              return nodeEl.dataset.nodeId;
+            return hoveredNodeIdRef.current;
+          };
+          const targetNodeId = getTargetNodeId();
+          console.log("[KB] Ctrl+V: clipboard=", canvasClipboardRef.current, "targetNode=", targetNodeId);
+          if (canvasClipboardRef.current) {
+            const clip = canvasClipboardRef.current;
+            if (targetNodeId) {
+              console.log("[KB] Ctrl+V: adding canvas image to node", targetNodeId);
+              onAddFilenameToNode(targetNodeId, clip.filename, clip.width, clip.height);
+            } else {
+              const vp = viewportRef.current;
+              const cx = (mousePosRef.current.x - vp.x) / vp.zoom;
+              const cy = (mousePosRef.current.y - vp.y) / vp.zoom;
+              console.log("[KB] Ctrl+V: placing clone at cursor", cx, cy);
+              onAddCanvasImage({
+                id: `cimg_${Date.now()}`,
+                filename: clip.filename,
+                position: { x: cx - clip.width / 2, y: cy - clip.height / 2 },
+                width: clip.width,
+                height: clip.height
+              });
+            }
+            return;
+          }
+          ;
+          (async () => {
+            const nodeId = targetNodeId;
+            console.log("[KB] Ctrl+V system paste: nodeId=", nodeId);
+            const handleBlob = (blob, mimeType) => {
+              const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
+              const reader = new FileReader();
+              reader.onload = () => {
+                const base64 = reader.result.split(",")[1];
+                if (nodeId) {
+                  onSaveImage(nodeId, base64, ext, void 0, true);
+                } else {
+                  const vp = viewportRef.current;
+                  const cx = (mousePosRef.current.x - vp.x) / vp.zoom;
+                  const cy = (mousePosRef.current.y - vp.y) / vp.zoom;
+                  console.log("[KB] paste to canvas background at", cx, cy);
+                  onSaveCanvasImage(base64, ext, cx, cy);
+                }
+              };
+              reader.readAsDataURL(blob);
+            };
+            try {
+              const cbItems = await navigator.clipboard.read();
+              for (const cbItem of cbItems) {
+                const imageType = cbItem.types.find((t) => t.startsWith("image/"));
+                if (imageType) {
+                  const blob = await cbItem.getType(imageType);
+                  handleBlob(blob, imageType);
+                  return;
+                }
+              }
+              console.log("[KB] clipboard\uC5D0 \uC774\uBBF8\uC9C0 \uC5C6\uC74C");
+            } catch (err) {
+              console.warn("[KB] clipboard.read() \uC2E4\uD328:", err);
+            }
+          })();
+        }
+      }
+    };
+    window.addEventListener("keydown", handler, true);
+    return () => window.removeEventListener("keydown", handler, true);
+  }, [onRemoveCanvasImage, onAddCanvasImage, onSaveImage, onSaveCanvasImage]);
+  (0, import_react7.useEffect)(() => {
     if (selectedIds.size >= 1) {
       const active = document.activeElement;
       if (active?.tagName !== "TEXTAREA" && active?.tagName !== "INPUT") {
@@ -40528,17 +41467,55 @@ function Canvas({
       }
     }
   }, [selectedIds]);
-  const handleCanvasPaste = (0, import_react6.useCallback)(async (e) => {
+  const handleNodeHoverStart = (0, import_react7.useCallback)((id) => {
+    hoveredNodeIdRef.current = id;
+  }, []);
+  const handleNodeHoverEnd = (0, import_react7.useCallback)((id) => {
+    if (hoveredNodeIdRef.current === id)
+      hoveredNodeIdRef.current = null;
+  }, []);
+  const handleCanvasPaste = (0, import_react7.useCallback)(async (e) => {
     const ids = selectedIdsRef.current;
-    if (ids.size !== 1)
-      return;
-    const nodeId = [...ids][0];
-    const sendImage = (blob, mimeType) => {
+    const nodeId = ids.size === 1 ? [...ids][0] : hoveredNodeIdRef.current;
+    console.log("[PASTE] fired. nodeId=", nodeId, "clipboard=", canvasClipboardRef.current);
+    if (!nodeId && canvasClipboardRef.current) {
+      const clip = canvasClipboardRef.current;
+      const el = divRef.current;
+      console.log("[PASTE] internal clipboard hit, el=", !!el);
+      if (el) {
+        const { width: W, height: H } = el.getBoundingClientRect();
+        const vp = viewportRef.current;
+        const cx = (W / 2 - vp.x) / vp.zoom;
+        const cy = (H / 2 - vp.y) / vp.zoom;
+        console.log("[PASTE] placing clone at", cx, cy);
+        onAddCanvasImage({
+          id: `cimg_${Date.now()}`,
+          filename: clip.filename,
+          position: { x: cx - clip.width / 2, y: cy - clip.height / 2 },
+          width: clip.width,
+          height: clip.height
+        });
+        e.preventDefault();
+        return;
+      }
+    }
+    const handleBlob = (blob, mimeType) => {
       const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
       const reader = new FileReader();
       reader.onload = () => {
         const base64 = reader.result.split(",")[1];
-        onSaveImage(nodeId, base64, ext);
+        if (nodeId) {
+          onSaveImage(nodeId, base64, ext);
+        } else {
+          const el = divRef.current;
+          if (!el)
+            return;
+          const { width: W, height: H } = el.getBoundingClientRect();
+          const vp = viewportRef.current;
+          const cx = (W / 2 - vp.x) / vp.zoom;
+          const cy = (H / 2 - vp.y) / vp.zoom;
+          onSaveCanvasImage(base64, ext, cx, cy);
+        }
       };
       reader.readAsDataURL(blob);
     };
@@ -40547,7 +41524,7 @@ function Canvas({
     if (imageItem) {
       const blob = imageItem.getAsFile();
       if (blob) {
-        sendImage(blob, imageItem.type);
+        handleBlob(blob, imageItem.type);
         return;
       }
     }
@@ -40557,32 +41534,32 @@ function Canvas({
         const imageType = cbItem.types.find((t) => t.startsWith("image/"));
         if (imageType) {
           const blob = await cbItem.getType(imageType);
-          sendImage(blob, imageType);
+          handleBlob(blob, imageType);
           return;
         }
       }
     } catch {
     }
-  }, [onSaveImage]);
-  (0, import_react6.useEffect)(() => {
+  }, [onSaveImage, onSaveCanvasImage, onAddCanvasImage]);
+  (0, import_react7.useEffect)(() => {
+    if (lastAddedCanvasImageId) {
+      setSelectedCanvasImgId(lastAddedCanvasImageId);
+      divRef.current?.focus({ preventScroll: true });
+    }
+  }, [lastAddedCanvasImageId]);
+  (0, import_react7.useEffect)(() => {
     setSelectedIds((prev) => {
       const nodeIds = new Set(graph.nodes.map((n) => n.id));
       const next = new Set([...prev].filter((id) => nodeIds.has(id)));
       return next.size === prev.size ? prev : next;
     });
   }, [graph.nodes]);
-  (0, import_react6.useEffect)(() => {
+  (0, import_react7.useEffect)(() => {
     const keys = Object.keys(graph.nodeTemplates);
     if (keys.length > 0 && !keys.includes(selectedTemplate))
       setSelectedTemplate(keys[0]);
   }, [graph.nodeTemplates, selectedTemplate]);
-  (0, import_react6.useEffect)(() => {
-    if (selectedIds.size === 1) {
-      const node = graph.nodes.find((n) => selectedIds.has(n.id));
-      setFontInputVal(String(node?.fontSize ?? 14));
-    }
-  }, [selectedIds, graph.nodes]);
-  const handleNodeResize = (0, import_react6.useCallback)((id, width, height) => {
+  const handleNodeResize = (0, import_react7.useCallback)((id, width, height) => {
     setNodeSizes((prev) => {
       const cur = prev[id];
       if (cur && cur.width === width && cur.height === height)
@@ -40590,11 +41567,34 @@ function Canvas({
       return { ...prev, [id]: { width, height } };
     });
   }, []);
-  const renderPositions = (0, import_react6.useMemo)(
-    () => computeRenderPositions(graph.nodes, nodeSizes),
-    [graph.nodes, nodeSizes]
+  const renderPositions = (0, import_react7.useMemo)(
+    () => computeRenderPositions(graph.nodes, nodeSizes, graph.nodeTemplates),
+    [graph.nodes, nodeSizes, graph.nodeTemplates]
   );
-  const handleNodeSelect = (0, import_react6.useCallback)((id, additive) => {
+  renderPositionsRef.current = renderPositions;
+  nodeSizesRef.current = nodeSizes;
+  const handleToggleContent = (0, import_react7.useCallback)((id) => {
+    const node = graph.nodes.find((n) => n.id === id);
+    const tmpl = node && graph.nodeTemplates[node.template];
+    if (tmpl?.shape === "sharp" && node?.contentExpanded) {
+      graph.nodes.forEach((other) => {
+        if (other.id === id)
+          return;
+        if ((graph.nodeTemplates[other.template]?.shape ?? "sharp") !== "sharp")
+          return;
+        const rpos = renderPositions[other.id];
+        if (!rpos)
+          return;
+        const newY = Math.round(rpos.y);
+        if (newY > other.position.y + 0.5) {
+          onAutoSaveNodePosition(other.id, other.position.x, newY);
+        }
+      });
+    }
+    onToggleContent(id);
+  }, [graph.nodes, graph.nodeTemplates, renderPositions, onToggleContent, onAutoSaveNodePosition]);
+  const handleNodeSelect = (0, import_react7.useCallback)((id, additive) => {
+    setSelectedCanvasImgId(null);
     setSelectedIds((prev) => {
       if (additive) {
         const next = new Set(prev);
@@ -40608,8 +41608,8 @@ function Canvas({
         return prev;
       return /* @__PURE__ */ new Set([id]);
     });
-  }, []);
-  const handlePortDragStart = (0, import_react6.useCallback)((nodeId, port, clientX, clientY) => {
+  }, [setSelectedCanvasImgId]);
+  const handlePortDragStart = (0, import_react7.useCallback)((nodeId, port, clientX, clientY) => {
     const toCanvas = (cx, cy) => ({
       x: (cx - viewport.x) / viewport.zoom,
       y: (cy - viewport.y) / viewport.zoom
@@ -40638,72 +41638,84 @@ function Canvas({
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   }, [viewport, graph.nodes, renderPositions, nodeSizes, onAddEdge]);
-  const handleCanvasMouseDown = (0, import_react6.useCallback)((e) => {
+  const handleCanvasMouseDown = (0, import_react7.useCallback)((e) => {
     if (e.button === 0) {
-      setSelectedIds(/* @__PURE__ */ new Set());
-      const box = { x1: e.clientX, y1: e.clientY, x2: e.clientX, y2: e.clientY };
+      const startX = e.clientX, startY = e.clientY;
+      const box = { x1: startX, y1: startY, x2: startX, y2: startY };
       selBoxRef.current = box;
-      setSelectionBox(box);
+      setSelectionBox({ ...box });
+      const onGlobalMove = (ev) => {
+        const updated = { x1: startX, y1: startY, x2: ev.clientX, y2: ev.clientY };
+        selBoxRef.current = updated;
+        setSelectionBox({ ...updated });
+      };
+      const onGlobalUp = (ev) => {
+        document.removeEventListener("mousemove", onGlobalMove);
+        document.removeEventListener("mouseup", onGlobalUp);
+        const sb = selBoxRef.current;
+        selBoxRef.current = null;
+        setSelectionBox(null);
+        if (!sb || ev.button !== 0)
+          return;
+        const minX = Math.min(sb.x1, sb.x2), maxX = Math.max(sb.x1, sb.x2);
+        const minY = Math.min(sb.y1, sb.y2), maxY = Math.max(sb.y1, sb.y2);
+        if (maxX - minX > 5 || maxY - minY > 5) {
+          const vp = viewportRef.current;
+          const cx1 = (minX - vp.x) / vp.zoom;
+          const cy1 = (minY - vp.y) / vp.zoom;
+          const cx2 = (maxX - vp.x) / vp.zoom;
+          const cy2 = (maxY - vp.y) / vp.zoom;
+          const hit = /* @__PURE__ */ new Set();
+          for (const node of graphNodesRef.current) {
+            const pos = renderPositionsRef.current[node.id] ?? node.position;
+            const sz = nodeSizesRef.current[node.id] ?? { width: 240, height: HEADER_H };
+            if (pos.x < cx2 && pos.x + sz.width > cx1 && pos.y < cy2 && pos.y + sz.height > cy1) {
+              hit.add(node.id);
+            }
+          }
+          if (hit.size > 0) {
+            setSelectedIds(hit);
+            setSelectedCanvasImgId(null);
+          } else
+            setSelectedIds(/* @__PURE__ */ new Set());
+        } else {
+          setSelectedIds(/* @__PURE__ */ new Set());
+          setSelectedCanvasImgId(null);
+        }
+      };
+      document.addEventListener("mousemove", onGlobalMove);
+      document.addEventListener("mouseup", onGlobalUp);
     } else if (e.button === 2) {
       onMouseDown(e);
     }
   }, [onMouseDown]);
-  const handleCanvasMouseMove = (0, import_react6.useCallback)((e) => {
-    if (selBoxRef.current) {
-      const updated = { ...selBoxRef.current, x2: e.clientX, y2: e.clientY };
-      selBoxRef.current = updated;
-      setSelectionBox({ ...updated });
-    } else {
+  const handleCanvasMouseMove = (0, import_react7.useCallback)((e) => {
+    if (!selBoxRef.current) {
       onMouseMove(e);
     }
   }, [onMouseMove]);
-  const handleCanvasMouseUp = (0, import_react6.useCallback)((e) => {
-    if (selBoxRef.current && e.button === 0) {
-      const sb = selBoxRef.current;
-      const minX = Math.min(sb.x1, sb.x2), maxX = Math.max(sb.x1, sb.x2);
-      const minY = Math.min(sb.y1, sb.y2), maxY = Math.max(sb.y1, sb.y2);
-      if (maxX - minX > 5 || maxY - minY > 5) {
-        const cx1 = (minX - viewport.x) / viewport.zoom;
-        const cy1 = (minY - viewport.y) / viewport.zoom;
-        const cx2 = (maxX - viewport.x) / viewport.zoom;
-        const cy2 = (maxY - viewport.y) / viewport.zoom;
-        const hit = /* @__PURE__ */ new Set();
-        for (const node of graph.nodes) {
-          const pos = renderPositions[node.id] ?? node.position;
-          const sz = nodeSizes[node.id] ?? { width: 240, height: HEADER_H };
-          if (pos.x < cx2 && pos.x + sz.width > cx1 && pos.y < cy2 && pos.y + sz.height > cy1) {
-            hit.add(node.id);
-          }
-        }
-        setSelectedIds(hit);
-      }
-      selBoxRef.current = null;
-      setSelectionBox(null);
-    } else {
+  const handleCanvasMouseUp = (0, import_react7.useCallback)((e) => {
+    if (e.button === 2) {
       onMouseUp(e);
-      selBoxRef.current = null;
-      setSelectionBox(null);
     }
-  }, [viewport, graph.nodes, renderPositions, nodeSizes, onMouseUp]);
-  const handleCanvasMouseLeave = (0, import_react6.useCallback)((e) => {
-    selBoxRef.current = null;
-    setSelectionBox(null);
+  }, [onMouseUp]);
+  const handleCanvasMouseLeave = (0, import_react7.useCallback)((e) => {
     onMouseLeave(e);
   }, [onMouseLeave]);
-  const handleAddNode = (0, import_react6.useCallback)(() => {
+  const handleAddNode = (0, import_react7.useCallback)(() => {
     const el = divRef.current;
     if (!el)
       return;
     const { width: W, height: H } = el.getBoundingClientRect();
     onAddNode((W / 2 - viewport.x) / viewport.zoom, (H / 2 - viewport.y) / viewport.zoom, selectedTemplate);
   }, [viewport, onAddNode, selectedTemplate]);
-  const handleDeleteSelected = (0, import_react6.useCallback)(() => {
+  const handleDeleteSelected = (0, import_react7.useCallback)(() => {
     if (selectedIds.size === 0)
       return;
     onDeleteNodes([...selectedIds]);
     setSelectedIds(/* @__PURE__ */ new Set());
   }, [selectedIds, onDeleteNodes]);
-  const handleFitView = (0, import_react6.useCallback)(() => {
+  const handleFitView = (0, import_react7.useCallback)(() => {
     const el = divRef.current;
     if (!el || graph.nodes.length === 0)
       return;
@@ -40721,329 +41733,457 @@ function Canvas({
     const zoom = Math.min((W - pad2 * 2) / (maxX - minX), (H - pad2 * 2) / (maxY - minY), 1.5);
     onSetViewport({ zoom, x: (W - (maxX - minX) * zoom) / 2 - minX * zoom, y: (H - (maxY - minY) * zoom) / 2 - minY * zoom });
   }, [graph.nodes, nodeSizes, renderPositions, onSetViewport]);
+  const handleCanvasImageDrop = (0, import_react7.useCallback)((imgId, clientX, clientY) => {
+    const elements = document.elementsFromPoint(clientX, clientY);
+    const el = elements.find((e) => !e.closest(".canvas-image-item")) ?? null;
+    if (!el)
+      return;
+    const nodeEl = el.closest("[data-node-id]");
+    if (!nodeEl)
+      return;
+    const nodeId = nodeEl.dataset.nodeId;
+    const tdEl = el.closest("td, th");
+    if (tdEl) {
+      const table = tdEl.closest("table");
+      const allTables = Array.from(nodeEl.querySelectorAll("table"));
+      const tableIdx = Math.max(0, allTables.indexOf(table));
+      const rowEl = tdEl.closest("tr");
+      const rowIdx = rowEl.rowIndex;
+      const colIdx = tdEl.cellIndex;
+      onMoveCanvasImageToNode(imgId, nodeId, { tableIdx, rowIdx, colIdx });
+    } else {
+      onMoveCanvasImageToNode(imgId, nodeId);
+    }
+  }, [onMoveCanvasImageToNode]);
   const selCount = selectedIds.size;
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: { position: "relative", width: "100%", height: "100%", display: "flex", flexDirection: "column" }, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 6,
-      padding: "4px 10px",
-      background: "var(--vscode-editorGroupHeader-tabsBackground, #252526)",
-      borderBottom: "1px solid var(--vscode-editorGroup-border, #3c3c3c)",
-      flexShrink: 0,
-      zIndex: 200
-    }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-        "button",
-        {
-          style: { ...toolbarBtnStyle, opacity: canUndo ? 1 : 0.35, cursor: canUndo ? "pointer" : "default" },
-          onClick: onUndo,
-          disabled: !canUndo,
-          title: "Undo (Ctrl+Z)",
-          children: "\u2190 Undo"
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-        "button",
-        {
-          style: { ...toolbarBtnStyle, opacity: canRedo ? 1 : 0.35, cursor: canRedo ? "pointer" : "default" },
-          onClick: onRedo,
-          disabled: !canRedo,
-          title: "Redo (Ctrl+Shift+Z)",
-          children: "Redo \u2192"
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { width: 1, height: 16, background: "var(--vscode-editorGroup-border, #444)", margin: "0 2px" } }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-        "select",
-        {
-          value: selectedTemplate,
-          onChange: (e) => setSelectedTemplate(e.target.value),
-          style: {
-            background: "var(--vscode-input-background, #3c3c3c)",
-            color: "var(--vscode-input-foreground, #ccc)",
-            border: "1px solid var(--vscode-input-border, #555)",
-            borderRadius: 3,
-            fontSize: 11,
-            padding: "2px 4px",
-            cursor: "pointer",
-            outline: "none"
-          },
-          children: Object.entries(graph.nodeTemplates).map(([key, tmpl]) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("option", { value: key, children: [
-            tmpl.label,
-            " (",
-            tmpl.shape,
-            ")"
-          ] }, key))
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("button", { style: toolbarBtnStyle, onClick: handleAddNode, children: "+ Add Node" }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { width: 1, height: 16, background: "var(--vscode-editorGroup-border, #444)", margin: "0 2px" } }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
-        "button",
-        {
-          style: {
-            ...toolbarBtnStyle,
-            background: selCount > 0 ? "var(--vscode-statusBarItem-errorBackground, #c72e0f)" : void 0,
-            opacity: selCount > 0 ? 1 : 0.4,
-            cursor: selCount > 0 ? "pointer" : "default"
-          },
-          onClick: handleDeleteSelected,
-          disabled: selCount === 0,
-          children: [
-            "Delete",
-            selCount > 1 ? ` (${selCount})` : ""
-          ]
-        }
-      ),
-      selCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_jsx_runtime4.Fragment, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { style: { fontSize: 10, opacity: 0.5, color: "var(--vscode-editor-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 120 }, children: selCount === 1 ? graph.nodes.find((n) => selectedIds.has(n.id))?.title : `${selCount}\uAC1C \uC120\uD0DD\uB428` }),
-        selCount === 1 && (() => {
-          const selNode = graph.nodes.find((n) => selectedIds.has(n.id));
-          if (!selNode)
-            return null;
-          return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { position: "relative", width: "100%", height: "100%", display: "flex", flexDirection: "column" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+      "div",
+      {
+        onMouseDown: (e) => {
+          e.stopPropagation();
+          lastToolbarInteractionRef.current = Date.now();
+        },
+        style: {
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          padding: "4px 10px",
+          background: "#f0f2f5",
+          borderBottom: "1px solid #d1d5db",
+          flexShrink: 0,
+          zIndex: 200
+        },
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+            "button",
+            {
+              style: { ...toolbarBtnStyle, opacity: canUndo ? 1 : 0.35, cursor: canUndo ? "pointer" : "default" },
+              onClick: onUndo,
+              disabled: !canUndo,
+              title: "Undo (Ctrl+Z)",
+              children: "\u21A9 Undo"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+            "button",
+            {
+              style: { ...toolbarBtnStyle, opacity: canRedo ? 1 : 0.35, cursor: canRedo ? "pointer" : "default" },
+              onClick: onRedo,
+              disabled: !canRedo,
+              title: "Redo (Ctrl+Shift+Z)",
+              children: "Redo \u21AA"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { width: 1, height: 18, background: "#d1d5db", margin: "0 4px" } }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
             "select",
             {
-              value: selNode.template,
-              onChange: (e) => onSetNodeTemplate(selNode.id, e.target.value),
+              value: selectedTemplate,
+              onChange: (e) => setSelectedTemplate(e.target.value),
               style: {
-                background: "var(--vscode-input-background, #3c3c3c)",
-                color: "var(--vscode-input-foreground, #ccc)",
-                border: "1px solid var(--vscode-input-border, #555)",
+                background: "#fff",
+                color: "#374151",
+                border: "1px solid #d1d5db",
                 borderRadius: 3,
                 fontSize: 11,
                 padding: "2px 4px",
                 cursor: "pointer",
                 outline: "none"
               },
-              title: "\uB178\uB4DC \uD0C0\uC785 \uBCC0\uACBD",
-              children: Object.entries(graph.nodeTemplates).map(([key, t]) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("option", { value: key, children: t.label }, key))
+              children: Object.entries(graph.nodeTemplates).map(([key, tmpl]) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("option", { value: key, children: [
+                tmpl.label,
+                " (",
+                tmpl.shape,
+                ")"
+              ] }, key))
             }
-          );
-        })(),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { width: 1, height: 16, background: "var(--vscode-editorGroup-border, #444)", margin: "0 2px" } }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("button", { style: toolbarBtnStyle, onClick: () => onBumpFontSize([...selectedIds], -1), title: "\uAE00\uC790 \uC791\uAC8C (A-)", children: "A-" }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-          "input",
-          {
-            type: "number",
-            min: 8,
-            max: 72,
-            value: fontInputVal,
-            onChange: (e) => {
-              setFontInputVal(e.target.value);
-              const v = parseInt(e.target.value, 10);
-              if (!isNaN(v) && v >= 8 && v <= 72)
-                onSetFontSizeExact([...selectedIds], v);
-            },
-            onBlur: () => {
-              const v = parseInt(fontInputVal, 10);
-              if (!isNaN(v)) {
-                const clamped = Math.max(8, Math.min(72, v));
-                onSetFontSizeExact([...selectedIds], clamped);
-                setFontInputVal(String(clamped));
-              } else if (selectedIds.size === 1) {
-                const node = graph.nodes.find((n) => selectedIds.has(n.id));
-                setFontInputVal(String(node?.fontSize ?? 14));
-              }
-            },
-            onKeyDown: (e) => {
-              e.stopPropagation();
-              if (e.key === "Enter")
-                e.target.blur();
-            },
-            style: {
-              width: 38,
-              background: "var(--vscode-input-background, #3c3c3c)",
-              color: "var(--vscode-input-foreground, #ccc)",
-              border: "1px solid var(--vscode-input-border, #555)",
-              borderRadius: 3,
-              fontSize: 11,
-              padding: "2px 4px",
-              textAlign: "center",
-              outline: "none"
-            },
-            title: "\uD3F0\uD2B8 \uD06C\uAE30 \uC9C1\uC811 \uC785\uB825"
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("button", { style: toolbarBtnStyle, onClick: () => onBumpFontSize([...selectedIds], 1), title: "\uAE00\uC790 \uD06C\uAC8C (A+)", children: "A+" }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
-          "select",
-          {
-            value: selCount === 1 ? graph.nodes.find((n) => selectedIds.has(n.id))?.fontSize ?? 12 : "",
-            onChange: (e) => {
-              const v = parseInt(e.target.value, 10);
-              if (!isNaN(v)) {
-                onSetFontSizeExact([...selectedIds], v);
-                setFontInputVal(String(v));
-              }
-            },
-            style: {
-              background: "var(--vscode-input-background, #3c3c3c)",
-              color: "var(--vscode-input-foreground, #ccc)",
-              border: "1px solid var(--vscode-input-border, #555)",
-              borderRadius: 3,
-              fontSize: 11,
-              padding: "2px 2px",
-              outline: "none",
-              cursor: "pointer"
-            },
-            title: "\uD3F0\uD2B8 \uD06C\uAE30 \uC120\uD0DD",
-            children: [
-              selCount > 1 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("option", { value: "", children: "\xB7\xB7\xB7" }),
-              FONT_PRESETS.map((s) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("option", { value: s, children: s }, s))
-            ]
-          }
-        )
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { width: 1, height: 16, background: "var(--vscode-editorGroup-border, #444)", margin: "0 2px" } }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-        "button",
-        {
-          style: toolbarBtnStyle,
-          onClick: () => selCount > 0 ? onCollapseNodes([...selectedIds]) : onCollapseAll(),
-          title: selCount > 0 ? "\uC120\uD0DD \uB178\uB4DC + \uD558\uC704 \uB178\uB4DC \uC811\uAE30" : "\uBAA8\uB4E0 \uB178\uB4DC \uC811\uAE30",
-          children: "\uC811\uAE30\u2191"
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-        "button",
-        {
-          style: toolbarBtnStyle,
-          onClick: () => selCount > 0 ? onExpandNodes([...selectedIds]) : onExpandAll(),
-          title: selCount > 0 ? "\uC120\uD0DD \uB178\uB4DC + \uD558\uC704 \uB178\uB4DC \uD3BC\uCE58\uAE30" : "\uBAA8\uB4E0 \uB178\uB4DC \uD3BC\uCE58\uAE30",
-          children: "\uD3BC\uCE58\uAE30\u2193"
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { width: 1, height: 16, background: "var(--vscode-editorGroup-border, #444)", margin: "0 2px" } }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("button", { style: { ...toolbarBtnStyle, background: "var(--vscode-statusBarItem-warningBackground, #7a5c00)" }, onClick: onExportHtml, title: "HTML\uB85C \uB0B4\uBCF4\uB0B4\uAE30", children: "HTML \uB0B4\uBCF4\uB0B4\uAE30" }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { flex: 1 } }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { style: { fontSize: 10, opacity: 0.3, color: "var(--vscode-editor-foreground)" }, children: "\uC6B0\uD074\uB9AD: \uC774\uB3D9 \xB7 \uC2A4\uD06C\uB864: \uC90C \xB7 \uB4DC\uB798\uADF8: \uC120\uD0DD" })
-    ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: { position: "relative", flex: 1, overflow: "hidden" }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
-        "div",
-        {
-          ref: divRef,
-          tabIndex: 0,
-          style: {
-            width: "100%",
-            height: "100%",
-            overflow: "hidden",
-            position: "relative",
-            background: "var(--vscode-editor-background)",
-            cursor: selectionBox ? "crosshair" : cursor,
-            userSelect: "none",
-            outline: "none"
-          },
-          onMouseDown: handleCanvasMouseDown,
-          onMouseMove: handleCanvasMouseMove,
-          onMouseUp: handleCanvasMouseUp,
-          onMouseLeave: handleCanvasMouseLeave,
-          onContextMenu,
-          onPaste: handleCanvasPaste,
-          children: [
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { style: {
-              position: "absolute",
-              transformOrigin: "0 0",
-              transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`
-            }, children: [
-              graph.nodes.map((node) => {
-                const isMultiSelected = selectedIds.has(node.id) && selectedIds.size > 1;
-                const extraDragNodes = isMultiSelected ? [...selectedIds].filter((id) => id !== node.id).map((id) => {
-                  const n = graph.nodes.find((x) => x.id === id);
-                  return n ? { id, x: n.position.x, y: n.position.y } : null;
-                }).filter(Boolean) : null;
-                return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-                  NodeCard,
-                  {
-                    node,
-                    template: graph.nodeTemplates[node.template],
-                    nodeTemplates: graph.nodeTemplates,
-                    viewportZoom: viewport.zoom,
-                    renderPosition: renderPositions[node.id] ?? node.position,
-                    selected: selectedIds.has(node.id),
-                    isMultiSelected,
-                    extraDragNodes,
-                    onSelect: handleNodeSelect,
-                    onUpdatePosition: onUpdateNodePosition,
-                    onUpdateNode,
-                    onSetNodeWidth,
-                    onSetFontSize,
-                    onPushHistory,
-                    onToggleContent,
-                    onToggleOriginal,
-                    onResize: handleNodeResize,
-                    onPortDragStart: handlePortDragStart,
-                    onAddToggle,
-                    onUpdateToggle,
-                    onDeleteToggle,
-                    onExpandToggle,
-                    onDeleteOriginal,
-                    onAddOriginal,
-                    onAddLink,
-                    onDeleteLink,
-                    onOpenLink,
-                    onSetNodeTemplate,
-                    imageUris,
-                    onSaveImage,
-                    onDeleteImage
-                  },
-                  node.id
-                );
-              }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-                WireLayer,
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("button", { style: toolbarBtnStyle, onClick: handleAddNode, children: "+ Add Node" }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { width: 1, height: 18, background: "#d1d5db", margin: "0 4px" } }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+            "button",
+            {
+              style: {
+                ...toolbarBtnStyle,
+                background: selCount > 0 ? "#dc4a2e" : "#ffffff",
+                color: selCount > 0 ? "#ffffff" : "#9ca3af",
+                borderColor: selCount > 0 ? "#b73a20" : "#d1d5db",
+                opacity: selCount > 0 ? 1 : 0.5,
+                cursor: selCount > 0 ? "pointer" : "default"
+              },
+              onClick: handleDeleteSelected,
+              disabled: selCount === 0,
+              children: [
+                "Delete",
+                selCount > 1 ? ` (${selCount})` : ""
+              ]
+            }
+          ),
+          selCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_jsx_runtime5.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { width: 1, height: 18, background: "#d1d5db", margin: "0 4px" } }),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { fontSize: 10, color: "#555", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 120 }, children: selCount === 1 ? graph.nodes.find((n) => selectedIds.has(n.id))?.title : `${selCount}\uAC1C \uC120\uD0DD\uB428` }),
+            selCount === 1 && (() => {
+              const selNode = graph.nodes.find((n) => selectedIds.has(n.id));
+              if (!selNode)
+                return null;
+              return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                "select",
                 {
-                  nodes: graph.nodes,
-                  edges: graph.edges,
-                  nodeSizes,
-                  renderPositions,
-                  wirePreview: wireDrawing,
-                  onDeleteEdge
+                  value: selNode.template,
+                  onChange: (e) => onSetNodeTemplate(selNode.id, e.target.value),
+                  style: {
+                    background: "#fff",
+                    color: "#374151",
+                    border: "1px solid #d1d5db",
+                    borderRadius: 3,
+                    fontSize: 11,
+                    padding: "2px 4px",
+                    cursor: "pointer",
+                    outline: "none"
+                  },
+                  title: "\uB178\uB4DC \uD0C0\uC785 \uBCC0\uACBD",
+                  children: Object.entries(graph.nodeTemplates).map(([key, t]) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("option", { value: key, children: t.label }, key))
                 }
-              )
-            ] }),
-            selectionBox && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: {
-              position: "absolute",
-              left: Math.min(selectionBox.x1, selectionBox.x2),
-              top: Math.min(selectionBox.y1, selectionBox.y2),
-              width: Math.abs(selectionBox.x2 - selectionBox.x1),
-              height: Math.abs(selectionBox.y2 - selectionBox.y1),
-              border: "1px solid rgba(100,160,255,0.8)",
-              background: "rgba(100,160,255,0.08)",
-              pointerEvents: "none",
-              zIndex: 150
-            } })
-          ]
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("button", { onClick: handleFitView, style: {
-        position: "absolute",
-        bottom: 16,
-        right: 16,
-        background: "var(--vscode-button-background, #0e639c)",
-        color: "var(--vscode-button-foreground, #fff)",
-        border: "none",
-        borderRadius: 4,
-        padding: "4px 10px",
-        fontSize: 11,
-        cursor: "pointer",
-        opacity: 0.85,
-        zIndex: 100
-      }, children: "Fit View" })
-    ] })
+              );
+            })(),
+            (() => {
+              const selFonts = [...selectedIds].map((id) => graph.nodes.find((n) => n.id === id)?.fontSize ?? 14);
+              const minFont = selFonts.length ? Math.min(...selFonts) : 14;
+              if (fontInputRef.current && document.activeElement !== fontInputRef.current) {
+                fontInputRef.current.value = String(minFont);
+              }
+              const applyFont = (raw) => {
+                const ids = [...selectedIdsRef.current];
+                if (!ids.length)
+                  return;
+                const v = parseInt(raw, 10);
+                if (isNaN(v) || v < 6 || v > 200)
+                  return;
+                const lf = ids.map((id) => graph.nodes.find((n) => n.id === id)?.fontSize ?? 14);
+                const lMin = Math.min(...lf), lMax = Math.max(...lf);
+                if (ids.length > 1 && lMax !== lMin)
+                  onBumpFontSize(ids, v - lMin);
+                else
+                  onSetFontSizeExact(ids, v);
+              };
+              return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { position: "relative", display: "inline-flex" }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                  "input",
+                  {
+                    ref: fontInputRef,
+                    type: "text",
+                    defaultValue: String(minFont),
+                    onMouseDown: (e) => e.stopPropagation(),
+                    onFocus: (e) => e.target.select(),
+                    onBlur: (e) => {
+                      const v = parseInt(e.target.value, 10);
+                      if (!isNaN(v) && v >= 6 && v <= 200)
+                        applyFont(e.target.value);
+                      else
+                        e.target.value = String(minFont);
+                    },
+                    onKeyDown: (e) => {
+                      e.stopPropagation();
+                      if (e.key === "Enter") {
+                        applyFont(e.target.value);
+                        e.target.blur();
+                      }
+                      if (e.key === "Escape") {
+                        e.target.value = String(minFont);
+                        e.target.blur();
+                      }
+                    },
+                    style: {
+                      width: 34,
+                      padding: "1px 4px",
+                      fontSize: 11,
+                      textAlign: "center",
+                      background: "#fff",
+                      color: "#374151",
+                      outline: "none",
+                      border: "1px solid #d1d5db",
+                      borderRight: "none",
+                      borderRadius: "3px 0 0 3px"
+                    },
+                    title: "\uD3F0\uD2B8 \uD06C\uAE30 (\uC9C1\uC811 \uC785\uB825 \uD6C4 Enter)"
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                  "button",
+                  {
+                    onMouseDown: (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setFontDropOpen((o) => !o);
+                    },
+                    style: {
+                      width: 16,
+                      padding: 0,
+                      fontSize: 9,
+                      cursor: "pointer",
+                      lineHeight: 1,
+                      background: "#f0f0f0",
+                      color: "#333",
+                      border: "1px solid #d1d5db",
+                      borderRadius: "0 3px 3px 0",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    },
+                    children: "\u25BE"
+                  }
+                ),
+                fontDropOpen && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                  "div",
+                  {
+                    onMouseDown: (e) => e.stopPropagation(),
+                    style: {
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      zIndex: 9999,
+                      width: 52,
+                      maxHeight: 200,
+                      overflowY: "auto",
+                      background: "#fff",
+                      border: "1px solid #d1d5db",
+                      borderRadius: 3,
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
+                    },
+                    children: FONT_PRESETS.map((s) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                      "div",
+                      {
+                        onClick: () => {
+                          applyFont(String(s));
+                          if (fontInputRef.current)
+                            fontInputRef.current.value = String(s);
+                          setFontDropOpen(false);
+                        },
+                        style: {
+                          padding: "3px 10px",
+                          fontSize: 11,
+                          cursor: "pointer",
+                          background: s === minFont ? "#374151" : "transparent",
+                          color: s === minFont ? "#fff" : "#1a1a1a"
+                        },
+                        onMouseEnter: (e) => {
+                          if (s !== minFont)
+                            e.currentTarget.style.background = "#e8e8e8";
+                        },
+                        onMouseLeave: (e) => {
+                          if (s !== minFont)
+                            e.currentTarget.style.background = "transparent";
+                        },
+                        children: s
+                      },
+                      s
+                    ))
+                  }
+                )
+              ] });
+            })()
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { width: 1, height: 18, background: "#d1d5db", margin: "0 4px" } }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+            "button",
+            {
+              style: toolbarBtnStyle,
+              onClick: () => {
+                const ids = [...selectedIdsRef.current];
+                if (ids.length > 0)
+                  onCollapseNodes(ids);
+                else
+                  onCollapseAll();
+              },
+              title: selCount > 0 ? "\uC120\uD0DD \uB178\uB4DC + \uD558\uC704 \uB178\uB4DC \uC811\uAE30" : "\uBAA8\uB4E0 \uB178\uB4DC \uC811\uAE30",
+              children: "\uC811\uAE30\u2191"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+            "button",
+            {
+              style: toolbarBtnStyle,
+              onClick: () => {
+                const ids = [...selectedIdsRef.current];
+                if (ids.length > 0)
+                  onExpandNodes(ids);
+                else
+                  onExpandAll();
+              },
+              title: selCount > 0 ? "\uC120\uD0DD \uB178\uB4DC + \uD558\uC704 \uB178\uB4DC \uD3BC\uCE58\uAE30" : "\uBAA8\uB4E0 \uB178\uB4DC \uD3BC\uCE58\uAE30",
+              children: "\uD3BC\uCE58\uAE30\u2193"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("button", { style: toolbarBtnStyle, onClick: handleFitView, title: "\uBAA8\uB4E0 \uB178\uB4DC\uAC00 \uBCF4\uC774\uAC8C \uD654\uBA74 \uB9DE\uCD94\uAE30", children: "Fit View" }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { width: 1, height: 18, background: "#d1d5db", margin: "0 4px" } }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+            "button",
+            {
+              style: { ...toolbarBtnStyle, background: "#15803d", color: "#ffffff", borderColor: "#166534" },
+              onClick: onExportHtml,
+              title: "HTML\uB85C \uB0B4\uBCF4\uB0B4\uAE30",
+              children: "HTML \uB0B4\uBCF4\uB0B4\uAE30"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { flex: 1 } }),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { fontSize: 10, color: "#aaa", whiteSpace: "nowrap" }, children: "\uC6B0\uD074\uB9AD: \uC774\uB3D9 \xB7 \uC2A4\uD06C\uB864: \uC90C \xB7 \uB4DC\uB798\uADF8: \uC120\uD0DD" })
+        ]
+      }
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { position: "relative", flex: 1, overflow: "hidden" }, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+      "div",
+      {
+        ref: divRef,
+        tabIndex: 0,
+        style: {
+          width: "100%",
+          height: "100%",
+          overflow: "hidden",
+          position: "relative",
+          background: "var(--vscode-editor-background)",
+          cursor: selectionBox ? "crosshair" : cursor,
+          userSelect: "none",
+          outline: "none"
+        },
+        onMouseDown: handleCanvasMouseDown,
+        onMouseMove: handleCanvasMouseMove,
+        onMouseUp: handleCanvasMouseUp,
+        onMouseLeave: handleCanvasMouseLeave,
+        onContextMenu,
+        onPaste: handleCanvasPaste,
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: {
+            position: "absolute",
+            transformOrigin: "0 0",
+            transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`
+          }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+              CanvasImageLayer,
+              {
+                canvasImages: graph.canvasImages ?? [],
+                imageUris,
+                viewport,
+                selectedId: selectedCanvasImgId,
+                onSelect: (id) => {
+                  setSelectedCanvasImgId(id);
+                  if (id) {
+                    setSelectedIds(/* @__PURE__ */ new Set());
+                    divRef.current?.focus({ preventScroll: true });
+                  }
+                },
+                onUpdatePosition: (id, x, y) => onUpdateCanvasImage(id, { position: { x, y } }),
+                onUpdateSize: (id, w, h) => onUpdateCanvasImage(id, { width: w, height: h }),
+                onDrop: handleCanvasImageDrop
+              }
+            ),
+            graph.nodes.map((node) => {
+              const isMultiSelected = selectedIds.has(node.id) && selectedIds.size > 1;
+              const extraDragNodes = isMultiSelected ? [...selectedIds].filter((id) => id !== node.id).map((id) => {
+                const n = graph.nodes.find((x) => x.id === id);
+                return n ? { id, x: n.position.x, y: n.position.y } : null;
+              }).filter(Boolean) : null;
+              return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                NodeCard,
+                {
+                  node,
+                  template: graph.nodeTemplates[node.template],
+                  nodeTemplates: graph.nodeTemplates,
+                  viewportZoom: viewport.zoom,
+                  renderPosition: renderPositions[node.id] ?? node.position,
+                  selected: selectedIds.has(node.id),
+                  isMultiSelected,
+                  extraDragNodes,
+                  onSelect: handleNodeSelect,
+                  onHoverStart: handleNodeHoverStart,
+                  onHoverEnd: handleNodeHoverEnd,
+                  onUpdatePosition: onUpdateNodePosition,
+                  onUpdateNode,
+                  onSetNodeWidth,
+                  onSetNodeHeight,
+                  onSetFontSize,
+                  onPushHistory,
+                  onToggleContent: handleToggleContent,
+                  onToggleOriginal,
+                  onResize: handleNodeResize,
+                  onPortDragStart: handlePortDragStart,
+                  onAddToggle,
+                  onUpdateToggle,
+                  onDeleteToggle,
+                  onExpandToggle,
+                  onDeleteOriginal,
+                  onAddOriginal,
+                  onAddLink,
+                  onDeleteLink,
+                  onOpenLink,
+                  onSetNodeTemplate,
+                  imageUris,
+                  onSaveImage,
+                  onDeleteImage,
+                  onUpdateContentAndImages,
+                  canvasClipboardRef,
+                  onAddFilenameToNode
+                },
+                node.id
+              );
+            }),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+              WireLayer,
+              {
+                nodes: graph.nodes,
+                edges: graph.edges,
+                nodeSizes,
+                renderPositions,
+                wirePreview: wireDrawing,
+                onDeleteEdge
+              }
+            )
+          ] }),
+          selectionBox && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: {
+            position: "absolute",
+            left: Math.min(selectionBox.x1, selectionBox.x2),
+            top: Math.min(selectionBox.y1, selectionBox.y2),
+            width: Math.abs(selectionBox.x2 - selectionBox.x1),
+            height: Math.abs(selectionBox.y2 - selectionBox.y1),
+            border: "1px solid rgba(100,160,255,0.8)",
+            background: "rgba(100,160,255,0.08)",
+            pointerEvents: "none",
+            zIndex: 150
+          } })
+        ]
+      }
+    ) })
   ] });
 }
 
 // src/webview/App.tsx
-var import_jsx_runtime5 = __toESM(require_jsx_runtime());
+var import_jsx_runtime6 = __toESM(require_jsx_runtime());
 function App() {
   const {
     graph,
     imageUris,
     updateNodePosition,
+    autoSaveNodePosition,
     toggleContent,
     toggleOriginal,
     updateNodeField,
@@ -41058,7 +42198,16 @@ function App() {
     deleteOriginal,
     saveImage,
     deleteImage,
+    updateNodeContentAndImages,
+    addCanvasImage,
+    addFilenameToNode,
+    saveCanvasImage,
+    updateCanvasImage,
+    removeCanvasImage,
+    moveCanvasImageToNode,
+    lastAddedCanvasImageId,
     setNodeWidth,
+    setNodeHeight,
     setNodeFontSize,
     bumpFontSize,
     setFontSizeExact,
@@ -41090,11 +42239,11 @@ function App() {
     onMouseLeave,
     onContextMenu
   } = useViewport();
-  (0, import_react7.useEffect)(() => {
+  (0, import_react8.useEffect)(() => {
     if (graph?.viewport)
       setViewport(graph.viewport);
   }, [graph !== null]);
-  (0, import_react7.useEffect)(() => {
+  (0, import_react8.useEffect)(() => {
     const handler = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
@@ -41113,9 +42262,9 @@ function App() {
     return () => window.removeEventListener("keydown", handler);
   }, [undo, redo, saveGraph]);
   if (!graph) {
-    return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--vscode-editor-foreground)", opacity: 0.5 }, children: "Loading\u2026" });
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--vscode-editor-foreground)", opacity: 0.5 }, children: "Loading\u2026" });
   }
-  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
     Canvas,
     {
       viewport,
@@ -41129,10 +42278,12 @@ function App() {
       onSetViewport: setViewport,
       graph,
       onUpdateNodePosition: updateNodePosition,
+      onAutoSaveNodePosition: autoSaveNodePosition,
       onUpdateNode: updateNodeField,
       onAddNode: (x, y, t) => addNode(x, y, t),
       onDeleteNodes: deleteNodes,
       onSetNodeWidth: setNodeWidth,
+      onSetNodeHeight: setNodeHeight,
       onSetFontSize: setNodeFontSize,
       onBumpFontSize: bumpFontSize,
       onSetFontSizeExact: setFontSizeExact,
@@ -41162,15 +42313,23 @@ function App() {
       onExportHtml: exportHtml,
       imageUris,
       onSaveImage: saveImage,
-      onDeleteImage: deleteImage
+      onDeleteImage: deleteImage,
+      onUpdateContentAndImages: updateNodeContentAndImages,
+      onAddCanvasImage: addCanvasImage,
+      onAddFilenameToNode: addFilenameToNode,
+      onSaveCanvasImage: saveCanvasImage,
+      onUpdateCanvasImage: updateCanvasImage,
+      onRemoveCanvasImage: removeCanvasImage,
+      onMoveCanvasImageToNode: moveCanvasImageToNode,
+      lastAddedCanvasImageId
     }
   );
 }
 
 // src/webview/index.tsx
-var import_jsx_runtime6 = __toESM(require_jsx_runtime());
+var import_jsx_runtime7 = __toESM(require_jsx_runtime());
 var root = (0, import_client.createRoot)(document.getElementById("root"));
-root.render(/* @__PURE__ */ (0, import_jsx_runtime6.jsx)(App, {}));
+root.render(/* @__PURE__ */ (0, import_jsx_runtime7.jsx)(App, {}));
 /*! Bundled license information:
 
 react/cjs/react.development.js:

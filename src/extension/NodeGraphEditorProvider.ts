@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import * as path from 'path'
 import { NodeGraph } from '../webview/types/graph'
-import { computeImageUris, saveImageToAssetsFolder } from './imageManager'
+import { computeImageUris, saveImageToAssetsFolder, deleteImageFile } from './imageManager'
 import { generateHtml } from './htmlExporter'
 
 export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider {
@@ -76,21 +76,26 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
 
           // Read all referenced images and encode as base64 data URIs
           const imageData: Record<string, string> = {}
+          const INLINE_IMG_RE = /\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g
+          const loadImg = async (filename: string) => {
+            if (!filename || imageData[filename]) return
+            try {
+              const imgUri = vscode.Uri.joinPath(imgsFolder, filename)
+              const bytes = await vscode.workspace.fs.readFile(imgUri)
+              const ext = filename.split('.').pop()?.toLowerCase() ?? 'png'
+              const mime = (ext === 'jpg' || ext === 'jpeg') ? 'image/jpeg'
+                : ext === 'gif' ? 'image/gif'
+                : ext === 'webp' ? 'image/webp'
+                : 'image/png'
+              imageData[filename] = `data:${mime};base64,${Buffer.from(bytes).toString('base64')}`
+            } catch { /* image file not found */ }
+          }
           for (const node of data.nodes) {
-            for (const img of node.images) {
-              if (img.filename && !imageData[img.filename]) {
-                try {
-                  const imgUri = vscode.Uri.joinPath(imgsFolder, img.filename)
-                  const bytes = await vscode.workspace.fs.readFile(imgUri)
-                  const ext = img.filename.split('.').pop()?.toLowerCase() ?? 'png'
-                  const mime = (ext === 'jpg' || ext === 'jpeg') ? 'image/jpeg'
-                    : ext === 'gif' ? 'image/gif'
-                    : ext === 'webp' ? 'image/webp'
-                    : 'image/png'
-                  imageData[img.filename] = `data:${mime};base64,${Buffer.from(bytes).toString('base64')}`
-                } catch { /* image file not found */ }
-              }
-            }
+            for (const img of node.images) await loadImg(img.filename)
+            // Also collect [[IMG:filename]] tokens embedded in content text
+            INLINE_IMG_RE.lastIndex = 0
+            let m: RegExpExecArray | null
+            while ((m = INLINE_IMG_RE.exec(node.content ?? '')) !== null) await loadImg(m[1])
           }
 
           const htmlContent = generateHtml(data, imageData)
@@ -117,6 +122,8 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
         } catch (err) {
           vscode.window.showErrorMessage(`Failed to save image: ${err}`)
         }
+      } else if (msg.type === 'deleteImageFile') {
+        await deleteImageFile(document.uri, msg.filename)
       }
     })
 
@@ -158,6 +165,7 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
       font-size: var(--vscode-font-size);
     }
     .katex-display { margin: 0.5em 0; }
+    .katex-html { white-space: nowrap; }
   </style>
 </head>
 <body>
