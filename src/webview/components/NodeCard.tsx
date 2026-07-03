@@ -86,6 +86,7 @@ export function NodeCard({
   const [addingLink, setAddingLink] = useState(false)
   const [linkForm, setLinkForm] = useState<{ type: NodeLink['type']; target: string; label: string }>({ type: 'url', target: '', label: '' })
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const [selectedImgToken, setSelectedImgToken] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,6 +101,13 @@ export function NodeCard({
     reader.readAsDataURL(file)
     e.target.value = ''
   }, [node.id, onSaveImage])
+
+  const deleteSelectedImage = useCallback((token: string) => {
+    onPushHistory()
+    const newContent = (node.content ?? '').replace(token, '')
+    onUpdateNode(node.id, 'content', newContent)
+    setSelectedImgToken(null)
+  }, [node.content, node.id, onUpdateNode, onPushHistory])
 
   const { onMouseDown: onDragStart, isDragging } = useDrag({
     nodeId: node.id,
@@ -127,6 +135,21 @@ export function NodeCard({
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [lightboxSrc])
+
+  // 선택된 이미지 Del/Backspace → 토큰 삭제
+  useEffect(() => {
+    if (!selectedImgToken) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault()
+        deleteSelectedImage(selectedImgToken)
+      } else if (e.key === 'Escape') {
+        setSelectedImgToken(null)
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [selectedImgToken, deleteSelectedImage])
 
   // 표 렌더 후 노드 너비 자동 확장
   useEffect(() => {
@@ -255,7 +278,7 @@ export function NodeCard({
           zIndex: isDragging ? 10 : 1,
         }}
         data-node-id={node.id}
-        onMouseDown={(e) => { e.stopPropagation(); onSelect(node.id, false) }}
+        onMouseDown={(e) => { e.stopPropagation(); onSelect(node.id, false); setSelectedImgToken(null) }}
         onDoubleClick={(e) => e.stopPropagation()}
         onMouseEnter={() => { setIsHovered(true); onHoverStart(node.id) }}
         onMouseLeave={() => { setIsHovered(false); onHoverEnd(node.id) }}
@@ -379,11 +402,35 @@ export function NodeCard({
                   const imgW = match[2] ? Number(match[2]) : undefined
                   const imgH = match[3] ? Number(match[3]) : undefined
                   const uri = imageUris[filename]
+                  const imgToken = match[0]
+                  const isImgSelected = selectedImgToken === imgToken
                   parts.push(uri
-                    ? <img key={key++} src={uri} alt={filename}
-                        onClick={() => setLightboxSrc(uri)}
-                        style={{ display: 'block', maxWidth: imgW ? undefined : '100%', marginTop: 2, cursor: 'zoom-in',
-                          ...(imgW ? { width: imgW } : {}), ...(imgH ? { height: imgH } : {}) }} />
+                    ? <span key={key++} style={{ display: 'inline-block', position: 'relative' }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); setSelectedImgToken(isImgSelected ? null : imgToken) }}
+                        onDoubleClick={(e) => { e.stopPropagation(); setSelectedImgToken(null); setLightboxSrc(uri) }}
+                      >
+                        <img src={uri} alt={filename}
+                          style={{ display: 'block', maxWidth: imgW ? undefined : '100%', marginTop: 2,
+                            ...(imgW ? { width: imgW } : {}), ...(imgH ? { height: imgH } : {}),
+                            outline: isImgSelected ? '2px solid #007acc' : 'none',
+                            outlineOffset: 1,
+                          }} />
+                        {isImgSelected && (
+                          <div
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => { e.stopPropagation(); deleteSelectedImage(imgToken) }}
+                            style={{
+                              position: 'absolute', top: 4, right: 4,
+                              background: '#e53e3e', color: '#fff',
+                              borderRadius: '50%', width: 18, height: 18,
+                              cursor: 'pointer', fontSize: 10,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              userSelect: 'none',
+                            }}
+                          >✕</div>
+                        )}
+                      </span>
                     : <span key={key++} style={{ opacity: 0.5, fontSize: 10 }}>[IMG:{filename}]</span>
                   )
                   lastIdx = match.index + match[0].length

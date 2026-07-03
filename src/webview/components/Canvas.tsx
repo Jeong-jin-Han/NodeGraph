@@ -66,7 +66,8 @@ const HEADER_H = 36
 function computeRenderPositions(
   nodes: GraphNode[],
   nodeSizes: Record<string, { width: number; height: number }>,
-  nodeTemplates: Record<string, { shape: 'sharp' | 'rounded' }>
+  nodeTemplates: Record<string, { shape: 'sharp' | 'rounded' }>,
+  edges: { source: string; target: string }[]
 ): Record<string, { x: number; y: number }> {
   const childToParent = new Map<string, string>()
   for (const n of nodes) {
@@ -79,7 +80,6 @@ function computeRenderPositions(
     while (childToParent.has(cur)) cur = childToParent.get(cur)!
     return cur
   }
-  // Returns true if `descendant` is anywhere in the subtree below `ancestor`
   const isDescendantOf = (descendant: string, ancestor: string): boolean => {
     let cur = descendant
     while (childToParent.has(cur)) {
@@ -90,7 +90,11 @@ function computeRenderPositions(
   }
   const isMainNode = (node: GraphNode) => (nodeTemplates[node.template]?.shape ?? 'sharp') === 'sharp'
 
-  const sorted = [...nodes].sort((a, b) => a.position.y - b.position.y)
+  // Y 동률 시 X 오름차순 (html viewer와 동일)
+  const sorted = [...nodes].sort((a, b) => {
+    if (a.position.y !== b.position.y) return a.position.y - b.position.y
+    return a.position.x - b.position.x
+  })
   const renderY: Record<string, number> = {}
 
   for (const node of sorted) {
@@ -99,7 +103,8 @@ function computeRenderPositions(
 
     for (const other of sorted) {
       if (other.id === node.id) continue
-      if (other.position.y >= node.position.y) continue
+      if (other.position.y > node.position.y) continue
+      if (other.position.y === node.position.y && other.position.x >= node.position.x) continue
 
       const otherY = renderY[other.id] ?? other.position.y
       const otherH = nodeSizes[other.id]?.height ?? (other.nodeHeight ?? HEADER_H)
@@ -107,34 +112,54 @@ function computeRenderPositions(
       if (otherBottom <= y) continue
 
       if (nodeIsMain && isMainNode(other)) {
-        // Main → main: always push regardless of X offset (they share a vertical stack)
         const naturalBottom = other.position.y + (other.nodeHeight ?? HEADER_H)
         const delta = (otherY + otherH) - naturalBottom
         const nodeNaturalY = node.nodeNaturalY ?? node.position.y
         y = Math.max(y, nodeNaturalY + delta, otherBottom + 20)
       } else {
-        // Rounded pushes: only if X ranges actually overlap (different columns don't push each other)
         const nodeW = nodeSizes[node.id]?.width ?? 300
         const otherW = nodeSizes[other.id]?.width ?? 300
         if (!(node.position.x < other.position.x + otherW && other.position.x < node.position.x + nodeW)) continue
 
         if (nodeIsMain) {
-          // Rounded → main: skip only if it's a descendant AND doesn't actually reach this node's Y
           if (isDescendantOf(other.id, node.id) && otherBottom <= node.position.y) continue
           const wasPushed = otherY > other.position.y
           if (!other.contentExpanded && !wasPushed) continue
           y = Math.max(y, otherBottom + 48)
         } else {
-          // Rounded sub-node: pushed by any expanded/pushed node above (same-root 20px, cross-tree 48px)
           const wasPushed = otherY > other.position.y
           if (!other.contentExpanded && !wasPushed) continue
           const isSameRoot = getRootId(other.id) === getRootId(node.id)
-          y = Math.max(y, otherBottom + (isSameRoot ? 20 : 48))
+          y = Math.max(y, otherBottom + (isSameRoot ? 30 : 48))
         }
       }
     }
 
     renderY[node.id] = y
+  }
+
+  // Pass 2: 서브노드가 부모 backbone의 push delta만큼 따라 내려가도록 보정
+  for (const node of nodes) {
+    if (isMainNode(node)) continue
+    let parentMain: GraphNode | null = null
+    let bestDist = Infinity
+    for (const m of nodes) {
+      if (!isMainNode(m)) continue
+      const connected =
+        m.children.includes(node.id) ||
+        edges.some(e => (e.source === m.id && e.target === node.id) || (e.target === m.id && e.source === node.id))
+      if (connected) {
+        const dist = Math.abs(m.position.y - node.position.y)
+        if (dist < bestDist) { bestDist = dist; parentMain = m }
+      }
+    }
+    if (parentMain) {
+      const parentPush = (renderY[parentMain.id] ?? parentMain.position.y) - parentMain.position.y
+      if (parentPush > 0) {
+        const cur = renderY[node.id] ?? node.position.y
+        renderY[node.id] = Math.max(cur, node.position.y + parentPush)
+      }
+    }
   }
 
   return Object.fromEntries(nodes.map(n => [n.id, { x: n.position.x, y: renderY[n.id] ?? n.position.y }]))
@@ -473,8 +498,8 @@ export function Canvas({
   }, [])
 
   const renderPositions = useMemo(
-    () => computeRenderPositions(graph.nodes, nodeSizes, graph.nodeTemplates),
-    [graph.nodes, nodeSizes, graph.nodeTemplates]
+    () => computeRenderPositions(graph.nodes, nodeSizes, graph.nodeTemplates, graph.edges),
+    [graph.nodes, nodeSizes, graph.nodeTemplates, graph.edges]
   )
   renderPositionsRef.current = renderPositions
   nodeSizesRef.current = nodeSizes
@@ -482,22 +507,8 @@ export function Canvas({
   // When collapsing a main node, persist renderY of pushed main nodes before they snap back.
   // Uses onAutoSaveNodePosition (does NOT update nodeNaturalY) so the delta formula stays correct.
   const handleToggleContent = useCallback((id: string) => {
-    const node = graph.nodes.find(n => n.id === id)
-    const tmpl = node && graph.nodeTemplates[node.template]
-    if (tmpl?.shape === 'sharp' && node?.contentExpanded) {
-      graph.nodes.forEach(other => {
-        if (other.id === id) return
-        if ((graph.nodeTemplates[other.template]?.shape ?? 'sharp') !== 'sharp') return
-        const rpos = renderPositions[other.id]
-        if (!rpos) return
-        const newY = Math.round(rpos.y)
-        if (newY > other.position.y + 0.5) {
-          onAutoSaveNodePosition(other.id, other.position.x, newY)
-        }
-      })
-    }
     onToggleContent(id)
-  }, [graph.nodes, graph.nodeTemplates, renderPositions, onToggleContent, onAutoSaveNodePosition])
+  }, [onToggleContent])
 
   // 노드 선택 (shift/ctrl: 추가선택, 이미 다중선택 중인 노드 클릭 시 유지)
   const handleNodeSelect = useCallback((id: string, additive: boolean) => {

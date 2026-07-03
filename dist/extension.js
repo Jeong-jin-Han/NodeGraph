@@ -1,23 +1,276 @@
-"use strict";var j=Object.create;var D=Object.defineProperty;var F=Object.getOwnPropertyDescriptor;var z=Object.getOwnPropertyNames;var X=Object.getPrototypeOf,G=Object.prototype.hasOwnProperty;var q=(e,t)=>{for(var n in t)D(e,n,{get:t[n],enumerable:!0})},B=(e,t,n,i)=>{if(t&&typeof t=="object"||typeof t=="function")for(let r of z(t))!G.call(e,r)&&r!==n&&D(e,r,{get:()=>t[r],enumerable:!(i=F(t,r))||i.enumerable});return e};var T=(e,t,n)=>(n=e!=null?j(X(e)):{},B(t||!e||!e.__esModule?D(n,"default",{value:e,enumerable:!0}):n,e)),K=e=>B(D({},"__esModule",{value:!0}),e);var oe={};q(oe,{activate:()=>te,deactivate:()=>ne});module.exports=K(oe);var d=T(require("vscode")),W=T(require("path"));var x=T(require("vscode"));function M(e){let t=x.Uri.joinPath(e,".."),n=e.path.split("/").pop()?.replace(/\.nodegraph\.json$/,"")??"graph";return x.Uri.joinPath(t,`.${n}-imgs`)}function J(e,t,n){let i=x.Uri.joinPath(M(t),n);return e.asWebviewUri(i).toString()}var P=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;function O(e,t,n){let i={},r=a=>{a&&!i[a]&&(i[a]=J(e,t,a))};for(let a of n.nodes){P.lastIndex=0;let c;for(;(c=P.exec(a.content??""))!==null;)r(c[1])}for(let a of n.canvasImages??[])r(a.filename);return i}async function Y(e,t,n,i="png"){let r=M(t);try{await x.workspace.fs.createDirectory(r)}catch{}let a=`img_${Date.now()}.${i}`,c=x.Uri.joinPath(r,a);return await x.workspace.fs.writeFile(c,Buffer.from(n,"base64")),{filename:a,webviewUri:e.asWebviewUri(c).toString()}}async function L(e,t){let n=x.Uri.joinPath(M(e),t);try{await x.workspace.fs.delete(n)}catch{}}function g(e){return e.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function k(e){return/^\s*\|/.test(e)&&e.indexOf("|",1)!==-1}function H(e){return/^\s*\|[\s\-:|]+\|\s*$/.test(e)&&!/[a-zA-Z0-9]/.test(e)}function _(e){return e.replace(/^\s*\|/,"").replace(/\|\s*$/,"").split("|").map(t=>t.trim())}function V(e){if(!e)return[{type:"text",text:"",startChar:0,endChar:0}];let t=e.split(`
-`),n=[],i=0,r=0,a=c=>t[c].length+(c<t.length-1?1:0);for(;i<t.length;)if(k(t[i])&&i+1<t.length&&H(t[i+1])){let h=r,s=[];for(;i<t.length&&k(t[i]);)s.push(t[i]),r+=a(i),i++;s.length>=3?n.push({type:"table",headers:_(s[0]),rows:s.slice(2).map(_),startChar:h,endChar:r}):n.push({type:"text",text:s.join(`
-`),startChar:h,endChar:r})}else{let h=r,s=[];for(;i<t.length&&!(k(t[i])&&i+1<t.length&&H(t[i+1]));)s.push(t[i]),r+=a(i),i++;n.push({type:"text",text:s.join(`
-`),startChar:h,endChar:r})}return n}function C(e){let t=e.split(`
-`);for(let n=0;n+1<t.length;n++)if(k(t[n])&&H(t[n+1]))return!0;return!1}function $(e,t){let n=/\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g,i="",r=0,a;for(;(a=n.exec(e))!==null;){a.index>r&&(i+=g(e.slice(r,a.index)));let c=a[1],h=a[2],s=a[3],l=h&&s?` width="${h}" height="${s}"`:"",o=t[c];i+=o?`<img class="ng-img${l?" ng-img-sized":""}" src="${o}"${l} alt="${g(c)}" onclick="showLightbox(this.src)" title="\uD074\uB9AD\uD558\uC5EC \uD655\uB300">`:`<span class="ng-img-missing">${g(c)}</span>`,r=a.index+a[0].length}return r<e.length&&(i+=g(e.slice(r))),i}function Z(e,t){let n=e.headers.map(r=>`<th>${$(r,t)}</th>`).join(""),i=e.rows.map(r=>`<tr>${r.map(a=>`<td>${$(a,t)}</td>`).join("")}</tr>`).join("");return`<div class="ng-table-wrap"><table class="ng-table"><thead><tr>${n}</tr></thead><tbody>${i}</tbody></table></div>`}function Q(e,t,n,i,r){let a=t?.color??"#888",c=t?.shape==="rounded"?"22px":"2px",h=g(t?.label??e.template),s=Math.round(e.position.x+n),l=Math.round(e.position.y+i),o="",f=e.content??"";if(C(f)){let p=V(f);o+='<div class="ng-content">';for(let u of p)u.type==="table"?o+=Z(u,r):u.text&&(o+=`<div class="ng-seg">${$(u.text,r).replace(/\n/g,"<br>")}</div>`);o+="</div>"}else f&&(o+=`<div class="ng-content">${$(f,r).replace(/\n/g,"<br>")}</div>`);if(e.original){let p=g(e.original.title??"Original"),u=e.originalExpanded?" open":"";o+=`<details class="ng-original"${u}><summary>${p}${e.original.location?` <span class="ng-loc">${g(e.original.location)}</span>`:""}</summary>
-<div class="ng-orig-text">${g(e.original.text).replace(/\n/g,"<br>")}</div></details>`}for(let p of e.toggleItems??[])o+=`<details class="ng-toggle"${p.expanded?" open":""}><summary>${g(p.title||"(\uC81C\uBAA9 \uC5C6\uC74C)")}</summary>
-<div class="ng-toggle-body">${g(p.content).replace(/\n/g,"<br>")}</div></details>`;e.links.length&&(o+=`<div class="ng-links">${e.links.map(p=>{let u=p.type==="url"?"\u{1F517}":p.type==="pdf"?"\u{1F4C4}":p.type==="obsidian"?"\u{1F7E3}":"\u2B21";return`<a class="ng-link"${p.type==="url"||p.type==="pdf"?` href="${g(p.target)}" target="_blank"`:""}>${u} ${g(p.label||p.target)}</a>`}).join("")}</div>`);let E=!!o,b=e.contentExpanded?"":' style="display:none"',I=e.children.length?` data-children="${e.children.join(",")}"`:"",S=C(f)?" ng-has-table":"",A=/\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g,v=0,w;for(;(w=A.exec(f))!==null;)v=Math.max(v,Number(w[1]));let m=v>0?C(f)?v+280:v+32:0,y=[e.nodeWidth?`min-width:${e.nodeWidth}px`:m>220?`min-width:${m}px`:"",e.nodeHeight?`min-height:${e.nodeHeight}px`:""].filter(Boolean).join(";");return`<div class="ng-node${S}" id="node-${g(e.id)}"${I} style="--color:${a};border-radius:${c};left:${s}px;top:${l}px${y?";"+y:""}">
+"use strict";
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// src/extension/extension.ts
+var extension_exports = {};
+__export(extension_exports, {
+  activate: () => activate,
+  deactivate: () => deactivate
+});
+module.exports = __toCommonJS(extension_exports);
+
+// src/extension/NodeGraphEditorProvider.ts
+var vscode2 = __toESM(require("vscode"));
+var path = __toESM(require("path"));
+
+// src/extension/imageManager.ts
+var vscode = __toESM(require("vscode"));
+function getImgsFolder(documentUri) {
+  const documentDir = vscode.Uri.joinPath(documentUri, "..");
+  const baseName = documentUri.path.split("/").pop()?.replace(/\.nodegraph\.json$/, "") ?? "graph";
+  return vscode.Uri.joinPath(documentDir, `.${baseName}-imgs`);
+}
+function getImageWebviewUri(webview, documentUri, filename) {
+  const imageUri = vscode.Uri.joinPath(getImgsFolder(documentUri), filename);
+  return webview.asWebviewUri(imageUri).toString();
+}
+var INLINE_IMG_RE = /\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;
+function computeImageUris(webview, documentUri, graph) {
+  const uris = {};
+  const add = (fn) => {
+    if (fn && !uris[fn])
+      uris[fn] = getImageWebviewUri(webview, documentUri, fn);
+  };
+  for (const node of graph.nodes) {
+    INLINE_IMG_RE.lastIndex = 0;
+    let m;
+    while ((m = INLINE_IMG_RE.exec(node.content ?? "")) !== null)
+      add(m[1]);
+  }
+  for (const ci of graph.canvasImages ?? [])
+    add(ci.filename);
+  return uris;
+}
+async function saveImageToAssetsFolder(webview, documentUri, base64Data, ext = "png") {
+  const imgsFolder = getImgsFolder(documentUri);
+  try {
+    await vscode.workspace.fs.createDirectory(imgsFolder);
+  } catch {
+  }
+  const filename = `img_${Date.now()}.${ext}`;
+  const imageUri = vscode.Uri.joinPath(imgsFolder, filename);
+  await vscode.workspace.fs.writeFile(imageUri, Buffer.from(base64Data, "base64"));
+  return { filename, webviewUri: webview.asWebviewUri(imageUri).toString() };
+}
+async function deleteImageFile(documentUri, filename) {
+  const imgUri = vscode.Uri.joinPath(getImgsFolder(documentUri), filename);
+  try {
+    await vscode.workspace.fs.delete(imgUri);
+  } catch {
+  }
+}
+
+// src/extension/htmlExporter.ts
+function escHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function isHtmlTableLine(line) {
+  return /^\s*\|/.test(line) && line.indexOf("|", 1) !== -1;
+}
+function isHtmlSepLine(line) {
+  return /^\s*\|[\s\-:|]+\|\s*$/.test(line) && !/[a-zA-Z0-9]/.test(line);
+}
+function parseHtmlCells(line) {
+  return line.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((s) => s.trim());
+}
+function parseHtmlTableBlocks(content) {
+  if (!content)
+    return [{ type: "text", text: "", startChar: 0, endChar: 0 }];
+  const lines = content.split("\n");
+  const blocks = [];
+  let i = 0;
+  let charPos = 0;
+  const lineLen = (idx) => lines[idx].length + (idx < lines.length - 1 ? 1 : 0);
+  while (i < lines.length) {
+    const isStart = isHtmlTableLine(lines[i]) && i + 1 < lines.length && isHtmlSepLine(lines[i + 1]);
+    if (isStart) {
+      const startChar = charPos;
+      const tLines = [];
+      while (i < lines.length && isHtmlTableLine(lines[i])) {
+        tLines.push(lines[i]);
+        charPos += lineLen(i);
+        i++;
+      }
+      if (tLines.length >= 3) {
+        blocks.push({ type: "table", headers: parseHtmlCells(tLines[0]), rows: tLines.slice(2).map(parseHtmlCells), startChar, endChar: charPos });
+      } else {
+        blocks.push({ type: "text", text: tLines.join("\n"), startChar, endChar: charPos });
+      }
+    } else {
+      const startChar = charPos;
+      const tLines = [];
+      while (i < lines.length) {
+        if (isHtmlTableLine(lines[i]) && i + 1 < lines.length && isHtmlSepLine(lines[i + 1]))
+          break;
+        tLines.push(lines[i]);
+        charPos += lineLen(i);
+        i++;
+      }
+      blocks.push({ type: "text", text: tLines.join("\n"), startChar, endChar: charPos });
+    }
+  }
+  return blocks;
+}
+function hasHtmlTable(content) {
+  const lines = content.split("\n");
+  for (let i = 0; i + 1 < lines.length; i++) {
+    if (isHtmlTableLine(lines[i]) && isHtmlSepLine(lines[i + 1]))
+      return true;
+  }
+  return false;
+}
+function renderCellHtml(cellText, imageData) {
+  const IMG_RE = /\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g;
+  let result = "";
+  let lastIdx = 0;
+  let match;
+  while ((match = IMG_RE.exec(cellText)) !== null) {
+    if (match.index > lastIdx)
+      result += escHtml(cellText.slice(lastIdx, match.index));
+    const filename = match[1];
+    const imgW = match[2];
+    const imgH = match[3];
+    const sizeAttr = imgW && imgH ? ` width="${imgW}" height="${imgH}"` : "";
+    const src = imageData[filename];
+    result += src ? `<img class="ng-img${sizeAttr ? " ng-img-sized" : ""}" src="${src}"${sizeAttr} alt="${escHtml(filename)}" onclick="showLightbox(this.src)" title="\uD074\uB9AD\uD558\uC5EC \uD655\uB300">` : `<span class="ng-img-missing">${escHtml(filename)}</span>`;
+    lastIdx = match.index + match[0].length;
+  }
+  if (lastIdx < cellText.length)
+    result += escHtml(cellText.slice(lastIdx));
+  return result;
+}
+function renderTableBlockHtml(block, imageData) {
+  const th = block.headers.map((h) => `<th>${renderCellHtml(h, imageData)}</th>`).join("");
+  const rows = block.rows.map(
+    (row) => `<tr>${row.map((cell) => `<td>${renderCellHtml(cell, imageData)}</td>`).join("")}</tr>`
+  ).join("");
+  return `<div class="ng-table-wrap"><table class="ng-table"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function renderNodeCard(node, template, offsetX, offsetY, imageData) {
+  const color = template?.color ?? "#888";
+  const borderRadius = template?.shape === "rounded" ? "22px" : "2px";
+  const label = escHtml(template?.label ?? node.template);
+  const nx = Math.round(node.position.x + offsetX);
+  const ny = Math.round(node.position.y + offsetY);
+  let bodyHtml = "";
+  const content = node.content ?? "";
+  if (hasHtmlTable(content)) {
+    const blocks = parseHtmlTableBlocks(content);
+    bodyHtml += '<div class="ng-content">';
+    for (const block of blocks) {
+      if (block.type === "table") {
+        bodyHtml += renderTableBlockHtml(block, imageData);
+      } else if (block.text) {
+        bodyHtml += `<div class="ng-seg">${renderCellHtml(block.text, imageData).replace(/\n/g, "<br>")}</div>`;
+      }
+    }
+    bodyHtml += "</div>";
+  } else if (content) {
+    bodyHtml += `<div class="ng-content">${renderCellHtml(content, imageData).replace(/\n/g, "<br>")}</div>`;
+  }
+  if (node.original) {
+    const origTitle = escHtml(node.original.title ?? "Original");
+    const openAttr = node.originalExpanded ? " open" : "";
+    bodyHtml += `<details class="ng-original"${openAttr}><summary>${origTitle}${node.original.location ? ` <span class="ng-loc">${escHtml(node.original.location)}</span>` : ""}</summary>
+<div class="ng-orig-text">${escHtml(node.original.text).replace(/\n/g, "<br>")}</div></details>`;
+  }
+  for (const t of node.toggleItems ?? []) {
+    bodyHtml += `<details class="ng-toggle"${t.expanded ? " open" : ""}><summary>${escHtml(t.title || "(\uC81C\uBAA9 \uC5C6\uC74C)")}</summary>
+<div class="ng-toggle-body">${escHtml(t.content).replace(/\n/g, "<br>")}</div></details>`;
+  }
+  if (node.links.length) {
+    bodyHtml += `<div class="ng-links">${node.links.map((l) => {
+      const icon = l.type === "url" ? "\u{1F517}" : l.type === "pdf" ? "\u{1F4C4}" : l.type === "obsidian" ? "\u{1F7E3}" : "\u2B21";
+      const href = l.type === "url" || l.type === "pdf" ? ` href="${escHtml(l.target)}" target="_blank"` : "";
+      return `<a class="ng-link"${href}>${icon} ${escHtml(l.label || l.target)}</a>`;
+    }).join("")}</div>`;
+  }
+  const hasBody = !!bodyHtml;
+  const bodyDisplay = node.contentExpanded ? "" : ' style="display:none"';
+  const childrenAttr = node.children.length ? ` data-children="${node.children.join(",")}"` : "";
+  const hasTableClass = hasHtmlTable(content) ? " ng-has-table" : "";
+  const IMG_SIZE_RE = /\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g;
+  let maxImgW = 0;
+  let _m;
+  while ((_m = IMG_SIZE_RE.exec(content)) !== null)
+    maxImgW = Math.max(maxImgW, Number(_m[1]));
+  const autoMinWidth = maxImgW > 0 ? hasHtmlTable(content) ? maxImgW + 280 : maxImgW + 32 : 0;
+  const extraStyle = [
+    node.nodeWidth ? `min-width:${node.nodeWidth}px` : autoMinWidth > 220 ? `min-width:${autoMinWidth}px` : "",
+    node.nodeHeight ? `min-height:${node.nodeHeight}px` : ""
+  ].filter(Boolean).join(";");
+  return `<div class="ng-node${hasTableClass}" id="node-${escHtml(node.id)}"${childrenAttr} style="--color:${color};border-radius:${borderRadius};left:${nx}px;top:${ny}px${extraStyle ? ";" + extraStyle : ""}">
   <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="\uD074\uB9AD: \uB178\uB4DC \uC120\uD0DD">
-    <span class="ng-tag" style="background:color-mix(in srgb,${a} 22%,transparent);color:${a}">${h}</span>
-    <span class="ng-title">${g(e.title)}</span>
-    ${E?`<span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="\uC774 \uB178\uB4DC\uB9CC \uC811\uAE30/\uD3BC\uCE58\uAE30">${e.contentExpanded?"\u25B2":"\u25BC"}</span>`:""}
+    <span class="ng-tag" style="background:color-mix(in srgb,${color} 22%,transparent);color:${color}">${label}</span>
+    <span class="ng-title">${escHtml(node.title)}</span>
+    ${hasBody ? `<span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="\uC774 \uB178\uB4DC\uB9CC \uC811\uAE30/\uD3BC\uCE58\uAE30">${node.contentExpanded ? "\u25B2" : "\u25BC"}</span>` : ""}
   </div>
-  ${E?`<div class="ng-body"${b}${e.fontSize?` style="font-size:${e.fontSize}px"`:""}>${o}</div>`:""}
-</div>`}function R(e,t={}){let n=1/0,i=1/0;for(let o of e.nodes)n=Math.min(n,o.position.x),i=Math.min(i,o.position.y);isFinite(n)||(n=0,i=0);let r=-n+100,a=-i+100,c=e.nodes.map(o=>Q(o,e.nodeTemplates[o.template],r,a,t)).join(`
-`),h=JSON.stringify(e.nodes.map(o=>({id:o.id,lx:Math.round(o.position.x+r),ly:Math.round(o.position.y+a),children:o.children??[],template:o.template,contentExpanded:o.contentExpanded,isMain:(e.nodeTemplates[o.template]?.shape??"sharp")==="sharp",nodeHeight:o.nodeHeight??null,naturalY:Math.round((o.nodeNaturalY??o.position.y)+a)}))),s=JSON.stringify(e.edges.map(o=>({source:o.source,target:o.target,type:o.type,label:o.label||""}))),l=e.source?`${g(e.source.authors)} \xB7 ${g(e.source.venue)}`:"";return`<!DOCTYPE html>
+  ${hasBody ? `<div class="ng-body"${bodyDisplay}${node.fontSize ? ` style="font-size:${node.fontSize}px"` : ""}>${bodyHtml}</div>` : ""}
+</div>`;
+}
+function generateHtml(graph, imageData = {}) {
+  let minX = Infinity, minY = Infinity;
+  for (const n of graph.nodes) {
+    minX = Math.min(minX, n.position.x);
+    minY = Math.min(minY, n.position.y);
+  }
+  if (!isFinite(minX)) {
+    minX = 0;
+    minY = 0;
+  }
+  const offsetX = -minX + 100;
+  const offsetY = -minY + 100;
+  const nodesHtml = graph.nodes.map((n) => renderNodeCard(n, graph.nodeTemplates[n.template], offsetX, offsetY, imageData)).join("\n");
+  const nodesData = JSON.stringify(graph.nodes.map((n) => ({
+    id: n.id,
+    lx: Math.round(n.position.x + offsetX),
+    ly: Math.round(n.position.y + offsetY),
+    children: n.children ?? [],
+    template: n.template,
+    contentExpanded: n.contentExpanded,
+    isMain: (graph.nodeTemplates[n.template]?.shape ?? "sharp") === "sharp",
+    nodeHeight: n.nodeHeight ?? null,
+    naturalY: Math.round((n.nodeNaturalY ?? n.position.y) + offsetY)
+  })));
+  const edgeData = JSON.stringify(graph.edges.map((e) => ({
+    source: e.source,
+    target: e.target,
+    type: e.type,
+    label: e.label || ""
+  })));
+  const source = graph.source ? `${escHtml(graph.source.authors)} \xB7 ${escHtml(graph.source.venue)}` : "";
+  return `<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${g(e.title)}</title>
+<title>${escHtml(graph.title)}</title>
 <!-- KaTeX for LaTeX rendering -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.js"></script>
@@ -39,14 +292,14 @@ button:hover{background:#e8e8e8;border-color:#aaa}
 #viewport.pan-drag{cursor:grabbing}
 #canvas{position:absolute;transform-origin:0 0}
 #wire-svg{position:absolute;top:0;left:0;width:10000px;height:10000px;pointer-events:none;overflow:visible}
-.ng-node{position:absolute;min-width:220px;max-width:500px;background:color-mix(in srgb,var(--color) 10%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.ng-node{position:absolute;min-width:220px;max-width:500px;overflow:hidden;background:color-mix(in srgb,var(--color) 10%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .ng-has-table{max-width:none}
 .ng-node.ng-selected{box-shadow:0 0 0 2px color-mix(in srgb,var(--color) 80%,transparent),0 2px 8px rgba(0,0,0,.12)}
 .ng-node.ng-dragging{opacity:.88;transition:box-shadow .1s;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:100}
 .ng-header{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;user-select:none}
 .ng-header:hover{background:rgba(0,0,0,.04)}
 .ng-tag{font-size:10px;font-weight:600;padding:2px 6px;border-radius:3px;flex-shrink:0;white-space:nowrap}
-.ng-title{flex:1;font-size:13px;font-weight:500;color:#1a1a1a;white-space:nowrap;min-width:0}
+.ng-title{flex:1;font-size:13px;font-weight:500;color:#1a1a1a;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .ng-chevron{font-size:9px;opacity:.5;flex-shrink:0;padding:2px 4px;border-radius:2px}
 .ng-chevron:hover{background:rgba(0,0,0,.08);opacity:.9}
 .ng-body{padding:8px 10px 10px;font-size:12px}
@@ -55,8 +308,8 @@ button:hover{background:#e8e8e8;border-color:#aaa}
 .ng-img-wrap{margin:4px 0}
 .ng-table-wrap{overflow-x:auto;margin:6px 0}
 .ng-table{border-collapse:collapse;background:#fff;font-size:inherit;white-space:normal}
-.ng-table th{padding:5px 10px;border:1px solid #ddd;background:#f8f9fa;font-weight:600;text-align:left;vertical-align:top;white-space:pre-wrap;word-break:normal}
-.ng-table td{padding:5px 10px;border:1px solid #ddd;vertical-align:top;white-space:pre-wrap;word-break:normal}
+.ng-table th{padding:5px 10px;border:1px solid #ddd;background:#f8f9fa;font-weight:600;text-align:left;vertical-align:top;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word}
+.ng-table td{padding:5px 10px;border:1px solid #ddd;vertical-align:top;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word}
 .ng-images{margin-top:6px;display:flex;flex-direction:column;gap:6px}
 .ng-img{max-width:100%;border-radius:3px;border:1px solid rgba(0,0,0,.1);display:block;cursor:zoom-in}
 .ng-img-sized{max-width:none}
@@ -85,8 +338,8 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 <body>
 <div id="toolbar">
   <div id="tb-row1">
-    <span id="tb-title">${g(e.title)}</span>
-    <span id="tb-source">${l}</span>
+    <span id="tb-title">${escHtml(graph.title)}</span>
+    <span id="tb-source">${source}</span>
   </div>
   <div id="tb-row2">
     <button onclick="fitView()">Fit View</button>
@@ -106,7 +359,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
         </marker>
       </defs>
     </svg>
-    ${c}
+    ${nodesHtml}
   </div>
 </div>
 <div id="lightbox" onclick="closeLightbox()">
@@ -114,8 +367,8 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
   <span id="lightbox-close" onclick="closeLightbox()">\u2715</span>
 </div>
 <script>
-var NODES_DATA = ${h};
-var EDGES = ${s};
+var NODES_DATA = ${nodesData};
+var EDGES = ${edgeData};
 var HEADER_H = 36;
 
 var vp = document.getElementById('viewport');
@@ -409,6 +662,37 @@ function recomputePositions() {
     });
     renderY[n.id] = y;
   });
+
+  // Pass 2: \uC11C\uBE0C\uB178\uB4DC\uAC00 \uBD80\uBAA8 backbone \uB178\uB4DC\uC758 push delta\uB9CC\uD07C \uB530\uB77C \uB0B4\uB824\uAC00\uB3C4\uB85D \uBCF4\uC815
+  // \uBD80\uBAA8 main \uB178\uB4DC\uAC00 \uBC00\uB824 \uB0B4\uB824\uAC14\uC73C\uBA74 \uC790\uC2DD \uC11C\uBE0C\uB178\uB4DC\uB3C4 \uB3D9\uC77C delta \uC801\uC6A9
+  NODES_DATA.forEach(function(n) {
+    if (n.isMain) return;
+    var parentMain = null;
+    var bestDist = Infinity;
+    NODES_DATA.forEach(function(m) {
+      if (!m.isMain) return;
+      var connected = m.children && m.children.indexOf(n.id) !== -1;
+      if (!connected) {
+        EDGES.some(function(e) {
+          if ((e.source === m.id && e.target === n.id) || (e.target === m.id && e.source === n.id)) {
+            connected = true; return true;
+          }
+        });
+      }
+      if (connected) {
+        var dist = Math.abs(m.ly - n.ly);
+        if (dist < bestDist) { bestDist = dist; parentMain = m; }
+      }
+    });
+    if (parentMain) {
+      var parentPush = (renderY[parentMain.id] !== undefined ? renderY[parentMain.id] : parentMain.ly) - parentMain.ly;
+      if (parentPush > 0) {
+        var cur = renderY[n.id] !== undefined ? renderY[n.id] : n.ly;
+        renderY[n.id] = Math.max(cur, n.ly + parentPush);
+      }
+    }
+  });
+
   NODES_DATA.forEach(function(n) {
     var el = document.getElementById('node-' + n.id);
     if (!el) return;
@@ -431,10 +715,63 @@ function getBestPorts(sr, tr) {
   return best;
 }
 var DIR={right:[1,0],left:[-1,0],bottom:[0,1],top:[0,-1]};
+function svgLine(x1,y1,x2,y2,stroke,sw){var l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('stroke',stroke);l.setAttribute('stroke-width',sw);return l;}
+function svgCirc(cx,cy,r,fill){var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',r);c.setAttribute('fill',fill);return c;}
 function drawEdges() {
   var svg=document.getElementById('wire-svg');
   svg.querySelectorAll('.ng-eg').forEach(function(el){el.remove();});
-  EDGES.forEach(function(edge) {
+
+  // \uAC19\uC740 source\uC5D0\uC11C \uB098\uAC00\uB294 line \uC5E3\uC9C0\uB97C grouping \u2192 bus \uB77C\uC6B0\uD305 \uD6C4\uBCF4
+  var lineBySource={};
+  EDGES.forEach(function(e){
+    if(e.type!=='line') return;
+    if(!lineBySource[e.source]) lineBySource[e.source]=[];
+    lineBySource[e.source].push(e);
+  });
+
+  var busDrawn={};
+
+  // Bus \uB77C\uC6B0\uD305: source \uD558\uB098 \u2192 \uBCF5\uC218\uC758 line \uD0C0\uAC9F\uC774 \uBAA8\uB450 \uAC19\uC740 \uBC29\uD5A5(\uC6B0\uCE21 or \uC88C\uCE21)\uC77C \uB54C
+  Object.keys(lineBySource).forEach(function(srcId){
+    var group=lineBySource[srcId];
+    if(group.length<2) return;
+    var srcEl=document.getElementById('node-'+srcId);
+    if(!srcEl) return;
+    var sr=getNodeRect(srcEl);
+    var targets=[];
+    group.forEach(function(e){
+      var tEl=document.getElementById('node-'+e.target);
+      if(!tEl) return;
+      targets.push({e:e,r:getNodeRect(tEl)});
+    });
+    if(targets.length<2) return;
+    // \uBAA8\uB450 \uC624\uB978\uCABD\uC5D0 \uC788\uB294\uC9C0 \uD655\uC778
+    var allRight=targets.every(function(t){return t.r.x>=sr.x+sr.w-5;});
+    if(!allRight) return;
+
+    var busX=sr.x+sr.w+Math.min.apply(null,targets.map(function(t){return t.r.x-(sr.x+sr.w);})) * 0.5;
+    var srcAnchorY=sr.cy;
+    var minTY=Math.min.apply(null,targets.map(function(t){return t.r.cy;}));
+    var maxTY=Math.max.apply(null,targets.map(function(t){return t.r.cy;}));
+    var busMinY=Math.min(srcAnchorY,minTY);
+    var busMaxY=Math.max(srcAnchorY,maxTY);
+
+    var g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','ng-eg');
+    g.appendChild(svgLine(sr.x+sr.w,srcAnchorY,busX,srcAnchorY,'#888','1.5'));
+    g.appendChild(svgLine(busX,busMinY,busX,busMaxY,'#888','1.5'));
+    g.appendChild(svgCirc(sr.x+sr.w,srcAnchorY,4,'#888'));
+    targets.forEach(function(t){
+      g.appendChild(svgLine(busX,t.r.cy,t.r.x,t.r.cy,'#888','1.5'));
+      g.appendChild(svgCirc(t.r.x,t.r.cy,4,'#888'));
+      busDrawn[t.e.source+'-'+t.e.target]=true;
+    });
+    svg.appendChild(g);
+  });
+
+  // \uB098\uBA38\uC9C0 \uC5E3\uC9C0: Bezier \uACE1\uC120
+  EDGES.forEach(function(edge){
+    if(busDrawn[edge.source+'-'+edge.target]) return;
     var srcEl=document.getElementById('node-'+edge.source), tgtEl=document.getElementById('node-'+edge.target);
     if(!srcEl||!tgtEl) return;
     var ports=getBestPorts(getNodeRect(srcEl),getNodeRect(tgtEl));
@@ -510,14 +847,151 @@ window.addEventListener('load', function() {
 });
 </script>
 </body>
-</html>`}var N=class e{constructor(t){this.context=t;this._pendingSaves=new Set}static register(t){let n=new e(t);return d.window.registerCustomEditorProvider("nodegraph.editor",n,{webviewOptions:{retainContextWhenHidden:!0}})}async resolveCustomTextEditor(t,n,i){let r=d.Uri.joinPath(t.uri,"..");n.webview.options={enableScripts:!0,localResourceRoots:[this.context.extensionUri,r]},n.webview.html=this._getHtmlForWebview(n.webview);let a=s=>{try{let l=JSON.parse(t.getText()),o=O(n.webview,t.uri,l);n.webview.postMessage({type:s,data:l,imageUris:o})}catch{}},c=n.webview.onDidReceiveMessage(async s=>{if(s.type==="ready")a("load");else if(s.type==="save"){let l=t.uri.toString();this._pendingSaves.add(l);try{let o=new d.WorkspaceEdit,f=new d.Range(t.positionAt(0),t.positionAt(t.getText().length));o.replace(t.uri,f,JSON.stringify(s.data,null,2)),await d.workspace.applyEdit(o)}finally{this._pendingSaves.delete(l)}}else if(s.type==="openLink"){let l=s.link;if(l.type==="url")d.env.openExternal(d.Uri.parse(l.target));else if(l.type==="pdf"){let o=d.Uri.joinPath(d.Uri.joinPath(t.uri,".."),l.target);d.env.openExternal(o)}else l.type==="obsidian"&&d.env.openExternal(d.Uri.parse(l.target))}else if(s.type==="exportHtml")try{let l=s.data,o=d.Uri.joinPath(t.uri,".."),f=W.basename(t.uri.fsPath,".nodegraph.json"),E=d.Uri.joinPath(o,`.${f}-imgs`),b={},I=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g,S=async m=>{if(!(!m||b[m]))try{let y=d.Uri.joinPath(E,m),p=await d.workspace.fs.readFile(y),u=m.split(".").pop()?.toLowerCase()??"png",U=u==="jpg"||u==="jpeg"?"image/jpeg":u==="gif"?"image/gif":u==="webp"?"image/webp":"image/png";b[m]=`data:${U};base64,${Buffer.from(p).toString("base64")}`}catch{}};for(let m of l.nodes){I.lastIndex=0;let y;for(;(y=I.exec(m.content??""))!==null;)await S(y[1])}let A=R(l,b),v=d.Uri.joinPath(o,`${f}.html`);await d.workspace.fs.writeFile(v,Buffer.from(A,"utf-8"));let w=await d.window.showInformationMessage(`HTML exported: ${f}.html`,"Open in Browser","Show in Explorer");w==="Open in Browser"?d.env.openExternal(v):w==="Show in Explorer"&&d.commands.executeCommand("revealFileInOS",v)}catch(l){d.window.showErrorMessage(`HTML export failed: ${l}`)}else if(s.type==="saveImage")try{let{filename:l,webviewUri:o}=await Y(n.webview,t.uri,s.data,s.ext??"png");n.webview.postMessage({type:"imageSaved",nodeId:s.nodeId,filename:l,webviewUri:o})}catch(l){d.window.showErrorMessage(`Failed to save image: ${l}`)}else s.type==="deleteImageFile"&&await L(t.uri,s.filename)}),h=d.workspace.onDidChangeTextDocument(s=>{s.document.uri.toString()===t.uri.toString()&&(this._pendingSaves.has(t.uri.toString())||a("externalChange"))});n.onDidDispose(()=>{c.dispose(),h.dispose()})}_getHtmlForWebview(t){let n=t.asWebviewUri(d.Uri.joinPath(this.context.extensionUri,"dist","webview.js")),i=t.asWebviewUri(d.Uri.joinPath(this.context.extensionUri,"dist","katex","katex.min.css")),r=ee();return`<!DOCTYPE html>
+</html>`;
+}
+
+// src/extension/NodeGraphEditorProvider.ts
+var NodeGraphEditorProvider = class _NodeGraphEditorProvider {
+  constructor(context) {
+    this.context = context;
+    this._pendingSaves = /* @__PURE__ */ new Set();
+  }
+  static register(context) {
+    const provider = new _NodeGraphEditorProvider(context);
+    return vscode2.window.registerCustomEditorProvider(
+      "nodegraph.editor",
+      provider,
+      { webviewOptions: { retainContextWhenHidden: true } }
+    );
+  }
+  async resolveCustomTextEditor(document, webviewPanel, _token) {
+    const documentDir = vscode2.Uri.joinPath(document.uri, "..");
+    webviewPanel.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [this.context.extensionUri, documentDir]
+    };
+    webviewPanel.webview.html = this._getHtmlForWebview(webviewPanel.webview);
+    const sendGraph = (type) => {
+      try {
+        const data = JSON.parse(document.getText());
+        const imageUris = computeImageUris(webviewPanel.webview, document.uri, data);
+        webviewPanel.webview.postMessage({ type, data, imageUris });
+      } catch {
+      }
+    };
+    const msgDisposable = webviewPanel.webview.onDidReceiveMessage(async (msg) => {
+      if (msg.type === "ready") {
+        sendGraph("load");
+      } else if (msg.type === "save") {
+        const docKey = document.uri.toString();
+        this._pendingSaves.add(docKey);
+        try {
+          const edit = new vscode2.WorkspaceEdit();
+          const fullRange = new vscode2.Range(
+            document.positionAt(0),
+            document.positionAt(document.getText().length)
+          );
+          edit.replace(document.uri, fullRange, JSON.stringify(msg.data, null, 2));
+          await vscode2.workspace.applyEdit(edit);
+        } finally {
+          this._pendingSaves.delete(docKey);
+        }
+      } else if (msg.type === "openLink") {
+        const link = msg.link;
+        if (link.type === "url") {
+          vscode2.env.openExternal(vscode2.Uri.parse(link.target));
+        } else if (link.type === "pdf") {
+          const pdfUri = vscode2.Uri.joinPath(vscode2.Uri.joinPath(document.uri, ".."), link.target);
+          vscode2.env.openExternal(pdfUri);
+        } else if (link.type === "obsidian") {
+          vscode2.env.openExternal(vscode2.Uri.parse(link.target));
+        }
+      } else if (msg.type === "exportHtml") {
+        try {
+          const data = msg.data;
+          const docDir = vscode2.Uri.joinPath(document.uri, "..");
+          const baseName = path.basename(document.uri.fsPath, ".nodegraph.json");
+          const imgsFolder = vscode2.Uri.joinPath(docDir, `.${baseName}-imgs`);
+          const imageData = {};
+          const INLINE_IMG_RE2 = /\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;
+          const loadImg = async (filename) => {
+            if (!filename || imageData[filename])
+              return;
+            try {
+              const imgUri = vscode2.Uri.joinPath(imgsFolder, filename);
+              const bytes = await vscode2.workspace.fs.readFile(imgUri);
+              const ext = filename.split(".").pop()?.toLowerCase() ?? "png";
+              const mime = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "gif" ? "image/gif" : ext === "webp" ? "image/webp" : "image/png";
+              imageData[filename] = `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
+            } catch {
+            }
+          };
+          for (const node of data.nodes) {
+            INLINE_IMG_RE2.lastIndex = 0;
+            let m;
+            while ((m = INLINE_IMG_RE2.exec(node.content ?? "")) !== null)
+              await loadImg(m[1]);
+          }
+          const htmlContent = generateHtml(data, imageData);
+          const outUri = vscode2.Uri.joinPath(docDir, `${baseName}.html`);
+          await vscode2.workspace.fs.writeFile(outUri, Buffer.from(htmlContent, "utf-8"));
+          const choice = await vscode2.window.showInformationMessage(
+            `HTML exported: ${baseName}.html`,
+            "Open in Browser",
+            "Show in Explorer"
+          );
+          if (choice === "Open in Browser") {
+            vscode2.env.openExternal(outUri);
+          } else if (choice === "Show in Explorer") {
+            vscode2.commands.executeCommand("revealFileInOS", outUri);
+          }
+        } catch (err) {
+          vscode2.window.showErrorMessage(`HTML export failed: ${err}`);
+        }
+      } else if (msg.type === "saveImage") {
+        try {
+          const { filename, webviewUri } = await saveImageToAssetsFolder(
+            webviewPanel.webview,
+            document.uri,
+            msg.data,
+            msg.ext ?? "png"
+          );
+          webviewPanel.webview.postMessage({ type: "imageSaved", nodeId: msg.nodeId, filename, webviewUri });
+        } catch (err) {
+          vscode2.window.showErrorMessage(`Failed to save image: ${err}`);
+        }
+      } else if (msg.type === "deleteImageFile") {
+        await deleteImageFile(document.uri, msg.filename);
+      }
+    });
+    const changeDisposable = vscode2.workspace.onDidChangeTextDocument((e) => {
+      if (e.document.uri.toString() !== document.uri.toString())
+        return;
+      if (this._pendingSaves.has(document.uri.toString()))
+        return;
+      sendGraph("externalChange");
+    });
+    webviewPanel.onDidDispose(() => {
+      msgDisposable.dispose();
+      changeDisposable.dispose();
+    });
+  }
+  _getHtmlForWebview(webview) {
+    const scriptUri = webview.asWebviewUri(
+      vscode2.Uri.joinPath(this.context.extensionUri, "dist", "webview.js")
+    );
+    const katexCssUri = webview.asWebviewUri(
+      vscode2.Uri.joinPath(this.context.extensionUri, "dist", "katex", "katex.min.css")
+    );
+    const nonce = getNonce();
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${t.cspSource} blob: data:; script-src 'nonce-${r}'; style-src 'unsafe-inline' ${t.cspSource}; font-src ${t.cspSource};">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} blob: data:; script-src 'nonce-${nonce}'; style-src 'unsafe-inline' ${webview.cspSource}; font-src ${webview.cspSource};">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NodeGraph</title>
-  <link rel="stylesheet" href="${i}">
+  <link rel="stylesheet" href="${katexCssUri}">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #root { height: 100%; overflow: hidden; }
@@ -533,6 +1007,31 @@ window.addEventListener('load', function() {
 </head>
 <body>
   <div id="root"></div>
-  <script nonce="${r}" src="${n}"></script>
+  <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
-</html>`}};function ee(){let e="",t="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";for(let n=0;n<32;n++)e+=t.charAt(Math.floor(Math.random()*t.length));return e}function te(e){e.subscriptions.push(N.register(e))}function ne(){}0&&(module.exports={activate,deactivate});
+</html>`;
+  }
+};
+function getNonce() {
+  let text = "";
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  for (let i = 0; i < 32; i++) {
+    text += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return text;
+}
+
+// src/extension/extension.ts
+function activate(context) {
+  context.subscriptions.push(
+    NodeGraphEditorProvider.register(context)
+  );
+}
+function deactivate() {
+}
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  activate,
+  deactivate
+});
+//# sourceMappingURL=extension.js.map

@@ -224,14 +224,14 @@ button:hover{background:#e8e8e8;border-color:#aaa}
 #viewport.pan-drag{cursor:grabbing}
 #canvas{position:absolute;transform-origin:0 0}
 #wire-svg{position:absolute;top:0;left:0;width:10000px;height:10000px;pointer-events:none;overflow:visible}
-.ng-node{position:absolute;min-width:220px;max-width:500px;background:color-mix(in srgb,var(--color) 10%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.ng-node{position:absolute;min-width:220px;max-width:500px;overflow:hidden;background:color-mix(in srgb,var(--color) 10%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .ng-has-table{max-width:none}
 .ng-node.ng-selected{box-shadow:0 0 0 2px color-mix(in srgb,var(--color) 80%,transparent),0 2px 8px rgba(0,0,0,.12)}
 .ng-node.ng-dragging{opacity:.88;transition:box-shadow .1s;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:100}
 .ng-header{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;user-select:none}
 .ng-header:hover{background:rgba(0,0,0,.04)}
 .ng-tag{font-size:10px;font-weight:600;padding:2px 6px;border-radius:3px;flex-shrink:0;white-space:nowrap}
-.ng-title{flex:1;font-size:13px;font-weight:500;color:#1a1a1a;white-space:nowrap;min-width:0}
+.ng-title{flex:1;font-size:13px;font-weight:500;color:#1a1a1a;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .ng-chevron{font-size:9px;opacity:.5;flex-shrink:0;padding:2px 4px;border-radius:2px}
 .ng-chevron:hover{background:rgba(0,0,0,.08);opacity:.9}
 .ng-body{padding:8px 10px 10px;font-size:12px}
@@ -240,8 +240,8 @@ button:hover{background:#e8e8e8;border-color:#aaa}
 .ng-img-wrap{margin:4px 0}
 .ng-table-wrap{overflow-x:auto;margin:6px 0}
 .ng-table{border-collapse:collapse;background:#fff;font-size:inherit;white-space:normal}
-.ng-table th{padding:5px 10px;border:1px solid #ddd;background:#f8f9fa;font-weight:600;text-align:left;vertical-align:top;white-space:pre-wrap;word-break:normal}
-.ng-table td{padding:5px 10px;border:1px solid #ddd;vertical-align:top;white-space:pre-wrap;word-break:normal}
+.ng-table th{padding:5px 10px;border:1px solid #ddd;background:#f8f9fa;font-weight:600;text-align:left;vertical-align:top;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word}
+.ng-table td{padding:5px 10px;border:1px solid #ddd;vertical-align:top;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word}
 .ng-images{margin-top:6px;display:flex;flex-direction:column;gap:6px}
 .ng-img{max-width:100%;border-radius:3px;border:1px solid rgba(0,0,0,.1);display:block;cursor:zoom-in}
 .ng-img-sized{max-width:none}
@@ -594,6 +594,37 @@ function recomputePositions() {
     });
     renderY[n.id] = y;
   });
+
+  // Pass 2: 서브노드가 부모 backbone 노드의 push delta만큼 따라 내려가도록 보정
+  // 부모 main 노드가 밀려 내려갔으면 자식 서브노드도 동일 delta 적용
+  NODES_DATA.forEach(function(n) {
+    if (n.isMain) return;
+    var parentMain = null;
+    var bestDist = Infinity;
+    NODES_DATA.forEach(function(m) {
+      if (!m.isMain) return;
+      var connected = m.children && m.children.indexOf(n.id) !== -1;
+      if (!connected) {
+        EDGES.some(function(e) {
+          if ((e.source === m.id && e.target === n.id) || (e.target === m.id && e.source === n.id)) {
+            connected = true; return true;
+          }
+        });
+      }
+      if (connected) {
+        var dist = Math.abs(m.ly - n.ly);
+        if (dist < bestDist) { bestDist = dist; parentMain = m; }
+      }
+    });
+    if (parentMain) {
+      var parentPush = (renderY[parentMain.id] !== undefined ? renderY[parentMain.id] : parentMain.ly) - parentMain.ly;
+      if (parentPush > 0) {
+        var cur = renderY[n.id] !== undefined ? renderY[n.id] : n.ly;
+        renderY[n.id] = Math.max(cur, n.ly + parentPush);
+      }
+    }
+  });
+
   NODES_DATA.forEach(function(n) {
     var el = document.getElementById('node-' + n.id);
     if (!el) return;
@@ -616,10 +647,63 @@ function getBestPorts(sr, tr) {
   return best;
 }
 var DIR={right:[1,0],left:[-1,0],bottom:[0,1],top:[0,-1]};
+function svgLine(x1,y1,x2,y2,stroke,sw){var l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('stroke',stroke);l.setAttribute('stroke-width',sw);return l;}
+function svgCirc(cx,cy,r,fill){var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',r);c.setAttribute('fill',fill);return c;}
 function drawEdges() {
   var svg=document.getElementById('wire-svg');
   svg.querySelectorAll('.ng-eg').forEach(function(el){el.remove();});
-  EDGES.forEach(function(edge) {
+
+  // 같은 source에서 나가는 line 엣지를 grouping → bus 라우팅 후보
+  var lineBySource={};
+  EDGES.forEach(function(e){
+    if(e.type!=='line') return;
+    if(!lineBySource[e.source]) lineBySource[e.source]=[];
+    lineBySource[e.source].push(e);
+  });
+
+  var busDrawn={};
+
+  // Bus 라우팅: source 하나 → 복수의 line 타겟이 모두 같은 방향(우측 or 좌측)일 때
+  Object.keys(lineBySource).forEach(function(srcId){
+    var group=lineBySource[srcId];
+    if(group.length<2) return;
+    var srcEl=document.getElementById('node-'+srcId);
+    if(!srcEl) return;
+    var sr=getNodeRect(srcEl);
+    var targets=[];
+    group.forEach(function(e){
+      var tEl=document.getElementById('node-'+e.target);
+      if(!tEl) return;
+      targets.push({e:e,r:getNodeRect(tEl)});
+    });
+    if(targets.length<2) return;
+    // 모두 오른쪽에 있는지 확인
+    var allRight=targets.every(function(t){return t.r.x>=sr.x+sr.w-5;});
+    if(!allRight) return;
+
+    var busX=sr.x+sr.w+Math.min.apply(null,targets.map(function(t){return t.r.x-(sr.x+sr.w);})) * 0.5;
+    var srcAnchorY=sr.cy;
+    var minTY=Math.min.apply(null,targets.map(function(t){return t.r.cy;}));
+    var maxTY=Math.max.apply(null,targets.map(function(t){return t.r.cy;}));
+    var busMinY=Math.min(srcAnchorY,minTY);
+    var busMaxY=Math.max(srcAnchorY,maxTY);
+
+    var g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','ng-eg');
+    g.appendChild(svgLine(sr.x+sr.w,srcAnchorY,busX,srcAnchorY,'#888','1.5'));
+    g.appendChild(svgLine(busX,busMinY,busX,busMaxY,'#888','1.5'));
+    g.appendChild(svgCirc(sr.x+sr.w,srcAnchorY,4,'#888'));
+    targets.forEach(function(t){
+      g.appendChild(svgLine(busX,t.r.cy,t.r.x,t.r.cy,'#888','1.5'));
+      g.appendChild(svgCirc(t.r.x,t.r.cy,4,'#888'));
+      busDrawn[t.e.source+'-'+t.e.target]=true;
+    });
+    svg.appendChild(g);
+  });
+
+  // 나머지 엣지: Bezier 곡선
+  EDGES.forEach(function(edge){
+    if(busDrawn[edge.source+'-'+edge.target]) return;
     var srcEl=document.getElementById('node-'+edge.source), tgtEl=document.getElementById('node-'+edge.target);
     if(!srcEl||!tgtEl) return;
     var ports=getBestPorts(getNodeRect(srcEl),getNodeRect(tgtEl));

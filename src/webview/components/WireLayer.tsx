@@ -16,8 +16,57 @@ const CANVAS_OFFSET = -10000
 const DEFAULT_W = 240
 const DEFAULT_H = 36
 
+interface NodeRect extends Rect {
+  cx: number
+  cy: number
+}
+
+function getRect(
+  nodeId: string,
+  renderPositions: Record<string, { x: number; y: number }>,
+  nodeSizes: Record<string, { width: number; height: number }>,
+  nodes: GraphNode[]
+): NodeRect {
+  const node = nodes.find((n) => n.id === nodeId)!
+  const pos = renderPositions[nodeId] ?? node.position
+  const size = nodeSizes[nodeId] ?? { width: DEFAULT_W, height: DEFAULT_H }
+  return {
+    x: pos.x, y: pos.y,
+    width: size.width, height: size.height,
+    cx: pos.x + size.width / 2,
+    cy: pos.y + size.height / 2,
+  }
+}
+
 export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, onDeleteEdge }: WireLayerProps) {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]))
+
+  // line 엣지를 source별로 grouping
+  const lineBySource = new Map<string, GraphEdge[]>()
+  for (const edge of edges) {
+    if (edge.type !== 'line') continue
+    if (!lineBySource.has(edge.source)) lineBySource.set(edge.source, [])
+    lineBySource.get(edge.source)!.push(edge)
+  }
+
+  // bus 라우팅 대상 엣지 ID 집합
+  const busEdgeIds = new Set<string>()
+  const busGroups: Array<{ srcId: string; edgeGroup: GraphEdge[] }> = []
+
+  lineBySource.forEach((group, srcId) => {
+    if (group.length < 2) return
+    if (!nodeMap.has(srcId)) return
+    const sr = getRect(srcId, renderPositions, nodeSizes, nodes)
+    // 모든 타겟이 source 오른쪽에 있을 때만 bus
+    const valid = group.every((e) => {
+      if (!nodeMap.has(e.target)) return false
+      const tr = getRect(e.target, renderPositions, nodeSizes, nodes)
+      return (tr.x + tr.width / 2) > (sr.x + sr.width / 2)
+    })
+    if (!valid) return
+    busGroups.push({ srcId, edgeGroup: group })
+    group.forEach((e) => busEdgeIds.add(e.id))
+  })
 
   return (
     <svg
@@ -33,14 +82,59 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
       viewBox={`${CANVAS_OFFSET} ${CANVAS_OFFSET} ${CANVAS_SIZE} ${CANVAS_SIZE}`}
     >
       <defs>
-        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-          <polygon points="0 0, 8 3, 0 6" fill="#2d3748" />
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0,10 3.5,0 7" fill="#666" />
         </marker>
-        <marker id="arrowhead-preview" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-          <polygon points="0 0, 8 3, 0 6" fill="#007acc" />
+        <marker id="arrowhead-preview" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0,10 3.5,0 7" fill="#007acc" />
         </marker>
       </defs>
+
+      {/* Bus 라우팅 그룹 */}
+      {busGroups.map(({ srcId, edgeGroup }) => {
+        const sr = getRect(srcId, renderPositions, nodeSizes, nodes)
+        const targets = edgeGroup
+          .filter((e) => nodeMap.has(e.target))
+          .map((e) => ({ edge: e, r: getRect(e.target, renderPositions, nodeSizes, nodes) }))
+        if (targets.length < 2) return null
+
+        const srcAnchorX = sr.x + sr.width
+        const srcAnchorY = sr.cy
+        const targetLeftX = Math.min(...targets.map((t) => t.r.x))
+        const busX = srcAnchorX + (targetLeftX - srcAnchorX) * 0.5
+        const allCY = [srcAnchorY, ...targets.map((t) => t.r.cy)]
+        const busMinY = Math.min(...allCY)
+        const busMaxY = Math.max(...allCY)
+
+        return (
+          <g key={`bus-${srcId}`}>
+            {/* source → bus 수평선 */}
+            <line x1={srcAnchorX} y1={srcAnchorY} x2={busX} y2={srcAnchorY}
+              stroke="#888" strokeWidth={1.5} style={{ pointerEvents: 'none' }} />
+            {/* 수직 버스 */}
+            <line x1={busX} y1={busMinY} x2={busX} y2={busMaxY}
+              stroke="#888" strokeWidth={1.5} style={{ pointerEvents: 'none' }} />
+            {/* source 끝점 circle */}
+            <circle cx={srcAnchorX} cy={srcAnchorY} r={4} fill="#888" />
+            {/* 각 타겟으로 수평 분기 + 클릭 히트 영역 */}
+            {targets.map(({ edge, r }) => (
+              <g key={edge.id}>
+                <line x1={busX} y1={r.cy} x2={r.x} y2={r.cy}
+                  stroke="transparent" strokeWidth={12}
+                  style={{ pointerEvents: 'stroke' as any, cursor: 'pointer' }}
+                  onClick={() => onDeleteEdge(edge.id)} />
+                <line x1={busX} y1={r.cy} x2={r.x} y2={r.cy}
+                  stroke="#888" strokeWidth={1.5} style={{ pointerEvents: 'none' }} />
+                <circle cx={r.x} cy={r.cy} r={4} fill="#888" />
+              </g>
+            ))}
+          </g>
+        )
+      })}
+
+      {/* 개별 엣지 (Bezier / L자) */}
       {edges.map((edge) => {
+        if (busEdgeIds.has(edge.id)) return null
         const srcNode = nodeMap.get(edge.source)
         const tgtNode = nodeMap.get(edge.target)
         if (!srcNode || !tgtNode) return null
@@ -60,28 +154,28 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
 
         return (
           <g key={edge.id}>
-            {/* 투명 히트 영역 - pointer-events: stroke로 SVG none 오버라이드 */}
             <path d={d} fill="none" stroke="transparent" strokeWidth={12}
               style={{ pointerEvents: 'stroke' as any, cursor: 'pointer' }}
               onClick={() => onDeleteEdge(edge.id)} />
-            {/* 시각적 선 */}
             <path
               d={d}
               fill="none"
-              stroke="#2d3748"
-              strokeWidth={2.5}
+              stroke="#666"
+              strokeWidth={1.5}
               markerEnd={edge.type === 'arrow' ? 'url(#arrowhead)' : undefined}
               style={{ pointerEvents: 'none' }}
             />
             {edge.type === 'line' && (
               <>
-                <circle cx={srcPt.x} cy={srcPt.y} r={4} fill="#2d3748" />
-                <circle cx={tgtPt.x} cy={tgtPt.y} r={4} fill="#2d3748" />
+                <circle cx={srcPt.x} cy={srcPt.y} r={4} fill="#666" />
+                <circle cx={tgtPt.x} cy={tgtPt.y} r={4} fill="#666" />
               </>
             )}
           </g>
         )
       })}
+
+      {/* 드래그 중인 wire 미리보기 */}
       {wirePreview && (() => {
         const srcNode = nodeMap.get(wirePreview.srcId)
         if (!srcNode) return null
