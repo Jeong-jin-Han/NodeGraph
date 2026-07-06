@@ -222,6 +222,7 @@ When asked to create a nodegraph from a PDF:
 8. For key figures: copy image to `.<basename>-imgs/` → embed as `[[IMG:...]]` in `content`
 9. Add `question` / `gap` sub-nodes for deep questions and open issues (x offset ~500)
 10. Set `"modified"` to current ISO 8601 timestamp
+11. Tell the user to click **↺ Reload** in the editor toolbar — this re-reads the file from disk without closing/reopening it
 
 ---
 

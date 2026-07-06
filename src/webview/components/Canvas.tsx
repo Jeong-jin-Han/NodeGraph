@@ -314,6 +314,7 @@ export function Canvas({
   const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
   const selBoxRef = useRef<SelectionBox | null>(null)
+  const panStartPosRef = useRef<{ x: number; y: number } | null>(null)
   const [wireDrawing, setWireDrawing] = useState<{ srcId: string; srcPort: Port; curX: number; curY: number } | null>(null)
   const lastToolbarInteractionRef = useRef<number>(0)
 
@@ -372,6 +373,10 @@ export function Canvas({
         if (delImgIds.size > 0) {
           for (const imgId of delImgIds) onRemoveCanvasImage(imgId)
           setSelectedCanvasImgIds(new Set())
+          e.preventDefault()
+        } else if (selectedIdsRef.current.size > 0) {
+          onDeleteNodes([...selectedIdsRef.current])
+          setSelectedIds(new Set())
           e.preventDefault()
         }
         return
@@ -730,6 +735,7 @@ export function Canvas({
       document.addEventListener('mousemove', onGlobalMove)
       document.addEventListener('mouseup', onGlobalUp)
     } else if (e.button === 0) {
+      panStartPosRef.current = { x: e.clientX, y: e.clientY }
       onMouseDown(e)
     }
   }, [onMouseDown])
@@ -743,11 +749,21 @@ export function Canvas({
 
   const handleCanvasMouseUp = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     // 박스 선택의 right-click mouseup은 전역 리스너가 처리함
-    // 여기서는 left-click pan 종료만 처리
+    // 여기서는 left-click pan 종료 + 클릭 시 선택 해제 처리
     if (e.button === 0) {
+      const start = panStartPosRef.current
+      panStartPosRef.current = null
+      if (start) {
+        const dx = Math.abs(e.clientX - start.x)
+        const dy = Math.abs(e.clientY - start.y)
+        if (dx < 5 && dy < 5) {
+          setSelectedIds(new Set())
+          setSelectedCanvasImgIds(new Set())
+        }
+      }
       onMouseUp(e)
     }
-  }, [onMouseUp])
+  }, [onMouseUp, setSelectedCanvasImgIds])
 
   const handleCanvasMouseLeave = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     // selBoxRef는 전역 mouseup이 처리하므로 여기서 지우지 않음
@@ -1039,7 +1055,7 @@ export function Canvas({
           title="Reload from disk (re-reads the JSON file — use after an external agent edits it)"
         >↺ Reload</button>
         <span style={{ fontSize: 10, color: '#aaa', whiteSpace: 'nowrap' }}>
-          Left-drag: pan · Scroll: zoom · Right-drag: select
+          Left-drag: pan · Click: deselect · Scroll: zoom · Right-drag: select
         </span>
       </div>
 

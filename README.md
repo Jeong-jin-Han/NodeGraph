@@ -36,10 +36,12 @@ A VS Code extension for building node-based knowledge graphs from research paper
 | Action | Control |
 |--------|---------|
 | Pan canvas | Left-drag on background |
+| Deselect all | Left-click on background |
 | Zoom | Scroll wheel |
 | Box-select nodes | Right-drag on background |
-| Select / deselect node | Left-click node header |
+| Select node | Left-click node header |
 | Drag node | Left-drag node header |
+| Delete selected nodes | `Delete` or `Backspace` key |
 | Draw edge | Drag from port dot (appears on hover) |
 
 ## Getting Started
