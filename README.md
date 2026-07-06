@@ -109,8 +109,11 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
 
 ## Agent / AI Editing
 
-> **AI agents: read `.agent/NODEGRAPH_SPEC.md` before touching any `.nodegraph.json` file.**
-> It defines every field, syntax rule, and constraint. In particular:
+> **AI agents: read these two files before doing anything:**
+> 1. `.agent/NODEGRAPH_SPEC.md` — full JSON schema, syntax rules, and constraints
+> 2. `.agent/ENVIRONMENT.md` — auto-generated at extension activation; lists which Python libraries and CLI tools are installed on this machine (PDF reading, image processing, etc.)
+>
+> Key rules from the spec:
 > - Backslashes in KaTeX **must be doubled** in JSON strings (`\\frac`, `\\sqrt`, `\\text`)
 > - `[[IMG:filename:WxH]]` tokens only work in `node.content`, not in `toggleItems[].content`
 > - `toggleItems[].content` supports KaTeX math only — no Markdown tables, no images

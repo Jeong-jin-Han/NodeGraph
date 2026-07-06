@@ -3,6 +3,10 @@
 > **If you are an AI agent editing a `.nodegraph.json` file, read this document first.**
 > It defines every field, every syntax rule, and every constraint you must follow.
 > Skipping it will produce broken graphs.
+>
+> **Before reading PDFs or extracting images**, also read `.agent/ENVIRONMENT.md` —
+> it is auto-generated each time the extension activates and lists exactly which Python
+> libraries and CLI tools are installed on this machine, along with ready-to-use code snippets.
 
 This document describes how AI agents (Claude Code, Cursor, Copilot, etc.)
 should read and edit `.nodegraph.json` files used by the NodeGraph VSCode extension.
