@@ -51,6 +51,7 @@ interface CanvasProps {
   onExpandNodes: (ids: string[]) => void
   onCollapseNodes: (ids: string[]) => void
   onExportHtml: () => void
+  onReload: () => void
   imageUris: Record<string, string>
   onSaveImage: (nodeId: string, base64: string, ext?: string, position?: number) => void
   onAddCanvasImage: (ci: CanvasImage) => void
@@ -150,8 +151,8 @@ function computeRenderPositions(
 
         if (nodeIsMain && isMainNode(other)) {
           // 다른 X 열의 main 노드는 밀어내지 않음 (side-by-side main 노드 cascade 방지)
-          const nodeW = nodeSizes[node.id]?.width ?? 300
-          const otherW = nodeSizes[other.id]?.width ?? 300
+          const nodeW = nodeSizes[node.id]?.width ?? (node.nodeWidth ?? 300)
+          const otherW = nodeSizes[other.id]?.width ?? (other.nodeWidth ?? 300)
           if (!(node.position.x < other.position.x + otherW && other.position.x < node.position.x + nodeW)) continue
           const naturalBottom = other.position.y + (other.nodeHeight ?? HEADER_H)
           const delta = (otherY + otherH) - naturalBottom
@@ -161,8 +162,8 @@ function computeRenderPositions(
           // other → node 방향 엣지가 있으면 X overlap 없어도 밀어냄
           const isDirectedConnected = edges.some(e => e.source === other.id && e.target === node.id)
           if (!isDirectedConnected) {
-            const nodeW = nodeSizes[node.id]?.width ?? 300
-            const otherW = nodeSizes[other.id]?.width ?? 300
+            const nodeW = nodeSizes[node.id]?.width ?? (node.nodeWidth ?? 300)
+            const otherW = nodeSizes[other.id]?.width ?? (other.nodeWidth ?? 300)
             if (!(node.position.x < other.position.x + otherW && other.position.x < node.position.x + nodeW)) continue
           }
 
@@ -279,7 +280,7 @@ export function Canvas({
   onAddEdge, onDeleteEdge, onDeleteEdges,
   onAddToggle, onUpdateToggle, onDeleteToggle, onExpandToggle, onDeleteOriginal,
   onAddOriginal, onAddLink, onDeleteLink, onOpenLink, onSetNodeTemplate,
-  onCollapseAll, onExpandAll, onExpandNodes, onCollapseNodes, onExportHtml,
+  onCollapseAll, onExpandAll, onExpandNodes, onCollapseNodes, onExportHtml, onReload,
   imageUris, onSaveImage,
   onAddCanvasImage, onAddFilenameToNode, onSaveCanvasImage, onUpdateCanvasImage, onRemoveCanvasImage, onMoveCanvasImageToNode,
   lastAddedCanvasImageId,
@@ -661,10 +662,11 @@ export function Canvas({
     document.addEventListener('mouseup', onUp)
   }, [viewport, graph.nodes, renderPositions, nodeSizes, onAddEdge])
 
-  // 캔버스 mousedown: 왼쪽=박스선택(전역 리스너), 오른쪽=뷰포트 pan
+  // 캔버스 mousedown: 오른쪽=박스선택(전역 리스너), 왼쪽=뷰포트 pan
   // 전역 document 리스너를 사용하므로 canvas 밖에서 mouseup이 발생해도 선택이 정상 완료됨
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.button === 0) {
+    if (e.button === 2) {
+      e.preventDefault()
       const startX = e.clientX, startY = e.clientY
       const box = { x1: startX, y1: startY, x2: startX, y2: startY }
       selBoxRef.current = box
@@ -684,7 +686,7 @@ export function Canvas({
         selBoxRef.current = null
         setSelectionBox(null)
 
-        if (!sb || ev.button !== 0) return
+        if (!sb || ev.button !== 2) return
 
         const minX = Math.min(sb.x1, sb.x2), maxX = Math.max(sb.x1, sb.x2)
         const minY = Math.min(sb.y1, sb.y2), maxY = Math.max(sb.y1, sb.y2)
@@ -727,7 +729,7 @@ export function Canvas({
 
       document.addEventListener('mousemove', onGlobalMove)
       document.addEventListener('mouseup', onGlobalUp)
-    } else if (e.button === 2) {
+    } else if (e.button === 0) {
       onMouseDown(e)
     }
   }, [onMouseDown])
@@ -740,9 +742,9 @@ export function Canvas({
   }, [onMouseMove])
 
   const handleCanvasMouseUp = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    // 박스 선택의 left-click mouseup은 전역 리스너가 처리함
-    // 여기서는 right-click pan 종료만 처리
-    if (e.button === 2) {
+    // 박스 선택의 right-click mouseup은 전역 리스너가 처리함
+    // 여기서는 left-click pan 종료만 처리
+    if (e.button === 0) {
       onMouseUp(e)
     }
   }, [onMouseUp])
@@ -1031,8 +1033,13 @@ export function Canvas({
         >Export HTML</button>
 
         <div style={{ flex: 1 }} />
+        <button
+          style={{ ...toolbarBtnStyle, fontFamily: 'monospace' }}
+          onClick={onReload}
+          title="Reload from disk (re-reads the JSON file — use after an external agent edits it)"
+        >↺ Reload</button>
         <span style={{ fontSize: 10, color: '#aaa', whiteSpace: 'nowrap' }}>
-          Right-click: pan · Scroll: zoom · Drag: select
+          Left-drag: pan · Scroll: zoom · Right-drag: select
         </span>
       </div>
 

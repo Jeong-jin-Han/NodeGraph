@@ -91,6 +91,7 @@ export type ExtToWebviewMessage =
 export type WebviewToExtMessage =
   | { type: 'save'; data: NodeGraph }
   | { type: 'ready' }
+  | { type: 'reload' }
   | { type: 'openLink'; link: NodeLink }
   | { type: 'saveImage'; nodeId: string; data: string; ext: string }
   | { type: 'exportHtml'; data: NodeGraph }

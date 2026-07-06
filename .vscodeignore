@@ -1,0 +1,22 @@
+# Source and build tooling — not needed at runtime
+src/
+esbuild.js
+tsconfig.json
+package-lock.json
+
+# Test and temp folders
+tmp/
+test/
+test-demo/
+
+# Old packages
+*.vsix
+
+# Dev dependencies
+node_modules/
+
+# Git and editor internals
+.git/
+.gitignore
+.vscode/
+.claude/

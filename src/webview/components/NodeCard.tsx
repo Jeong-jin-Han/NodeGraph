@@ -245,8 +245,7 @@ export function NodeCard({
           position: 'absolute',
           left: renderPosition.x,
           top: renderPosition.y,
-          minWidth: node.nodeWidth ? 240 : Math.max(240, autoMinWidth),
-          width: node.nodeWidth ?? undefined,
+          minWidth: Math.max(node.nodeWidth ?? 0, 240, autoMinWidth),
           minHeight: node.nodeHeight ?? undefined,
           background: `color-mix(in srgb, ${color} 15%, var(--vscode-editor-background, #1e1e1e))`,
           border: selected

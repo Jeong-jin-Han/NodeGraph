@@ -24,19 +24,31 @@ A VS Code extension for building node-based knowledge graphs from research paper
 - **Expand / Collapse** — fold individual nodes or entire subtrees with one click
 - **HTML export** — generate a self-contained HTML viewer (toolbar → Export HTML)
 - **Toggle sections** — collapsible sub-sections inside each node
-- **Original text** — attach the original source quote alongside your summary
+- **Original text** — attach the verbatim source quote alongside your summary
 - **Edge types** — `arrow` (causal flow) or `line` (reference / association)
 - **Transitive reduction** — Reduce Edges button removes redundant A→C when A→B→C exists
 - **Undo / Redo** — full history with `Ctrl+Z` / `Ctrl+Y`
 - **Auto-save** — `Ctrl+S` writes to disk immediately
+- **Reload from disk** — Reload button re-reads the JSON file; useful after an external agent edits it
+
+## Mouse Controls
+
+| Action | Control |
+|--------|---------|
+| Pan canvas | Left-drag on background |
+| Zoom | Scroll wheel |
+| Box-select nodes | Right-drag on background |
+| Select / deselect node | Left-click node header |
+| Drag node | Left-drag node header |
+| Draw edge | Drag from port dot (appears on hover) |
 
 ## Getting Started
 
-1. Install the `.vsix` from the Releases page (or build from source).
+1. Install from the VS Code Marketplace (search **NodeGraph**).
 2. Run **NodeGraph: New Graph** (`Ctrl+Shift+P`) to create a new `.nodegraph.json` file.
 3. The custom editor opens automatically for any `*.nodegraph.json` file.
 4. Click a node header to select it; drag to reposition.
-5. Use the toolbar buttons — **Expand↓ / Collapse↑ / Fit View / Reduce Edges / Export HTML**.
+5. Use the toolbar — **Expand↓ / Collapse↑ / Fit View / Reduce Edges / Export HTML / ↺ Reload**.
 
 ## Node Content Syntax
 
@@ -55,11 +67,14 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
 {
   "version": "1.0.0",
   "title": "My Research Graph",
+  "created": "2026-07-06T00:00:00.000Z",
+  "modified": "2026-07-06T00:00:00.000Z",
   "source": {
     "pdf": "paper.pdf",
     "authors": "Author et al.",
     "venue": "NeurIPS 2017",
-    "doi": "arXiv:1706.03762"
+    "doi": "arXiv:1706.03762",
+    "pages": 15
   },
   "nodeTemplates": {
     "main_topic": { "label": "Main topic", "color": "#4B8BBE", "icon": "file-text", "shape": "sharp" },
@@ -72,10 +87,14 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
       "title": "Introduction",
       "content": "Summary text with $\\LaTeX$ and\n[[IMG:figure1.png:500x300]]",
       "original": { "text": "Exact quote from paper.", "location": "§1, p.1" },
+      "toggleItems": [
+        { "id": "toggle_001", "title": "Table 1", "content": "| Col | Val |\n|-----|-----|\n| A | 1 |", "expanded": false }
+      ],
       "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
       "position": { "x": 0, "y": 0 },
       "children": ["node_002"],
-      "images": [],
       "links": []
     }
   ],
@@ -85,6 +104,18 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
   "viewport": { "x": 0, "y": 0, "zoom": 1 }
 }
 ```
+
+## Agent / AI Editing
+
+The file `.agent/NODEGRAPH_SPEC.md` (included in the extension) is a machine-readable specification for AI agents. It documents the full JSON schema, ID conventions, KaTeX/Markdown syntax rules, and a step-by-step workflow for generating a nodegraph from a PDF.
+
+A worked example is included at `test-demo-v2/attention-is-all-you-need.nodegraph.json` — the full "Attention Is All You Need" paper rendered as a nodegraph with KaTeX formulas, Markdown tables, toggle sections, and deep question nodes.
+
+**Typical agent workflow:**
+1. Read `.agent/NODEGRAPH_SPEC.md`
+2. Read or create the target `.nodegraph.json`
+3. Edit the JSON directly (the extension auto-detects changes)
+4. Click **↺ Reload** in the toolbar to see the updated graph without closing/reopening the file
 
 ## Commands
 

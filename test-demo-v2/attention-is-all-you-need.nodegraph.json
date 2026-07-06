@@ -1,0 +1,563 @@
+{
+  "version": "1.0.0",
+  "title": "Attention Is All You Need",
+  "created": "2026-07-04T00:00:00Z",
+  "modified": "2026-07-04T00:00:00Z",
+  "source": {
+    "pdf": "1706.03762v7.pdf",
+    "authors": "Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, Illia Polosukhin",
+    "venue": "NeurIPS 2017 (NIPS), Long Beach, CA, USA",
+    "doi": "arXiv:1706.03762",
+    "pages": 15
+  },
+  "nodeTemplates": {
+    "main_topic": { "label": "Main topic",     "color": "#4B8BBE", "icon": "file-text",    "shape": "sharp"   },
+    "method":     { "label": "Method",         "color": "#2E86AB", "icon": "tool",          "shape": "sharp"   },
+    "result":     { "label": "Result",         "color": "#1B998B", "icon": "chart-bar",     "shape": "sharp"   },
+    "claim":      { "label": "Claim",          "color": "#3A506B", "icon": "quote",         "shape": "sharp"   },
+    "question":   { "label": "Question",       "color": "#E5A835", "icon": "help-circle",   "shape": "rounded" },
+    "reference":  { "label": "Ext. reference", "color": "#9C6ADE", "icon": "external-link", "shape": "rounded" },
+    "gap":        { "label": "Gap / Idea",     "color": "#E24B4A", "icon": "flame",         "shape": "rounded" },
+    "memo":       { "label": "Memo",           "color": "#6B7280", "icon": "note",          "shape": "rounded" }
+  },
+  "nodes": [
+    {
+      "id": "node_001",
+      "template": "main_topic",
+      "title": "Background & Motivation",
+      "content": "Dominant sequence transduction models (LSTM, GRU) process tokens sequentially, generating hidden states $h_t = f(h_{t-1}, x_t)$. This recurrence **prevents parallelization during training** and forces gradient signals to traverse $O(n)$ steps for long-range dependencies.\n\nAttention mechanisms had already existed, but were always used *alongside* RNNs as a soft alignment add-on (Bahdanau et al., 2014). The Transformer is the first architecture to rely **entirely on attention**, discarding recurrence and convolutions entirely — allowing full parallelization and $O(1)$ path length between any two positions.",
+      "original": {
+        "text": "Recurrent models typically factor computation along the symbol positions of the input and output sequences... This inherently sequential nature precludes parallelization within training examples, which becomes critical at longer sequence lengths.",
+        "location": "§1, p.1"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 0, "y": 0 },
+      "children": ["node_010", "node_011"],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_002",
+      "template": "main_topic",
+      "title": "Model Architecture: Encoder-Decoder Stacks",
+      "content": "The Transformer uses an **encoder-decoder** structure (Fig. 1). Both encoder and decoder are stacks of $N=6$ identical layers.\n\n**Encoder**: Each layer has two sublayers — (1) multi-head self-attention, (2) position-wise FFN. Each sublayer is wrapped with residual connection + layer norm:\n$$\\text{output} = \\text{LayerNorm}(x + \\text{Sublayer}(x))$$\nAll sublayers and embeddings produce dimension $d_{\\text{model}} = 512$.\n\n**Decoder**: Same 6-layer stack, but adds a **third sublayer** for cross-attention over encoder output. Self-attention in the decoder is **causally masked** (upper-triangle set to $-\\infty$) to preserve the auto-regressive property.",
+      "original": {
+        "text": "The encoder is composed of a stack of N=6 identical layers. Each layer has two sub-layers... We employ a residual connection around each of the two sub-layers, followed by layer normalization.",
+        "location": "§3.1, p.3"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 0, "y": 300 },
+      "children": ["node_012", "node_013", "node_014"],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_003",
+      "template": "main_topic",
+      "title": "Scaled Dot-Product Attention",
+      "content": "The attention function maps a query and a set of key-value pairs to an output — a weighted sum of values where the weight is the compatibility of the query with each key:\n\n$$\\text{Attention}(Q,K,V) = \\text{softmax}\\!\\left(\\frac{QK^T}{\\sqrt{d_k}}\\right)V$$\n\n$Q \\in \\mathbb{R}^{n \\times d_k}$, $K \\in \\mathbb{R}^{m \\times d_k}$, $V \\in \\mathbb{R}^{m \\times d_v}$. The scaling factor $\\tfrac{1}{\\sqrt{d_k}}$ prevents large dot-product magnitudes from saturating the softmax (see §3.2.1 footnote). Compared to additive attention (which uses a feed-forward net for compatibility), dot-product attention is faster and more space-efficient via matrix multiplication, with identical quality after scaling.",
+      "original": {
+        "text": "We call our particular attention 'Scaled Dot-Product Attention'. The input consists of queries and keys of dimension d_k, and values of dimension d_v.",
+        "location": "§3.2.1, p.4"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 0, "y": 600 },
+      "children": ["node_015", "node_016", "node_017"],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_004",
+      "template": "main_topic",
+      "title": "Multi-Head Attention",
+      "content": "Instead of one attention function over $d_{\\text{model}}$-dimensional vectors, the model **projects Q, K, V $h$ times** into smaller subspaces and runs attention in parallel:\n\n$$\\text{MultiHead}(Q,K,V) = \\text{Concat}(\\text{head}_1, \\ldots, \\text{head}_h)\\, W^O$$\n$$\\text{head}_i = \\text{Attention}(QW_i^Q,\\; KW_i^K,\\; VW_i^V)$$\n\nProjection matrices: $W_i^Q, W_i^K \\in \\mathbb{R}^{d_{\\text{model}} \\times d_k}$, $W_i^V \\in \\mathbb{R}^{d_{\\text{model}} \\times d_v}$, $W^O \\in \\mathbb{R}^{hd_v \\times d_{\\text{model}}}$.\n\nIn this work: $h=8$, $d_k = d_v = d_{\\text{model}}/h = 512/8 = 64$. Total compute matches single-head full-dim attention (each head is cheaper; combined they are equivalent).",
+      "original": {
+        "text": "Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions. With a single attention head, averaging inhibits this.",
+        "location": "§3.2.2, p.4"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 0, "y": 900 },
+      "children": ["node_018", "node_019", "node_020"],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_005",
+      "template": "main_topic",
+      "title": "FFN, Embeddings & Positional Encoding",
+      "content": "**Position-wise FFN** (applied identically and independently to each position):\n$$\\text{FFN}(x) = \\max(0,\\; xW_1 + b_1)\\,W_2 + b_2$$\n$d_{\\text{model}} = 512 \\to d_{ff} = 2048 \\to 512$. Equivalent to two convolutions with kernel size 1.\n\n**Positional Encoding** (sinusoidal, fixed — no learned parameters):\n$$PE_{(pos,\\,2i)} = \\sin\\!\\left(\\frac{pos}{10000^{2i/d_{\\text{model}}}}\\right), \\qquad PE_{(pos,\\,2i+1)} = \\cos\\!\\left(\\frac{pos}{10000^{2i/d_{\\text{model}}}}\\right)$$\n\nWavelengths form a geometric progression from $2\\pi$ to $10000 \\cdot 2\\pi$. The key property: for any fixed offset $k$, $PE_{pos+k}$ is a linear function of $PE_{pos}$ (via angle-addition), allowing the model to attend by relative offset. Learned embeddings gave nearly identical results (Table 3, row E).",
+      "original": {
+        "text": "Since our model contains no recurrence and no convolution, in order for the model to make use of the order of the sequence, we must inject some information about the relative or absolute position of the tokens.",
+        "location": "§3.5, p.6"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 0, "y": 1200 },
+      "children": ["node_021", "node_022"],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_006",
+      "template": "main_topic",
+      "title": "Why Self-Attention? Complexity Analysis",
+      "content": "Three criteria motivate self-attention over recurrent/convolutional layers:\n1. **Complexity per layer** — total compute\n2. **Parallelizable operations** — minimum sequential steps (bottleneck for training speed)\n3. **Maximum path length** — shorter paths = easier long-range dependency learning\n\nSelf-attention: $O(n^2 \\cdot d)$ compute, $O(1)$ sequential, $O(1)$ path. Recurrent: $O(n \\cdot d^2)$ compute, $O(n)$ sequential, $O(n)$ path. Self-attention is better when $n < d$ — true for typical sentence-level NLP where $n \\approx 50{-}200$ and $d_{\\text{model}} = 512$. For very long sequences ($n \\gg d$), self-attention becomes the bottleneck.",
+      "original": {
+        "text": "In this section we compare various aspects of self-attention layers to the recurrent and convolutional layers commonly used for mapping one variable-length sequence of symbol representations... Motivating our use of self-attention we consider three desiderata.",
+        "location": "§4, p.6"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 0, "y": 1500 },
+      "children": ["node_023", "node_024"],
+      "images": [],
+      "links": [],
+      "toggleItems": [
+        {
+          "id": "toggle_001",
+          "title": "Table 1: Layer-Type Complexity Comparison",
+          "content": "| Layer Type | Complexity / Layer | Sequential Ops | Max Path Length |\n|---|---|---|---|\n| Self-Attention | $O(n^2 \\cdot d)$ | $O(1)$ | $O(1)$ |\n| Recurrent | $O(n \\cdot d^2)$ | $O(n)$ | $O(n)$ |\n| Convolutional | $O(k \\cdot n \\cdot d^2)$ | $O(1)$ | $O(\\log_k n)$ |\n| Self-Attn (restricted, nbhd $r$) | $O(r \\cdot n \\cdot d)$ | $O(1)$ | $O(n/r)$ |\n\n*n = sequence length, d = representation dim, k = conv kernel size, r = neighborhood size*",
+          "expanded": false
+        }
+      ]
+    },
+    {
+      "id": "node_007",
+      "template": "main_topic",
+      "title": "Training Setup",
+      "content": "**Data**: WMT 2014 EN→DE (~4.5M sentence pairs, BPE vocab 37K shared source-target); EN→FR (36M pairs, word-piece vocab 32K). Batched by approximate sequence length; each batch ~25K source + 25K target tokens.\n\n**Hardware**: 8× NVIDIA P100 GPUs. Base model: 100K steps at ~0.4 s/step (~12 hrs). Big model: 300K steps at ~1.0 s/step (~3.5 days).\n\n**Optimizer**: Adam ($\\beta_1=0.9$, $\\beta_2=0.98$, $\\epsilon=10^{-9}$) with warmup schedule:\n$$lrate = d_{\\text{model}}^{-0.5} \\cdot \\min(step^{-0.5},\\; step \\cdot warmup^{-1.5}), \\quad warmup = 4000 \\text{ steps}$$\n\n**Regularization**: Residual Dropout ($P_{drop}=0.1$) on each sublayer output before Add & Norm + on embedding sums. Label Smoothing ($\\epsilon_{ls}=0.1$).",
+      "original": {
+        "text": "We trained our models on one machine with 8 NVIDIA P100 GPUs... We used the Adam optimizer with β1=0.9, β2=0.98 and ε=10^{−9}. We varied the learning rate over the course of training, according to the formula lrate = d_model^{−0.5}·min(step_num^{−0.5}, step_num·warmup_steps^{−1.5}).",
+        "location": "§5.2–5.3, p.7"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 0, "y": 1800 },
+      "children": ["node_025", "node_026"],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_008",
+      "template": "main_topic",
+      "title": "Results: Machine Translation",
+      "content": "**EN→DE (newstest2014)**: Transformer (big) achieves **28.4 BLEU**, surpassing all prior models including ensembles by **>2.0 BLEU**. Prior best: ConvS2S Ensemble at 26.36. Training cost: $2.3 \\times 10^{19}$ FLOPs vs. $7.7 \\times 10^{19}$ for ConvS2S Ensemble.\n\n**EN→FR (newstest2014)**: **41.8 BLEU**, surpassing all prior single models at **less than 1/4 the training cost** of GNMT+RL ($1.4 \\times 10^{20}$ FLOPs).\n\n**Constituency Parsing** (WSJ §23 F1): 4-layer Transformer achieves **92.7** (semi-supervised), outperforming all RNN seq2seq baselines and matching specialized parsers — demonstrating task generalization.",
+      "original": {
+        "text": "On the WMT 2014 English-to-German translation task, the big transformer model outperforms the best previously reported models, including ensembles, by more than 2.0 BLEU, establishing a new state-of-the-art BLEU score of 28.4.",
+        "location": "§6.1, p.8"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 0, "y": 2100 },
+      "children": ["node_027", "node_028", "node_029"],
+      "images": [],
+      "links": [],
+      "toggleItems": [
+        {
+          "id": "toggle_002",
+          "title": "Table 2: BLEU vs Training Cost (from paper)",
+          "content": "| Model | EN-DE BLEU | EN-FR BLEU | FLOPs EN-DE | FLOPs EN-FR |\n|---|---|---|---|---|\n| ByteNet | 23.75 | — | — | — |\n| GNMT + RL | 24.6 | 39.92 | $2.3\\times10^{19}$ | $1.4\\times10^{20}$ |\n| ConvS2S | 25.16 | 40.46 | $9.6\\times10^{18}$ | $1.5\\times10^{20}$ |\n| MoE | 26.03 | 40.56 | $2.0\\times10^{19}$ | $1.2\\times10^{20}$ |\n| ConvS2S Ensemble | 26.36 | 41.29 | $7.7\\times10^{19}$ | $1.2\\times10^{21}$ |\n| **Transformer (base)** | 27.3 | 38.1 | $\\mathbf{3.3\\times10^{18}}$ | — |\n| **Transformer (big)** | **28.4** | **41.8** | $2.3\\times10^{19}$ | — |",
+          "expanded": false
+        },
+        {
+          "id": "toggle_003",
+          "title": "Table 3: Ablation Study (EN-DE dev set, newstest2013)",
+          "content": "| Variant | N | $d_{\\text{model}}$ | h | $d_k$ | PPL(dev) | BLEU(dev) | Params(M) |\n|---|---|---|---|---|---|---|---|\n| **base** | 6 | 512 | 8 | 64 | 4.92 | 25.8 | 65 |\n| (A) h=1 | — | — | 1 | 512 | 5.29 | 24.9 | — |\n| (A) h=4 | — | — | 4 | 128 | 5.00 | 25.5 | — |\n| (A) h=32 | — | — | 32 | 16 | 5.01 | 25.4 | — |\n| (B) $d_k$=16 | — | — | — | 16 | 5.16 | 25.1 | 58 |\n| (C) N=2 | 2 | — | — | — | 6.11 | 23.7 | 36 |\n| (C) $d_{\\text{model}}$=1024 | — | 1024 | — | — | 4.66 | 26.0 | 168 |\n| (D) no dropout | — | — | — | — | 5.77 | 24.6 | — |\n| (E) learned PE | — | — | — | — | 4.92 | 25.7 | — |\n| **big** | 6 | 1024 | 16 | — | **4.33** | **26.4** | 213 |",
+          "expanded": false
+        }
+      ]
+    },
+    {
+      "id": "node_009",
+      "template": "main_topic",
+      "title": "Conclusion & Outlook",
+      "content": "The Transformer is the **first sequence transduction model based entirely on self-attention**, replacing recurrent layers in encoder-decoder architectures. It achieves state-of-the-art EN→DE (28.4 BLEU) and EN→FR (41.8 BLEU) while training significantly faster (3.5 days on 8 P100s).\n\nBeyond translation, it generalizes to English constituency parsing with minimal task-specific tuning (WSJ F1: 92.7 semi-supervised).\n\n**Future directions named by authors**: extend to images, audio, video; local/restricted attention for long inputs; making generation less sequential. These were all realized within 2–4 years (ViT, Speech Transformer, Video Transformer, Longformer).",
+      "original": {
+        "text": "In this work, we presented the Transformer, the first sequence transduction model based entirely on attention... We are excited about the future of attention-based models and plan to apply them to other tasks.",
+        "location": "§7, p.10"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 0, "y": 2400 },
+      "children": ["node_030", "node_031"],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_010",
+      "template": "question",
+      "title": "Why is sequential computation fundamentally limiting?",
+      "content": "RNN hidden state $h_t = f(h_{t-1}, x_t)$ creates a strict dependency chain: step $t$ cannot start until step $t-1$ finishes. This means training time scales with sequence length even with unlimited hardware. More critically, for long-range dependencies, gradient must flow backward through $O(n)$ operations — leading to vanishing/exploding gradients. Recent work (factorization tricks, conditional computation in [21, 32]) reduces per-step cost but does not break the sequential bottleneck. Transformers reduce the path to $O(1)$ at the cost of $O(n^2)$ memory.",
+      "original": {
+        "text": "This inherently sequential nature precludes parallelization within training examples, which becomes critical at longer sequence lengths, as memory constraints limit batching across examples.",
+        "location": "§1, p.1"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": -50 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_011",
+      "template": "gap",
+      "title": "Key novelty: attention as the sole mechanism, not a supplement",
+      "content": "Bahdanau et al. (2014) introduced attention for NMT, but used BiRNN encoder + RNN decoder. Attention there was a soft alignment mechanism over RNN hidden states — it did not eliminate sequential computation. Transformer's novelty is treating attention as the *primary* (and sole) representational mechanism. This allows every layer to be fully parallelized. The paper is not the first to use attention — it is the first to use *only* attention.",
+      "original": {
+        "text": "In all but a few cases, however, such attention mechanisms are used in conjunction with a recurrent network. In this work we propose the Transformer, a model architecture eschewing recurrence and instead relying entirely on an attention mechanism.",
+        "location": "§1, p.1"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 70 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_012",
+      "template": "method",
+      "title": "Residual + LayerNorm: why it matters",
+      "content": "Each sublayer output: $\\text{LayerNorm}(x + \\text{Sublayer}(x))$. The residual connection (He et al., 2016) ensures that gradients flow directly through the network without vanishing, allowing deep stacks (N=6) to train stably. LayerNorm (Ba et al., 2016) normalizes over the *feature* dimension (unlike BatchNorm which normalizes over the batch), making it more suitable for variable-length sequences and small batches. The residual constraint forces $d_{\\text{model}} = 512$ uniformly across all sublayers.",
+      "original": {
+        "text": "We employ a residual connection around each of the two sub-layers, followed by layer normalization. That is, the output of each sub-layer is LayerNorm(x + Sublayer(x)).",
+        "location": "§3.1, p.3"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 250 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_013",
+      "template": "method",
+      "title": "Causal masking in decoder: enforcing auto-regression",
+      "content": "At inference time, the decoder generates one token at a time: position $i$ sees only tokens $1, \\ldots, i-1$. During training (teacher forcing), all target positions are available simultaneously — without masking, the model could simply copy future tokens via self-attention. The fix: set all upper-triangular entries of the $n \\times n$ attention score matrix to $-\\infty$ before softmax, giving them zero weight. Output embeddings are also shifted right by one position (prepend `<BOS>`) so that target token at position $i$ predicts the $(i+1)$-th token.",
+      "original": {
+        "text": "We also modify the self-attention sub-layer in the decoder stack to prevent positions from attending to subsequent positions. This masking, combined with fact that the output embeddings are offset by one position, ensures that the predictions for position i can depend only on the known outputs at positions less than i.",
+        "location": "§3.1, p.3"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 340 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_014",
+      "template": "question",
+      "title": "Why N=6? Is this a principled choice or trial-and-error?",
+      "content": "The paper provides no theoretical justification for N=6. Table 3 (row C) shows: N=2 → 23.7 BLEU, N=4 → 25.3, N=6 (base) → 25.8. The gains diminish, but there is no ablation for N=8 or N=12. The 'big' model keeps N=6 but increases width ($d_{\\text{model}}=1024$), suggesting the authors prioritized width over depth at this scale. This is consistent with the observation in many architectures that beyond a certain depth, additional layers provide diminishing returns without LR or regularization tuning.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 430 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_015",
+      "template": "claim",
+      "title": "Scaling by 1/√d_k prevents softmax saturation",
+      "content": "If $q_i, k_i \\overset{\\text{i.i.d.}}{\\sim} \\mathcal{N}(0, 1)$, then the dot product $q \\cdot k = \\sum_{i=1}^{d_k} q_i k_i$ has mean 0 and **variance $d_k$** (standard deviation $\\sqrt{d_k}$). For large $d_k$ (e.g., $d_k = 512$), dot products have typical magnitude $\\sim 22$, pushing softmax outputs toward one-hot distributions with near-zero gradients almost everywhere. Dividing by $\\sqrt{d_k}$ restores variance to 1, keeping the softmax input in its well-gradient regime. Without this scaling, training diverges for larger $d_k$.",
+      "original": {
+        "text": "We suspect that for large values of d_k, the dot products grow large in magnitude, pushing the softmax function into regions where it has extremely small gradients.",
+        "location": "§3.2.1, footnote 4, p.4"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 550 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_016",
+      "template": "question",
+      "title": "Q/K/V roles are the author's intent — does training actually enforce them?",
+      "content": "The authors describe Q (what to look for), K (what is available), V (content to retrieve) as conceptually distinct roles. But Q, K, V are simply outputs of three learned linear projections $W^Q, W^K, W^V$ from the same input embedding. The loss function (cross-entropy over next tokens) places no explicit constraint on *how* these matrices should differ.\n\n**Concern**: The network could learn to set $W^Q \\approx W^K \\approx W^V$ if that minimizes loss. Or it could learn completely entangled representations that happen to be expressive — the Q/K/V framing being a post-hoc interpretation. Appendix A shows attention heads that appear to track anaphora or syntax, but correlation is not causation.\n\n**Partial answer**: The symmetry between Q and K is broken structurally — the softmax over $QK^T$ is not symmetric, so K appears in the exponent while Q selects the distribution. V is summed with attention weights, not used for matching. These structural asymmetries provide an inductive bias, but do not *guarantee* the intended role specialization.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 660 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_017",
+      "template": "gap",
+      "title": "Dot-product vs. additive attention: where does scaling fail?",
+      "content": "Additive attention (Bahdanau 2014): $\\text{score}(q, k) = v^T \\tanh(W_1 q + W_2 k)$ — uses a feed-forward net; output is bounded by $\\tanh$ so no saturation problem. Dot-product attention without scaling underperforms additive attention for large $d_k$ (Britz et al., 2017). With $1/\\sqrt{d_k}$ scaling it matches additive quality while being $\\sim 10\\times$ faster due to matrix multiply hardware. However, simple dot product may fail for highly non-linear compatibility functions — this is an open question for complex structured reasoning tasks where attention patterns are not simply low-dimensional.",
+      "original": {
+        "text": "While the two are similar in theoretical complexity, dot-product attention is much faster and more space-efficient in practice, since it can be implemented using highly optimized matrix multiplication code.",
+        "location": "§3.2.1, p.4"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 770 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_018",
+      "template": "method",
+      "title": "Three applications of attention in the Transformer",
+      "content": "1. **Encoder self-attention**: Q, K, V all from the previous encoder layer. Each position attends to all positions in the previous layer → $O(1)$ max path, full context at every layer.\n2. **Encoder-decoder cross-attention** (decoder layer 2): Q from previous decoder layer; K, V from encoder output. Allows each decoder position to attend over the full input sequence — the equivalent of soft alignment in seq2seq models.\n3. **Decoder masked self-attention** (decoder layer 1): Q, K, V from previous decoder layer, with upper-triangular mask to $-\\infty$. Maintains auto-regressive generation while still parallelizing training.",
+      "original": {
+        "text": "The Transformer uses multi-head attention in three different ways...",
+        "location": "§3.2.3, p.5"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 850 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_019",
+      "template": "question",
+      "title": "Do the 8 heads actually learn different representations?",
+      "content": "The paper claims heads attend to \"different representation subspaces\" but provides only qualitative evidence (attention visualizations in Appendix A). Key counter-evidence: Michel et al. (2019) showed that 70–80% of heads in a trained Transformer can be pruned at test time with minimal BLEU drop — suggesting many heads are redundant. Voita et al. (2019) confirmed with head importance scoring. The ablation (Table 3A) shows h=1 costs only 0.9 BLEU and h=32 also hurts slightly, suggesting there is a sweet spot around h=8 but not that each of the 8 heads is qualitatively indispensable.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 950 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_020",
+      "template": "claim",
+      "title": "Multi-head compute is equivalent to single-head — benefit is diversity, not efficiency",
+      "content": "With $h=8$ heads, each head operates on $d_k = d_v = 64$. Total multiply-add operations for attention score computation: $8 \\times n^2 \\times 64 = n^2 \\times 512$ — identical to one-head attention at $d_k = 512$. So multi-head attention is **not** a free lunch computationally. The benefit is that projecting into $h$ subspaces allows the model to jointly attend to information from different representation subspaces — something single-head attention suppresses by averaging. The $W^O$ projection at the end recombines the $h$ outputs into $d_{\\text{model}}$.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 1050 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_021",
+      "template": "question",
+      "title": "Can sinusoidal PE actually encode relative position?",
+      "content": "The authors hypothesize that sinusoidal PE allows the model to attend by relative offsets. The mathematical basis: via angle-addition identities, $PE_{pos+k}$ is a *linear* function of $PE_{pos}$ for fixed $k$:\n$$\\sin(pos+k) = \\sin(pos)\\cos(k) + \\cos(pos)\\sin(k)$$\nSo relative position $k$ can be represented as a linear projection. But this requires the model to learn to apply that specific linear transformation — not guaranteed. Table 3 row E shows learned PE gives BLEU 25.7 vs. sinusoidal 25.8: indistinguishable. This suggests the specific PE form is not critical as long as unique position signals exist. The sinusoidal choice was motivated by extrapolation to longer sequences, but this too was not rigorously validated in the paper.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 1150 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_022",
+      "template": "gap",
+      "title": "Absolute PE is a limitation → relative PE as successor",
+      "content": "Absolute sinusoidal PE assigns a fixed vector to each absolute position index. This means: (1) model may not generalize to positions not seen during training; (2) the model must implicitly learn position-invariant operations despite receiving absolute signals. Shaw et al. (2018) introduced **Relative Position Representations** modifying attention to directly use offset $(i-j)$. Later: RoPE (Rotary Position Embedding, 2021) — applied as rotation to Q and K, making the dot product naturally encode relative distance; ALiBi (2022) — adds a linear bias to attention scores proportional to distance. These are now dominant in LLMs.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 1260 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_023",
+      "template": "gap",
+      "title": "O(n²) attention: quadratic bottleneck for long sequences",
+      "content": "Self-attention computes all $n^2$ pairwise scores per layer. For long documents (n=8192 tokens), memory alone requires $8192^2 \\times \\text{precision} \\approx 256\\text{MB per layer per head}$ — prohibitive for 8 heads × 6 layers. The paper mentions \"restricted self-attention\" (neighborhood of size $r$, reducing to $O(r \\cdot n \\cdot d)$) but does not implement it. This limitation spawned: Longformer (local + global attention), BigBird (random + local + global), Linformer (low-rank approximation $O(n)$), FlashAttention (IO-aware exact implementation, same O(n²) FLOPs but memory-efficient via tiling). The quadratic wall remains the central challenge for long-context LLMs.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 1450 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_024",
+      "template": "claim",
+      "title": "Attention weights as interpretability — and its limits",
+      "content": "Unlike RNN hidden states, attention weights are directly observable $n \\times n$ distributions. Appendix A shows heads that appear to track anaphora (head 5, layer 5) or syntactic distance. This interpretability is cited as a side benefit of self-attention. However, Jain & Wallace (2019) showed that high attention weight does not imply causal importance: one can often replace the top-attended token with another and the output barely changes. This sparked the \"attention is not explanation\" debate. Gradient-based attribution methods (LIME, SHAP, Integrated Gradients) are considered more reliable for causal importance.",
+      "original": {
+        "text": "As side benefit, self-attention could yield more interpretable models... Not only do individual attention heads clearly learn to perform different tasks, many appear to exhibit behavior related to the syntactic and semantic structure of the sentences.",
+        "location": "§4, p.7"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 1560 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_025",
+      "template": "method",
+      "title": "Warmup LR schedule: why linear ramp is essential",
+      "content": "The warmup schedule linearly increases LR from 0 to peak over 4000 steps, then decays as $1/\\sqrt{step}$. Early in training, weight matrices $W^Q, W^K, W^V, W^O$ are randomly initialized — gradient magnitudes are large and noisy. Starting with a high LR causes the loss to diverge before the optimizer can find a stable direction. The 4000-step linear ramp allows the model to establish a coherent loss landscape first. The $d_{\\text{model}}^{-0.5}$ normalization means larger models (bigger $d_{\\text{model}}$) automatically get a smaller peak LR, an implicit form of scale-adaptive learning rate.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 1750 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_026",
+      "template": "claim",
+      "title": "Label smoothing: hurts perplexity but improves BLEU",
+      "content": "Standard cross-entropy trains the model to assign all probability to the correct token (one-hot targets). Label smoothing ($\\epsilon_{ls}=0.1$) replaces this with: $y_{smooth} = (1-\\epsilon_{ls}) \\cdot y_{\\text{one-hot}} + \\epsilon_{ls}/V$. The model is penalized for being overconfident, improving calibration. This **hurts perplexity** (cross-entropy on the true token increases because the model is forced to spread probability), but **improves BLEU** because calibrated uncertainty leads to better beam search diversity and more accurate translations. This counter-intuitive trade-off ($\\uparrow$ perplexity, $\\uparrow$ BLEU) is a recurring theme in generation models.",
+      "original": {
+        "text": "During training, we employed label smoothing of value ε_ls = 0.1. This hurts perplexity, as the model learns to be more unsure, but improves accuracy and BLEU score.",
+        "location": "§5.4, p.8"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 1860 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_027",
+      "template": "result",
+      "title": "EN→DE: +2 BLEU over all prior ensembles at 3× less compute",
+      "content": "Transformer (big): **28.4 BLEU** vs. ConvS2S Ensemble best prior: 26.36. Delta: **+2.04 BLEU** — a very large improvement in MT. Training cost: $2.3 \\times 10^{19}$ FLOPs vs. $7.7 \\times 10^{19}$ for ConvS2S Ensemble (**3.3× cheaper**). Even Transformer (base): 27.3 BLEU at $3.3 \\times 10^{18}$ FLOPs — **23× cheaper** than the ConvS2S Ensemble while still outperforming it. The efficiency-quality combination is arguably the paper's most important contribution.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 2050 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_028",
+      "template": "result",
+      "title": "EN→FR: 41.8 BLEU at 1/6 the cost of prior best single model",
+      "content": "Transformer (big): **41.8 BLEU** on WMT 2014 EN→FR newstest2014, surpassing all prior single models. Training cost: $2.3 \\times 10^{19}$ FLOPs vs. GNMT+RL (prior best single model) at $1.4 \\times 10^{20}$ FLOPs — approximately **6× cheaper**. Note: the EN→FR big model used $P_{drop}=0.1$ (vs. 0.3 for EN→DE) — the dropout rate required task-specific tuning, suggesting regularization is not free of language-pair-specific hyperparameter search.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 2160 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_029",
+      "template": "question",
+      "title": "BLEU as a proxy: what does it miss?",
+      "content": "BLEU (Papineni et al., 2002) measures n-gram overlap (n=1..4) between hypothesis and references, penalizing short outputs. Known weaknesses: (1) penalizes valid paraphrases that don't overlap n-grams with references; (2) insensitive to semantic equivalence across different surface forms; (3) corpus-level metric — high BLEU can hide sentence-level failures. The paper uses BLEU as the *sole* evaluation metric. Later work (BERTScore, COMET, BLEURT) showed embedding-based metrics correlate better with human judgment. Meta-evaluation studies suggest Transformer improvements are *even larger* under semantic metrics than BLEU suggests.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 2270 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_030",
+      "template": "gap",
+      "title": "Impact: Transformer as the universal architecture",
+      "content": "As of 2024, virtually every state-of-the-art model in NLP, vision, audio, protein structure prediction, code generation, and multimodal AI is a Transformer variant. Key milestones this paper enabled: BERT (2018, encoder-only), GPT series (decoder-only), T5 (encoder-decoder at scale), ViT (vision), AlphaFold 2 (protein), Whisper (speech), DALL-E / Stable Diffusion (vision-language). The quadratic $O(n^2)$ attention cost is the main ongoing research bottleneck — efficient attention (FlashAttention, linear attention, Mamba/SSM hybrids) remains an active area.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 2350 },
+      "children": [],
+      "images": [],
+      "links": []
+    },
+    {
+      "id": "node_031",
+      "template": "reference",
+      "title": "Code: tensorflow/tensor2tensor → Hugging Face",
+      "content": "Original release: github.com/tensorflow/tensor2tensor (TensorFlow). Was the dominant research codebase 2017–2019. Replaced by: Mesh TensorFlow → Trax (Google). The ecosystem shift to PyTorch meant most practitioners now use Hugging Face Transformers library (2019–present), which provides pretrained weights and training infrastructure. NVIDIA's Megatron-LM and Microsoft's DeepSpeed added model parallelism for billion-parameter scale. The original tensor2tensor code remains historically significant but is rarely used directly.",
+      "original": {
+        "text": "The code we used to train and evaluate our models is available at https://github.com/tensorflow/tensor2tensor.",
+        "location": "§7, p.10"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": { "x": 450, "y": 2460 },
+      "children": [],
+      "images": [],
+      "links": []
+    }
+  ],
+  "edges": [
+    { "id": "edge_001", "source": "node_001", "target": "node_002", "type": "arrow", "label": "" },
+    { "id": "edge_002", "source": "node_002", "target": "node_003", "type": "arrow", "label": "" },
+    { "id": "edge_003", "source": "node_003", "target": "node_004", "type": "arrow", "label": "" },
+    { "id": "edge_004", "source": "node_004", "target": "node_005", "type": "arrow", "label": "" },
+    { "id": "edge_005", "source": "node_005", "target": "node_006", "type": "arrow", "label": "" },
+    { "id": "edge_006", "source": "node_006", "target": "node_007", "type": "arrow", "label": "" },
+    { "id": "edge_007", "source": "node_007", "target": "node_008", "type": "arrow", "label": "" },
+    { "id": "edge_008", "source": "node_008", "target": "node_009", "type": "arrow", "label": "" },
+    { "id": "edge_009", "source": "node_001", "target": "node_010", "type": "line", "label": "" },
+    { "id": "edge_010", "source": "node_001", "target": "node_011", "type": "line", "label": "" },
+    { "id": "edge_011", "source": "node_002", "target": "node_012", "type": "line", "label": "" },
+    { "id": "edge_012", "source": "node_002", "target": "node_013", "type": "line", "label": "" },
+    { "id": "edge_013", "source": "node_002", "target": "node_014", "type": "line", "label": "" },
+    { "id": "edge_014", "source": "node_003", "target": "node_015", "type": "line", "label": "" },
+    { "id": "edge_015", "source": "node_003", "target": "node_016", "type": "line", "label": "" },
+    { "id": "edge_016", "source": "node_003", "target": "node_017", "type": "line", "label": "" },
+    { "id": "edge_017", "source": "node_004", "target": "node_018", "type": "line", "label": "" },
+    { "id": "edge_018", "source": "node_004", "target": "node_019", "type": "line", "label": "" },
+    { "id": "edge_019", "source": "node_004", "target": "node_020", "type": "line", "label": "" },
+    { "id": "edge_020", "source": "node_005", "target": "node_021", "type": "line", "label": "" },
+    { "id": "edge_021", "source": "node_005", "target": "node_022", "type": "line", "label": "" },
+    { "id": "edge_022", "source": "node_006", "target": "node_023", "type": "line", "label": "" },
+    { "id": "edge_023", "source": "node_006", "target": "node_024", "type": "line", "label": "" },
+    { "id": "edge_024", "source": "node_007", "target": "node_025", "type": "line", "label": "" },
+    { "id": "edge_025", "source": "node_007", "target": "node_026", "type": "line", "label": "" },
+    { "id": "edge_026", "source": "node_008", "target": "node_027", "type": "line", "label": "" },
+    { "id": "edge_027", "source": "node_008", "target": "node_028", "type": "line", "label": "" },
+    { "id": "edge_028", "source": "node_008", "target": "node_029", "type": "line", "label": "" },
+    { "id": "edge_029", "source": "node_009", "target": "node_030", "type": "line", "label": "" },
+    { "id": "edge_030", "source": "node_009", "target": "node_031", "type": "line", "label": "" }
+  ],
+  "viewport": {
+    "x": 0,
+    "y": 0,
+    "zoom": 0.8
+  }
+}

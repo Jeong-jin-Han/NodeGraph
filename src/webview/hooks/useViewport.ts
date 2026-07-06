@@ -36,7 +36,7 @@ export function useViewport(initial: Viewport = { x: 0, y: 0, zoom: 1 }) {
   // viewport 상태와 무관하게 ref에서 최신값 읽으므로 deps 불필요
   const onMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const vp = viewportRef.current
-    if (e.button === 2) {
+    if (e.button === 0) {
       e.preventDefault()
       panState.current = {
         startX: e.clientX, startY: e.clientY,
@@ -57,7 +57,7 @@ export function useViewport(initial: Viewport = { x: 0, y: 0, zoom: 1 }) {
   }, [])
 
   const onMouseUp = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.button === 2) { panState.current = null; setCursor('default') }
+    if (e.button === 0) { panState.current = null; setCursor('default') }
   }, [])
 
   const onMouseLeave = useCallback(() => {

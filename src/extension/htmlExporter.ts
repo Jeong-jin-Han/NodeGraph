@@ -224,14 +224,13 @@ button:hover{background:#e8e8e8;border-color:#aaa}
 #viewport.pan-drag{cursor:grabbing}
 #canvas{position:absolute;transform-origin:0 0}
 #wire-svg{position:absolute;top:0;left:0;width:10000px;height:10000px;pointer-events:none;overflow:visible}
-.ng-node{position:absolute;min-width:220px;max-width:500px;overflow:hidden;background:color-mix(in srgb,var(--color) 10%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-.ng-has-table{max-width:none}
+.ng-node{position:absolute;min-width:220px;background:color-mix(in srgb,var(--color) 10%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .ng-node.ng-selected{box-shadow:0 0 0 2px color-mix(in srgb,var(--color) 80%,transparent),0 2px 8px rgba(0,0,0,.12)}
 .ng-node.ng-dragging{opacity:.88;transition:box-shadow .1s;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:100}
 .ng-header{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;user-select:none}
 .ng-header:hover{background:rgba(0,0,0,.04)}
 .ng-tag{font-size:10px;font-weight:600;padding:2px 6px;border-radius:3px;flex-shrink:0;white-space:nowrap}
-.ng-title{flex:1;font-size:13px;font-weight:500;color:#1a1a1a;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.ng-title{flex:1;font-size:13px;font-weight:500;color:#1a1a1a;white-space:nowrap}
 .ng-chevron{font-size:9px;opacity:.5;flex-shrink:0;padding:2px 4px;border-radius:2px}
 .ng-chevron:hover{background:rgba(0,0,0,.08);opacity:.9}
 .ng-body{padding:8px 10px 10px;font-size:12px}
@@ -579,14 +578,13 @@ function recomputePositions() {
         var oW = otherEl ? otherEl.offsetWidth : 300;
         if (!(n.lx < other.lx + oW && other.lx < n.lx + nW)) return;
         if (nIsMain) {
-          // Rounded → main: skip only if descendant AND doesn't actually reach this node's Y
+          // Rounded → main: skip only if descendant AND doesn't reach this node's Y
           if (isDescendantOf(other.id, n.id) && otherBottom <= n.ly) return;
           var wasPushed = otherY > other.ly;
           if (!other.contentExpanded && !wasPushed) return;
           y = Math.max(y, otherBottom + 48);
         } else {
-          var wasPushed = otherY > other.ly;
-          if (!other.contentExpanded && !wasPushed) return;
+          // Sub → sub: always push when X ranges overlap, regardless of expand state
           var gap = (rootOf(other.id) === rootOf(n.id)) ? 20 : 48;
           y = Math.max(y, otherBottom + gap);
         }

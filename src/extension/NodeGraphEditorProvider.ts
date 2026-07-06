@@ -123,6 +123,16 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
         }
       } else if (msg.type === 'deleteImageFile') {
         await deleteImageFile(document.uri, msg.filename)
+      } else if (msg.type === 'reload') {
+        try {
+          const bytes = await vscode.workspace.fs.readFile(document.uri)
+          const text = Buffer.from(bytes).toString('utf-8')
+          const data: NodeGraph = JSON.parse(text)
+          const imageUris = computeImageUris(webviewPanel.webview, document.uri, data)
+          webviewPanel.webview.postMessage({ type: 'load', data, imageUris })
+        } catch {
+          sendGraph('load')
+        }
       }
     })
 

@@ -1,4 +1,4 @@
 tmp/
 test/
 test-demo/
-test-demo-v2/
+# test-demo-v2 is intentionally tracked — serves as a reference example for AI agents

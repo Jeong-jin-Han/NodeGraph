@@ -563,6 +563,10 @@ export function useGraph() {
     })
   }, [])
 
+  const reload = useCallback(() => {
+    vscode.postMessage({ type: 'reload' })
+  }, [])
+
   return {
     graph, imageUris,
     updateNodePosition, autoSaveNodePosition, toggleContent, toggleOriginal,
@@ -572,7 +576,7 @@ export function useGraph() {
     setNodeWidth, setNodeHeight, setNodeFontSize, bumpFontSize, setFontSizeExact, pushHistory,
     collapseAll, expandAll, expandNodes, collapseNodes, setNodeTemplate, addOriginal, addLink, deleteLink, openLink, exportHtml,
     undo, redo, canUndo, canRedo,
-    saveGraph, setGraph,
+    saveGraph, setGraph, reload,
     addCanvasImage, addFilenameToNode, saveCanvasImage, updateCanvasImage, removeCanvasImage, moveCanvasImageToNode,
     lastAddedCanvasImageId,
   }

@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Attention Is All You Need</title>
+<!-- KaTeX for LaTeX rendering -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16/dist/contrib/auto-render.min.js"
+  onload="initKatex()"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f4f4f5;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden;height:100vh}
+#toolbar{position:fixed;top:0;left:0;right:0;background:#ffffff;border-bottom:1px solid #d4d4d4;z-index:200;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+#tb-row1{display:flex;align-items:baseline;gap:10px;padding:6px 12px 4px;border-bottom:1px solid #ececec;min-height:0}
+#tb-row2{display:flex;align-items:center;gap:6px;padding:3px 12px 4px}
+#tb-title{font-weight:700;color:#1a1a1a;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw}
+#tb-source{opacity:.5;font-size:11px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tb-sel{opacity:.7;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#0066cc}
+button{background:#fff;color:#1a1a1a;border:1px solid #c0c0c0;border-radius:3px;padding:2px 10px;font-size:11px;cursor:pointer;flex-shrink:0}
+button:hover{background:#e8e8e8;border-color:#aaa}
+.tb-sep{width:1px;height:14px;background:#d4d4d4;flex-shrink:0}
+#viewport{position:fixed;top:0;left:0;right:0;bottom:0;overflow:hidden;cursor:grab}
+#viewport.pan-drag{cursor:grabbing}
+#canvas{position:absolute;transform-origin:0 0}
+#wire-svg{position:absolute;top:0;left:0;width:10000px;height:10000px;pointer-events:none;overflow:visible}
+.ng-node{position:absolute;min-width:220px;background:color-mix(in srgb,var(--color) 10%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.ng-node.ng-selected{box-shadow:0 0 0 2px color-mix(in srgb,var(--color) 80%,transparent),0 2px 8px rgba(0,0,0,.12)}
+.ng-node.ng-dragging{opacity:.88;transition:box-shadow .1s;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:100}
+.ng-header{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;user-select:none}
+.ng-header:hover{background:rgba(0,0,0,.04)}
+.ng-tag{font-size:10px;font-weight:600;padding:2px 6px;border-radius:3px;flex-shrink:0;white-space:nowrap}
+.ng-title{flex:1;font-size:13px;font-weight:500;color:#1a1a1a;white-space:nowrap}
+.ng-chevron{font-size:9px;opacity:.5;flex-shrink:0;padding:2px 4px;border-radius:2px}
+.ng-chevron:hover{background:rgba(0,0,0,.08);opacity:.9}
+.ng-body{padding:8px 10px 10px;font-size:12px}
+.ng-content{line-height:1.6;color:#333;white-space:pre-wrap;word-break:break-word;margin-bottom:6px}
+.ng-seg{white-space:pre-wrap;word-break:break-word;line-height:1.6;color:#333}
+.ng-img-wrap{margin:4px 0}
+.ng-table-wrap{overflow-x:auto;margin:6px 0}
+.ng-table{border-collapse:collapse;background:#fff;font-size:inherit;white-space:normal}
+.ng-table th{padding:5px 10px;border:1px solid #ddd;background:#f8f9fa;font-weight:600;text-align:left;vertical-align:top;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word}
+.ng-table td{padding:5px 10px;border:1px solid #ddd;vertical-align:top;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word}
+.ng-images{margin-top:6px;display:flex;flex-direction:column;gap:6px}
+.ng-img{max-width:100%;border-radius:3px;border:1px solid rgba(0,0,0,.1);display:block;cursor:zoom-in}
+.ng-img-sized{max-width:none}
+.ng-img-missing{font-size:10px;opacity:.4;padding:3px 6px;background:rgba(0,0,0,.05);border-radius:3px}
+details.ng-original{margin-top:6px}
+details.ng-original summary{cursor:pointer;opacity:.6;list-style:none;padding:2px 0;user-select:none;color:#555}
+details.ng-original summary::-webkit-details-marker{display:none}
+.ng-loc{opacity:.55;font-size:10px;margin-left:4px}
+.ng-orig-text{margin-top:4px;padding:5px 7px;background:rgba(0,0,0,.04);border-radius:3px;font-style:italic;line-height:1.5;color:#555;white-space:pre-wrap;word-break:break-word;font-size:11px}
+details.ng-toggle{margin-top:3px}
+details.ng-toggle summary{cursor:pointer;list-style:none;padding:2px 0;user-select:none;color:#444}
+details.ng-toggle summary::-webkit-details-marker{display:none}
+.ng-toggle-body{padding-left:12px;padding-top:3px;line-height:1.6;color:#333;white-space:pre-wrap;word-break:break-word}
+.ng-links{margin-top:6px;display:flex;flex-direction:column;gap:2px}
+.ng-link{color:#0066cc;text-decoration:none;font-size:11px;opacity:.85}
+.ng-link:hover{opacity:1;text-decoration:underline}
+/* KaTeX */
+.katex{color:inherit}.katex-display{overflow-x:auto;overflow-y:hidden}.katex-html{white-space:nowrap}
+/* Lightbox */
+#lightbox{display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.75);align-items:center;justify-content:center;cursor:zoom-out}
+#lightbox.active{display:flex}
+#lightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:4px;box-shadow:0 4px 32px rgba(0,0,0,.4);cursor:default}
+#lightbox-close{position:absolute;top:16px;right:20px;color:#fff;font-size:22px;opacity:.8;cursor:pointer;user-select:none}
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <div id="tb-row1">
+    <span id="tb-title">Attention Is All You Need</span>
+    <span id="tb-source">Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, Illia Polosukhin · NeurIPS 2017 (NIPS), Long Beach, CA, USA</span>
+  </div>
+  <div id="tb-row2">
+    <button onclick="fitView()">Fit View</button>
+    <div class="tb-sep"></div>
+    <button onclick="doExpand()" title="Expand selected node + children (all if none selected)">Expand↓</button>
+    <button onclick="doCollapse()" title="Collapse selected node + children (all if none selected)">Collapse↑</button>
+    <div class="tb-sep"></div>
+    <span id="tb-sel" style="opacity:.35">Click a node to select</span>
+  </div>
+</div>
+<div id="viewport">
+  <div id="canvas">
+    <svg id="wire-svg">
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0,10 3.5,0 7" fill="#666"/>
+        </marker>
+      </defs>
+    </svg>
+    <div class="ng-node" id="node-node_001" data-children="node_010,node_011" style="--color:#4B8BBE;border-radius:2px;left:100px;top:150px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title">Background &amp; Motivation</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  </div>
+  <div class="ng-body"><div class="ng-content">Dominant sequence transduction models (LSTM, GRU) process tokens sequentially, generating hidden states $h_t = f(h_{t-1}, x_t)$. This recurrence **prevents parallelization during training** and forces gradient signals to traverse $O(n)$ steps for long-range dependencies.<br><br>Attention mechanisms had already existed, but were always used *alongside* RNNs as a soft alignment add-on (Bahdanau et al., 2014). The Transformer is the first architecture to rely **entirely on attention**, discarding recurrence and convolutions entirely — allowing full parallelization and $O(1)$ path length between any two positions.</div><details class="ng-original"><summary>Original <span class="ng-loc">§1, p.1</span></summary>
+<div class="ng-orig-text">Recurrent models typically factor computation along the symbol positions of the input and output sequences... This inherently sequential nature precludes parallelization within training examples, which becomes critical at longer sequence lengths.</div></details></div>
+</div>
+<div class="ng-node" id="node-node_002" data-children="node_012,node_013,node_014" style="--color:#4B8BBE;border-radius:2px;left:100px;top:450px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title">Model Architecture: Encoder-Decoder Stacks</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  </div>
+  <div class="ng-body"><div class="ng-content">The Transformer uses an **encoder-decoder** structure (Fig. 1). Both encoder and decoder are stacks of $N=6$ identical layers.<br><br>**Encoder**: Each layer has two sublayers — (1) multi-head self-attention, (2) position-wise FFN. Each sublayer is wrapped with residual connection + layer norm:<br>$$\text{output} = \text{LayerNorm}(x + \text{Sublayer}(x))$$<br>All sublayers and embeddings produce dimension $d_{\text{model}} = 512$.<br><br>**Decoder**: Same 6-layer stack, but adds a **third sublayer** for cross-attention over encoder output. Self-attention in the decoder is **causally masked** (upper-triangle set to $-\infty$) to preserve the auto-regressive property.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.1, p.3</span></summary>
+<div class="ng-orig-text">The encoder is composed of a stack of N=6 identical layers. Each layer has two sub-layers... We employ a residual connection around each of the two sub-layers, followed by layer normalization.</div></details></div>
+</div>
+<div class="ng-node" id="node-node_003" data-children="node_015,node_016,node_017" style="--color:#4B8BBE;border-radius:2px;left:100px;top:750px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title">Scaled Dot-Product Attention</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  </div>
+  <div class="ng-body"><div class="ng-content">The attention function maps a query and a set of key-value pairs to an output — a weighted sum of values where the weight is the compatibility of the query with each key:<br><br>$$\text{Attention}(Q,K,V) = \text{softmax}\!\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$<br><br>$Q \in \mathbb{R}^{n \times d_k}$, $K \in \mathbb{R}^{m \times d_k}$, $V \in \mathbb{R}^{m \times d_v}$. The scaling factor $\tfrac{1}{\sqrt{d_k}}$ prevents large dot-product magnitudes from saturating the softmax (see §3.2.1 footnote). Compared to additive attention (which uses a feed-forward net for compatibility), dot-product attention is faster and more space-efficient via matrix multiplication, with identical quality after scaling.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2.1, p.4</span></summary>
+<div class="ng-orig-text">We call our particular attention 'Scaled Dot-Product Attention'. The input consists of queries and keys of dimension d_k, and values of dimension d_v.</div></details></div>
+</div>
+<div class="ng-node" id="node-node_004" data-children="node_018,node_019,node_020" style="--color:#4B8BBE;border-radius:2px;left:100px;top:1050px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title">Multi-Head Attention</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  </div>
+  <div class="ng-body"><div class="ng-content">Instead of one attention function over $d_{\text{model}}$-dimensional vectors, the model **projects Q, K, V $h$ times** into smaller subspaces and runs attention in parallel:<br><br>$$\text{MultiHead}(Q,K,V) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h)\, W^O$$<br>$$\text{head}_i = \text{Attention}(QW_i^Q,\; KW_i^K,\; VW_i^V)$$<br><br>Projection matrices: $W_i^Q, W_i^K \in \mathbb{R}^{d_{\text{model}} \times d_k}$, $W_i^V \in \mathbb{R}^{d_{\text{model}} \times d_v}$, $W^O \in \mathbb{R}^{hd_v \times d_{\text{model}}}$.<br><br>In this work: $h=8$, $d_k = d_v = d_{\text{model}}/h = 512/8 = 64$. Total compute matches single-head full-dim attention (each head is cheaper; combined they are equivalent).</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2.2, p.4</span></summary>
+<div class="ng-orig-text">Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions. With a single attention head, averaging inhibits this.</div></details></div>
+</div>
+<div class="ng-node" id="node-node_005" data-children="node_021,node_022" style="--color:#4B8BBE;border-radius:2px;left:100px;top:1350px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title">FFN, Embeddings &amp; Positional Encoding</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  </div>
+  <div class="ng-body"><div class="ng-content">**Position-wise FFN** (applied identically and independently to each position):<br>$$\text{FFN}(x) = \max(0,\; xW_1 + b_1)\,W_2 + b_2$$<br>$d_{\text{model}} = 512 \to d_{ff} = 2048 \to 512$. Equivalent to two convolutions with kernel size 1.<br><br>**Positional Encoding** (sinusoidal, fixed — no learned parameters):<br>$$PE_{(pos,\,2i)} = \sin\!\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right), \qquad PE_{(pos,\,2i+1)} = \cos\!\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right)$$<br><br>Wavelengths form a geometric progression from $2\pi$ to $10000 \cdot 2\pi$. The key property: for any fixed offset $k$, $PE_{pos+k}$ is a linear function of $PE_{pos}$ (via angle-addition), allowing the model to attend by relative offset. Learned embeddings gave nearly identical results (Table 3, row E).</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.5, p.6</span></summary>
+<div class="ng-orig-text">Since our model contains no recurrence and no convolution, in order for the model to make use of the order of the sequence, we must inject some information about the relative or absolute position of the tokens.</div></details></div>
+</div>
+<div class="ng-node" id="node-node_006" data-children="node_023,node_024" style="--color:#4B8BBE;border-radius:2px;left:100px;top:1650px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title">Why Self-Attention? Complexity Analysis</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  </div>
+  <div class="ng-body"><div class="ng-content">Three criteria motivate self-attention over recurrent/convolutional layers:<br>1. **Complexity per layer** — total compute<br>2. **Parallelizable operations** — minimum sequential steps (bottleneck for training speed)<br>3. **Maximum path length** — shorter paths = easier long-range dependency learning<br><br>Self-attention: $O(n^2 \cdot d)$ compute, $O(1)$ sequential, $O(1)$ path. Recurrent: $O(n \cdot d^2)$ compute, $O(n)$ sequential, $O(n)$ path. Self-attention is better when $n &lt; d$ — true for typical sentence-level NLP where $n \approx 50{-}200$ and $d_{\text{model}} = 512$. For very long sequences ($n \gg d$), self-attention becomes the bottleneck.</div><details class="ng-original"><summary>Original <span class="ng-loc">§4, p.6</span></summary>
+<div class="ng-orig-text">In this section we compare various aspects of self-attention layers to the recurrent and convolutional layers commonly used for mapping one variable-length sequence of symbol representations... Motivating our use of self-attention we consider three desiderata.</div></details><details class="ng-toggle"><summary>Table 1: Layer-Type Complexity Comparison</summary>
+<div class="ng-toggle-body">| Layer Type | Complexity / Layer | Sequential Ops | Max Path Length |<br>|---|---|---|---|<br>| Self-Attention | $O(n^2 \cdot d)$ | $O(1)$ | $O(1)$ |<br>| Recurrent | $O(n \cdot d^2)$ | $O(n)$ | $O(n)$ |<br>| Convolutional | $O(k \cdot n \cdot d^2)$ | $O(1)$ | $O(\log_k n)$ |<br>| Self-Attn (restricted, nbhd $r$) | $O(r \cdot n \cdot d)$ | $O(1)$ | $O(n/r)$ |<br><br>*n = sequence length, d = representation dim, k = conv kernel size, r = neighborhood size*</div></details></div>
+</div>
+<div class="ng-node" id="node-node_007" data-children="node_025,node_026" style="--color:#4B8BBE;border-radius:2px;left:100px;top:1950px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title">Training Setup</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  </div>
+  <div class="ng-body"><div class="ng-content">**Data**: WMT 2014 EN→DE (~4.5M sentence pairs, BPE vocab 37K shared source-target); EN→FR (36M pairs, word-piece vocab 32K). Batched by approximate sequence length; each batch ~25K source + 25K target tokens.<br><br>**Hardware**: 8× NVIDIA P100 GPUs. Base model: 100K steps at ~0.4 s/step (~12 hrs). Big model: 300K steps at ~1.0 s/step (~3.5 days).<br><br>**Optimizer**: Adam ($\beta_1=0.9$, $\beta_2=0.98$, $\epsilon=10^{-9}$) with warmup schedule:<br>$$lrate = d_{\text{model}}^{-0.5} \cdot \min(step^{-0.5},\; step \cdot warmup^{-1.5}), \quad warmup = 4000 \text{ steps}$$<br><br>**Regularization**: Residual Dropout ($P_{drop}=0.1$) on each sublayer output before Add &amp; Norm + on embedding sums. Label Smoothing ($\epsilon_{ls}=0.1$).</div><details class="ng-original"><summary>Original <span class="ng-loc">§5.2–5.3, p.7</span></summary>
+<div class="ng-orig-text">We trained our models on one machine with 8 NVIDIA P100 GPUs... We used the Adam optimizer with β1=0.9, β2=0.98 and ε=10^{−9}. We varied the learning rate over the course of training, according to the formula lrate = d_model^{−0.5}·min(step_num^{−0.5}, step_num·warmup_steps^{−1.5}).</div></details></div>
+</div>
+<div class="ng-node" id="node-node_008" data-children="node_027,node_028,node_029" style="--color:#4B8BBE;border-radius:2px;left:100px;top:2250px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title">Results: Machine Translation</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  </div>
+  <div class="ng-body"><div class="ng-content">**EN→DE (newstest2014)**: Transformer (big) achieves **28.4 BLEU**, surpassing all prior models including ensembles by **&gt;2.0 BLEU**. Prior best: ConvS2S Ensemble at 26.36. Training cost: $2.3 \times 10^{19}$ FLOPs vs. $7.7 \times 10^{19}$ for ConvS2S Ensemble.<br><br>**EN→FR (newstest2014)**: **41.8 BLEU**, surpassing all prior single models at **less than 1/4 the training cost** of GNMT+RL ($1.4 \times 10^{20}$ FLOPs).<br><br>**Constituency Parsing** (WSJ §23 F1): 4-layer Transformer achieves **92.7** (semi-supervised), outperforming all RNN seq2seq baselines and matching specialized parsers — demonstrating task generalization.</div><details class="ng-original"><summary>Original <span class="ng-loc">§6.1, p.8</span></summary>
+<div class="ng-orig-text">On the WMT 2014 English-to-German translation task, the big transformer model outperforms the best previously reported models, including ensembles, by more than 2.0 BLEU, establishing a new state-of-the-art BLEU score of 28.4.</div></details><details class="ng-toggle"><summary>Table 2: BLEU vs Training Cost (from paper)</summary>
+<div class="ng-toggle-body">| Model | EN-DE BLEU | EN-FR BLEU | FLOPs EN-DE | FLOPs EN-FR |<br>|---|---|---|---|---|<br>| ByteNet | 23.75 | — | — | — |<br>| GNMT + RL | 24.6 | 39.92 | $2.3\times10^{19}$ | $1.4\times10^{20}$ |<br>| ConvS2S | 25.16 | 40.46 | $9.6\times10^{18}$ | $1.5\times10^{20}$ |<br>| MoE | 26.03 | 40.56 | $2.0\times10^{19}$ | $1.2\times10^{20}$ |<br>| ConvS2S Ensemble | 26.36 | 41.29 | $7.7\times10^{19}$ | $1.2\times10^{21}$ |<br>| **Transformer (base)** | 27.3 | 38.1 | $\mathbf{3.3\times10^{18}}$ | — |<br>| **Transformer (big)** | **28.4** | **41.8** | $2.3\times10^{19}$ | — |</div></details><details class="ng-toggle"><summary>Table 3: Ablation Study (EN-DE dev set, newstest2013)</summary>
+<div class="ng-toggle-body">| Variant | N | $d_{\text{model}}$ | h | $d_k$ | PPL(dev) | BLEU(dev) | Params(M) |<br>|---|---|---|---|---|---|---|---|<br>| **base** | 6 | 512 | 8 | 64 | 4.92 | 25.8 | 65 |<br>| (A) h=1 | — | — | 1 | 512 | 5.29 | 24.9 | — |<br>| (A) h=4 | — | — | 4 | 128 | 5.00 | 25.5 | — |<br>| (A) h=32 | — | — | 32 | 16 | 5.01 | 25.4 | — |<br>| (B) $d_k$=16 | — | — | — | 16 | 5.16 | 25.1 | 58 |<br>| (C) N=2 | 2 | — | — | — | 6.11 | 23.7 | 36 |<br>| (C) $d_{\text{model}}$=1024 | — | 1024 | — | — | 4.66 | 26.0 | 168 |<br>| (D) no dropout | — | — | — | — | 5.77 | 24.6 | — |<br>| (E) learned PE | — | — | — | — | 4.92 | 25.7 | — |<br>| **big** | 6 | 1024 | 16 | — | **4.33** | **26.4** | 213 |</div></details></div>
+</div>
+<div class="ng-node" id="node-node_009" data-children="node_030,node_031" style="--color:#4B8BBE;border-radius:2px;left:100px;top:2550px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title">Conclusion &amp; Outlook</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  </div>
+  <div class="ng-body"><div class="ng-content">The Transformer is the **first sequence transduction model based entirely on self-attention**, replacing recurrent layers in encoder-decoder architectures. It achieves state-of-the-art EN→DE (28.4 BLEU) and EN→FR (41.8 BLEU) while training significantly faster (3.5 days on 8 P100s).<br><br>Beyond translation, it generalizes to English constituency parsing with minimal task-specific tuning (WSJ F1: 92.7 semi-supervised).<br><br>**Future directions named by authors**: extend to images, audio, video; local/restricted attention for long inputs; making generation less sequential. These were all realized within 2–4 years (ViT, Speech Transformer, Video Transformer, Longformer).</div><details class="ng-original"><summary>Original <span class="ng-loc">§7, p.10</span></summary>
+<div class="ng-orig-text">In this work, we presented the Transformer, the first sequence transduction model based entirely on attention... We are excited about the future of attention-based models and plan to apply them to other tasks.</div></details></div>
+</div>
+<div class="ng-node" id="node-node_010" style="--color:#E5A835;border-radius:22px;left:550px;top:100px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title">Why is sequential computation fundamentally limiting?</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">RNN hidden state $h_t = f(h_{t-1}, x_t)$ creates a strict dependency chain: step $t$ cannot start until step $t-1$ finishes. This means training time scales with sequence length even with unlimited hardware. More critically, for long-range dependencies, gradient must flow backward through $O(n)$ operations — leading to vanishing/exploding gradients. Recent work (factorization tricks, conditional computation in [21, 32]) reduces per-step cost but does not break the sequential bottleneck. Transformers reduce the path to $O(1)$ at the cost of $O(n^2)$ memory.</div><details class="ng-original"><summary>Original <span class="ng-loc">§1, p.1</span></summary>
+<div class="ng-orig-text">This inherently sequential nature precludes parallelization within training examples, which becomes critical at longer sequence lengths, as memory constraints limit batching across examples.</div></details></div>
+</div>
+<div class="ng-node" id="node-node_011" style="--color:#E24B4A;border-radius:22px;left:550px;top:220px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#E24B4A 22%,transparent);color:#E24B4A">Gap / Idea</span>
+    <span class="ng-title">Key novelty: attention as the sole mechanism, not a supplement</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">Bahdanau et al. (2014) introduced attention for NMT, but used BiRNN encoder + RNN decoder. Attention there was a soft alignment mechanism over RNN hidden states — it did not eliminate sequential computation. Transformer's novelty is treating attention as the *primary* (and sole) representational mechanism. This allows every layer to be fully parallelized. The paper is not the first to use attention — it is the first to use *only* attention.</div><details class="ng-original"><summary>Original <span class="ng-loc">§1, p.1</span></summary>
+<div class="ng-orig-text">In all but a few cases, however, such attention mechanisms are used in conjunction with a recurrent network. In this work we propose the Transformer, a model architecture eschewing recurrence and instead relying entirely on an attention mechanism.</div></details></div>
+</div>
+<div class="ng-node" id="node-node_012" style="--color:#2E86AB;border-radius:2px;left:550px;top:400px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#2E86AB 22%,transparent);color:#2E86AB">Method</span>
+    <span class="ng-title">Residual + LayerNorm: why it matters</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">Each sublayer output: $\text{LayerNorm}(x + \text{Sublayer}(x))$. The residual connection (He et al., 2016) ensures that gradients flow directly through the network without vanishing, allowing deep stacks (N=6) to train stably. LayerNorm (Ba et al., 2016) normalizes over the *feature* dimension (unlike BatchNorm which normalizes over the batch), making it more suitable for variable-length sequences and small batches. The residual constraint forces $d_{\text{model}} = 512$ uniformly across all sublayers.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.1, p.3</span></summary>
+<div class="ng-orig-text">We employ a residual connection around each of the two sub-layers, followed by layer normalization. That is, the output of each sub-layer is LayerNorm(x + Sublayer(x)).</div></details></div>
+</div>
+<div class="ng-node" id="node-node_013" style="--color:#2E86AB;border-radius:2px;left:550px;top:490px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#2E86AB 22%,transparent);color:#2E86AB">Method</span>
+    <span class="ng-title">Causal masking in decoder: enforcing auto-regression</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">At inference time, the decoder generates one token at a time: position $i$ sees only tokens $1, \ldots, i-1$. During training (teacher forcing), all target positions are available simultaneously — without masking, the model could simply copy future tokens via self-attention. The fix: set all upper-triangular entries of the $n \times n$ attention score matrix to $-\infty$ before softmax, giving them zero weight. Output embeddings are also shifted right by one position (prepend `&lt;BOS&gt;`) so that target token at position $i$ predicts the $(i+1)$-th token.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.1, p.3</span></summary>
+<div class="ng-orig-text">We also modify the self-attention sub-layer in the decoder stack to prevent positions from attending to subsequent positions. This masking, combined with fact that the output embeddings are offset by one position, ensures that the predictions for position i can depend only on the known outputs at positions less than i.</div></details></div>
+</div>
+<div class="ng-node" id="node-node_014" style="--color:#E5A835;border-radius:22px;left:550px;top:580px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title">Why N=6? Is this a principled choice or trial-and-error?</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">The paper provides no theoretical justification for N=6. Table 3 (row C) shows: N=2 → 23.7 BLEU, N=4 → 25.3, N=6 (base) → 25.8. The gains diminish, but there is no ablation for N=8 or N=12. The 'big' model keeps N=6 but increases width ($d_{\text{model}}=1024$), suggesting the authors prioritized width over depth at this scale. This is consistent with the observation in many architectures that beyond a certain depth, additional layers provide diminishing returns without LR or regularization tuning.</div></div>
+</div>
+<div class="ng-node" id="node-node_015" style="--color:#3A506B;border-radius:2px;left:550px;top:700px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#3A506B 22%,transparent);color:#3A506B">Claim</span>
+    <span class="ng-title">Scaling by 1/√d_k prevents softmax saturation</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">If $q_i, k_i \overset{\text{i.i.d.}}{\sim} \mathcal{N}(0, 1)$, then the dot product $q \cdot k = \sum_{i=1}^{d_k} q_i k_i$ has mean 0 and **variance $d_k$** (standard deviation $\sqrt{d_k}$). For large $d_k$ (e.g., $d_k = 512$), dot products have typical magnitude $\sim 22$, pushing softmax outputs toward one-hot distributions with near-zero gradients almost everywhere. Dividing by $\sqrt{d_k}$ restores variance to 1, keeping the softmax input in its well-gradient regime. Without this scaling, training diverges for larger $d_k$.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2.1, footnote 4, p.4</span></summary>
+<div class="ng-orig-text">We suspect that for large values of d_k, the dot products grow large in magnitude, pushing the softmax function into regions where it has extremely small gradients.</div></details></div>
+</div>
+<div class="ng-node" id="node-node_016" style="--color:#E5A835;border-radius:22px;left:550px;top:810px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title">Q/K/V roles are the author's intent — does training actually enforce them?</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">The authors describe Q (what to look for), K (what is available), V (content to retrieve) as conceptually distinct roles. But Q, K, V are simply outputs of three learned linear projections $W^Q, W^K, W^V$ from the same input embedding. The loss function (cross-entropy over next tokens) places no explicit constraint on *how* these matrices should differ.<br><br>**Concern**: The network could learn to set $W^Q \approx W^K \approx W^V$ if that minimizes loss. Or it could learn completely entangled representations that happen to be expressive — the Q/K/V framing being a post-hoc interpretation. Appendix A shows attention heads that appear to track anaphora or syntax, but correlation is not causation.<br><br>**Partial answer**: The symmetry between Q and K is broken structurally — the softmax over $QK^T$ is not symmetric, so K appears in the exponent while Q selects the distribution. V is summed with attention weights, not used for matching. These structural asymmetries provide an inductive bias, but do not *guarantee* the intended role specialization.</div></div>
+</div>
+<div class="ng-node" id="node-node_017" style="--color:#E24B4A;border-radius:22px;left:550px;top:920px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#E24B4A 22%,transparent);color:#E24B4A">Gap / Idea</span>
+    <span class="ng-title">Dot-product vs. additive attention: where does scaling fail?</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">Additive attention (Bahdanau 2014): $\text{score}(q, k) = v^T \tanh(W_1 q + W_2 k)$ — uses a feed-forward net; output is bounded by $\tanh$ so no saturation problem. Dot-product attention without scaling underperforms additive attention for large $d_k$ (Britz et al., 2017). With $1/\sqrt{d_k}$ scaling it matches additive quality while being $\sim 10\times$ faster due to matrix multiply hardware. However, simple dot product may fail for highly non-linear compatibility functions — this is an open question for complex structured reasoning tasks where attention patterns are not simply low-dimensional.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2.1, p.4</span></summary>
+<div class="ng-orig-text">While the two are similar in theoretical complexity, dot-product attention is much faster and more space-efficient in practice, since it can be implemented using highly optimized matrix multiplication code.</div></details></div>
+</div>
+<div class="ng-node" id="node-node_018" style="--color:#2E86AB;border-radius:2px;left:550px;top:1000px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#2E86AB 22%,transparent);color:#2E86AB">Method</span>
+    <span class="ng-title">Three applications of attention in the Transformer</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">1. **Encoder self-attention**: Q, K, V all from the previous encoder layer. Each position attends to all positions in the previous layer → $O(1)$ max path, full context at every layer.<br>2. **Encoder-decoder cross-attention** (decoder layer 2): Q from previous decoder layer; K, V from encoder output. Allows each decoder position to attend over the full input sequence — the equivalent of soft alignment in seq2seq models.<br>3. **Decoder masked self-attention** (decoder layer 1): Q, K, V from previous decoder layer, with upper-triangular mask to $-\infty$. Maintains auto-regressive generation while still parallelizing training.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2.3, p.5</span></summary>
+<div class="ng-orig-text">The Transformer uses multi-head attention in three different ways...</div></details></div>
+</div>
+<div class="ng-node" id="node-node_019" style="--color:#E5A835;border-radius:22px;left:550px;top:1100px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title">Do the 8 heads actually learn different representations?</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">The paper claims heads attend to &quot;different representation subspaces&quot; but provides only qualitative evidence (attention visualizations in Appendix A). Key counter-evidence: Michel et al. (2019) showed that 70–80% of heads in a trained Transformer can be pruned at test time with minimal BLEU drop — suggesting many heads are redundant. Voita et al. (2019) confirmed with head importance scoring. The ablation (Table 3A) shows h=1 costs only 0.9 BLEU and h=32 also hurts slightly, suggesting there is a sweet spot around h=8 but not that each of the 8 heads is qualitatively indispensable.</div></div>
+</div>
+<div class="ng-node" id="node-node_020" style="--color:#3A506B;border-radius:2px;left:550px;top:1200px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#3A506B 22%,transparent);color:#3A506B">Claim</span>
+    <span class="ng-title">Multi-head compute is equivalent to single-head — benefit is diversity, not efficiency</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">With $h=8$ heads, each head operates on $d_k = d_v = 64$. Total multiply-add operations for attention score computation: $8 \times n^2 \times 64 = n^2 \times 512$ — identical to one-head attention at $d_k = 512$. So multi-head attention is **not** a free lunch computationally. The benefit is that projecting into $h$ subspaces allows the model to jointly attend to information from different representation subspaces — something single-head attention suppresses by averaging. The $W^O$ projection at the end recombines the $h$ outputs into $d_{\text{model}}$.</div></div>
+</div>
+<div class="ng-node" id="node-node_021" style="--color:#E5A835;border-radius:22px;left:550px;top:1300px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title">Can sinusoidal PE actually encode relative position?</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">The authors hypothesize that sinusoidal PE allows the model to attend by relative offsets. The mathematical basis: via angle-addition identities, $PE_{pos+k}$ is a *linear* function of $PE_{pos}$ for fixed $k$:<br>$$\sin(pos+k) = \sin(pos)\cos(k) + \cos(pos)\sin(k)$$<br>So relative position $k$ can be represented as a linear projection. But this requires the model to learn to apply that specific linear transformation — not guaranteed. Table 3 row E shows learned PE gives BLEU 25.7 vs. sinusoidal 25.8: indistinguishable. This suggests the specific PE form is not critical as long as unique position signals exist. The sinusoidal choice was motivated by extrapolation to longer sequences, but this too was not rigorously validated in the paper.</div></div>
+</div>
+<div class="ng-node" id="node-node_022" style="--color:#E24B4A;border-radius:22px;left:550px;top:1410px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#E24B4A 22%,transparent);color:#E24B4A">Gap / Idea</span>
+    <span class="ng-title">Absolute PE is a limitation → relative PE as successor</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">Absolute sinusoidal PE assigns a fixed vector to each absolute position index. This means: (1) model may not generalize to positions not seen during training; (2) the model must implicitly learn position-invariant operations despite receiving absolute signals. Shaw et al. (2018) introduced **Relative Position Representations** modifying attention to directly use offset $(i-j)$. Later: RoPE (Rotary Position Embedding, 2021) — applied as rotation to Q and K, making the dot product naturally encode relative distance; ALiBi (2022) — adds a linear bias to attention scores proportional to distance. These are now dominant in LLMs.</div></div>
+</div>
+<div class="ng-node" id="node-node_023" style="--color:#E24B4A;border-radius:22px;left:550px;top:1600px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#E24B4A 22%,transparent);color:#E24B4A">Gap / Idea</span>
+    <span class="ng-title">O(n²) attention: quadratic bottleneck for long sequences</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">Self-attention computes all $n^2$ pairwise scores per layer. For long documents (n=8192 tokens), memory alone requires $8192^2 \times \text{precision} \approx 256\text{MB per layer per head}$ — prohibitive for 8 heads × 6 layers. The paper mentions &quot;restricted self-attention&quot; (neighborhood of size $r$, reducing to $O(r \cdot n \cdot d)$) but does not implement it. This limitation spawned: Longformer (local + global attention), BigBird (random + local + global), Linformer (low-rank approximation $O(n)$), FlashAttention (IO-aware exact implementation, same O(n²) FLOPs but memory-efficient via tiling). The quadratic wall remains the central challenge for long-context LLMs.</div></div>
+</div>
+<div class="ng-node" id="node-node_024" style="--color:#3A506B;border-radius:2px;left:550px;top:1710px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#3A506B 22%,transparent);color:#3A506B">Claim</span>
+    <span class="ng-title">Attention weights as interpretability — and its limits</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">Unlike RNN hidden states, attention weights are directly observable $n \times n$ distributions. Appendix A shows heads that appear to track anaphora (head 5, layer 5) or syntactic distance. This interpretability is cited as a side benefit of self-attention. However, Jain &amp; Wallace (2019) showed that high attention weight does not imply causal importance: one can often replace the top-attended token with another and the output barely changes. This sparked the &quot;attention is not explanation&quot; debate. Gradient-based attribution methods (LIME, SHAP, Integrated Gradients) are considered more reliable for causal importance.</div><details class="ng-original"><summary>Original <span class="ng-loc">§4, p.7</span></summary>
+<div class="ng-orig-text">As side benefit, self-attention could yield more interpretable models... Not only do individual attention heads clearly learn to perform different tasks, many appear to exhibit behavior related to the syntactic and semantic structure of the sentences.</div></details></div>
+</div>
+<div class="ng-node" id="node-node_025" style="--color:#2E86AB;border-radius:2px;left:550px;top:1900px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#2E86AB 22%,transparent);color:#2E86AB">Method</span>
+    <span class="ng-title">Warmup LR schedule: why linear ramp is essential</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">The warmup schedule linearly increases LR from 0 to peak over 4000 steps, then decays as $1/\sqrt{step}$. Early in training, weight matrices $W^Q, W^K, W^V, W^O$ are randomly initialized — gradient magnitudes are large and noisy. Starting with a high LR causes the loss to diverge before the optimizer can find a stable direction. The 4000-step linear ramp allows the model to establish a coherent loss landscape first. The $d_{\text{model}}^{-0.5}$ normalization means larger models (bigger $d_{\text{model}}$) automatically get a smaller peak LR, an implicit form of scale-adaptive learning rate.</div></div>
+</div>
+<div class="ng-node" id="node-node_026" style="--color:#3A506B;border-radius:2px;left:550px;top:2010px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#3A506B 22%,transparent);color:#3A506B">Claim</span>
+    <span class="ng-title">Label smoothing: hurts perplexity but improves BLEU</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">Standard cross-entropy trains the model to assign all probability to the correct token (one-hot targets). Label smoothing ($\epsilon_{ls}=0.1$) replaces this with: $y_{smooth} = (1-\epsilon_{ls}) \cdot y_{\text{one-hot}} + \epsilon_{ls}/V$. The model is penalized for being overconfident, improving calibration. This **hurts perplexity** (cross-entropy on the true token increases because the model is forced to spread probability), but **improves BLEU** because calibrated uncertainty leads to better beam search diversity and more accurate translations. This counter-intuitive trade-off ($\uparrow$ perplexity, $\uparrow$ BLEU) is a recurring theme in generation models.</div><details class="ng-original"><summary>Original <span class="ng-loc">§5.4, p.8</span></summary>
+<div class="ng-orig-text">During training, we employed label smoothing of value ε_ls = 0.1. This hurts perplexity, as the model learns to be more unsure, but improves accuracy and BLEU score.</div></details></div>
+</div>
+<div class="ng-node" id="node-node_027" style="--color:#1B998B;border-radius:2px;left:550px;top:2200px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#1B998B 22%,transparent);color:#1B998B">Result</span>
+    <span class="ng-title">EN→DE: +2 BLEU over all prior ensembles at 3× less compute</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">Transformer (big): **28.4 BLEU** vs. ConvS2S Ensemble best prior: 26.36. Delta: **+2.04 BLEU** — a very large improvement in MT. Training cost: $2.3 \times 10^{19}$ FLOPs vs. $7.7 \times 10^{19}$ for ConvS2S Ensemble (**3.3× cheaper**). Even Transformer (base): 27.3 BLEU at $3.3 \times 10^{18}$ FLOPs — **23× cheaper** than the ConvS2S Ensemble while still outperforming it. The efficiency-quality combination is arguably the paper's most important contribution.</div></div>
+</div>
+<div class="ng-node" id="node-node_028" style="--color:#1B998B;border-radius:2px;left:550px;top:2310px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#1B998B 22%,transparent);color:#1B998B">Result</span>
+    <span class="ng-title">EN→FR: 41.8 BLEU at 1/6 the cost of prior best single model</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">Transformer (big): **41.8 BLEU** on WMT 2014 EN→FR newstest2014, surpassing all prior single models. Training cost: $2.3 \times 10^{19}$ FLOPs vs. GNMT+RL (prior best single model) at $1.4 \times 10^{20}$ FLOPs — approximately **6× cheaper**. Note: the EN→FR big model used $P_{drop}=0.1$ (vs. 0.3 for EN→DE) — the dropout rate required task-specific tuning, suggesting regularization is not free of language-pair-specific hyperparameter search.</div></div>
+</div>
+<div class="ng-node" id="node-node_029" style="--color:#E5A835;border-radius:22px;left:550px;top:2420px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title">BLEU as a proxy: what does it miss?</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">BLEU (Papineni et al., 2002) measures n-gram overlap (n=1..4) between hypothesis and references, penalizing short outputs. Known weaknesses: (1) penalizes valid paraphrases that don't overlap n-grams with references; (2) insensitive to semantic equivalence across different surface forms; (3) corpus-level metric — high BLEU can hide sentence-level failures. The paper uses BLEU as the *sole* evaluation metric. Later work (BERTScore, COMET, BLEURT) showed embedding-based metrics correlate better with human judgment. Meta-evaluation studies suggest Transformer improvements are *even larger* under semantic metrics than BLEU suggests.</div></div>
+</div>
+<div class="ng-node" id="node-node_030" style="--color:#E24B4A;border-radius:22px;left:550px;top:2500px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#E24B4A 22%,transparent);color:#E24B4A">Gap / Idea</span>
+    <span class="ng-title">Impact: Transformer as the universal architecture</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">As of 2024, virtually every state-of-the-art model in NLP, vision, audio, protein structure prediction, code generation, and multimodal AI is a Transformer variant. Key milestones this paper enabled: BERT (2018, encoder-only), GPT series (decoder-only), T5 (encoder-decoder at scale), ViT (vision), AlphaFold 2 (protein), Whisper (speech), DALL-E / Stable Diffusion (vision-language). The quadratic $O(n^2)$ attention cost is the main ongoing research bottleneck — efficient attention (FlashAttention, linear attention, Mamba/SSM hybrids) remains an active area.</div></div>
+</div>
+<div class="ng-node" id="node-node_031" style="--color:#9C6ADE;border-radius:22px;left:550px;top:2610px">
+  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
+    <span class="ng-tag" style="background:color-mix(in srgb,#9C6ADE 22%,transparent);color:#9C6ADE">Ext. reference</span>
+    <span class="ng-title">Code: tensorflow/tensor2tensor → Hugging Face</span>
+    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  </div>
+  <div class="ng-body" style="display:none"><div class="ng-content">Original release: github.com/tensorflow/tensor2tensor (TensorFlow). Was the dominant research codebase 2017–2019. Replaced by: Mesh TensorFlow → Trax (Google). The ecosystem shift to PyTorch meant most practitioners now use Hugging Face Transformers library (2019–present), which provides pretrained weights and training infrastructure. NVIDIA's Megatron-LM and Microsoft's DeepSpeed added model parallelism for billion-parameter scale. The original tensor2tensor code remains historically significant but is rarely used directly.</div><details class="ng-original"><summary>Original <span class="ng-loc">§7, p.10</span></summary>
+<div class="ng-orig-text">The code we used to train and evaluate our models is available at https://github.com/tensorflow/tensor2tensor.</div></details></div>
+</div>
+  </div>
+</div>
+<div id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" onclick="event.stopPropagation()" src="" alt="">
+  <span id="lightbox-close" onclick="closeLightbox()">✕</span>
+</div>
+<script>
+var NODES_DATA = [{"id":"node_001","lx":100,"ly":150,"children":["node_010","node_011"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":150},{"id":"node_002","lx":100,"ly":450,"children":["node_012","node_013","node_014"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":450},{"id":"node_003","lx":100,"ly":750,"children":["node_015","node_016","node_017"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":750},{"id":"node_004","lx":100,"ly":1050,"children":["node_018","node_019","node_020"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":1050},{"id":"node_005","lx":100,"ly":1350,"children":["node_021","node_022"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":1350},{"id":"node_006","lx":100,"ly":1650,"children":["node_023","node_024"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":1650},{"id":"node_007","lx":100,"ly":1950,"children":["node_025","node_026"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":1950},{"id":"node_008","lx":100,"ly":2250,"children":["node_027","node_028","node_029"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":2250},{"id":"node_009","lx":100,"ly":2550,"children":["node_030","node_031"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":2550},{"id":"node_010","lx":550,"ly":100,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":100},{"id":"node_011","lx":550,"ly":220,"children":[],"template":"gap","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":220},{"id":"node_012","lx":550,"ly":400,"children":[],"template":"method","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":400},{"id":"node_013","lx":550,"ly":490,"children":[],"template":"method","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":490},{"id":"node_014","lx":550,"ly":580,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":580},{"id":"node_015","lx":550,"ly":700,"children":[],"template":"claim","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":700},{"id":"node_016","lx":550,"ly":810,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":810},{"id":"node_017","lx":550,"ly":920,"children":[],"template":"gap","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":920},{"id":"node_018","lx":550,"ly":1000,"children":[],"template":"method","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":1000},{"id":"node_019","lx":550,"ly":1100,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1100},{"id":"node_020","lx":550,"ly":1200,"children":[],"template":"claim","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":1200},{"id":"node_021","lx":550,"ly":1300,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1300},{"id":"node_022","lx":550,"ly":1410,"children":[],"template":"gap","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1410},{"id":"node_023","lx":550,"ly":1600,"children":[],"template":"gap","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1600},{"id":"node_024","lx":550,"ly":1710,"children":[],"template":"claim","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":1710},{"id":"node_025","lx":550,"ly":1900,"children":[],"template":"method","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":1900},{"id":"node_026","lx":550,"ly":2010,"children":[],"template":"claim","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":2010},{"id":"node_027","lx":550,"ly":2200,"children":[],"template":"result","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":2200},{"id":"node_028","lx":550,"ly":2310,"children":[],"template":"result","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":2310},{"id":"node_029","lx":550,"ly":2420,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":2420},{"id":"node_030","lx":550,"ly":2500,"children":[],"template":"gap","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":2500},{"id":"node_031","lx":550,"ly":2610,"children":[],"template":"reference","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":2610}];
+var EDGES = [{"source":"node_001","target":"node_002","type":"arrow","label":""},{"source":"node_002","target":"node_003","type":"arrow","label":""},{"source":"node_003","target":"node_004","type":"arrow","label":""},{"source":"node_004","target":"node_005","type":"arrow","label":""},{"source":"node_005","target":"node_006","type":"arrow","label":""},{"source":"node_006","target":"node_007","type":"arrow","label":""},{"source":"node_007","target":"node_008","type":"arrow","label":""},{"source":"node_008","target":"node_009","type":"arrow","label":""},{"source":"node_001","target":"node_010","type":"line","label":""},{"source":"node_001","target":"node_011","type":"line","label":""},{"source":"node_002","target":"node_012","type":"line","label":""},{"source":"node_002","target":"node_013","type":"line","label":""},{"source":"node_002","target":"node_014","type":"line","label":""},{"source":"node_003","target":"node_015","type":"line","label":""},{"source":"node_003","target":"node_016","type":"line","label":""},{"source":"node_003","target":"node_017","type":"line","label":""},{"source":"node_004","target":"node_018","type":"line","label":""},{"source":"node_004","target":"node_019","type":"line","label":""},{"source":"node_004","target":"node_020","type":"line","label":""},{"source":"node_005","target":"node_021","type":"line","label":""},{"source":"node_005","target":"node_022","type":"line","label":""},{"source":"node_006","target":"node_023","type":"line","label":""},{"source":"node_006","target":"node_024","type":"line","label":""},{"source":"node_007","target":"node_025","type":"line","label":""},{"source":"node_007","target":"node_026","type":"line","label":""},{"source":"node_008","target":"node_027","type":"line","label":""},{"source":"node_008","target":"node_028","type":"line","label":""},{"source":"node_008","target":"node_029","type":"line","label":""},{"source":"node_009","target":"node_030","type":"line","label":""},{"source":"node_009","target":"node_031","type":"line","label":""}];
+var HEADER_H = 36;
+
+var vp = document.getElementById('viewport');
+var canvas = document.getElementById('canvas');
+
+// Set viewport top to match actual toolbar height
+(function() {
+  var tb = document.getElementById('toolbar');
+  vp.style.top = tb.offsetHeight + 'px';
+})();
+var tx = 0, ty = 0, scale = 1;
+
+function applyTransform() {
+  canvas.style.transform = 'translate('+tx+'px,'+ty+'px) scale('+scale+')';
+}
+
+// Zoom
+vp.addEventListener('wheel', function(e) {
+  e.preventDefault();
+  var rect = vp.getBoundingClientRect();
+  var mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  var factor = e.deltaY < 0 ? 1.1 : 0.91;
+  var ns = Math.max(0.1, Math.min(4, scale * factor));
+  tx = mx - (mx - tx) * (ns / scale);
+  ty = my - (my - ty) * (ns / scale);
+  scale = ns;
+  applyTransform();
+}, { passive: false });
+
+// Canvas pan
+var panState = null;
+vp.addEventListener('mousedown', function(e) {
+  if (e.target.closest('.ng-node')) return;
+  selectNode(null);
+  panState = { sx: e.clientX - tx, sy: e.clientY - ty };
+  vp.classList.add('pan-drag');
+});
+window.addEventListener('mousemove', function(e) {
+  if (!panState) return;
+  tx = e.clientX - panState.sx; ty = e.clientY - panState.sy;
+  applyTransform();
+});
+window.addEventListener('mouseup', function() {
+  panState = null; vp.classList.remove('pan-drag');
+});
+
+// Node selection
+var selectedNodeId = null;
+function selectNode(nodeId) {
+  if (selectedNodeId) {
+    var prev = document.getElementById('node-' + selectedNodeId);
+    if (prev) prev.classList.remove('ng-selected');
+  }
+  selectedNodeId = nodeId;
+  var label = document.getElementById('tb-sel');
+  if (nodeId) {
+    var el = document.getElementById('node-' + nodeId);
+    if (el) el.classList.add('ng-selected');
+    var titleEl = el ? el.querySelector('.ng-title') : null;
+    if (label) { label.textContent = 'Selected: ' + (titleEl ? titleEl.textContent : nodeId); label.style.opacity = '0.9'; }
+  } else {
+    if (label) { label.textContent = 'Click a node to select'; label.style.opacity = '0.35'; }
+  }
+}
+
+// Header click = select node
+var lastWasDrag = false;
+function onHeaderClick(hdr) {
+  if (lastWasDrag) { lastWasDrag = false; return; }
+  var nodeEl = hdr.parentNode;
+  var nodeId = nodeEl.id.replace('node-', '');
+  selectNode(selectedNodeId === nodeId ? null : nodeId);
+}
+
+// Chevron click = toggle this node only (no cascade, stopPropagation)
+function toggleFold(e, hdr) {
+  e.stopPropagation();
+  var body = hdr.nextElementSibling;
+  if (!body) return;
+  var chevron = hdr.querySelector('.ng-chevron');
+  var expanding = body.style.display === 'none';
+  body.style.display = expanding ? '' : 'none';
+  if (chevron) chevron.textContent = expanding ? '▲' : '▼';
+  var nodeEl = hdr.parentNode;
+  var nodeId = nodeEl.id.replace('node-', '');
+  for (var i = 0; i < NODES_DATA.length; i++) {
+    if (NODES_DATA[i].id === nodeId) { NODES_DATA[i].contentExpanded = expanding; break; }
+  }
+  setTimeout(recomputePositions, 0);
+}
+
+// Get node datum by id
+function getNodeDatum(nodeId) {
+  for (var i = 0; i < NODES_DATA.length; i++) {
+    if (NODES_DATA[i].id === nodeId) return NODES_DATA[i];
+  }
+  return null;
+}
+
+// Collect all descendants recursively (for collapse — no depth limit)
+function getAllDescendants(nodeId, visited) {
+  visited = visited || [];
+  if (visited.indexOf(nodeId) !== -1) return [];
+  visited.push(nodeId);
+  var result = [];
+  var datum = getNodeDatum(nodeId);
+  if (!datum) return result;
+  // Include both children array and edge targets
+  var childIds = (datum.children || []).slice();
+  EDGES.forEach(function(e) { if (e.source === nodeId && childIds.indexOf(e.target) === -1) childIds.push(e.target); });
+  childIds.forEach(function(childId) {
+    result.push(childId);
+    getAllDescendants(childId, visited).forEach(function(d) { result.push(d); });
+  });
+  return result;
+}
+
+// Collect descendants for expand — skip main_topic children (and their subtrees)
+// Includes both outgoing and incoming (non-main) edges to support multi-parent sub-nodes
+function getExpandDescendants(nodeId, isRoot, visited) {
+  visited = visited || [];
+  if (visited.indexOf(nodeId) !== -1) return [];
+  visited.push(nodeId);
+  var datum = getNodeDatum(nodeId);
+  if (!datum) return [];
+  // Do not recurse into other main (sharp) nodes
+  if (!isRoot && datum.isMain) return [];
+  var result = [nodeId];
+  var childIds = (datum.children || []).slice();
+  EDGES.forEach(function(e) {
+    // Outgoing edges from this node
+    if (e.source === nodeId && childIds.indexOf(e.target) === -1) childIds.push(e.target);
+    // Incoming from non-main: support sub-nodes with multiple parents
+    if (e.target === nodeId && childIds.indexOf(e.source) === -1) {
+      var srcDatum = getNodeDatum(e.source);
+      if (srcDatum && !srcDatum.isMain) childIds.push(e.source);
+    }
+  });
+  childIds.forEach(function(childId) {
+    getExpandDescendants(childId, false, visited).forEach(function(d) { result.push(d); });
+  });
+  return result;
+}
+
+// Apply expand/collapse to a list of node IDs
+function applyFold(nodeIds, expand) {
+  nodeIds.forEach(function(id) {
+    var el = document.getElementById('node-' + id);
+    if (!el) return;
+    var body = el.querySelector('.ng-body');
+    var chevron = el.querySelector('.ng-chevron');
+    if (body) body.style.display = expand ? '' : 'none';
+    if (chevron) chevron.textContent = expand ? '▲' : '▼';
+    for (var i = 0; i < NODES_DATA.length; i++) {
+      if (NODES_DATA[i].id === id) { NODES_DATA[i].contentExpanded = expand; break; }
+    }
+  });
+  setTimeout(recomputePositions, 0);
+}
+
+// Recompute positions when <details> toggles change node height.
+// 'toggle' does not bubble so we use capture phase.
+canvas.addEventListener('toggle', function() {
+  setTimeout(recomputePositions, 0);
+}, true);
+
+// Toolbar: context-aware expand/collapse
+function doExpand() {
+  if (selectedNodeId) {
+    applyFold(getExpandDescendants(selectedNodeId, true), true);
+  } else {
+    // Expand all — include main_topic roots but skip nested main_topic subtrees
+    var toExpand = [];
+    NODES_DATA.forEach(function(n) {
+      if (toExpand.indexOf(n.id) !== -1) return;
+      getExpandDescendants(n.id, true).forEach(function(d) { if (toExpand.indexOf(d) === -1) toExpand.push(d); });
+    });
+    applyFold(toExpand, true);
+  }
+}
+function doCollapse() {
+  if (selectedNodeId) {
+    applyFold([selectedNodeId].concat(getAllDescendants(selectedNodeId)), false);
+  } else {
+    applyFold(NODES_DATA.map(function(n){return n.id;}), false);
+  }
+}
+
+// Per-node drag with logical-position tracking
+function onNodeHeaderMousedown(e, nodeEl) {
+  e.stopPropagation();
+  lastWasDrag = false;
+  var x0 = e.clientX, y0 = e.clientY;
+  var left0 = parseFloat(nodeEl.style.left) || 0;
+  var top0  = parseFloat(nodeEl.style.top)  || 0;
+  var moved = false, finalDX = 0, finalDY = 0;
+  var nodeId = nodeEl.id.replace('node-', '');
+  var nodeDatum = null;
+  for (var i = 0; i < NODES_DATA.length; i++) {
+    if (NODES_DATA[i].id === nodeId) { nodeDatum = NODES_DATA[i]; break; }
+  }
+  function onMove(ev) {
+    var rawDx = ev.clientX - x0, rawDy = ev.clientY - y0;
+    if (!moved && (Math.abs(rawDx) > 5 || Math.abs(rawDy) > 5)) { moved = true; nodeEl.classList.add('ng-dragging'); }
+    if (moved) {
+      var dx = rawDx / scale, dy = rawDy / scale;
+      nodeEl.style.left=(left0+dx)+'px'; nodeEl.style.top=(top0+dy)+'px'; finalDX=dx; finalDY=dy; drawEdges();
+    }
+  }
+  function onUp() {
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    nodeEl.classList.remove('ng-dragging');
+    if (moved) { lastWasDrag = true; if (nodeDatum) { nodeDatum.lx += finalDX; nodeDatum.ly += finalDY; nodeDatum.naturalY = nodeDatum.ly; } setTimeout(recomputePositions, 0); }
+  }
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+}
+
+// Keep original node positions — collapse/expand does not push other nodes
+function getNodeRootId(nodeId) {
+  var childToParent = getChildToParentMap();
+  var cur = nodeId;
+  while (childToParent[cur]) cur = childToParent[cur];
+  return cur;
+}
+function getChildToParentMap() {
+  var map = {};
+  NODES_DATA.forEach(function(n) {
+    (n.children || []).forEach(function(childId) { map[childId] = n.id; });
+  });
+  return map;
+}
+function recomputePositions() {
+  var childToParent = getChildToParentMap();
+  function rootOf(id) {
+    var cur = id;
+    while (childToParent[cur]) cur = childToParent[cur];
+    return cur;
+  }
+  function isDescendantOf(descendant, ancestor) {
+    var cur = descendant;
+    while (childToParent[cur]) {
+      cur = childToParent[cur];
+      if (cur === ancestor) return true;
+    }
+    return false;
+  }
+  var sorted = NODES_DATA.slice().sort(function(a, b) {
+    if (a.ly !== b.ly) return a.ly - b.ly;
+    return a.lx - b.lx;
+  });
+  var renderY = {};
+  sorted.forEach(function(n) {
+    var nIsMain = n.isMain;
+    var y = n.ly;
+    var nEl = document.getElementById('node-' + n.id);
+    var nW = nEl ? nEl.offsetWidth : 300;
+    sorted.forEach(function(other) {
+      if (other.id === n.id) return;
+      if (other.ly > n.ly) return;
+      if (other.ly === n.ly && other.lx >= n.lx) return;
+      var otherY = renderY[other.id] !== undefined ? renderY[other.id] : other.ly;
+      var otherEl = document.getElementById('node-' + other.id);
+      var h = otherEl ? otherEl.offsetHeight : HEADER_H;
+      var otherBottom = otherY + h;
+      if (otherBottom <= y) return;
+      if (nIsMain && other.isMain) {
+        // Main → main: always push regardless of X offset
+        var naturalBottom = other.ly + (other.nodeHeight || HEADER_H);
+        var delta = (otherY + h) - naturalBottom;
+        var nodeNaturalY = n.naturalY !== undefined ? n.naturalY : n.ly;
+        y = Math.max(y, nodeNaturalY + delta, otherBottom + 20);
+      } else {
+        // Rounded pushes: only if X ranges actually overlap (different columns don't push each other)
+        var oW = otherEl ? otherEl.offsetWidth : 300;
+        if (!(n.lx < other.lx + oW && other.lx < n.lx + nW)) return;
+        if (nIsMain) {
+          // Rounded → main: skip only if descendant AND doesn't reach this node's Y
+          if (isDescendantOf(other.id, n.id) && otherBottom <= n.ly) return;
+          var wasPushed = otherY > other.ly;
+          if (!other.contentExpanded && !wasPushed) return;
+          y = Math.max(y, otherBottom + 48);
+        } else {
+          // Sub → sub: always push when X ranges overlap, regardless of expand state
+          var gap = (rootOf(other.id) === rootOf(n.id)) ? 20 : 48;
+          y = Math.max(y, otherBottom + gap);
+        }
+      }
+    });
+    renderY[n.id] = y;
+  });
+
+  // Pass 2: sub-nodes follow their parent main node's push delta
+  NODES_DATA.forEach(function(n) {
+    if (n.isMain) return;
+    var parentMain = null;
+    var bestDist = Infinity;
+    NODES_DATA.forEach(function(m) {
+      if (!m.isMain) return;
+      var connected = m.children && m.children.indexOf(n.id) !== -1;
+      if (!connected) {
+        EDGES.some(function(e) {
+          if ((e.source === m.id && e.target === n.id) || (e.target === m.id && e.source === n.id)) {
+            connected = true; return true;
+          }
+        });
+      }
+      if (connected) {
+        var dist = Math.abs(m.ly - n.ly);
+        if (dist < bestDist) { bestDist = dist; parentMain = m; }
+      }
+    });
+    if (parentMain) {
+      var parentPush = (renderY[parentMain.id] !== undefined ? renderY[parentMain.id] : parentMain.ly) - parentMain.ly;
+      if (parentPush > 0) {
+        var cur = renderY[n.id] !== undefined ? renderY[n.id] : n.ly;
+        renderY[n.id] = Math.max(cur, n.ly + parentPush);
+      }
+    }
+  });
+
+  // Pass 3: normalize Y spacing within each bus group (same source, same X column)
+  var lineBySource = {};
+  EDGES.forEach(function(e) {
+    if (e.type !== 'line') return;
+    if (!lineBySource[e.source]) lineBySource[e.source] = [];
+    lineBySource[e.source].push(e.target);
+  });
+  var ndMap = {};
+  NODES_DATA.forEach(function(n) { ndMap[n.id] = n; });
+  Object.keys(lineBySource).forEach(function(srcId) {
+    var targetIds = lineBySource[srcId].filter(function(id) { return ndMap[id]; });
+    if (targetIds.length < 2) return;
+    // Group targets by X column
+    var xGroups = [];
+    targetIds.forEach(function(id) {
+      var el = document.getElementById('node-' + id);
+      var nx = ndMap[id].lx; var nw = el ? el.offsetWidth : 300;
+      var placed = false;
+      for (var gi = 0; gi < xGroups.length; gi++) {
+        var firstId = xGroups[gi][0];
+        var fEl = document.getElementById('node-' + firstId);
+        var fx = ndMap[firstId].lx; var fw = fEl ? fEl.offsetWidth : 300;
+        if (nx < fx + fw && fx < nx + nw) { xGroups[gi].push(id); placed = true; break; }
+      }
+      if (!placed) xGroups.push([id]);
+    });
+    // Sort and space within each X column group
+    xGroups.forEach(function(grp) {
+      if (grp.length < 2) return;
+      var sorted = grp.map(function(id) {
+        var el = document.getElementById('node-' + id);
+        return { id: id, y: renderY[id] !== undefined ? renderY[id] : ndMap[id].ly, h: el ? el.offsetHeight : HEADER_H };
+      }).sort(function(a, b) { return a.y - b.y; });
+      for (var i = 1; i < sorted.length; i++) {
+        var minY = sorted[i-1].y + sorted[i-1].h + 20;
+        var newY = Math.max(sorted[i].y, minY);
+        sorted[i].y = newY;
+        renderY[sorted[i].id] = newY;
+      }
+    });
+  });
+
+  NODES_DATA.forEach(function(n) {
+    var el = document.getElementById('node-' + n.id);
+    if (!el) return;
+    el.style.left = n.lx + 'px';
+    el.style.top  = (renderY[n.id] !== undefined ? renderY[n.id] : n.ly) + 'px';
+  });
+  drawEdges();
+}
+
+// Edge drawing
+function getNodeRect(el) {
+  var x = parseFloat(el.style.left)||0, y = parseFloat(el.style.top)||0;
+  return { x:x, y:y, w:el.offsetWidth, h:el.offsetHeight, cx:x+el.offsetWidth*.5, cy:y+el.offsetHeight*.5 };
+}
+function getBestPorts(sr, tr) {
+  var sp=[{name:'right',p:[sr.x+sr.w,sr.cy]},{name:'left',p:[sr.x,sr.cy]},{name:'bottom',p:[sr.cx,sr.y+sr.h]},{name:'top',p:[sr.cx,sr.y]}];
+  var tp=[{name:'left',p:[tr.x,tr.cy]},{name:'right',p:[tr.x+tr.w,tr.cy]},{name:'top',p:[tr.cx,tr.y]},{name:'bottom',p:[tr.cx,tr.y+tr.h]}];
+  var best=null,bestD=Infinity;
+  sp.forEach(function(s){tp.forEach(function(t){var dx=s.p[0]-t.p[0],dy=s.p[1]-t.p[1],d=dx*dx+dy*dy;if(d<bestD){bestD=d;best={sp:s,tp:t};}});});
+  return best;
+}
+var DIR={right:[1,0],left:[-1,0],bottom:[0,1],top:[0,-1]};
+function svgLine(x1,y1,x2,y2,stroke,sw){var l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('stroke',stroke);l.setAttribute('stroke-width',sw);return l;}
+function svgCirc(cx,cy,r,fill){var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',r);c.setAttribute('fill',fill);return c;}
+function drawEdges() {
+  var svg=document.getElementById('wire-svg');
+  svg.querySelectorAll('.ng-eg').forEach(function(el){el.remove();});
+
+  // Group line edges by source for bus routing
+  var lineBySource={};
+  EDGES.forEach(function(e){
+    if(e.type!=='line') return;
+    if(!lineBySource[e.source]) lineBySource[e.source]=[];
+    lineBySource[e.source].push(e);
+  });
+
+  var busDrawn={};
+
+  // Bus routing: one source → multiple line targets all on the same side (right)
+  Object.keys(lineBySource).forEach(function(srcId){
+    var group=lineBySource[srcId];
+    if(group.length<2) return;
+    var srcEl=document.getElementById('node-'+srcId);
+    if(!srcEl) return;
+    var sr=getNodeRect(srcEl);
+    var targets=[];
+    group.forEach(function(e){
+      var tEl=document.getElementById('node-'+e.target);
+      if(!tEl) return;
+      targets.push({e:e,r:getNodeRect(tEl)});
+    });
+    if(targets.length<2) return;
+    // Check all targets are to the right
+    var allRight=targets.every(function(t){return t.r.x>=sr.x+sr.w-5;});
+    if(!allRight) return;
+
+    var busX=sr.x+sr.w+Math.min.apply(null,targets.map(function(t){return t.r.x-(sr.x+sr.w);})) * 0.5;
+    var srcAnchorY=sr.cy;
+    var minTY=Math.min.apply(null,targets.map(function(t){return t.r.cy;}));
+    var maxTY=Math.max.apply(null,targets.map(function(t){return t.r.cy;}));
+    var busMinY=Math.min(srcAnchorY,minTY);
+    var busMaxY=Math.max(srcAnchorY,maxTY);
+
+    var g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','ng-eg');
+    g.appendChild(svgLine(sr.x+sr.w,srcAnchorY,busX,srcAnchorY,'#888','1.5'));
+    g.appendChild(svgLine(busX,busMinY,busX,busMaxY,'#888','1.5'));
+    g.appendChild(svgCirc(sr.x+sr.w,srcAnchorY,4,'#888'));
+    targets.forEach(function(t){
+      g.appendChild(svgLine(busX,t.r.cy,t.r.x,t.r.cy,'#888','1.5'));
+      g.appendChild(svgCirc(t.r.x,t.r.cy,4,'#888'));
+      busDrawn[t.e.source+'-'+t.e.target]=true;
+    });
+    svg.appendChild(g);
+  });
+
+  // Remaining edges: Bezier curves
+  EDGES.forEach(function(edge){
+    if(busDrawn[edge.source+'-'+edge.target]) return;
+    var srcEl=document.getElementById('node-'+edge.source), tgtEl=document.getElementById('node-'+edge.target);
+    if(!srcEl||!tgtEl) return;
+    var ports=getBestPorts(getNodeRect(srcEl),getNodeRect(tgtEl));
+    if(!ports) return;
+    var sp=ports.sp.p,spD=DIR[ports.sp.name],tp=ports.tp.p,tpD=DIR[ports.tp.name];
+    var dist=Math.sqrt(Math.pow(tp[0]-sp[0],2)+Math.pow(tp[1]-sp[1],2));
+    var bend=Math.min(dist*.45,150);
+    var cx1=sp[0]+spD[0]*bend,cy1=sp[1]+spD[1]*bend,cx2=tp[0]+tpD[0]*bend,cy2=tp[1]+tpD[1]*bend;
+    var d='M'+sp[0]+','+sp[1]+' C'+cx1+','+cy1+' '+cx2+','+cy2+' '+tp[0]+','+tp[1];
+    var g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','ng-eg');
+    var path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',d);path.setAttribute('fill','none');path.setAttribute('stroke','#666');path.setAttribute('stroke-width','1.5');
+    if(edge.type==='arrow') path.setAttribute('marker-end','url(#arrow)');
+    g.appendChild(path);
+    if(edge.type==='line'){[sp,tp].forEach(function(pt){var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',pt[0]);c.setAttribute('cy',pt[1]);c.setAttribute('r','4');c.setAttribute('fill','#666');g.appendChild(c);});}
+    svg.appendChild(g);
+  });
+}
+
+// Fit view
+function fitView() {
+  var nodes=document.querySelectorAll('.ng-node');
+  if(!nodes.length) return;
+  var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  nodes.forEach(function(n){var x=parseFloat(n.style.left)||0,y=parseFloat(n.style.top)||0;minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x+n.offsetWidth);maxY=Math.max(maxY,y+n.offsetHeight);});
+  var rect=vp.getBoundingClientRect(),W=rect.width,H=rect.height;
+  var cw=maxX-minX+80,ch=maxY-minY+80;
+  scale=Math.min(W/cw,H/ch,1.5);
+  tx=(W-cw*scale)/2-(minX-40)*scale;
+  ty=(H-ch*scale)/2-(minY-40)*scale;
+  applyTransform();
+}
+
+// Lightbox
+function showLightbox(src){document.getElementById('lightbox-img').src=src;document.getElementById('lightbox').classList.add('active');}
+function closeLightbox(){document.getElementById('lightbox').classList.remove('active');document.getElementById('lightbox-img').src='';}
+document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightbox();});
+
+// KaTeX rendering
+function initKatex() {
+  if(typeof renderMathInElement === 'undefined') return;
+  renderMathInElement(document.getElementById('canvas'), {
+    delimiters: [
+      {left:'$$', right:'$$', display:true},
+      {left:'$',  right:'$',  display:false}
+    ],
+    throwOnError: false,
+    output: 'html'
+  });
+}
+
+window.addEventListener('load', function() {
+  // Render KaTeX first so node heights are accurate
+  initKatex();
+  recomputePositions();
+  drawEdges();
+  fitView();
+  // Recompute after images load (base64 images also finalize height asynchronously)
+  var imgs = Array.from(document.querySelectorAll('.ng-node img'));
+  var pending = imgs.filter(function(img) { return !img.complete; }).length;
+  if (pending === 0) return;
+  function onImgSettle() {
+    pending--;
+    if (pending <= 0) { recomputePositions(); drawEdges(); }
+  }
+  imgs.forEach(function(img) {
+    if (!img.complete) {
+      img.addEventListener('load', onImgSettle);
+      img.addEventListener('error', onImgSettle);
+    }
+  });
+});
+</script>
+</body>
+</html>

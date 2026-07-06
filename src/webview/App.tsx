@@ -15,7 +15,7 @@ export function App() {
     setNodeWidth, setNodeHeight, setNodeFontSize, bumpFontSize, setFontSizeExact, pushHistory,
     collapseAll, expandAll, expandNodes, collapseNodes, setNodeTemplate, addOriginal, addLink, deleteLink, openLink, exportHtml,
     undo, redo, canUndo, canRedo,
-    saveGraph,
+    saveGraph, reload,
   } = useGraph()
 
   const {
@@ -94,6 +94,7 @@ export function App() {
       onExpandNodes={expandNodes}
       onCollapseNodes={collapseNodes}
       onExportHtml={exportHtml}
+      onReload={reload}
       imageUris={imageUris}
       onSaveImage={saveImage}
       onAddCanvasImage={addCanvasImage}
