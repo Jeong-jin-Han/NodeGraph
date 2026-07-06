@@ -109,14 +109,21 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
 
 ## Agent / AI Editing
 
-The file `.agent/NODEGRAPH_SPEC.md` (included in the extension) is a machine-readable specification for AI agents. It documents the full JSON schema, ID conventions, KaTeX/Markdown syntax rules, and a step-by-step workflow for generating a nodegraph from a PDF.
+> **AI agents: read `.agent/NODEGRAPH_SPEC.md` before touching any `.nodegraph.json` file.**
+> It defines every field, syntax rule, and constraint. In particular:
+> - Backslashes in KaTeX **must be doubled** in JSON strings (`\\frac`, `\\sqrt`, `\\text`)
+> - `[[IMG:filename:WxH]]` tokens only work in `node.content`, not in `toggleItems[].content`
+> - `toggleItems[].content` supports KaTeX math only — no Markdown tables, no images
+> - Always update the `"modified"` timestamp after every edit
+
+The file `.agent/NODEGRAPH_SPEC.md` (included in the extension) is a machine-readable specification for AI agents. It documents the full JSON schema, ID conventions, KaTeX/Markdown syntax rules, rendering support per field, and a step-by-step workflow for generating a nodegraph from a PDF.
 
 A worked example is included at `test-demo-v2/attention-is-all-you-need.nodegraph.json` — the full "Attention Is All You Need" paper rendered as a nodegraph with KaTeX formulas, Markdown tables, toggle sections, and deep question nodes.
 
 **Typical agent workflow:**
 1. Read `.agent/NODEGRAPH_SPEC.md`
 2. Read or create the target `.nodegraph.json`
-3. Edit the JSON directly (the extension auto-detects changes)
+3. Edit the JSON directly
 4. Click **↺ Reload** in the toolbar to see the updated graph without closing/reopening the file
 
 ## Commands
