@@ -194,6 +194,21 @@ Different fields have different rendering capabilities:
 | `$d_k$` | inline math |
 | `$$\text{Attention}(Q,K,V)=\text{softmax}\!\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$` | block math |
 
+> ⚠️ **Never use Unicode math characters.** Always use KaTeX syntax instead.
+> The renderer only processes `$...$` and `$$...$$` blocks — Unicode symbols outside these
+> blocks appear as raw characters and look inconsistent or broken.
+
+| ❌ Unicode (do NOT use) | ✅ KaTeX (always use this) |
+|------------------------|--------------------------|
+| `α β γ δ θ λ μ σ φ ω` | `$\alpha$ $\beta$ $\gamma$ $\delta$ $\theta$ $\lambda$ $\mu$ $\sigma$ $\phi$ $\omega$` |
+| `² ³` | `$x^2$ $x^3$` |
+| `× ÷` | `$\times$ $\div$` |
+| `→ ← ↑ ↓` | `$\rightarrow$ $\leftarrow$ $\uparrow$ $\downarrow$` |
+| `≈ ≤ ≥ ≠ ∈` | `$\approx$ $\leq$ $\geq$ $\neq$ $\in$` |
+| `∑ ∏ ∫ √ ∞` | `$\sum$ $\prod$ $\int$ $\sqrt{}$ $\infty$` |
+| `ℝ ℕ ℤ` | `$\mathbb{R}$ $\mathbb{N}$ $\mathbb{Z}$` |
+| `d_k d_v` (subscript) | `$d_k$ $d_v$` |
+
 **Critical**: Inside a JSON string, every backslash must be doubled:
 
 ```jsonc
@@ -299,6 +314,7 @@ After any edit, verify:
 - [ ] No duplicate edges between the same pair of nodes
 - [ ] KaTeX formulas: **every backslash doubled** (`\\frac`, `\\sqrt`, `\\text`, `\\left`, `\\right`)
 - [ ] KaTeX braces balanced
+- [ ] No bare Unicode math symbols outside `$...$` — α/β/×/→/≤/∑/√/ℝ etc. must be KaTeX
 - [ ] Markdown tables have a separator row (`|---|---|`) — only in `node.content`, not toggleItems
 - [ ] `[[IMG:...]]` tokens only in `node.content`, image files exist in `.<basename>-imgs/`
 - [ ] `toggleItems[].id` values are unique within the file
