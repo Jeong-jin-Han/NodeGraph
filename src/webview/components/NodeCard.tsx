@@ -42,6 +42,8 @@ interface NodeCardProps {
   onSaveImage: (nodeId: string, base64: string, ext: string, position?: number) => void
   canvasClipboardRef?: React.RefObject<{ filename: string; width: number; height: number } | null>
   onAddFilenameToNode?: (nodeId: string, filename: string) => void
+  isSearchMatch?: boolean
+  isActiveSearchMatch?: boolean
 }
 
 type EditingField = 'title' | 'content' | 'originalText' | 'originalLoc' | 'originalTitle' | null
@@ -72,6 +74,7 @@ export function NodeCard({
   onAddOriginal, onAddLink, onDeleteLink, onOpenLink, onSetNodeTemplate,
   imageUris, onSaveImage,
   canvasClipboardRef, onAddFilenameToNode,
+  isSearchMatch, isActiveSearchMatch,
 }: NodeCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const tableBodyRef = useRef<HTMLDivElement>(null)
@@ -250,12 +253,18 @@ export function NodeCard({
           background: `color-mix(in srgb, ${color} 15%, var(--vscode-editor-background, #1e1e1e))`,
           border: selected
             ? `2px solid ${color}`
-            : `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
+            : isActiveSearchMatch
+              ? '2px solid #f59e0b'
+              : isSearchMatch
+                ? '2px solid #fcd34d'
+                : `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
           borderRadius,
           fontFamily: 'var(--vscode-font-family)',
           fontSize: 'var(--vscode-font-size)',
           color: 'var(--vscode-editor-foreground)',
-          boxShadow: isDragging ? '0 6px 20px rgba(0,0,0,0.35)' : '0 2px 8px rgba(0,0,0,0.25)',
+          boxShadow: isActiveSearchMatch
+            ? '0 0 0 3px rgba(245,158,11,0.35), 0 2px 8px rgba(0,0,0,0.25)'
+            : isDragging ? '0 6px 20px rgba(0,0,0,0.35)' : '0 2px 8px rgba(0,0,0,0.25)',
           transition: 'box-shadow 0.1s',
           zIndex: isDragging ? 10 : 1,
         }}

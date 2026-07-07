@@ -3,6 +3,7 @@ import { NodeGraph, GraphNode, Viewport, NodeLink, CanvasImage } from '../types/
 import { NodeCard } from './NodeCard'
 import { WireLayer } from './WireLayer'
 import { CanvasImageLayer } from './CanvasImageLayer'
+import { SearchBar } from './SearchBar'
 import { Port } from '../utils/wireGeometry'
 
 interface CanvasProps {
@@ -318,6 +319,12 @@ export function Canvas({
   const [wireDrawing, setWireDrawing] = useState<{ srcId: string; srcPort: Port; curX: number; curY: number } | null>(null)
   const lastToolbarInteractionRef = useRef<number>(0)
 
+  // Search state
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchActiveIdx, setSearchActiveIdx] = useState(0)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
   // 박스 선택에 필요한 최신 상태를 ref로 유지 (전역 mouseup 핸들러에서 stale closure 없이 읽기 위함)
   // renderPositions/nodeSizes는 useMemo/useState 이후에 선언되므로 초기값은 빈 객체 사용
   const viewportRef = useRef(viewport)
@@ -359,10 +366,18 @@ export function Canvas({
       }
 
       if (e.key === 'Escape') {
+        if (searchOpen) { handleCloseSearch(); return }
         setSelectedIds(new Set())
         setSelectedCanvasImgIds(new Set())
         if (canvasClipboardRef.current !== null) pasteBlockedRef.current = true
         canvasClipboardRef.current = null
+        return
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault()
+        setSearchOpen(true)
+        setTimeout(() => searchInputRef.current?.focus(), 0)
         return
       }
 
@@ -616,6 +631,65 @@ export function Canvas({
   )
   renderPositionsRef.current = renderPositions
   nodeSizesRef.current = nodeSizes
+
+  // Search: compute matching node IDs whenever query changes
+  const searchMatchIds = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return [] as string[]
+    return graph.nodes
+      .filter(n =>
+        n.title.toLowerCase().includes(q) ||
+        (n.content ?? '').toLowerCase().includes(q) ||
+        (n.original?.text ?? '').toLowerCase().includes(q)
+      )
+      .map(n => n.id)
+  }, [searchQuery, graph.nodes])
+
+  const searchActiveId = searchMatchIds[searchActiveIdx] ?? null
+
+  const flyToNode = useCallback((nodeId: string) => {
+    const node = graph.nodes.find(n => n.id === nodeId)
+    if (!node || !divRef.current) return
+    const pos = renderPositionsRef.current[nodeId] ?? node.position
+    const { clientWidth, clientHeight } = divRef.current
+    const nodeW = nodeSizesRef.current[nodeId]?.width ?? (node.nodeWidth ?? 300)
+    const nodeH = nodeSizesRef.current[nodeId]?.height ?? 36
+    onSetViewport({
+      ...viewport,
+      x: clientWidth / 2 - (pos.x + nodeW / 2) * viewport.zoom,
+      y: clientHeight / 2 - (pos.y + nodeH / 2) * viewport.zoom,
+    })
+  }, [graph.nodes, viewport, onSetViewport])
+
+  const handleSearchNext = useCallback(() => {
+    if (searchMatchIds.length === 0) return
+    const next = (searchActiveIdx + 1) % searchMatchIds.length
+    setSearchActiveIdx(next)
+    flyToNode(searchMatchIds[next])
+  }, [searchMatchIds, searchActiveIdx, flyToNode])
+
+  const handleSearchPrev = useCallback(() => {
+    if (searchMatchIds.length === 0) return
+    const prev = (searchActiveIdx - 1 + searchMatchIds.length) % searchMatchIds.length
+    setSearchActiveIdx(prev)
+    flyToNode(searchMatchIds[prev])
+  }, [searchMatchIds, searchActiveIdx, flyToNode])
+
+  const handleSearchQueryChange = useCallback((q: string) => {
+    setSearchQuery(q)
+    setSearchActiveIdx(0)
+  }, [])
+
+  const handleCloseSearch = useCallback(() => {
+    setSearchOpen(false)
+    setSearchQuery('')
+    setSearchActiveIdx(0)
+  }, [])
+
+  // When matches update (new query), fly to first match
+  useEffect(() => {
+    if (searchMatchIds.length > 0) flyToNode(searchMatchIds[0])
+  }, [searchMatchIds])
 
   // When collapsing a main node, persist renderY of pushed main nodes before they snap back.
   // Uses onAutoSaveNodePosition (does NOT update nodeNaturalY) so the delta formula stays correct.
@@ -1050,6 +1124,11 @@ export function Canvas({
 
         <div style={{ flex: 1 }} />
         <button
+          style={{ ...toolbarBtnStyle, background: searchOpen ? '#374151' : undefined, color: searchOpen ? '#fff' : undefined }}
+          onClick={() => { setSearchOpen(o => !o); setTimeout(() => searchInputRef.current?.focus(), 0) }}
+          title="Search nodes (Ctrl+F)"
+        >🔍 Search</button>
+        <button
           style={{ ...toolbarBtnStyle, fontFamily: 'monospace' }}
           onClick={onReload}
           title="Reload from disk (re-reads the JSON file — use after an external agent edits it)"
@@ -1147,6 +1226,8 @@ export function Canvas({
                   onSaveImage={onSaveImage}
                   canvasClipboardRef={canvasClipboardRef}
                   onAddFilenameToNode={onAddFilenameToNode}
+                  isSearchMatch={searchMatchIds.includes(node.id)}
+                  isActiveSearchMatch={node.id === searchActiveId}
                 />
               )
             })}
@@ -1159,6 +1240,20 @@ export function Canvas({
               onDeleteEdge={onDeleteEdge}
             />
           </div>
+
+          {/* 검색 오버레이 */}
+          {searchOpen && (
+            <SearchBar
+              query={searchQuery}
+              onQueryChange={handleSearchQueryChange}
+              matchCount={searchMatchIds.length}
+              activeIdx={searchActiveIdx}
+              onNext={handleSearchNext}
+              onPrev={handleSearchPrev}
+              onClose={handleCloseSearch}
+              inputRef={searchInputRef}
+            />
+          )}
 
           {/* 박스 선택 오버레이 (스크린 좌표) */}
           {selectionBox && (

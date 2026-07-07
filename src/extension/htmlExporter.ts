@@ -191,6 +191,7 @@ export function generateHtml(graph: NodeGraph, imageData: Record<string, string>
     isMain: (graph.nodeTemplates[n.template]?.shape ?? 'sharp') === 'sharp',
     nodeHeight: n.nodeHeight ?? null,
     naturalY: Math.round((n.nodeNaturalY ?? n.position.y) + offsetY),
+    searchText: [n.title, n.content ?? '', n.original?.text ?? ''].join(' ').toLowerCase(),
   })))
   const edgeData = JSON.stringify(graph.edges.map(e => ({
     source: e.source, target: e.target, type: e.type, label: e.label || '',
@@ -264,6 +265,13 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 #lightbox.active{display:flex}
 #lightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:4px;box-shadow:0 4px 32px rgba(0,0,0,.4);cursor:default}
 #lightbox-close{position:absolute;top:16px;right:20px;color:#fff;font-size:22px;opacity:.8;cursor:pointer;user-select:none}
+/* Search */
+#search-bar{display:none;align-items:center;gap:4px;background:#fff;border:1px solid #d1d5db;border-radius:5px;padding:2px 6px}
+#search-bar.open{display:flex}
+#search-input{border:none;outline:none;font-size:12px;width:160px;background:transparent;color:#111}
+#search-count{font-size:11px;color:#6b7280;white-space:nowrap;min-width:52px;text-align:right}
+.ng-node.ng-search-match{border:2px solid #fcd34d !important}
+.ng-node.ng-search-active{border:2px solid #f59e0b !important;box-shadow:0 0 0 3px rgba(245,158,11,0.35),0 2px 8px rgba(0,0,0,.18) !important}
 </style>
 </head>
 <body>
@@ -277,6 +285,16 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <div class="tb-sep"></div>
     <button onclick="doExpand()" title="Expand selected node + children (all if none selected)">Expand↓</button>
     <button onclick="doCollapse()" title="Collapse selected node + children (all if none selected)">Collapse↑</button>
+    <div class="tb-sep"></div>
+    <button id="search-btn" onclick="openSearch()" title="Search nodes (Ctrl+F)">🔍 Search</button>
+    <div id="search-bar">
+      <input id="search-input" placeholder="Search nodes…" oninput="doSearch(this.value)" onkeydown="onSearchKey(event)">
+      <span id="search-count"></span>
+      <div style="width:1px;height:14px;background:#e5e7eb;margin:0 2px;flex-shrink:0"></div>
+      <button onclick="searchPrev()" title="Previous (Shift+Enter)" style="border:none;background:none;cursor:pointer;padding:2px 5px;font-size:12px;color:#374151">↑</button>
+      <button onclick="searchNext()" title="Next (Enter)" style="border:none;background:none;cursor:pointer;padding:2px 5px;font-size:12px;color:#374151">↓</button>
+      <button onclick="closeSearch()" title="Close (Escape)" style="border:none;background:none;cursor:pointer;padding:2px 5px;font-size:12px;color:#6b7280">✕</button>
+    </div>
     <div class="tb-sep"></div>
     <span id="tb-sel" style="opacity:.35">Click a node to select</span>
   </div>
@@ -780,7 +798,87 @@ function fitView() {
 // Lightbox
 function showLightbox(src){document.getElementById('lightbox-img').src=src;document.getElementById('lightbox').classList.add('active');}
 function closeLightbox(){document.getElementById('lightbox').classList.remove('active');document.getElementById('lightbox-img').src='';}
-document.addEventListener('keydown',function(e){if(e.key==='Escape') closeLightbox();});
+document.addEventListener('keydown',function(e){
+  if((e.ctrlKey||e.metaKey)&&e.key==='f'){e.preventDefault();openSearch();return;}
+  if(e.key==='Escape'){
+    if(document.getElementById('search-bar').classList.contains('open')){closeSearch();return;}
+    closeLightbox();
+  }
+});
+
+// Search
+var searchMatchIds=[];
+var searchActiveIdx=-1;
+function openSearch(){
+  var bar=document.getElementById('search-bar');
+  bar.classList.add('open');
+  document.getElementById('search-btn').style.display='none';
+  var inp=document.getElementById('search-input');
+  inp.focus();inp.select();
+  if(inp.value) doSearch(inp.value);
+}
+function closeSearch(){
+  clearSearchHighlights();
+  searchMatchIds=[];searchActiveIdx=-1;
+  document.getElementById('search-bar').classList.remove('open');
+  document.getElementById('search-btn').style.display='';
+  document.getElementById('search-input').value='';
+  document.getElementById('search-count').textContent='';
+}
+function clearSearchHighlights(){
+  document.querySelectorAll('.ng-search-match,.ng-search-active').forEach(function(el){el.classList.remove('ng-search-match','ng-search-active');});
+}
+function doSearch(q){
+  clearSearchHighlights();
+  searchMatchIds=[];searchActiveIdx=0;
+  var query=q.trim().toLowerCase();
+  if(!query){document.getElementById('search-count').textContent='';return;}
+  NODES_DATA.forEach(function(n){if(n.searchText&&n.searchText.indexOf(query)!==-1) searchMatchIds.push(n.id);});
+  searchMatchIds.forEach(function(id){var el=document.getElementById('node-'+id);if(el) el.classList.add('ng-search-match');});
+  if(searchMatchIds.length>0){searchActiveIdx=0;activateSearchMatch(0);}
+  updateSearchCount();
+}
+function activateSearchMatch(idx){
+  document.querySelectorAll('.ng-search-active').forEach(function(el){el.classList.remove('ng-search-active');});
+  if(!searchMatchIds.length) return;
+  var el=document.getElementById('node-'+searchMatchIds[idx]);
+  if(el){el.classList.add('ng-search-active');flyToNode(searchMatchIds[idx]);}
+}
+function searchNext(){
+  if(!searchMatchIds.length) return;
+  searchActiveIdx=(searchActiveIdx+1)%searchMatchIds.length;
+  activateSearchMatch(searchActiveIdx);updateSearchCount();
+}
+function searchPrev(){
+  if(!searchMatchIds.length) return;
+  searchActiveIdx=(searchActiveIdx-1+searchMatchIds.length)%searchMatchIds.length;
+  activateSearchMatch(searchActiveIdx);updateSearchCount();
+}
+function updateSearchCount(){
+  var el=document.getElementById('search-count');
+  if(!el) return;
+  var q=document.getElementById('search-input').value.trim();
+  if(!q){el.textContent='';return;}
+  if(!searchMatchIds.length){el.style.color='#ef4444';el.textContent='0 results';return;}
+  el.style.color='#6b7280';
+  el.textContent=(searchActiveIdx+1)+' / '+searchMatchIds.length;
+}
+function flyToNode(nodeId){
+  var el=document.getElementById('node-'+nodeId);
+  if(!el) return;
+  var rect=vp.getBoundingClientRect();
+  var W=rect.width,H=rect.height;
+  var nodeX=parseFloat(el.style.left)||0;
+  var nodeY=parseFloat(el.style.top)||0;
+  tx=W/2-(nodeX+el.offsetWidth/2)*scale;
+  ty=H/2-(nodeY+el.offsetHeight/2)*scale;
+  applyTransform();
+}
+function onSearchKey(e){
+  if(e.key==='Enter'){e.shiftKey?searchPrev():searchNext();e.preventDefault();}
+  if(e.key==='Escape'){closeSearch();e.preventDefault();}
+  e.stopPropagation();
+}
 
 // KaTeX rendering
 function initKatex() {
