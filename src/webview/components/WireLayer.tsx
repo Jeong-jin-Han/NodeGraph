@@ -15,7 +15,7 @@ interface WireLayerProps {
 
 const CANVAS_SIZE = 20000
 const CANVAS_OFFSET = -10000
-const DEFAULT_W = 240
+const DEFAULT_W = 432
 const DEFAULT_H = 36
 
 interface NodeRect extends Rect {

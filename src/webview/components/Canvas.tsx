@@ -104,7 +104,7 @@ function computeRenderPositions(
   draggingNodeId: string | null
 ): Record<string, { x: number; y: number }> {
   const isMainNode = (node: GraphNode) => (nodeTemplates[node.template]?.shape ?? 'sharp') === 'sharp'
-  const nw = (n: GraphNode) => nodeSizes[n.id]?.width ?? (n.nodeWidth ?? 300)
+  const nw = (n: GraphNode) => nodeSizes[n.id]?.width ?? (n.nodeWidth ?? 432)
   const nh = (n: GraphNode) => {
     const measured = nodeSizes[n.id]?.height
     if (measured !== undefined) return measured
@@ -168,8 +168,8 @@ function computeRenderPositions(
       const otherBottom = otherRenderY + otherH
       const otherPush = Math.max(0, otherRenderY - other.position.y)
       if (otherH > HEADER_H && otherBottom > node.position.y) {
-        // 확장된 노드가 이 노드의 originalY 위치를 덮음 → bottom 아래로
-        effY = Math.max(effY, otherBottom + 30)
+        // 확장된 노드가 이 노드의 originalY 위치를 덮음 → bottom 아래로 (펼침 여백 48px)
+        effY = Math.max(effY, otherBottom + 48)
       } else {
         // 접힌 상태 or originalY 아래: Y 이동 delta만 전파
         effY = Math.max(effY, node.position.y + otherPush)
@@ -203,13 +203,16 @@ function computeRenderPositions(
         placed.push({ node, y: node.position.y, h })
         continue
       }
-      const gap = isMainNode(node) ? 20 : 30
+      // 적응형 gap: 둘 다 접힌 상태면 촘촘하게(20/30), 한쪽이라도 펼쳐져 있으면
+      // 48px로 넓혀 펼친 콘텐츠 주변 가독성 확보 (접힌 노드들은 공간 낭비 없음)
+      const baseGap = isMainNode(node) ? 20 : 30
       let y = effYMap.get(node.id)!
       let moved = true
       while (moved) {
         moved = false
         for (const p of placed) {
           if (!xOverlap(node, p.node)) continue
+          const gap = (h > HEADER_H || p.h > HEADER_H) ? 48 : baseGap
           // 세로 구간이 (gap 여유 포함) 겹치면 해당 노드 아래로 밀기
           if (y < p.y + p.h + gap && y + h + gap > p.y) {
             y = p.y + p.h + gap
@@ -235,12 +238,12 @@ function computeRenderPositions(
     const xGroups: string[][] = []
     for (const id of targetIds) {
       const nx = nodeById.get(id)!.position.x
-      const nwid = nodeSizes[id]?.width ?? 300
+      const nwid = nodeSizes[id]?.width ?? 432
       let placed = false
       for (const grp of xGroups) {
         const firstId = grp[0]
         const fx = nodeById.get(firstId)!.position.x
-        const fw = nodeSizes[firstId]?.width ?? 300
+        const fw = nodeSizes[firstId]?.width ?? 432
         if (nx < fx + fw && fx < nx + nwid) { grp.push(id); placed = true; break }
       }
       if (!placed) xGroups.push([id])
@@ -259,7 +262,46 @@ function computeRenderPositions(
     }
   }
 
-  return Object.fromEntries(nodes.map(n => [n.id, { x: n.position.x, y: renderY[n.id] ?? n.position.y }]))
+  // Pass 4: 가로 간격 확보 — 노드 단위 X-패킹 (Y-패킹을 90° 회전한 그리디)
+  // 세로로 겹치는 두 노드가 가로로 H_GAP 이내로 붙으면 오른쪽 노드를 밀어냄.
+  // 노드가 펼쳐져 넓어지면(표 등) 옆 노드가 실시간으로 밀리고, 접으면 원위치 복귀.
+  // 세로로 겹치지 않는 노드(위아래로 이미 분리된)는 절대 밀지 않음 → 공간 낭비 없음
+  const H_GAP = 60
+  const renderX: Record<string, number> = {}
+  const byX = [...nodes].sort((a, b) => a.position.x - b.position.x)
+  for (const node of byX) {
+    if (node.id === draggingNodeId) {
+      // 드래그 중인 노드는 마우스 위치 그대로 (밀리지 않음, 밀 수는 있음)
+      renderX[node.id] = node.position.x
+      continue
+    }
+    const ny = renderY[node.id] ?? node.position.y
+    const nH = nh(node)
+    const nW = nw(node)
+    let x = node.position.x
+    let moved = true
+    while (moved) {
+      moved = false
+      for (const other of byX) {
+        const ox = renderX[other.id]  // 이미 배치된(왼쪽부터 처리) 노드만 존재
+        if (ox === undefined || other.id === node.id) continue
+        const oy = renderY[other.id] ?? other.position.y
+        // 세로로 겹치는 노드끼리만 가로 gap 강제
+        if (!(ny < oy + nh(other) && oy < ny + nH)) continue
+        // 가로 구간이 (H_GAP 여유 포함) 겹치면 해당 노드 오른쪽으로 밀기
+        if (x < ox + nw(other) + H_GAP && ox < x + nW + H_GAP) {
+          x = ox + nw(other) + H_GAP
+          moved = true
+        }
+      }
+    }
+    renderX[node.id] = x
+  }
+
+  return Object.fromEntries(nodes.map(n => [n.id, {
+    x: renderX[n.id] ?? n.position.x,
+    y: renderY[n.id] ?? n.position.y,
+  }]))
 }
 
 const toolbarBtnStyle: React.CSSProperties = {
@@ -704,7 +746,7 @@ export function Canvas({
     if (!node || !divRef.current) return
     const pos = renderPositionsRef.current[nodeId] ?? node.position
     const { clientWidth, clientHeight } = divRef.current
-    const nodeW = nodeSizesRef.current[nodeId]?.width ?? (node.nodeWidth ?? 300)
+    const nodeW = nodeSizesRef.current[nodeId]?.width ?? (node.nodeWidth ?? 432)
     const nodeH = nodeSizesRef.current[nodeId]?.height ?? 36
     const vp = viewportRef.current
     onSetViewport({
@@ -785,7 +827,7 @@ export function Canvas({
       return graph.nodes.find(n => {
         if (n.id === nodeId) return false
         const pos = renderPositions[n.id] ?? n.position
-        const sz = nodeSizes[n.id] ?? { width: 240, height: 36 }
+        const sz = nodeSizes[n.id] ?? { width: 432, height: 36 }
         return x >= pos.x && x <= pos.x + sz.width && y >= pos.y && y <= pos.y + sz.height
       })
     }
@@ -845,7 +887,7 @@ export function Canvas({
           const hit = new Set<string>()
           for (const node of graphNodesRef.current) {
             const pos = renderPositionsRef.current[node.id] ?? node.position
-            const sz = nodeSizesRef.current[node.id] ?? { width: 240, height: HEADER_H }
+            const sz = nodeSizesRef.current[node.id] ?? { width: 432, height: HEADER_H }
             if (pos.x < cx2 && pos.x + sz.width > cx1 && pos.y < cy2 && pos.y + sz.height > cy1) {
               hit.add(node.id)
             }
@@ -926,12 +968,12 @@ export function Canvas({
     const { width: W, height: H } = el.getBoundingClientRect()
     const cx = (W / 2 - viewport.x) / viewport.zoom
     const cy = (H / 2 - viewport.y) / viewport.zoom
-    const NW = 300, NH = HEADER_H, MARGIN = 40
+    const NW = 432, NH = HEADER_H, MARGIN = 40
 
     const isFree = (x: number, y: number) => {
       for (const n of graph.nodes) {
         const pos = renderPositionsRef.current[n.id] ?? n.position
-        const sz = nodeSizesRef.current[n.id] ?? { width: n.nodeWidth ?? 300, height: HEADER_H }
+        const sz = nodeSizesRef.current[n.id] ?? { width: n.nodeWidth ?? 432, height: HEADER_H }
         if (x < pos.x + sz.width + MARGIN && pos.x < x + NW + MARGIN &&
             y < pos.y + sz.height + MARGIN && pos.y < y + NH + MARGIN) return false
       }
@@ -971,7 +1013,7 @@ export function Canvas({
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
     for (const node of graph.nodes) {
       const pos = renderPositions[node.id] ?? node.position
-      const sz = nodeSizes[node.id] ?? { width: 240, height: HEADER_H }
+      const sz = nodeSizes[node.id] ?? { width: 432, height: HEADER_H }
       minX = Math.min(minX, pos.x); minY = Math.min(minY, pos.y)
       maxX = Math.max(maxX, pos.x + sz.width); maxY = Math.max(maxY, pos.y + sz.height)
     }

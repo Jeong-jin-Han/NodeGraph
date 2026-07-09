@@ -65,7 +65,7 @@ Create exactly **5 backbone `main_topic` nodes** at `x: 0`, spaced `y: 300` apar
 
 Connect backbone nodes in sequence with `arrow` edges (1→2→3→4→5).
 
-### Step 4 — Add sub-nodes (x: 450–500)
+### Step 4 — Add sub-nodes (x: 500–550)
 
 For each backbone node, add **sub-nodes branching to the right**. Use the appropriate template:
 
@@ -78,7 +78,7 @@ For each backbone node, add **sub-nodes branching to the right**. Use the approp
 | Related prior work | `reference` (rounded) | Papers that are cited as baselines or inspirations |
 | Design decision memo | `memo` (rounded) | Choices that seem arbitrary but have a reason |
 
-Space sub-nodes at ~`y: 150` intervals around their parent's y-center, at `x: 450`.
+Space sub-nodes at ~`y: 150` intervals around their parent's y-center, at `x: 500`.
 
 Connect each sub-node to its parent backbone node with a `line` edge.
 
@@ -391,7 +391,7 @@ Wrap text in double asterisks to render it **bold** with a slightly larger size:
 ## Position guidelines
 
 - Backbone (main) nodes: arrange vertically, `y` spacing of ~300px, `x` = 0
-- Sub-nodes: arrange to the right of their parent, `x` offset of ~450–500px
+- Sub-nodes: arrange to the right of their parent, `x` offset of ~500–550px (default node width is 432px — keep sub-nodes clear of the backbone column)
 - Distribute sub-nodes vertically around their parent's y-center (~150px spacing)
 - Check all existing node positions before placing new ones — avoid overlapping
 - The overlap-prevention algorithm runs automatically in the editor and HTML viewer, but clean initial placement still helps

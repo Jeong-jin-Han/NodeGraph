@@ -1,10 +1,10 @@
-"use strict";var J=Object.create;var B=Object.defineProperty;var Z=Object.getOwnPropertyDescriptor;var Q=Object.getOwnPropertyNames;var ee=Object.getPrototypeOf,te=Object.prototype.hasOwnProperty;var ne=(t,e)=>{for(var n in e)B(t,n,{get:e[n],enumerable:!0})},U=(t,e,n,r)=>{if(e&&typeof e=="object"||typeof e=="function")for(let a of Q(e))!te.call(t,a)&&a!==n&&B(t,a,{get:()=>e[a],enumerable:!(r=Z(e,a))||r.enumerable});return t};var N=(t,e,n)=>(n=t!=null?J(ee(t)):{},U(e||!t||!t.__esModule?B(n,"default",{value:t,enumerable:!0}):n,t)),oe=t=>U(B({},"__esModule",{value:!0}),t);var he={};ne(he,{activate:()=>pe,deactivate:()=>ue});module.exports=oe(he);var D=N(require("vscode"));var l=N(require("vscode")),q=N(require("path"));var w=N(require("vscode"));function L(t){let e=w.Uri.joinPath(t,".."),n=t.path.split("/").pop()?.replace(/\.nodegraph\.json$/,"")??"graph";return w.Uri.joinPath(e,`.${n}-imgs`)}function re(t,e,n){let r=w.Uri.joinPath(L(e),n);return t.asWebviewUri(r).toString()}var W=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;function _(t,e,n){let r={},a=s=>{s&&!r[s]&&(r[s]=re(t,e,s))};for(let s of n.nodes){W.lastIndex=0;let u;for(;(u=W.exec(s.content??""))!==null;)a(u[1])}for(let s of n.canvasImages??[])a(s.filename);return r}async function j(t,e,n,r="png"){let a=L(e);try{await w.workspace.fs.createDirectory(a)}catch{}let s=`img_${Date.now()}.${r}`,u=w.Uri.joinPath(a,s);return await w.workspace.fs.writeFile(u,Buffer.from(n,"base64")),{filename:s,webviewUri:t.asWebviewUri(u).toString()}}async function z(t,e){let n=w.Uri.joinPath(L(t),e);try{await w.workspace.fs.delete(n)}catch{}}function f(t){return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function H(t){return/^\s*\|/.test(t)&&t.indexOf("|",1)!==-1}function P(t){return/^\s*\|[\s\-:|]+\|\s*$/.test(t)&&!/[a-zA-Z0-9]/.test(t)}function F(t){return t.replace(/^\s*\|/,"").replace(/\|\s*$/,"").split("|").map(e=>e.trim())}function ie(t){if(!t)return[{type:"text",text:"",startChar:0,endChar:0}];let e=t.split(`
-`),n=[],r=0,a=0,s=u=>e[u].length+(u<e.length-1?1:0);for(;r<e.length;)if(H(e[r])&&r+1<e.length&&P(e[r+1])){let p=a,i=[];for(;r<e.length&&H(e[r]);)i.push(e[r]),a+=s(r),r++;i.length>=3?n.push({type:"table",headers:F(i[0]),rows:i.slice(2).map(F),startChar:p,endChar:a}):n.push({type:"text",text:i.join(`
-`),startChar:p,endChar:a})}else{let p=a,i=[];for(;r<e.length&&!(H(e[r])&&r+1<e.length&&P(e[r+1]));)i.push(e[r]),a+=s(r),r++;n.push({type:"text",text:i.join(`
-`),startChar:p,endChar:a})}return n}function O(t){let e=t.split(`
-`);for(let n=0;n+1<e.length;n++)if(H(e[n])&&P(e[n+1]))return!0;return!1}function X(t){return f(t).replace(/\*\*(.+?)\*\*/g,'<strong style="font-size:1.1em">$1</strong>')}function Y(t,e){let n=/\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g,r="",a=0,s;for(;(s=n.exec(t))!==null;){s.index>a&&(r+=X(t.slice(a,s.index)));let u=s[1],p=s[2],i=s[3],d=p&&i?` width="${p}" height="${i}"`:"",o=e[u];r+=o?`<img class="ng-img${d?" ng-img-sized":""}" src="${o}"${d} alt="${f(u)}" onclick="showLightbox(this.src)" title="Click to enlarge">`:`<span class="ng-img-missing">${f(u)}</span>`,a=s.index+s[0].length}return a<t.length&&(r+=X(t.slice(a))),r}function ae(t,e){let n=t.headers.map(a=>`<th>${Y(a,e)}</th>`).join(""),r=t.rows.map(a=>`<tr>${a.map(s=>`<td>${Y(s,e)}</td>`).join("")}</tr>`).join("");return`<div class="ng-table-wrap"><table class="ng-table"><thead><tr>${n}</tr></thead><tbody>${r}</tbody></table></div>`}function se(t,e,n,r,a){let s=e?.color??"#888",u=e?.shape==="rounded"?"22px":"2px",p=f(e?.label??t.template),i=Math.round(t.position.x+n),d=Math.round(t.position.y+r),o="",h=t.content??"";if(O(h)){let c=ie(h);o+='<div class="ng-content">';for(let v of c)v.type==="table"?o+=ae(v,a):v.text&&(o+=`<div class="ng-seg">${Y(v.text,a).replace(/\n/g,"<br>")}</div>`);o+="</div>"}else h&&(o+=`<div class="ng-content">${Y(h,a).replace(/\n/g,"<br>")}</div>`);if(t.original){let c=f(t.original.title??"Original"),v=t.originalExpanded?" open":"";o+=`<details class="ng-original"${v}><summary>${c}${t.original.location?` <span class="ng-loc">${f(t.original.location)}</span>`:""}</summary>
+"use strict";var J=Object.create;var H=Object.defineProperty;var Z=Object.getOwnPropertyDescriptor;var Q=Object.getOwnPropertyNames;var ee=Object.getPrototypeOf,te=Object.prototype.hasOwnProperty;var ne=(t,e)=>{for(var n in e)H(t,n,{get:e[n],enumerable:!0})},W=(t,e,n,r)=>{if(e&&typeof e=="object"||typeof e=="function")for(let a of Q(e))!te.call(t,a)&&a!==n&&H(t,a,{get:()=>e[a],enumerable:!(r=Z(e,a))||r.enumerable});return t};var N=(t,e,n)=>(n=t!=null?J(ee(t)):{},W(e||!t||!t.__esModule?H(n,"default",{value:t,enumerable:!0}):n,t)),oe=t=>W(H({},"__esModule",{value:!0}),t);var he={};ne(he,{activate:()=>pe,deactivate:()=>ue});module.exports=oe(he);var D=N(require("vscode"));var l=N(require("vscode")),q=N(require("path"));var w=N(require("vscode"));function _(t){let e=w.Uri.joinPath(t,".."),n=t.path.split("/").pop()?.replace(/\.nodegraph\.json$/,"")??"graph";return w.Uri.joinPath(e,`.${n}-imgs`)}function re(t,e,n){let r=w.Uri.joinPath(_(e),n);return t.asWebviewUri(r).toString()}var U=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;function P(t,e,n){let r={},a=s=>{s&&!r[s]&&(r[s]=re(t,e,s))};for(let s of n.nodes){U.lastIndex=0;let u;for(;(u=U.exec(s.content??""))!==null;)a(u[1])}for(let s of n.canvasImages??[])a(s.filename);return r}async function X(t,e,n,r="png"){let a=_(e);try{await w.workspace.fs.createDirectory(a)}catch{}let s=`img_${Date.now()}.${r}`,u=w.Uri.joinPath(a,s);return await w.workspace.fs.writeFile(u,Buffer.from(n,"base64")),{filename:s,webviewUri:t.asWebviewUri(u).toString()}}async function j(t,e){let n=w.Uri.joinPath(_(t),e);try{await w.workspace.fs.delete(n)}catch{}}function f(t){return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function B(t){return/^\s*\|/.test(t)&&t.indexOf("|",1)!==-1}function O(t){return/^\s*\|[\s\-:|]+\|\s*$/.test(t)&&!/[a-zA-Z0-9]/.test(t)}function z(t){return t.replace(/^\s*\|/,"").replace(/\|\s*$/,"").split("|").map(e=>e.trim())}function ie(t){if(!t)return[{type:"text",text:"",startChar:0,endChar:0}];let e=t.split(`
+`),n=[],r=0,a=0,s=u=>e[u].length+(u<e.length-1?1:0);for(;r<e.length;)if(B(e[r])&&r+1<e.length&&O(e[r+1])){let p=a,i=[];for(;r<e.length&&B(e[r]);)i.push(e[r]),a+=s(r),r++;i.length>=3?n.push({type:"table",headers:z(i[0]),rows:i.slice(2).map(z),startChar:p,endChar:a}):n.push({type:"text",text:i.join(`
+`),startChar:p,endChar:a})}else{let p=a,i=[];for(;r<e.length&&!(B(e[r])&&r+1<e.length&&O(e[r+1]));)i.push(e[r]),a+=s(r),r++;n.push({type:"text",text:i.join(`
+`),startChar:p,endChar:a})}return n}function L(t){let e=t.split(`
+`);for(let n=0;n+1<e.length;n++)if(B(e[n])&&O(e[n+1]))return!0;return!1}function F(t){return f(t).replace(/\*\*(.+?)\*\*/g,'<strong style="font-size:1.1em">$1</strong>')}function Y(t,e){let n=/\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g,r="",a=0,s;for(;(s=n.exec(t))!==null;){s.index>a&&(r+=F(t.slice(a,s.index)));let u=s[1],p=s[2],i=s[3],d=p&&i?` width="${p}" height="${i}"`:"",o=e[u];r+=o?`<img class="ng-img${d?" ng-img-sized":""}" src="${o}"${d} alt="${f(u)}" onclick="showLightbox(this.src)" title="Click to enlarge">`:`<span class="ng-img-missing">${f(u)}</span>`,a=s.index+s[0].length}return a<t.length&&(r+=F(t.slice(a))),r}function ae(t,e){let n=t.headers.map(a=>`<th>${Y(a,e)}</th>`).join(""),r=t.rows.map(a=>`<tr>${a.map(s=>`<td>${Y(s,e)}</td>`).join("")}</tr>`).join("");return`<div class="ng-table-wrap"><table class="ng-table"><thead><tr>${n}</tr></thead><tbody>${r}</tbody></table></div>`}function se(t,e,n,r,a){let s=e?.color??"#888",u=e?.shape==="rounded"?"22px":"2px",p=f(e?.label??t.template),i=Math.round(t.position.x+n),d=Math.round(t.position.y+r),o="",h=t.content??"";if(L(h)){let c=ie(h);o+='<div class="ng-content">';for(let v of c)v.type==="table"?o+=ae(v,a):v.text&&(o+=`<div class="ng-seg">${Y(v.text,a).replace(/\n/g,"<br>")}</div>`);o+="</div>"}else h&&(o+=`<div class="ng-content">${Y(h,a).replace(/\n/g,"<br>")}</div>`);if(t.original){let c=f(t.original.title??"Original"),v=t.originalExpanded?" open":"";o+=`<details class="ng-original"${v}><summary>${c}${t.original.location?` <span class="ng-loc">${f(t.original.location)}</span>`:""}</summary>
 <div class="ng-orig-text">${f(t.original.text).replace(/\n/g,"<br>")}</div></details>`}for(let c of t.toggleItems??[])o+=`<details class="ng-toggle"${c.expanded?" open":""}><summary>${f(c.title||"(untitled)")}</summary>
-<div class="ng-toggle-body">${f(c.content).replace(/\n/g,"<br>")}</div></details>`;t.links.length&&(o+=`<div class="ng-links">${t.links.map(c=>{let v=c.type==="url"?"\u{1F517}":c.type==="pdf"?"\u{1F4C4}":c.type==="obsidian"?"\u{1F7E3}":"\u2B21";return`<a class="ng-link"${c.type==="url"||c.type==="pdf"?` href="${f(c.target)}" target="_blank"`:""}>${v} ${f(c.label||c.target)}</a>`}).join("")}</div>`);let E=!!o,y=t.contentExpanded?"":' style="display:none"',S=t.children.length?` data-children="${t.children.join(",")}"`:"",A=O(h)?" ng-has-table":"",k=/\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g,b=0,I;for(;(I=k.exec(h))!==null;)b=Math.max(b,Number(I[1]));let m=b>0?O(h)?b+280:b+32:0,g=[t.nodeWidth?`min-width:${t.nodeWidth}px`:m>220?`min-width:${m}px`:"",t.nodeHeight&&t.contentExpanded?`min-height:${t.nodeHeight}px`:""].filter(Boolean).join(";"),$=t.nodeHeight?` data-min-h="${t.nodeHeight}"`:"";return`<div class="ng-node${A}" id="node-${f(t.id)}"${S}${$} style="--color:${s};border-radius:${u};left:${i}px;top:${d}px${g?";"+g:""}">
+<div class="ng-toggle-body">${f(c.content).replace(/\n/g,"<br>")}</div></details>`;t.links.length&&(o+=`<div class="ng-links">${t.links.map(c=>{let v=c.type==="url"?"\u{1F517}":c.type==="pdf"?"\u{1F4C4}":c.type==="obsidian"?"\u{1F7E3}":"\u2B21";return`<a class="ng-link"${c.type==="url"||c.type==="pdf"?` href="${f(c.target)}" target="_blank"`:""}>${v} ${f(c.label||c.target)}</a>`}).join("")}</div>`);let E=!!o,y=t.contentExpanded?"":' style="display:none"',S=t.children.length?` data-children="${t.children.join(",")}"`:"",A=L(h)?" ng-has-table":"",k=/\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g,b=0,I;for(;(I=k.exec(h))!==null;)b=Math.max(b,Number(I[1]));let m=b>0?L(h)?b+280:b+32:0,g=[t.nodeWidth?`min-width:${t.nodeWidth}px`:m>432?`min-width:${m}px`:"",t.nodeHeight&&t.contentExpanded?`min-height:${t.nodeHeight}px`:""].filter(Boolean).join(";"),$=t.nodeHeight?` data-min-h="${t.nodeHeight}"`:"";return`<div class="ng-node${A}" id="node-${f(t.id)}"${S}${$} style="--color:${s};border-radius:${u};left:${i}px;top:${d}px${g?";"+g:""}">
   <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,${s} 22%,transparent);color:${s}">${p}</span>
     ${E?`<span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">${f(t.title)}</span>`:`<span class="ng-title">${f(t.title)}</span>`}
@@ -38,7 +38,7 @@ button:hover{background:#e8e8e8;border-color:#aaa}
 #viewport.pan-drag{cursor:grabbing}
 #canvas{position:absolute;transform-origin:0 0}
 #wire-svg{position:absolute;top:0;left:0;width:10000px;height:10000px;pointer-events:none;overflow:visible}
-.ng-node{position:absolute;min-width:220px;background:color-mix(in srgb,var(--color) 10%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.ng-node{position:absolute;min-width:432px;background:color-mix(in srgb,var(--color) 10%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .ng-node.ng-selected{box-shadow:0 0 0 2px color-mix(in srgb,var(--color) 80%,transparent),0 2px 8px rgba(0,0,0,.12)}
 .ng-node.ng-dragging{opacity:.88;transition:box-shadow .1s;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:100}
 .ng-header{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:default;user-select:none}
@@ -381,7 +381,7 @@ function recomputePositions() {
   }
   function getW(n) {
     var el = document.getElementById('node-' + n.id);
-    return el ? el.offsetWidth : (n.nodeWidth || 300);
+    return el ? el.offsetWidth : (n.nodeWidth || 432);
   }
   function isConn(aId, bId) {
     var a = nodeMap[aId], b = nodeMap[bId];
@@ -432,8 +432,8 @@ function recomputePositions() {
       var otherBottom = otherRY + otherH;
       var otherPush = Math.max(0, otherRY - other.ly);
       if (otherH > HEADER_H && otherBottom > node.ly) {
-        // \uD655\uC7A5\uB41C \uB178\uB4DC\uAC00 \uC774 \uB178\uB4DC \uC704\uCE58\uB97C \uB36E\uC74C \u2192 bottom \uC544\uB798\uB85C
-        effY = Math.max(effY, otherBottom + 30);
+        // \uD655\uC7A5\uB41C \uB178\uB4DC\uAC00 \uC774 \uB178\uB4DC \uC704\uCE58\uB97C \uB36E\uC74C \u2192 bottom \uC544\uB798\uB85C (\uD3BC\uCE68 \uC5EC\uBC31 48px)
+        effY = Math.max(effY, otherBottom + 48);
       } else {
         // \uC811\uD78C \uC0C1\uD0DC: Y \uC774\uB3D9 delta\uB9CC \uC804\uD30C
         effY = Math.max(effY, node.ly + otherPush);
@@ -456,10 +456,11 @@ function recomputePositions() {
 
     // gap \uADDC\uCE59\uC740 \uC2E4\uC81C X\uBC94\uC704\uAC00 \uACB9\uCE58\uB294(pairwise) \uB178\uB4DC\uB07C\uB9AC\uB9CC \uC801\uC6A9
     // \u2014 \uCCB4\uC778\uC73C\uB85C\uB9CC \uAC19\uC740 \uCEEC\uB7FC\uC5D0 \uBB36\uC778 \uBA3C \uB178\uB4DC\uAC00 \uBC00\uC5B4\uB0B4\uC9C0 \uC54A\uB3C4\uB85D
+    // \uC801\uC751\uD615 gap: \uB458 \uB2E4 \uC811\uD798 \u2192 \uCD18\uCD18(20/30), \uD55C\uCABD\uC774\uB77C\uB3C4 \uD3BC\uCE68 \u2192 48px (\uAC00\uB3C5\uC131)
     var placed = [];
     col.forEach(function(node) {
       var h = getH(node);
-      var gap = node.isMain ? 20 : 30;
+      var baseGap = node.isMain ? 20 : 30;
       var y = effYMap[node.id];
       var moved = true;
       while (moved) {
@@ -468,6 +469,7 @@ function recomputePositions() {
           var p = placed[pi];
           var overlapX = node.lx < p.node.lx + getW(p.node) && p.node.lx < node.lx + getW(node);
           if (!overlapX) continue;
+          var gap = (h > HEADER_H || p.h > HEADER_H) ? 48 : baseGap;
           if (y < p.y + p.h + gap && y + h + gap > p.y) {
             y = p.y + p.h + gap;
             moved = true;
@@ -517,10 +519,38 @@ function recomputePositions() {
     });
   });
 
+  // Pass 4: \uAC00\uB85C \uAC04\uACA9 \uD655\uBCF4 \u2014 \uB178\uB4DC \uB2E8\uC704 X-\uD328\uD0B9 (Y-\uD328\uD0B9\uC744 90\xB0 \uD68C\uC804\uD55C \uADF8\uB9AC\uB514)
+  // \uC138\uB85C\uB85C \uACB9\uCE58\uB294 \uB450 \uB178\uB4DC\uAC00 \uAC00\uB85C\uB85C H_GAP \uC774\uB0B4\uB85C \uBD99\uC73C\uBA74 \uC624\uB978\uCABD \uB178\uB4DC\uB97C \uBC00\uC5B4\uB0C4
+  var H_GAP = 60;
+  var renderX = {};
+  var byX = NODES_DATA.slice().sort(function(a, b) { return a.lx - b.lx; });
+  byX.forEach(function(node) {
+    var ny = renderY[node.id] !== undefined ? renderY[node.id] : node.ly;
+    var nH = getH(node);
+    var nW = getW(node);
+    var x = node.lx;
+    var moved = true;
+    while (moved) {
+      moved = false;
+      for (var oi = 0; oi < byX.length; oi++) {
+        var other = byX[oi];
+        var ox = renderX[other.id];  // \uC774\uBBF8 \uBC30\uCE58\uB41C(\uC67C\uCABD\uBD80\uD130 \uCC98\uB9AC) \uB178\uB4DC\uB9CC \uC874\uC7AC
+        if (ox === undefined || other.id === node.id) continue;
+        var oy = renderY[other.id] !== undefined ? renderY[other.id] : other.ly;
+        if (!(ny < oy + getH(other) && oy < ny + nH)) continue;
+        if (x < ox + getW(other) + H_GAP && ox < x + nW + H_GAP) {
+          x = ox + getW(other) + H_GAP;
+          moved = true;
+        }
+      }
+    }
+    renderX[node.id] = x;
+  });
+
   NODES_DATA.forEach(function(n) {
     var el = document.getElementById('node-' + n.id);
     if (!el) return;
-    el.style.left = n.lx + 'px';
+    el.style.left = (renderX[n.id] !== undefined ? renderX[n.id] : n.lx) + 'px';
     el.style.top = (renderY[n.id] !== undefined ? renderY[n.id] : n.ly) + 'px';
   });
   drawEdges();
@@ -833,7 +863,7 @@ window.addEventListener('load', function() {
 });
 </script>
 </body>
-</html>`}var C=class t{constructor(e){this.context=e;this._pendingSaves=new Set}static register(e){let n=new t(e);return l.window.registerCustomEditorProvider("nodegraph.editor",n,{webviewOptions:{retainContextWhenHidden:!0}})}static{this._activeWebview=null}static postToActive(e){t._activeWebview?.postMessage(e)}async resolveCustomTextEditor(e,n,r){let a=l.Uri.joinPath(e.uri,"..");n.webview.options={enableScripts:!0,localResourceRoots:[this.context.extensionUri,a]},n.webview.html=this._getHtmlForWebview(n.webview);let s=i=>{try{let d=JSON.parse(e.getText()),o=_(n.webview,e.uri,d);n.webview.postMessage({type:i,data:d,imageUris:o})}catch{}},u=n.webview.onDidReceiveMessage(async i=>{if(i.type==="ready")s("load");else if(i.type==="save"){let d=e.uri.toString();this._pendingSaves.add(d);try{let o=new l.WorkspaceEdit,h=new l.Range(e.positionAt(0),e.positionAt(e.getText().length));o.replace(e.uri,h,JSON.stringify(i.data,null,2)),await l.workspace.applyEdit(o),await e.save()}finally{this._pendingSaves.delete(d)}}else if(i.type==="openLink"){let d=i.link;if(d.type==="url")l.env.openExternal(l.Uri.parse(d.target));else if(d.type==="pdf"){let o=l.Uri.joinPath(l.Uri.joinPath(e.uri,".."),d.target);l.env.openExternal(o)}else d.type==="obsidian"&&l.env.openExternal(l.Uri.parse(d.target))}else if(i.type==="exportHtml")try{let d=i.data,o=l.Uri.joinPath(e.uri,".."),h=q.basename(e.uri.fsPath,".nodegraph.json"),E=l.Uri.joinPath(o,`.${h}-imgs`),y={},S=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g,A=async m=>{if(!(!m||y[m]))try{let g=l.Uri.joinPath(E,m),$=await l.workspace.fs.readFile(g),c=m.split(".").pop()?.toLowerCase()??"png",v=c==="jpg"||c==="jpeg"?"image/jpeg":c==="gif"?"image/gif":c==="webp"?"image/webp":"image/png";y[m]=`data:${v};base64,${Buffer.from($).toString("base64")}`}catch{}};for(let m of d.nodes){S.lastIndex=0;let g;for(;(g=S.exec(m.content??""))!==null;)await A(g[1])}let k=G(d,y),b=l.Uri.joinPath(o,`${h}.html`);await l.workspace.fs.writeFile(b,Buffer.from(k,"utf-8"));let I=await l.window.showInformationMessage(`HTML exported: ${h}.html`,"Open in Browser","Show in Explorer");I==="Open in Browser"?l.env.openExternal(b):I==="Show in Explorer"&&l.commands.executeCommand("revealFileInOS",b)}catch(d){l.window.showErrorMessage(`HTML export failed: ${d}`)}else if(i.type==="saveImage")try{let{filename:d,webviewUri:o}=await j(n.webview,e.uri,i.data,i.ext??"png");n.webview.postMessage({type:"imageSaved",nodeId:i.nodeId,filename:d,webviewUri:o})}catch(d){l.window.showErrorMessage(`Failed to save image: ${d}`)}else if(i.type==="deleteImageFile")await z(e.uri,i.filename);else if(i.type==="reload")try{let d=await l.workspace.fs.readFile(e.uri),o=Buffer.from(d).toString("utf-8"),h=JSON.parse(o),E=_(n.webview,e.uri,h);n.webview.postMessage({type:"load",data:h,imageUris:E})}catch{s("load")}}),p=l.workspace.onDidChangeTextDocument(i=>{i.document.uri.toString()===e.uri.toString()&&(this._pendingSaves.has(e.uri.toString())||s("externalChange"))});t._activeWebview=n.webview,n.onDidChangeViewState(i=>{i.webviewPanel.active&&(t._activeWebview=n.webview)}),n.onDidDispose(()=>{u.dispose(),p.dispose(),t._activeWebview===n.webview&&(t._activeWebview=null)})}_getHtmlForWebview(e){let n=e.asWebviewUri(l.Uri.joinPath(this.context.extensionUri,"dist","webview.js")),r=e.asWebviewUri(l.Uri.joinPath(this.context.extensionUri,"dist","katex","katex.min.css")),a=de();return`<!DOCTYPE html>
+</html>`}var C=class t{constructor(e){this.context=e;this._pendingSaves=new Set}static register(e){let n=new t(e);return l.window.registerCustomEditorProvider("nodegraph.editor",n,{webviewOptions:{retainContextWhenHidden:!0}})}static{this._activeWebview=null}static postToActive(e){t._activeWebview?.postMessage(e)}async resolveCustomTextEditor(e,n,r){let a=l.Uri.joinPath(e.uri,"..");n.webview.options={enableScripts:!0,localResourceRoots:[this.context.extensionUri,a]},n.webview.html=this._getHtmlForWebview(n.webview);let s=i=>{try{let d=JSON.parse(e.getText()),o=P(n.webview,e.uri,d);n.webview.postMessage({type:i,data:d,imageUris:o})}catch{}},u=n.webview.onDidReceiveMessage(async i=>{if(i.type==="ready")s("load");else if(i.type==="save"){let d=e.uri.toString();this._pendingSaves.add(d);try{let o=new l.WorkspaceEdit,h=new l.Range(e.positionAt(0),e.positionAt(e.getText().length));o.replace(e.uri,h,JSON.stringify(i.data,null,2)),await l.workspace.applyEdit(o),await e.save()}finally{this._pendingSaves.delete(d)}}else if(i.type==="openLink"){let d=i.link;if(d.type==="url")l.env.openExternal(l.Uri.parse(d.target));else if(d.type==="pdf"){let o=l.Uri.joinPath(l.Uri.joinPath(e.uri,".."),d.target);l.env.openExternal(o)}else d.type==="obsidian"&&l.env.openExternal(l.Uri.parse(d.target))}else if(i.type==="exportHtml")try{let d=i.data,o=l.Uri.joinPath(e.uri,".."),h=q.basename(e.uri.fsPath,".nodegraph.json"),E=l.Uri.joinPath(o,`.${h}-imgs`),y={},S=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g,A=async m=>{if(!(!m||y[m]))try{let g=l.Uri.joinPath(E,m),$=await l.workspace.fs.readFile(g),c=m.split(".").pop()?.toLowerCase()??"png",v=c==="jpg"||c==="jpeg"?"image/jpeg":c==="gif"?"image/gif":c==="webp"?"image/webp":"image/png";y[m]=`data:${v};base64,${Buffer.from($).toString("base64")}`}catch{}};for(let m of d.nodes){S.lastIndex=0;let g;for(;(g=S.exec(m.content??""))!==null;)await A(g[1])}let k=G(d,y),b=l.Uri.joinPath(o,`${h}.html`);await l.workspace.fs.writeFile(b,Buffer.from(k,"utf-8"));let I=await l.window.showInformationMessage(`HTML exported: ${h}.html`,"Open in Browser","Show in Explorer");I==="Open in Browser"?l.env.openExternal(b):I==="Show in Explorer"&&l.commands.executeCommand("revealFileInOS",b)}catch(d){l.window.showErrorMessage(`HTML export failed: ${d}`)}else if(i.type==="saveImage")try{let{filename:d,webviewUri:o}=await X(n.webview,e.uri,i.data,i.ext??"png");n.webview.postMessage({type:"imageSaved",nodeId:i.nodeId,filename:d,webviewUri:o})}catch(d){l.window.showErrorMessage(`Failed to save image: ${d}`)}else if(i.type==="deleteImageFile")await j(e.uri,i.filename);else if(i.type==="reload")try{let d=await l.workspace.fs.readFile(e.uri),o=Buffer.from(d).toString("utf-8"),h=JSON.parse(o),E=P(n.webview,e.uri,h);n.webview.postMessage({type:"load",data:h,imageUris:E})}catch{s("load")}}),p=l.workspace.onDidChangeTextDocument(i=>{i.document.uri.toString()===e.uri.toString()&&(this._pendingSaves.has(e.uri.toString())||s("externalChange"))});t._activeWebview=n.webview,n.onDidChangeViewState(i=>{i.webviewPanel.active&&(t._activeWebview=n.webview)}),n.onDidDispose(()=>{u.dispose(),p.dispose(),t._activeWebview===n.webview&&(t._activeWebview=null)})}_getHtmlForWebview(e){let n=e.asWebviewUri(l.Uri.joinPath(this.context.extensionUri,"dist","webview.js")),r=e.asWebviewUri(l.Uri.joinPath(this.context.extensionUri,"dist","katex","katex.min.css")),a=de();return`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">

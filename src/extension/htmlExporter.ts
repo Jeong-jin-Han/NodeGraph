@@ -161,7 +161,7 @@ function renderNodeCard(
   // min-height는 펼침 상태에서만 적용 — 접힌 노드가 수동 리사이즈 높이로 남는 버그 방지
   // (fold/unfold 시 JS가 data-min-h 값으로 토글)
   const extraStyle = [
-    node.nodeWidth  ? `min-width:${node.nodeWidth}px`  : (autoMinWidth > 220 ? `min-width:${autoMinWidth}px` : ''),
+    node.nodeWidth  ? `min-width:${node.nodeWidth}px`  : (autoMinWidth > 432 ? `min-width:${autoMinWidth}px` : ''),
     node.nodeHeight && node.contentExpanded ? `min-height:${node.nodeHeight}px` : '',
   ].filter(Boolean).join(';')
   const minHAttr = node.nodeHeight ? ` data-min-h="${node.nodeHeight}"` : ''
@@ -233,7 +233,7 @@ button:hover{background:#e8e8e8;border-color:#aaa}
 #viewport.pan-drag{cursor:grabbing}
 #canvas{position:absolute;transform-origin:0 0}
 #wire-svg{position:absolute;top:0;left:0;width:10000px;height:10000px;pointer-events:none;overflow:visible}
-.ng-node{position:absolute;min-width:220px;background:color-mix(in srgb,var(--color) 10%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.ng-node{position:absolute;min-width:432px;background:color-mix(in srgb,var(--color) 10%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .ng-node.ng-selected{box-shadow:0 0 0 2px color-mix(in srgb,var(--color) 80%,transparent),0 2px 8px rgba(0,0,0,.12)}
 .ng-node.ng-dragging{opacity:.88;transition:box-shadow .1s;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:100}
 .ng-header{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:default;user-select:none}
@@ -576,7 +576,7 @@ function recomputePositions() {
   }
   function getW(n) {
     var el = document.getElementById('node-' + n.id);
-    return el ? el.offsetWidth : (n.nodeWidth || 300);
+    return el ? el.offsetWidth : (n.nodeWidth || 432);
   }
   function isConn(aId, bId) {
     var a = nodeMap[aId], b = nodeMap[bId];
@@ -627,8 +627,8 @@ function recomputePositions() {
       var otherBottom = otherRY + otherH;
       var otherPush = Math.max(0, otherRY - other.ly);
       if (otherH > HEADER_H && otherBottom > node.ly) {
-        // 확장된 노드가 이 노드 위치를 덮음 → bottom 아래로
-        effY = Math.max(effY, otherBottom + 30);
+        // 확장된 노드가 이 노드 위치를 덮음 → bottom 아래로 (펼침 여백 48px)
+        effY = Math.max(effY, otherBottom + 48);
       } else {
         // 접힌 상태: Y 이동 delta만 전파
         effY = Math.max(effY, node.ly + otherPush);
@@ -651,10 +651,11 @@ function recomputePositions() {
 
     // gap 규칙은 실제 X범위가 겹치는(pairwise) 노드끼리만 적용
     // — 체인으로만 같은 컬럼에 묶인 먼 노드가 밀어내지 않도록
+    // 적응형 gap: 둘 다 접힘 → 촘촘(20/30), 한쪽이라도 펼침 → 48px (가독성)
     var placed = [];
     col.forEach(function(node) {
       var h = getH(node);
-      var gap = node.isMain ? 20 : 30;
+      var baseGap = node.isMain ? 20 : 30;
       var y = effYMap[node.id];
       var moved = true;
       while (moved) {
@@ -663,6 +664,7 @@ function recomputePositions() {
           var p = placed[pi];
           var overlapX = node.lx < p.node.lx + getW(p.node) && p.node.lx < node.lx + getW(node);
           if (!overlapX) continue;
+          var gap = (h > HEADER_H || p.h > HEADER_H) ? 48 : baseGap;
           if (y < p.y + p.h + gap && y + h + gap > p.y) {
             y = p.y + p.h + gap;
             moved = true;
@@ -712,10 +714,38 @@ function recomputePositions() {
     });
   });
 
+  // Pass 4: 가로 간격 확보 — 노드 단위 X-패킹 (Y-패킹을 90° 회전한 그리디)
+  // 세로로 겹치는 두 노드가 가로로 H_GAP 이내로 붙으면 오른쪽 노드를 밀어냄
+  var H_GAP = 60;
+  var renderX = {};
+  var byX = NODES_DATA.slice().sort(function(a, b) { return a.lx - b.lx; });
+  byX.forEach(function(node) {
+    var ny = renderY[node.id] !== undefined ? renderY[node.id] : node.ly;
+    var nH = getH(node);
+    var nW = getW(node);
+    var x = node.lx;
+    var moved = true;
+    while (moved) {
+      moved = false;
+      for (var oi = 0; oi < byX.length; oi++) {
+        var other = byX[oi];
+        var ox = renderX[other.id];  // 이미 배치된(왼쪽부터 처리) 노드만 존재
+        if (ox === undefined || other.id === node.id) continue;
+        var oy = renderY[other.id] !== undefined ? renderY[other.id] : other.ly;
+        if (!(ny < oy + getH(other) && oy < ny + nH)) continue;
+        if (x < ox + getW(other) + H_GAP && ox < x + nW + H_GAP) {
+          x = ox + getW(other) + H_GAP;
+          moved = true;
+        }
+      }
+    }
+    renderX[node.id] = x;
+  });
+
   NODES_DATA.forEach(function(n) {
     var el = document.getElementById('node-' + n.id);
     if (!el) return;
-    el.style.left = n.lx + 'px';
+    el.style.left = (renderX[n.id] !== undefined ? renderX[n.id] : n.lx) + 'px';
     el.style.top = (renderY[n.id] !== undefined ? renderY[n.id] : n.ly) + 'px';
   });
   drawEdges();

@@ -202,7 +202,7 @@ export function NodeCard({
     onPushHistory()
     const startX = e.clientX
     const startY = e.clientY
-    const startWidth = node.nodeWidth ?? (cardRef.current?.offsetWidth ?? 240)
+    const startWidth = node.nodeWidth ?? (cardRef.current?.offsetWidth ?? 432)
     const startHeight = node.nodeHeight ?? (cardRef.current?.offsetHeight ?? 120)
     const onMove = (ev: MouseEvent) => {
       if (axis !== 'y') {
@@ -241,7 +241,7 @@ export function NodeCard({
     let maxW = 0
     let m: RegExpExecArray | null
     while ((m = IMG_SIZE_RE.exec(content)) !== null) maxW = Math.max(maxW, Number(m[1]))
-    if (maxW === 0) return 240
+    if (maxW === 0) return 432
     // 표 모드: 이미지 열 외에 다른 열 여유분 추가
     return hasTable(content) ? maxW + 280 : maxW + 32
   }, [node.content])
@@ -254,7 +254,7 @@ export function NodeCard({
           position: 'absolute',
           left: renderPosition.x,
           top: renderPosition.y,
-          minWidth: Math.max(node.nodeWidth ?? 0, 240, autoMinWidth),
+          minWidth: Math.max(node.nodeWidth ?? 0, 432, autoMinWidth),
           minHeight: node.contentExpanded ? (node.nodeHeight ?? undefined) : undefined,
           background: `color-mix(in srgb, ${color} 15%, var(--vscode-editor-background, #1e1e1e))`,
           border: selected
