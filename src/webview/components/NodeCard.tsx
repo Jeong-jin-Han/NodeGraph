@@ -372,10 +372,6 @@ export function NodeCard({
             </span>
           )}
 
-          <div style={{ display: 'flex', gap: 2, flexShrink: 0 }} onMouseDown={(e) => e.stopPropagation()}>
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} />
-            <button onClick={() => fileInputRef.current?.click()} title="이미지 첨부 (파일 선택)" style={btnStyle}>📎</button>
-          </div>
         </div>
 
         {/* Content body */}
