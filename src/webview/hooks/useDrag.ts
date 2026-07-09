@@ -7,9 +7,11 @@ interface UseDragOptions {
   position: { x: number; y: number }
   viewportZoom: number
   onUpdatePosition: (id: string, x: number, y: number) => void
+  onDragActivate?: (nodeId: string) => void
+  onDragDeactivate?: (nodeId: string) => void
 }
 
-export function useDrag({ nodeId, position, viewportZoom, onUpdatePosition }: UseDragOptions) {
+export function useDrag({ nodeId, position, viewportZoom, onUpdatePosition, onDragActivate, onDragDeactivate }: UseDragOptions) {
   const [isDragging, setIsDragging] = useState(false)
   const dragState = useRef<{
     startMouseX: number
@@ -39,6 +41,7 @@ export function useDrag({ nodeId, position, viewportZoom, onUpdatePosition }: Us
         if (Math.abs(rawDx) < DRAG_THRESHOLD && Math.abs(rawDy) < DRAG_THRESHOLD) return
         ds.active = true
         setIsDragging(true)
+        onDragActivate?.(nodeId)
       }
       const dx = rawDx / viewportZoom
       const dy = rawDy / viewportZoom
@@ -46,7 +49,10 @@ export function useDrag({ nodeId, position, viewportZoom, onUpdatePosition }: Us
     }
 
     const onUp = () => {
-      if (dragState.current?.active) setIsDragging(false)
+      if (dragState.current?.active) {
+        setIsDragging(false)
+        onDragDeactivate?.(nodeId)
+      }
       dragState.current = null
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
@@ -54,7 +60,7 @@ export function useDrag({ nodeId, position, viewportZoom, onUpdatePosition }: Us
 
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
-  }, [nodeId, position.x, position.y, viewportZoom, onUpdatePosition])
+  }, [nodeId, position.x, position.y, viewportZoom, onUpdatePosition, onDragActivate, onDragDeactivate])
 
   return { onMouseDown, isDragging }
 }

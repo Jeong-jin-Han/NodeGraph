@@ -138,6 +138,9 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
 >
 > Key rules from the spec:
 > - Backslashes in KaTeX **must be doubled** in JSON strings (`\\frac`, `\\sqrt`, `\\text`)
+> - Prefer `$$...$$` display blocks for formulas — inline `$...$` only for short in-sentence symbols
+> - When writing in Korean, include the English term alongside key technical expressions — e.g. "주의 메커니즘(attention mechanism)"
+> - The Killer Application is not limited to one — capture every genuinely remarkable contribution
 > - `[[IMG:filename:WxH]]` tokens only work in `node.content`, not in `toggleItems[].content`
 > - `toggleItems[].content` supports KaTeX math only — no Markdown tables, no images
 > - Always update the `"modified"` timestamp after every edit

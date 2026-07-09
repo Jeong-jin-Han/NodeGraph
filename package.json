@@ -2,7 +2,7 @@
   "name": "nodegraph",
   "displayName": "NodeGraph",
   "description": "Node-based knowledge graph for research paper analysis",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "publisher": "JeongjinHan",
   "repository": {
     "type": "git",

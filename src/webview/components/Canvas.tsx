@@ -100,118 +100,129 @@ function computeRenderPositions(
   nodes: GraphNode[],
   nodeSizes: Record<string, { width: number; height: number }>,
   nodeTemplates: Record<string, { shape: 'sharp' | 'rounded' }>,
-  edges: { source: string; target: string; type?: string }[]
+  edges: { source: string; target: string; type?: string }[],
+  draggingNodeId: string | null
 ): Record<string, { x: number; y: number }> {
-  const childToParent = new Map<string, string>()
-  for (const n of nodes) {
-    for (const childId of n.children) {
-      childToParent.set(childId, n.id)
-    }
-  }
-  const getRootId = (id: string): string => {
-    let cur = id
-    while (childToParent.has(cur)) cur = childToParent.get(cur)!
-    return cur
-  }
-  const isDescendantOf = (descendant: string, ancestor: string): boolean => {
-    let cur = descendant
-    while (childToParent.has(cur)) {
-      cur = childToParent.get(cur)!
-      if (cur === ancestor) return true
-    }
-    return false
-  }
   const isMainNode = (node: GraphNode) => (nodeTemplates[node.template]?.shape ?? 'sharp') === 'sharp'
+  const nw = (n: GraphNode) => nodeSizes[n.id]?.width ?? (n.nodeWidth ?? 300)
+  const nh = (n: GraphNode) => {
+    const measured = nodeSizes[n.id]?.height
+    if (measured !== undefined) return measured
+    // nodeSizes 미측정 상태: 접힌 노드는 무조건 HEADER_H로 처리
+    if (!n.contentExpanded) return HEADER_H
+    return n.nodeHeight ?? HEADER_H
+  }
 
-  // Y 동률 시 X 오름차순 (html viewer와 동일)
-  const sorted = [...nodes].sort((a, b) => {
-    if (a.position.y !== b.position.y) return a.position.y - b.position.y
-    return a.position.x - b.position.x
-  })
+  const nodeById = new Map(nodes.map(n => [n.id, n]))
+
+  const isConnected = (aId: string, bId: string): boolean => {
+    const a = nodeById.get(aId)!, b = nodeById.get(bId)!
+    if (a.children.includes(bId) || b.children.includes(aId)) return true
+    return edges.some(e =>
+      (e.source === aId && e.target === bId) || (e.source === bId && e.target === aId)
+    )
+  }
+
+  // 모든 노드를 X 범위 겹침 기준으로 컬럼에 묶기 (union-find)
+  // main/sub 구분 없이 동일 X 컬럼에 있으면 함께 처리 — 이전 버전의 핵심 버그 수정
+  const par: Record<string, string> = {}
+  nodes.forEach(n => { par[n.id] = n.id })
+  const find = (id: string): string => {
+    if (par[id] !== id) par[id] = find(par[id])
+    return par[id]
+  }
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i], b = nodes[j]
+      if (a.position.x < b.position.x + nw(b) && b.position.x < a.position.x + nw(a)) {
+        const ra = find(a.id), rb = find(b.id)
+        if (ra !== rb) par[ra] = rb
+      }
+    }
+  }
+  const colMap = new Map<string, GraphNode[]>()
+  for (const n of nodes) {
+    const root = find(n.id)
+    if (!colMap.has(root)) colMap.set(root, [])
+    colMap.get(root)!.push(n)
+  }
+
+  // 컬럼을 X 오름차순(왼→오)으로 정렬해서 순서대로 처리
+  const columns = [...colMap.values()].sort((a, b) =>
+    Math.min(...a.map(n => n.position.x)) - Math.min(...b.map(n => n.position.x))
+  )
+
   const renderY: Record<string, number> = {}
 
-  // Pass 1+2 수렴 루프: Pass 2가 서브노드를 독립적으로 이동시켜 생긴 겹침을
-  // 다음 Pass 1 이터레이션이 감지·해소할 수 있도록 안정될 때까지 반복
-  const MAX_ITER = 8
-  for (let iter = 0; iter < MAX_ITER; iter++) {
-    const prevSnapshot: Record<string, number> = { ...renderY }
-
-    // Pass 1: Y-overlap push-down (stored Y 오름차순)
-    for (const node of sorted) {
-      const nodeIsMain = isMainNode(node)
-      let y = node.position.y
-
-      for (const other of sorted) {
-        if (other.id === node.id) continue
-        if (other.position.y > node.position.y) continue
-        if (other.position.y === node.position.y && other.position.x >= node.position.x) continue
-
-        const otherY = renderY[other.id] ?? other.position.y
-        const otherH = nodeSizes[other.id]?.height ?? (other.nodeHeight ?? HEADER_H)
-        const otherBottom = otherY + otherH
-        if (otherBottom <= y) continue
-
-        if (nodeIsMain && isMainNode(other)) {
-          // 다른 X 열의 main 노드는 밀어내지 않음 (side-by-side main 노드 cascade 방지)
-          const nodeW = nodeSizes[node.id]?.width ?? (node.nodeWidth ?? 300)
-          const otherW = nodeSizes[other.id]?.width ?? (other.nodeWidth ?? 300)
-          if (!(node.position.x < other.position.x + otherW && other.position.x < node.position.x + nodeW)) continue
-          const naturalBottom = other.position.y + (other.nodeHeight ?? HEADER_H)
-          const delta = (otherY + otherH) - naturalBottom
-          const nodeNaturalY = node.nodeNaturalY ?? node.position.y
-          y = Math.max(y, nodeNaturalY + delta, otherBottom + 20)
-        } else {
-          // other → node 방향 엣지가 있으면 X overlap 없어도 밀어냄
-          const isDirectedConnected = edges.some(e => e.source === other.id && e.target === node.id)
-          if (!isDirectedConnected) {
-            const nodeW = nodeSizes[node.id]?.width ?? (node.nodeWidth ?? 300)
-            const otherW = nodeSizes[other.id]?.width ?? (other.nodeWidth ?? 300)
-            if (!(node.position.x < other.position.x + otherW && other.position.x < node.position.x + nodeW)) continue
-          }
-
-          if (nodeIsMain) {
-            if (isDescendantOf(other.id, node.id) && otherBottom <= node.position.y) continue
-            y = Math.max(y, otherBottom + 48)
-          } else {
-            const isSameRoot = getRootId(other.id) === getRootId(node.id)
-            y = Math.max(y, otherBottom + (isSameRoot ? 30 : 48))
-          }
-        }
-      }
-
-      renderY[node.id] = y
-    }
-
-    // Pass 2: 서브노드가 부모 backbone의 push delta만큼 따라 내려가도록 보정
-    for (const node of nodes) {
-      if (isMainNode(node)) continue
-      let parentMain: GraphNode | null = null
-      let bestDist = Infinity
-      for (const m of nodes) {
-        if (!isMainNode(m)) continue
-        const connected =
-          m.children.includes(node.id) ||
-          edges.some(e => (e.source === m.id && e.target === node.id) || (e.target === m.id && e.source === node.id))
-        if (connected) {
-          const dist = Math.abs(m.position.y - node.position.y)
-          if (dist < bestDist) { bestDist = dist; parentMain = m }
-        }
-      }
-      if (parentMain) {
-        const parentPush = (renderY[parentMain.id] ?? parentMain.position.y) - parentMain.position.y
-        if (parentPush > 0) {
-          const cur = renderY[node.id] ?? node.position.y
-          renderY[node.id] = Math.max(cur, node.position.y + parentPush)
-        }
+  // 이미 팩킹된(왼쪽) 컬럼의 연결 노드를 기준으로 effectiveOriginY 계산
+  // - 연결 노드가 확장(height > HEADER_H)되어 이 노드의 originalY를 덮으면 → bottom 아래로 밀기
+  // - 연결 노드가 접혀있고 Y만 이동했으면 → 이동 delta만큼 따라 내려가기
+  // - 연결 노드가 없거나 영향 없으면 → originalY 유지
+  const getEffectiveOriginY = (node: GraphNode): number => {
+    let effY = node.position.y
+    for (const other of nodes) {
+      if (renderY[other.id] === undefined) continue  // 아직 처리되지 않은 컬럼은 무시
+      if (!isConnected(node.id, other.id)) continue
+      const otherRenderY = renderY[other.id]
+      const otherH = nh(other)
+      const otherBottom = otherRenderY + otherH
+      const otherPush = Math.max(0, otherRenderY - other.position.y)
+      if (otherH > HEADER_H && otherBottom > node.position.y) {
+        // 확장된 노드가 이 노드의 originalY 위치를 덮음 → bottom 아래로
+        effY = Math.max(effY, otherBottom + 30)
+      } else {
+        // 접힌 상태 or originalY 아래: Y 이동 delta만 전파
+        effY = Math.max(effY, node.position.y + otherPush)
       }
     }
-
-    // 수렴 확인: 모든 노드의 renderY가 이전 이터레이션과 동일하면 종료
-    if (nodes.every(n => (renderY[n.id] ?? n.position.y) === (prevSnapshot[n.id] ?? n.position.y))) break
+    return effY
   }
 
-  // Pass 3: line 엣지 버스 그룹 Y 정규화 — 같은 소스·같은 X 컬럼 타겟들 간격 일관화
-  const nodeById = new Map(nodes.map(n => [n.id, n]))
+  // 컬럼별 그리디 패킹 (왼→오 순서)
+  for (const col of columns) {
+    // effectiveOriginY를 먼저 계산 (팩킹 중 renderY가 바뀌기 전에)
+    const effYMap = new Map(col.map(n => [n.id, getEffectiveOriginY(n)]))
+
+    // effectiveOriginY 기준 오름차순 정렬, 동률이면 originalY 기준
+    col.sort((a, b) => {
+      const ea = effYMap.get(a.id)!, eb = effYMap.get(b.id)!
+      return ea !== eb ? ea - eb : a.position.y - b.position.y
+    })
+
+    // 위→아래 그리디 패킹 — gap 규칙은 실제 X범위가 겹치는(pairwise) 노드끼리만 적용
+    // 컬럼은 transitive 체인으로 묶이므로, 체인으로만 연결된 먼 노드가
+    // 빈 공간에 놓인 노드를 밀어내지 않도록 pairwise 충돌 검사 사용
+    const xOverlap = (a: GraphNode, b: GraphNode) =>
+      a.position.x < b.position.x + nw(b) && b.position.x < a.position.x + nw(a)
+    const placed: Array<{ node: GraphNode; y: number; h: number }> = []
+    for (const node of col) {
+      const h = nh(node)
+      if (node.id === draggingNodeId) {
+        // 드래그 중인 노드는 알고리즘 제외 → 마우스 따라 자유롭게 이동
+        renderY[node.id] = node.position.y
+        placed.push({ node, y: node.position.y, h })
+        continue
+      }
+      const gap = isMainNode(node) ? 20 : 30
+      let y = effYMap.get(node.id)!
+      let moved = true
+      while (moved) {
+        moved = false
+        for (const p of placed) {
+          if (!xOverlap(node, p.node)) continue
+          // 세로 구간이 (gap 여유 포함) 겹치면 해당 노드 아래로 밀기
+          if (y < p.y + p.h + gap && y + h + gap > p.y) {
+            y = p.y + p.h + gap
+            moved = true
+          }
+        }
+      }
+      renderY[node.id] = y
+      placed.push({ node, y, h })
+    }
+  }
+
+  // Pass 3: line 엣지 버스 그룹 Y 정규화
   const lineBySource = new Map<string, string[]>()
   for (const edge of edges) {
     if (edge.type !== 'line') continue
@@ -221,21 +232,19 @@ function computeRenderPositions(
   }
   for (const [, targetIds] of lineBySource) {
     if (targetIds.length < 2) continue
-    // 타겟들을 X 컬럼별로 서브그룹 분류 (X 범위가 겹치는 노드끼리 묶음)
     const xGroups: string[][] = []
     for (const id of targetIds) {
       const nx = nodeById.get(id)!.position.x
-      const nw = nodeSizes[id]?.width ?? 300
+      const nwid = nodeSizes[id]?.width ?? 300
       let placed = false
       for (const grp of xGroups) {
         const firstId = grp[0]
         const fx = nodeById.get(firstId)!.position.x
         const fw = nodeSizes[firstId]?.width ?? 300
-        if (nx < fx + fw && fx < nx + nw) { grp.push(id); placed = true; break }
+        if (nx < fx + fw && fx < nx + nwid) { grp.push(id); placed = true; break }
       }
       if (!placed) xGroups.push([id])
     }
-    // 각 X 컬럼 서브그룹 내에서 최소 간격 보장 (올리지 않고 내리기만)
     for (const grp of xGroups) {
       if (grp.length < 2) continue
       const sorted = grp
@@ -319,6 +328,14 @@ export function Canvas({
   const selBoxRef = useRef<SelectionBox | null>(null)
   const panStartPosRef = useRef<{ x: number; y: number } | null>(null)
   const [wireDrawing, setWireDrawing] = useState<{ srcId: string; srcPort: Port; curX: number; curY: number } | null>(null)
+  const [wireHoverTarget, setWireHoverTarget] = useState<string | null>(null)
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null)
+  const [selectedEdgeId, _setSelectedEdgeId] = useState<string | null>(null)
+  const selectedEdgeIdRef = useRef<string | null>(null)
+  const setSelectedEdgeId = useCallback((id: string | null) => {
+    selectedEdgeIdRef.current = id
+    _setSelectedEdgeId(id)
+  }, [])
   const lastToolbarInteractionRef = useRef<number>(0)
 
   // Search state
@@ -419,6 +436,10 @@ export function Canvas({
         if (delImgIds.size > 0) {
           for (const imgId of delImgIds) onRemoveCanvasImage(imgId)
           setSelectedCanvasImgIds(new Set())
+          e.preventDefault()
+        } else if (selectedEdgeIdRef.current) {
+          onDeleteEdge(selectedEdgeIdRef.current)
+          setSelectedEdgeId(null)
           e.preventDefault()
         } else if (selectedIdsRef.current.size > 0) {
           onDeleteNodes([...selectedIdsRef.current])
@@ -657,8 +678,8 @@ export function Canvas({
   }, [])
 
   const renderPositions = useMemo(
-    () => computeRenderPositions(graph.nodes, nodeSizes, graph.nodeTemplates, graph.edges),
-    [graph.nodes, nodeSizes, graph.nodeTemplates, graph.edges]
+    () => computeRenderPositions(graph.nodes, nodeSizes, graph.nodeTemplates, graph.edges, draggingNodeId),
+    [graph.nodes, nodeSizes, graph.nodeTemplates, graph.edges, draggingNodeId]
   )
   renderPositionsRef.current = renderPositions
   nodeSizesRef.current = nodeSizes
@@ -738,6 +759,7 @@ export function Canvas({
   // 노드 선택 (shift/ctrl: 추가선택, 이미 다중선택 중인 노드 클릭 시 유지)
   const handleNodeSelect = useCallback((id: string, additive: boolean) => {
     setSelectedCanvasImgIds(new Set())
+    setSelectedEdgeId(null)
     setSelectedIds(prev => {
       if (additive) {
         const next = new Set(prev)
@@ -758,20 +780,25 @@ export function Canvas({
     })
     const startPos = toCanvas(clientX, clientY)
     setWireDrawing({ srcId: nodeId, srcPort: port, curX: startPos.x, curY: startPos.y })
-    const onMove = (ev: MouseEvent) => {
-      const p = toCanvas(ev.clientX, ev.clientY)
-      setWireDrawing(prev => prev ? { ...prev, curX: p.x, curY: p.y } : null)
-    }
-    const onUp = (ev: MouseEvent) => {
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
-      const { x, y } = toCanvas(ev.clientX, ev.clientY)
-      const target = graph.nodes.find(n => {
+    const findHoverTarget = (cx: number, cy: number) => {
+      const { x, y } = toCanvas(cx, cy)
+      return graph.nodes.find(n => {
         if (n.id === nodeId) return false
         const pos = renderPositions[n.id] ?? n.position
         const sz = nodeSizes[n.id] ?? { width: 240, height: 36 }
         return x >= pos.x && x <= pos.x + sz.width && y >= pos.y && y <= pos.y + sz.height
       })
+    }
+    const onMove = (ev: MouseEvent) => {
+      const p = toCanvas(ev.clientX, ev.clientY)
+      setWireDrawing(prev => prev ? { ...prev, curX: p.x, curY: p.y } : null)
+      setWireHoverTarget(findHoverTarget(ev.clientX, ev.clientY)?.id ?? null)
+    }
+    const onUp = (ev: MouseEvent) => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      setWireHoverTarget(null)
+      const target = findHoverTarget(ev.clientX, ev.clientY)
       if (target) onAddEdge(nodeId, target.id)
       setWireDrawing(null)
     }
@@ -841,6 +868,7 @@ export function Canvas({
           // 단순 클릭 → 선택 해제만 (클론 배치는 Ctrl+V로만)
           setSelectedIds(new Set())
           setSelectedCanvasImgIds(new Set())
+          setSelectedEdgeId(null)
         }
       }
 
@@ -873,6 +901,7 @@ export function Canvas({
         if (dx < 5 && dy < 5) {
           setSelectedIds(new Set())
           setSelectedCanvasImgIds(new Set())
+          setSelectedEdgeId(null)
           if (searchOpenRef.current) {
             setSearchOpen(false)
             setSearchQuery('')
@@ -890,13 +919,42 @@ export function Canvas({
     onMouseLeave(e)
   }, [onMouseLeave])
 
-  // 툴바: 노드 추가
+  // 툴바: 노드 추가 — 현재 화면 중앙 근처의 빈 공간을 찾아 배치 (렌더 위치 기준 충돌 검사)
   const handleAddNode = useCallback(() => {
     const el = divRef.current
     if (!el) return
     const { width: W, height: H } = el.getBoundingClientRect()
-    onAddNode((W / 2 - viewport.x) / viewport.zoom, (H / 2 - viewport.y) / viewport.zoom, selectedTemplate)
-  }, [viewport, onAddNode, selectedTemplate])
+    const cx = (W / 2 - viewport.x) / viewport.zoom
+    const cy = (H / 2 - viewport.y) / viewport.zoom
+    const NW = 300, NH = HEADER_H, MARGIN = 40
+
+    const isFree = (x: number, y: number) => {
+      for (const n of graph.nodes) {
+        const pos = renderPositionsRef.current[n.id] ?? n.position
+        const sz = nodeSizesRef.current[n.id] ?? { width: n.nodeWidth ?? 300, height: HEADER_H }
+        if (x < pos.x + sz.width + MARGIN && pos.x < x + NW + MARGIN &&
+            y < pos.y + sz.height + MARGIN && pos.y < y + NH + MARGIN) return false
+      }
+      return true
+    }
+
+    // 중앙에서 시작해 위/아래로 번갈아 검색, 없으면 오른쪽 열로 이동
+    const baseX = cx - NW / 2
+    const baseY = cy - NH / 2
+    for (let colStep = 0; colStep < 6; colStep++) {
+      const tx = baseX + colStep * (NW + MARGIN)
+      for (let i = 0; i < 41; i++) {
+        const dy = Math.ceil(i / 2) * 70 * (i % 2 === 1 ? 1 : -1)
+        const ty = baseY + dy
+        if (isFree(tx, ty)) {
+          onAddNode(tx, ty, selectedTemplate)
+          return
+        }
+      }
+    }
+    // 빈 공간을 못 찾으면 그냥 화면 중앙에 (기존 동작)
+    onAddNode(baseX, baseY, selectedTemplate)
+  }, [viewport, graph.nodes, onAddNode, selectedTemplate])
 
   // 툴바: 선택된 노드 모두 삭제
   const handleDeleteSelected = useCallback(() => {
@@ -1268,6 +1326,8 @@ export function Canvas({
                   onAddFilenameToNode={onAddFilenameToNode}
                   isSearchMatch={searchSelectedId === null && searchMatchNodes.some(m => m.id === node.id)}
                   isActiveSearchMatch={node.id === searchSelectedId}
+                  onNodeDragActivate={setDraggingNodeId}
+                  onNodeDragDeactivate={() => setDraggingNodeId(null)}
                 />
               )
             })}
@@ -1277,7 +1337,9 @@ export function Canvas({
               nodeSizes={nodeSizes}
               renderPositions={renderPositions}
               wirePreview={wireDrawing}
-              onDeleteEdge={onDeleteEdge}
+              wireHoverTargetId={wireHoverTarget}
+              selectedEdgeId={selectedEdgeId}
+              onSelectEdge={setSelectedEdgeId}
             />
           </div>
 

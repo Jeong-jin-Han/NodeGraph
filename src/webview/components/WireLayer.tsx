@@ -8,7 +8,9 @@ interface WireLayerProps {
   nodeSizes: Record<string, { width: number; height: number }>
   renderPositions: Record<string, { x: number; y: number }>
   wirePreview: { srcId: string; srcPort: Port; curX: number; curY: number } | null
-  onDeleteEdge: (id: string) => void
+  wireHoverTargetId: string | null
+  selectedEdgeId: string | null
+  onSelectEdge: (id: string | null) => void
 }
 
 const CANVAS_SIZE = 20000
@@ -38,7 +40,7 @@ function getRect(
   }
 }
 
-export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, onDeleteEdge }: WireLayerProps) {
+export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wireHoverTargetId, selectedEdgeId, onSelectEdge }: WireLayerProps) {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]))
 
   // line 엣지를 source별로 grouping
@@ -85,10 +87,33 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
         <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
           <polygon points="0 0,10 3.5,0 7" fill="#666" />
         </marker>
+        <marker id="arrowhead-selected" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0,10 3.5,0 7" fill="#007acc" />
+        </marker>
         <marker id="arrowhead-preview" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
           <polygon points="0 0,10 3.5,0 7" fill="#007acc" />
         </marker>
       </defs>
+
+      {/* 드래그 중 타겟 노드 하이라이트 */}
+      {wireHoverTargetId && (() => {
+        const hNode = nodes.find(n => n.id === wireHoverTargetId)
+        if (!hNode) return null
+        const pos = renderPositions[wireHoverTargetId] ?? hNode.position
+        const sz = nodeSizes[wireHoverTargetId] ?? { width: DEFAULT_W, height: DEFAULT_H }
+        return (
+          <rect
+            x={pos.x - 4} y={pos.y - 4}
+            width={sz.width + 8} height={sz.height + 8}
+            fill="none"
+            stroke="#007acc"
+            strokeWidth={2}
+            strokeDasharray="6 3"
+            rx={6}
+            style={{ pointerEvents: 'none' }}
+          />
+        )
+      })()}
 
       {/* Bus 라우팅 그룹 */}
       {busGroups.map(({ srcId, edgeGroup }) => {
@@ -117,17 +142,21 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
             {/* source 끝점 circle */}
             <circle cx={srcAnchorX} cy={srcAnchorY} r={4} fill="#888" />
             {/* 각 타겟으로 수평 분기 + 클릭 히트 영역 */}
-            {targets.map(({ edge, r }) => (
-              <g key={edge.id}>
-                <line x1={busX} y1={r.cy} x2={r.x} y2={r.cy}
-                  stroke="transparent" strokeWidth={12}
-                  style={{ pointerEvents: 'stroke' as any, cursor: 'pointer' }}
-                  onClick={() => onDeleteEdge(edge.id)} />
-                <line x1={busX} y1={r.cy} x2={r.x} y2={r.cy}
-                  stroke="#888" strokeWidth={1.5} style={{ pointerEvents: 'none' }} />
-                <circle cx={r.x} cy={r.cy} r={4} fill="#888" />
-              </g>
-            ))}
+            {targets.map(({ edge, r }) => {
+              const isSel = selectedEdgeId === edge.id
+              return (
+                <g key={edge.id}>
+                  <line x1={busX} y1={r.cy} x2={r.x} y2={r.cy}
+                    stroke="transparent" strokeWidth={12}
+                    style={{ pointerEvents: 'stroke' as any, cursor: 'pointer' }}
+                    onMouseDown={(e) => { e.stopPropagation(); onSelectEdge(edge.id) }} />
+                  <line x1={busX} y1={r.cy} x2={r.x} y2={r.cy}
+                    stroke={isSel ? '#007acc' : '#888'} strokeWidth={isSel ? 2.5 : 1.5}
+                    style={{ pointerEvents: 'none' }} />
+                  <circle cx={r.x} cy={r.cy} r={4} fill={isSel ? '#007acc' : '#888'} />
+                </g>
+              )
+            })}
           </g>
         )
       })}
@@ -151,24 +180,25 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
         const srcPt = getPortPosition(srcRect, sourcePort)
         const tgtPt = getPortPosition(tgtRect, targetPort)
         const d = getSmartPath(srcPt, tgtPt, sourcePort, targetPort)
+        const isSel = selectedEdgeId === edge.id
 
         return (
           <g key={edge.id}>
             <path d={d} fill="none" stroke="transparent" strokeWidth={12}
               style={{ pointerEvents: 'stroke' as any, cursor: 'pointer' }}
-              onClick={() => onDeleteEdge(edge.id)} />
+              onMouseDown={(e) => { e.stopPropagation(); onSelectEdge(edge.id) }} />
             <path
               d={d}
               fill="none"
-              stroke="#666"
-              strokeWidth={1.5}
-              markerEnd={edge.type === 'arrow' ? 'url(#arrowhead)' : undefined}
+              stroke={isSel ? '#007acc' : '#666'}
+              strokeWidth={isSel ? 2.5 : 1.5}
+              markerEnd={edge.type === 'arrow' ? (isSel ? 'url(#arrowhead-selected)' : 'url(#arrowhead)') : undefined}
               style={{ pointerEvents: 'none' }}
             />
             {edge.type === 'line' && (
               <>
-                <circle cx={srcPt.x} cy={srcPt.y} r={4} fill="#666" />
-                <circle cx={tgtPt.x} cy={tgtPt.y} r={4} fill="#666" />
+                <circle cx={srcPt.x} cy={srcPt.y} r={4} fill={isSel ? '#007acc' : '#666'} />
+                <circle cx={tgtPt.x} cy={tgtPt.y} r={4} fill={isSel ? '#007acc' : '#666'} />
               </>
             )}
           </g>

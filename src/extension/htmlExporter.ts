@@ -61,14 +61,20 @@ function hasHtmlTable(content: string): boolean {
   return false
 }
 
-// Text → HTML: parse [[IMG:filename|WxH]] tokens; LaTeX delimiters are left as-is for KaTeX auto-render
+// Text → HTML: parse [[IMG:...]] tokens + **bold** markers
+// LaTeX delimiters ($...$) are left as-is for KaTeX auto-render
+function renderTextSegment(text: string): string {
+  // **...** → <strong> (bold, 1.1em, markers hidden in view)
+  return escHtml(text).replace(/\*\*(.+?)\*\*/g, '<strong style="font-size:1.1em">$1</strong>')
+}
+
 function renderCellHtml(cellText: string, imageData: Record<string, string>): string {
   const IMG_RE = /\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g
   let result = ''
   let lastIdx = 0
   let match: RegExpExecArray | null
   while ((match = IMG_RE.exec(cellText)) !== null) {
-    if (match.index > lastIdx) result += escHtml(cellText.slice(lastIdx, match.index))
+    if (match.index > lastIdx) result += renderTextSegment(cellText.slice(lastIdx, match.index))
     const filename = match[1]
     const imgW = match[2]
     const imgH = match[3]
@@ -79,7 +85,7 @@ function renderCellHtml(cellText: string, imageData: Record<string, string>): st
       : `<span class="ng-img-missing">${escHtml(filename)}</span>`
     lastIdx = match.index + match[0].length
   }
-  if (lastIdx < cellText.length) result += escHtml(cellText.slice(lastIdx))
+  if (lastIdx < cellText.length) result += renderTextSegment(cellText.slice(lastIdx))
   return result
 }
 
@@ -152,12 +158,15 @@ function renderNodeCard(
     ? (hasHtmlTable(content) ? maxImgW + 280 : maxImgW + 32)
     : 0
 
+  // min-height는 펼침 상태에서만 적용 — 접힌 노드가 수동 리사이즈 높이로 남는 버그 방지
+  // (fold/unfold 시 JS가 data-min-h 값으로 토글)
   const extraStyle = [
     node.nodeWidth  ? `min-width:${node.nodeWidth}px`  : (autoMinWidth > 220 ? `min-width:${autoMinWidth}px` : ''),
-    node.nodeHeight ? `min-height:${node.nodeHeight}px` : '',
+    node.nodeHeight && node.contentExpanded ? `min-height:${node.nodeHeight}px` : '',
   ].filter(Boolean).join(';')
+  const minHAttr = node.nodeHeight ? ` data-min-h="${node.nodeHeight}"` : ''
 
-  return `<div class="ng-node${hasTableClass}" id="node-${escHtml(node.id)}"${childrenAttr} style="--color:${color};border-radius:${borderRadius};left:${nx}px;top:${ny}px${extraStyle ? ';' + extraStyle : ''}">
+  return `<div class="ng-node${hasTableClass}" id="node-${escHtml(node.id)}"${childrenAttr}${minHAttr} style="--color:${color};border-radius:${borderRadius};left:${nx}px;top:${ny}px${extraStyle ? ';' + extraStyle : ''}">
   <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,${color} 22%,transparent);color:${color}">${label}</span>
     ${hasBody ? `<span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">${escHtml(node.title)}</span>` : `<span class="ng-title">${escHtml(node.title)}</span>`}
@@ -404,6 +413,7 @@ function onTitleClick(e, titleEl) {
   if (!body) return;
   var expanding = body.style.display === 'none';
   body.style.display = expanding ? '' : 'none';
+  syncMinHeight(nodeEl, expanding);
   var nodeId = nodeEl.id.replace('node-', '');
   for (var i = 0; i < NODES_DATA.length; i++) {
     if (NODES_DATA[i].id === nodeId) { NODES_DATA[i].contentExpanded = expanding; break; }
@@ -469,6 +479,12 @@ function getExpandDescendants(nodeId, isRoot, visited) {
 }
 
 // Apply expand/collapse to a list of node IDs
+// 접힘/펼침 시 min-height 동기화 — 접힌 노드가 수동 리사이즈 높이로 남는 버그 방지
+function syncMinHeight(el, expand) {
+  var minH = el.getAttribute('data-min-h');
+  el.style.minHeight = (expand && minH) ? minH + 'px' : '';
+}
+
 function applyFold(nodeIds, expand) {
   nodeIds.forEach(function(id) {
     var el = document.getElementById('node-' + id);
@@ -477,6 +493,7 @@ function applyFold(nodeIds, expand) {
     var chevron = el.querySelector('.ng-chevron');
     if (body) body.style.display = expand ? '' : 'none';
     if (chevron) chevron.textContent = expand ? '▲' : '▼';
+    syncMinHeight(el, expand);
     for (var i = 0; i < NODES_DATA.length; i++) {
       if (NODES_DATA[i].id === id) { NODES_DATA[i].contentExpanded = expand; break; }
     }
@@ -537,138 +554,145 @@ function onNodeTagMousedown(e, nodeEl) {
     window.removeEventListener('mousemove', onMove);
     window.removeEventListener('mouseup', onUp);
     nodeEl.classList.remove('ng-dragging');
-    if (moved) { lastWasDrag = true; if (nodeDatum) { nodeDatum.lx += finalDX; nodeDatum.ly += finalDY; nodeDatum.naturalY = nodeDatum.ly; } setTimeout(recomputePositions, 0); }
+    // 드롭된 렌더 좌표를 그대로 저장 — 밀려있던 노드에 delta를 더하면 드롭 위치와 어긋남
+    if (moved) { lastWasDrag = true; if (nodeDatum) { nodeDatum.lx = left0 + finalDX; nodeDatum.ly = top0 + finalDY; nodeDatum.naturalY = nodeDatum.ly; } setTimeout(recomputePositions, 0); }
   }
   window.addEventListener('mousemove', onMove);
   window.addEventListener('mouseup', onUp);
 }
 
 function recomputePositions() {
-  var childToParent = {};
-  NODES_DATA.forEach(function(n) {
-    (n.children || []).forEach(function(childId) { childToParent[childId] = n.id; });
-  });
-  function getRootId(id) {
-    var cur = id;
-    while (childToParent[cur]) cur = childToParent[cur];
-    return cur;
+  // Canvas.tsx의 computeRenderPositions와 동일한 알고리즘 (vanilla JS 버전)
+  // main/sub 구분 없이 X 컬럼 단위로 묶어 그리디 패킹 → unfold 시 push-down, fold 시 pull-up
+
+  var nodeMap = {};
+  NODES_DATA.forEach(function(n) { nodeMap[n.id] = n; });
+
+  function getH(n) {
+    var el = document.getElementById('node-' + n.id);
+    if (el) return el.offsetHeight;
+    // DOM 미존재 fallback: 접힌 노드는 항상 헤더 높이
+    return n.contentExpanded ? (n.nodeHeight || HEADER_H) : HEADER_H;
   }
-  function isDescendantOf(descendant, ancestor) {
-    var cur = descendant;
-    while (childToParent[cur]) { cur = childToParent[cur]; if (cur === ancestor) return true; }
-    return false;
+  function getW(n) {
+    var el = document.getElementById('node-' + n.id);
+    return el ? el.offsetWidth : (n.nodeWidth || 300);
   }
-  function isDirectedConnected(sourceId, targetId) {
-    return EDGES.some(function(e) { return e.source === sourceId && e.target === targetId; });
-  }
-
-  var sorted = NODES_DATA.slice().sort(function(a, b) {
-    if (a.ly !== b.ly) return a.ly - b.ly;
-    return a.lx - b.lx;
-  });
-  var renderY = {};
-  var MAX_ITER = 8;
-
-  for (var iter = 0; iter < MAX_ITER; iter++) {
-    var prevSnapshot = {};
-    NODES_DATA.forEach(function(n) { prevSnapshot[n.id] = renderY[n.id] !== undefined ? renderY[n.id] : n.ly; });
-
-    // Pass 1: Y-overlap push-down
-    sorted.forEach(function(node) {
-      var nEl = document.getElementById('node-' + node.id);
-      var nodeW = nEl ? nEl.offsetWidth : (node.nodeWidth || 300);
-      var y = node.ly;
-
-      sorted.forEach(function(other) {
-        if (other.id === node.id) return;
-        if (other.ly > node.ly) return;
-        if (other.ly === node.ly && other.lx >= node.lx) return;
-
-        var otherEl = document.getElementById('node-' + other.id);
-        var otherW = otherEl ? otherEl.offsetWidth : (other.nodeWidth || 300);
-        var otherY = renderY[other.id] !== undefined ? renderY[other.id] : other.ly;
-        var otherH = otherEl ? otherEl.offsetHeight : HEADER_H;
-        var otherBottom = otherY + otherH;
-        if (otherBottom <= y) return;
-
-        if (node.isMain && other.isMain) {
-          // Main→Main: X 범위가 겹칠 때만 밀어냄 (다른 컬럼 cascade 방지)
-          if (!(node.lx < other.lx + otherW && other.lx < node.lx + nodeW)) return;
-          var naturalBottom = other.ly + (other.nodeHeight || HEADER_H);
-          var delta = (otherY + otherH) - naturalBottom;
-          var nodeNaturalY = node.naturalY !== undefined ? node.naturalY : node.ly;
-          y = Math.max(y, nodeNaturalY + delta, otherBottom + 20);
-        } else {
-          // 방향 엣지 연결이면 X overlap 없어도 밀어냄
-          var connected = isDirectedConnected(other.id, node.id);
-          if (!connected && !(node.lx < other.lx + otherW && other.lx < node.lx + nodeW)) return;
-          if (node.isMain) {
-            if (isDescendantOf(other.id, node.id) && otherBottom <= node.ly) return;
-            y = Math.max(y, otherBottom + 48);
-          } else {
-            var isSameRoot = getRootId(other.id) === getRootId(node.id);
-            y = Math.max(y, otherBottom + (isSameRoot ? 30 : 48));
-          }
-        }
-      });
-      renderY[node.id] = y;
+  function isConn(aId, bId) {
+    var a = nodeMap[aId], b = nodeMap[bId];
+    if (!a || !b) return false;
+    if ((a.children && a.children.indexOf(bId) !== -1) || (b.children && b.children.indexOf(aId) !== -1)) return true;
+    return EDGES.some(function(e) {
+      return (e.source === aId && e.target === bId) || (e.source === bId && e.target === aId);
     });
+  }
 
-    // Pass 2: 서브노드가 부모 main의 push delta만큼 따라 내려감
-    NODES_DATA.forEach(function(node) {
-      if (node.isMain) return;
-      var parentMain = null;
-      var bestDist = Infinity;
-      NODES_DATA.forEach(function(m) {
-        if (!m.isMain) return;
-        var connected = (m.children && m.children.indexOf(node.id) !== -1) ||
-          EDGES.some(function(e) {
-            return (e.source === m.id && e.target === node.id) || (e.target === m.id && e.source === node.id);
-          });
-        if (connected) {
-          var dist = Math.abs(m.ly - node.ly);
-          if (dist < bestDist) { bestDist = dist; parentMain = m; }
-        }
-      });
-      if (parentMain) {
-        var parentPush = (renderY[parentMain.id] !== undefined ? renderY[parentMain.id] : parentMain.ly) - parentMain.ly;
-        if (parentPush > 0) {
-          var cur = renderY[node.id] !== undefined ? renderY[node.id] : node.ly;
-          renderY[node.id] = Math.max(cur, node.ly + parentPush);
-        }
+  // union-find: X 범위가 겹치는 노드끼리 같은 컬럼으로 묶기
+  var par = {};
+  NODES_DATA.forEach(function(n) { par[n.id] = n.id; });
+  function find(id) { if (par[id] !== id) par[id] = find(par[id]); return par[id]; }
+  for (var i = 0; i < NODES_DATA.length; i++) {
+    for (var j = i + 1; j < NODES_DATA.length; j++) {
+      var a = NODES_DATA[i], b = NODES_DATA[j];
+      if (a.lx < b.lx + getW(b) && b.lx < a.lx + getW(a)) {
+        var ra = find(a.id), rb = find(b.id);
+        if (ra !== rb) par[ra] = rb;
+      }
+    }
+  }
+  var colMap = {};
+  NODES_DATA.forEach(function(n) {
+    var root = find(n.id);
+    if (!colMap[root]) colMap[root] = [];
+    colMap[root].push(n);
+  });
+
+  // 컬럼을 min X 오름차순(왼→오)으로 정렬
+  var columns = Object.keys(colMap).map(function(k) { return colMap[k]; }).sort(function(a, b) {
+    var minXA = Math.min.apply(null, a.map(function(n) { return n.lx; }));
+    var minXB = Math.min.apply(null, b.map(function(n) { return n.lx; }));
+    return minXA - minXB;
+  });
+
+  var renderY = {};
+
+  // 이미 팩킹된 왼쪽 컬럼의 연결 노드 기준으로 effectiveOriginY 계산
+  function getEffY(node) {
+    var effY = node.ly;
+    NODES_DATA.forEach(function(other) {
+      if (renderY[other.id] === undefined) return;
+      if (!isConn(node.id, other.id)) return;
+      var otherRY = renderY[other.id];
+      var otherH = getH(other);
+      var otherBottom = otherRY + otherH;
+      var otherPush = Math.max(0, otherRY - other.ly);
+      if (otherH > HEADER_H && otherBottom > node.ly) {
+        // 확장된 노드가 이 노드 위치를 덮음 → bottom 아래로
+        effY = Math.max(effY, otherBottom + 30);
+      } else {
+        // 접힌 상태: Y 이동 delta만 전파
+        effY = Math.max(effY, node.ly + otherPush);
       }
     });
-
-    // 수렴 확인
-    var converged = NODES_DATA.every(function(n) {
-      var cur = renderY[n.id] !== undefined ? renderY[n.id] : n.ly;
-      var prev = prevSnapshot[n.id] !== undefined ? prevSnapshot[n.id] : n.ly;
-      return cur === prev;
-    });
-    if (converged) break;
+    return effY;
   }
 
-  // Pass 3: line 엣지 버스 그룹 Y 정규화 (gap 30px, 에디터와 동일)
+  // 컬럼별 그리디 패킹 (왼→오)
+  columns.forEach(function(col) {
+    // effectiveOriginY를 팩킹 전에 모두 계산 (팩킹 중 renderY 변경 영향 차단)
+    var effYMap = {};
+    col.forEach(function(n) { effYMap[n.id] = getEffY(n); });
+
+    // effectiveOriginY 오름차순 정렬, 동률이면 originalY 기준
+    col.sort(function(a, b) {
+      var ea = effYMap[a.id], eb = effYMap[b.id];
+      return ea !== eb ? ea - eb : a.ly - b.ly;
+    });
+
+    // gap 규칙은 실제 X범위가 겹치는(pairwise) 노드끼리만 적용
+    // — 체인으로만 같은 컬럼에 묶인 먼 노드가 밀어내지 않도록
+    var placed = [];
+    col.forEach(function(node) {
+      var h = getH(node);
+      var gap = node.isMain ? 20 : 30;
+      var y = effYMap[node.id];
+      var moved = true;
+      while (moved) {
+        moved = false;
+        for (var pi = 0; pi < placed.length; pi++) {
+          var p = placed[pi];
+          var overlapX = node.lx < p.node.lx + getW(p.node) && p.node.lx < node.lx + getW(node);
+          if (!overlapX) continue;
+          if (y < p.y + p.h + gap && y + h + gap > p.y) {
+            y = p.y + p.h + gap;
+            moved = true;
+          }
+        }
+      }
+      renderY[node.id] = y;
+      placed.push({ node: node, y: y, h: h });
+    });
+  });
+
+  // Pass 3: line 엣지 버스 그룹 Y 정규화 (gap 30px)
   var lineBySource = {};
   EDGES.forEach(function(e) {
     if (e.type !== 'line') return;
     if (!lineBySource[e.source]) lineBySource[e.source] = [];
     lineBySource[e.source].push(e.target);
   });
-  var ndMap = {};
-  NODES_DATA.forEach(function(n) { ndMap[n.id] = n; });
   Object.keys(lineBySource).forEach(function(srcId) {
-    var targetIds = lineBySource[srcId].filter(function(id) { return ndMap[id]; });
+    var targetIds = lineBySource[srcId].filter(function(id) { return nodeMap[id]; });
     if (targetIds.length < 2) return;
     var xGroups = [];
     targetIds.forEach(function(id) {
       var el = document.getElementById('node-' + id);
-      var nx = ndMap[id].lx; var nw = el ? el.offsetWidth : 300;
+      var nx = nodeMap[id].lx; var nw = el ? el.offsetWidth : 300;
       var placed = false;
       for (var gi = 0; gi < xGroups.length; gi++) {
         var firstId = xGroups[gi][0];
         var fEl = document.getElementById('node-' + firstId);
-        var fx = ndMap[firstId].lx; var fw = fEl ? fEl.offsetWidth : 300;
+        var fx = nodeMap[firstId].lx; var fw = fEl ? fEl.offsetWidth : 300;
         if (nx < fx + fw && fx < nx + nw) { xGroups[gi].push(id); placed = true; break; }
       }
       if (!placed) xGroups.push([id]);
@@ -677,7 +701,7 @@ function recomputePositions() {
       if (grp.length < 2) return;
       var grpSorted = grp.map(function(id) {
         var el = document.getElementById('node-' + id);
-        return { id: id, y: renderY[id] !== undefined ? renderY[id] : ndMap[id].ly, h: el ? el.offsetHeight : HEADER_H };
+        return { id: id, y: renderY[id] !== undefined ? renderY[id] : nodeMap[id].ly, h: el ? el.offsetHeight : HEADER_H };
       }).sort(function(a, b) { return a.y - b.y; });
       for (var i = 1; i < grpSorted.length; i++) {
         var minY = grpSorted[i-1].y + grpSorted[i-1].h + 30;

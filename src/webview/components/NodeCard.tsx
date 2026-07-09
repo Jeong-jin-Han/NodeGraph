@@ -44,6 +44,8 @@ interface NodeCardProps {
   onAddFilenameToNode?: (nodeId: string, filename: string) => void
   isSearchMatch?: boolean
   isActiveSearchMatch?: boolean
+  onNodeDragActivate?: (nodeId: string) => void
+  onNodeDragDeactivate?: (nodeId: string) => void
 }
 
 type EditingField = 'title' | 'content' | 'originalText' | 'originalLoc' | 'originalTitle' | null
@@ -75,6 +77,7 @@ export function NodeCard({
   imageUris, onSaveImage,
   canvasClipboardRef, onAddFilenameToNode,
   isSearchMatch, isActiveSearchMatch,
+  onNodeDragActivate, onNodeDragDeactivate,
 }: NodeCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const tableBodyRef = useRef<HTMLDivElement>(null)
@@ -106,9 +109,11 @@ export function NodeCard({
 
   const { onMouseDown: onDragStart, isDragging } = useDrag({
     nodeId: node.id,
-    position: node.position,
+    position: renderPosition,
     viewportZoom,
     onUpdatePosition,
+    onDragActivate: onNodeDragActivate,
+    onDragDeactivate: onNodeDragDeactivate,
   })
 
   useEffect(() => {
@@ -250,7 +255,7 @@ export function NodeCard({
           left: renderPosition.x,
           top: renderPosition.y,
           minWidth: Math.max(node.nodeWidth ?? 0, 240, autoMinWidth),
-          minHeight: node.nodeHeight ?? undefined,
+          minHeight: node.contentExpanded ? (node.nodeHeight ?? undefined) : undefined,
           background: `color-mix(in srgb, ${color} 15%, var(--vscode-editor-background, #1e1e1e))`,
           border: selected
             ? `2px solid ${color}`
