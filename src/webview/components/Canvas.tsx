@@ -7,6 +7,7 @@ import { SearchBar } from './SearchBar'
 import { Port } from '../utils/wireGeometry'
 
 interface CanvasProps {
+  openSearchSignal: number
   viewport: Viewport
   cursor: string
   nativeWheelHandler: (e: WheelEvent) => void
@@ -271,6 +272,7 @@ interface SelectionBox {
 const FONT_PRESETS = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72]
 
 export function Canvas({
+  openSearchSignal,
   viewport, cursor, nativeWheelHandler,
   onMouseDown, onMouseMove, onMouseUp, onMouseLeave, onContextMenu,
   onSetViewport, graph, onUpdateNodePosition, onAutoSaveNodePosition, onUpdateNode, onAddNode, onDeleteNodes,
@@ -322,8 +324,19 @@ export function Canvas({
   // Search state
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchActiveIdx, setSearchActiveIdx] = useState(0)
+  const [searchSelectedId, setSearchSelectedId] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const searchSelectedIdRef = useRef<string | null>(null)
+  searchSelectedIdRef.current = searchSelectedId
+  const searchOpenRef = useRef(false)
+  searchOpenRef.current = searchOpen
+
+  // Extension sends openSearch message (via nodegraph.search command bound to Ctrl+F)
+  useEffect(() => {
+    if (openSearchSignal === 0) return
+    setSearchOpen(true)
+    setTimeout(() => searchInputRef.current?.focus(), 0)
+  }, [openSearchSignal])
 
   // 박스 선택에 필요한 최신 상태를 ref로 유지 (전역 mouseup 핸들러에서 stale closure 없이 읽기 위함)
   // renderPositions/nodeSizes는 useMemo/useState 이후에 선언되므로 초기값은 빈 객체 사용
@@ -340,7 +353,12 @@ export function Canvas({
     const el = divRef.current
     if (!el) return
     el.addEventListener('wheel', nativeWheelHandler, { passive: false })
-    return () => el.removeEventListener('wheel', nativeWheelHandler)
+    const onMidDown = (e: MouseEvent) => { if (e.button === 1) e.preventDefault() }
+    el.addEventListener('mousedown', onMidDown)
+    return () => {
+      el.removeEventListener('wheel', nativeWheelHandler)
+      el.removeEventListener('mousedown', onMidDown)
+    }
   }, [nativeWheelHandler])
 
   useEffect(() => {
@@ -357,6 +375,19 @@ export function Canvas({
       const active = document.activeElement
       console.log('[KB]', e.key, 'ctrl:', e.ctrlKey, 'meta:', e.metaKey, 'active:', active?.tagName, active?.id)
       if (active?.tagName === 'TEXTAREA' || active?.tagName === 'INPUT') {
+        // Escape while editing a node field → blur + deselect
+        if (e.key === 'Escape') {
+          const inNode = !!(active as HTMLElement).closest('[data-node-id]')
+          if (inNode) {
+            e.preventDefault()
+            ;(active as HTMLElement).blur()
+            setSelectedIds(new Set())
+            setSelectedCanvasImgIds(new Set())
+            return
+          }
+          // For search input and toolbar inputs, fall through to their own handlers
+          return
+        }
         // capture phase에서 실행 — canvas clipboard가 있으면 시스템 paste 방지
         // 실제 삽입 처리는 NodeCard의 onKeyDown(bubble phase)에서 수행
         if ((e.ctrlKey || e.metaKey) && e.key === 'v' && canvasClipboardRef.current) {
@@ -366,7 +397,7 @@ export function Canvas({
       }
 
       if (e.key === 'Escape') {
-        if (searchOpen) { handleCloseSearch(); return }
+        if (searchOpenRef.current) { handleCloseSearch(); return }
         setSelectedIds(new Set())
         setSelectedCanvasImgIds(new Set())
         if (canvasClipboardRef.current !== null) pasteBlockedRef.current = true
@@ -632,20 +663,20 @@ export function Canvas({
   renderPositionsRef.current = renderPositions
   nodeSizesRef.current = nodeSizes
 
-  // Search: compute matching node IDs whenever query changes
-  const searchMatchIds = useMemo(() => {
+  // Search: matching nodes for dropdown
+  const searchMatchNodes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
-    if (!q) return [] as string[]
+    if (!q) return [] as Array<{ id: string; title: string }>
     return graph.nodes
       .filter(n =>
         n.title.toLowerCase().includes(q) ||
         (n.content ?? '').toLowerCase().includes(q) ||
         (n.original?.text ?? '').toLowerCase().includes(q)
       )
-      .map(n => n.id)
+      .map(n => ({ id: n.id, title: n.title }))
   }, [searchQuery, graph.nodes])
 
-  const searchActiveId = searchMatchIds[searchActiveIdx] ?? null
+  const showSearchDropdown = searchOpen && searchQuery.trim() !== '' && searchSelectedId === null
 
   const flyToNode = useCallback((nodeId: string) => {
     const node = graph.nodes.find(n => n.id === nodeId)
@@ -654,48 +685,55 @@ export function Canvas({
     const { clientWidth, clientHeight } = divRef.current
     const nodeW = nodeSizesRef.current[nodeId]?.width ?? (node.nodeWidth ?? 300)
     const nodeH = nodeSizesRef.current[nodeId]?.height ?? 36
+    const vp = viewportRef.current
     onSetViewport({
-      ...viewport,
-      x: clientWidth / 2 - (pos.x + nodeW / 2) * viewport.zoom,
-      y: clientHeight / 2 - (pos.y + nodeH / 2) * viewport.zoom,
+      ...vp,
+      x: clientWidth / 2 - (pos.x + nodeW / 2) * vp.zoom,
+      y: clientHeight / 2 - (pos.y + nodeH / 2) * vp.zoom,
     })
-  }, [graph.nodes, viewport, onSetViewport])
+  }, [graph.nodes, onSetViewport])
 
-  const handleSearchNext = useCallback(() => {
-    if (searchMatchIds.length === 0) return
-    const next = (searchActiveIdx + 1) % searchMatchIds.length
-    setSearchActiveIdx(next)
-    flyToNode(searchMatchIds[next])
-  }, [searchMatchIds, searchActiveIdx, flyToNode])
+  const handlePreviewSearchNode = useCallback((id: string) => {
+    flyToNode(id)
+  }, [flyToNode])
 
-  const handleSearchPrev = useCallback(() => {
-    if (searchMatchIds.length === 0) return
-    const prev = (searchActiveIdx - 1 + searchMatchIds.length) % searchMatchIds.length
-    setSearchActiveIdx(prev)
-    flyToNode(searchMatchIds[prev])
-  }, [searchMatchIds, searchActiveIdx, flyToNode])
+  const handleSelectSearchNode = useCallback((id: string) => {
+    setSearchSelectedId(id)
+    // Enter 확정: 선택된 노드만 expand, 나머지 매치 노드는 collapse
+    for (const match of searchMatchNodes) {
+      const node = graph.nodes.find(n => n.id === match.id)
+      if (!node) continue
+      if (match.id === id) {
+        if (!node.contentExpanded) onToggleContent(node.id)
+      } else {
+        if (node.contentExpanded) onToggleContent(node.id)
+      }
+    }
+    requestAnimationFrame(() => flyToNode(id))
+  }, [flyToNode, searchMatchNodes, graph.nodes, onToggleContent])
 
   const handleSearchQueryChange = useCallback((q: string) => {
     setSearchQuery(q)
-    setSearchActiveIdx(0)
+    setSearchSelectedId(null)
   }, [])
 
   const handleCloseSearch = useCallback(() => {
     setSearchOpen(false)
     setSearchQuery('')
-    setSearchActiveIdx(0)
+    setSearchSelectedId(null)
   }, [])
 
-  // When matches update (new query), fly to first match
-  useEffect(() => {
-    if (searchMatchIds.length > 0) flyToNode(searchMatchIds[0])
-  }, [searchMatchIds])
-
-  // When collapsing a main node, persist renderY of pushed main nodes before they snap back.
-  // Uses onAutoSaveNodePosition (does NOT update nodeNaturalY) so the delta formula stays correct.
   const handleToggleContent = useCallback((id: string) => {
     onToggleContent(id)
-  }, [onToggleContent])
+    const pinnedId = searchSelectedIdRef.current
+    if (pinnedId) {
+      requestAnimationFrame(() => flyToNode(pinnedId))
+    }
+    // 검색 드롭다운이 열려있으면 toggle 후 검색 input 포커스 복원 (화살표 키 유지)
+    if (searchOpenRef.current && !searchSelectedIdRef.current) {
+      requestAnimationFrame(() => searchInputRef.current?.focus())
+    }
+  }, [onToggleContent, flyToNode])
 
   // 노드 선택 (shift/ctrl: 추가선택, 이미 다중선택 중인 노드 클릭 시 유지)
   const handleNodeSelect = useCallback((id: string, additive: boolean) => {
@@ -811,6 +849,8 @@ export function Canvas({
     } else if (e.button === 0) {
       panStartPosRef.current = { x: e.clientX, y: e.clientY }
       onMouseDown(e)
+    } else if (e.button === 1) {
+      e.preventDefault()
     }
   }, [onMouseDown])
 
@@ -833,6 +873,11 @@ export function Canvas({
         if (dx < 5 && dy < 5) {
           setSelectedIds(new Set())
           setSelectedCanvasImgIds(new Set())
+          if (searchOpenRef.current) {
+            setSearchOpen(false)
+            setSearchQuery('')
+            setSearchSelectedId(null)
+          }
         }
       }
       onMouseUp(e)
@@ -1124,11 +1169,6 @@ export function Canvas({
 
         <div style={{ flex: 1 }} />
         <button
-          style={{ ...toolbarBtnStyle, background: searchOpen ? '#374151' : undefined, color: searchOpen ? '#fff' : undefined }}
-          onClick={() => { setSearchOpen(o => !o); setTimeout(() => searchInputRef.current?.focus(), 0) }}
-          title="Search nodes (Ctrl+F)"
-        >🔍 Search</button>
-        <button
           style={{ ...toolbarBtnStyle, fontFamily: 'monospace' }}
           onClick={onReload}
           title="Reload from disk (re-reads the JSON file — use after an external agent edits it)"
@@ -1226,8 +1266,8 @@ export function Canvas({
                   onSaveImage={onSaveImage}
                   canvasClipboardRef={canvasClipboardRef}
                   onAddFilenameToNode={onAddFilenameToNode}
-                  isSearchMatch={searchMatchIds.includes(node.id)}
-                  isActiveSearchMatch={node.id === searchActiveId}
+                  isSearchMatch={searchSelectedId === null && searchMatchNodes.some(m => m.id === node.id)}
+                  isActiveSearchMatch={node.id === searchSelectedId}
                 />
               )
             })}
@@ -1246,11 +1286,13 @@ export function Canvas({
             <SearchBar
               query={searchQuery}
               onQueryChange={handleSearchQueryChange}
-              matchCount={searchMatchIds.length}
-              activeIdx={searchActiveIdx}
-              onNext={handleSearchNext}
-              onPrev={handleSearchPrev}
+              matches={searchMatchNodes}
+              showDropdown={showSearchDropdown}
+              selectedId={searchSelectedId}
+              onSelectNode={handleSelectSearchNode}
+              onPreviewNode={handlePreviewSearchNode}
               onClose={handleCloseSearch}
+              onReopen={() => setSearchSelectedId(null)}
               inputRef={searchInputRef}
             />
           )}

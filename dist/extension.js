@@ -1,23 +1,22 @@
-"use strict";var V=Object.create;var P=Object.defineProperty;var J=Object.getOwnPropertyDescriptor;var Z=Object.getOwnPropertyNames;var Q=Object.getPrototypeOf,ee=Object.prototype.hasOwnProperty;var te=(t,e)=>{for(var n in e)P(t,n,{get:e[n],enumerable:!0})},R=(t,e,n,r)=>{if(e&&typeof e=="object"||typeof e=="function")for(let i of Z(e))!ee.call(t,i)&&i!==n&&P(t,i,{get:()=>e[i],enumerable:!(r=J(e,i))||r.enumerable});return t};var M=(t,e,n)=>(n=t!=null?V(Q(t)):{},R(e||!t||!t.__esModule?P(n,"default",{value:t,enumerable:!0}):n,t)),ne=t=>R(P({},"__esModule",{value:!0}),t);var he={};te(he,{activate:()=>le,deactivate:()=>pe});module.exports=ne(he);var $=M(require("vscode"));var c=M(require("vscode")),G=M(require("path"));var w=M(require("vscode"));function _(t){let e=w.Uri.joinPath(t,".."),n=t.path.split("/").pop()?.replace(/\.nodegraph\.json$/,"")??"graph";return w.Uri.joinPath(e,`.${n}-imgs`)}function oe(t,e,n){let r=w.Uri.joinPath(_(e),n);return t.asWebviewUri(r).toString()}var U=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;function H(t,e,n){let r={},i=s=>{s&&!r[s]&&(r[s]=oe(t,e,s))};for(let s of n.nodes){U.lastIndex=0;let p;for(;(p=U.exec(s.content??""))!==null;)i(p[1])}for(let s of n.canvasImages??[])i(s.filename);return r}async function F(t,e,n,r="png"){let i=_(e);try{await w.workspace.fs.createDirectory(i)}catch{}let s=`img_${Date.now()}.${r}`,p=w.Uri.joinPath(i,s);return await w.workspace.fs.writeFile(p,Buffer.from(n,"base64")),{filename:s,webviewUri:t.asWebviewUri(p).toString()}}async function z(t,e){let n=w.Uri.joinPath(_(t),e);try{await w.workspace.fs.delete(n)}catch{}}function f(t){return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function T(t){return/^\s*\|/.test(t)&&t.indexOf("|",1)!==-1}function O(t){return/^\s*\|[\s\-:|]+\|\s*$/.test(t)&&!/[a-zA-Z0-9]/.test(t)}function j(t){return t.replace(/^\s*\|/,"").replace(/\|\s*$/,"").split("|").map(e=>e.trim())}function re(t){if(!t)return[{type:"text",text:"",startChar:0,endChar:0}];let e=t.split(`
-`),n=[],r=0,i=0,s=p=>e[p].length+(p<e.length-1?1:0);for(;r<e.length;)if(T(e[r])&&r+1<e.length&&O(e[r+1])){let l=i,a=[];for(;r<e.length&&T(e[r]);)a.push(e[r]),i+=s(r),r++;a.length>=3?n.push({type:"table",headers:j(a[0]),rows:a.slice(2).map(j),startChar:l,endChar:i}):n.push({type:"text",text:a.join(`
-`),startChar:l,endChar:i})}else{let l=i,a=[];for(;r<e.length&&!(T(e[r])&&r+1<e.length&&O(e[r+1]));)a.push(e[r]),i+=s(r),r++;n.push({type:"text",text:a.join(`
-`),startChar:l,endChar:i})}return n}function L(t){let e=t.split(`
-`);for(let n=0;n+1<e.length;n++)if(T(e[n])&&O(e[n+1]))return!0;return!1}function B(t,e){let n=/\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g,r="",i=0,s;for(;(s=n.exec(t))!==null;){s.index>i&&(r+=f(t.slice(i,s.index)));let p=s[1],l=s[2],a=s[3],d=l&&a?` width="${l}" height="${a}"`:"",o=e[p];r+=o?`<img class="ng-img${d?" ng-img-sized":""}" src="${o}"${d} alt="${f(p)}" onclick="showLightbox(this.src)" title="Click to enlarge">`:`<span class="ng-img-missing">${f(p)}</span>`,i=s.index+s[0].length}return i<t.length&&(r+=f(t.slice(i))),r}function ie(t,e){let n=t.headers.map(i=>`<th>${B(i,e)}</th>`).join(""),r=t.rows.map(i=>`<tr>${i.map(s=>`<td>${B(s,e)}</td>`).join("")}</tr>`).join("");return`<div class="ng-table-wrap"><table class="ng-table"><thead><tr>${n}</tr></thead><tbody>${r}</tbody></table></div>`}function ae(t,e,n,r,i){let s=e?.color??"#888",p=e?.shape==="rounded"?"22px":"2px",l=f(e?.label??t.template),a=Math.round(t.position.x+n),d=Math.round(t.position.y+r),o="",h=t.content??"";if(L(h)){let u=re(h);o+='<div class="ng-content">';for(let m of u)m.type==="table"?o+=ie(m,i):m.text&&(o+=`<div class="ng-seg">${B(m.text,i).replace(/\n/g,"<br>")}</div>`);o+="</div>"}else h&&(o+=`<div class="ng-content">${B(h,i).replace(/\n/g,"<br>")}</div>`);if(t.original){let u=f(t.original.title??"Original"),m=t.originalExpanded?" open":"";o+=`<details class="ng-original"${m}><summary>${u}${t.original.location?` <span class="ng-loc">${f(t.original.location)}</span>`:""}</summary>
-<div class="ng-orig-text">${f(t.original.text).replace(/\n/g,"<br>")}</div></details>`}for(let u of t.toggleItems??[])o+=`<details class="ng-toggle"${u.expanded?" open":""}><summary>${f(u.title||"(untitled)")}</summary>
-<div class="ng-toggle-body">${f(u.content).replace(/\n/g,"<br>")}</div></details>`;t.links.length&&(o+=`<div class="ng-links">${t.links.map(u=>{let m=u.type==="url"?"\u{1F517}":u.type==="pdf"?"\u{1F4C4}":u.type==="obsidian"?"\u{1F7E3}":"\u2B21";return`<a class="ng-link"${u.type==="url"||u.type==="pdf"?` href="${f(u.target)}" target="_blank"`:""}>${m} ${f(u.label||u.target)}</a>`}).join("")}</div>`);let E=!!o,b=t.contentExpanded?"":' style="display:none"',D=t.children.length?` data-children="${t.children.join(",")}"`:"",S=L(h)?" ng-has-table":"",k=/\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g,y=0,I;for(;(I=k.exec(h))!==null;)y=Math.max(y,Number(I[1]));let v=y>0?L(h)?y+280:y+32:0,g=[t.nodeWidth?`min-width:${t.nodeWidth}px`:v>220?`min-width:${v}px`:"",t.nodeHeight?`min-height:${t.nodeHeight}px`:""].filter(Boolean).join(";");return`<div class="ng-node${S}" id="node-${f(t.id)}"${D} style="--color:${s};border-radius:${p};left:${a}px;top:${d}px${g?";"+g:""}">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,${s} 22%,transparent);color:${s}">${l}</span>
-    <span class="ng-title">${f(t.title)}</span>
-    ${E?`<span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">${t.contentExpanded?"\u25B2":"\u25BC"}</span>`:""}
+"use strict";var V=Object.create;var B=Object.defineProperty;var J=Object.getOwnPropertyDescriptor;var Z=Object.getOwnPropertyNames;var Q=Object.getPrototypeOf,ee=Object.prototype.hasOwnProperty;var te=(t,e)=>{for(var n in e)B(t,n,{get:e[n],enumerable:!0})},R=(t,e,n,r)=>{if(e&&typeof e=="object"||typeof e=="function")for(let a of Z(e))!ee.call(t,a)&&a!==n&&B(t,a,{get:()=>e[a],enumerable:!(r=J(e,a))||r.enumerable});return t};var N=(t,e,n)=>(n=t!=null?V(Q(t)):{},R(e||!t||!t.__esModule?B(n,"default",{value:t,enumerable:!0}):n,t)),ne=t=>R(B({},"__esModule",{value:!0}),t);var ue={};te(ue,{activate:()=>ce,deactivate:()=>pe});module.exports=ne(ue);var D=N(require("vscode"));var l=N(require("vscode")),G=N(require("path"));var w=N(require("vscode"));function L(t){let e=w.Uri.joinPath(t,".."),n=t.path.split("/").pop()?.replace(/\.nodegraph\.json$/,"")??"graph";return w.Uri.joinPath(e,`.${n}-imgs`)}function oe(t,e,n){let r=w.Uri.joinPath(L(e),n);return t.asWebviewUri(r).toString()}var U=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;function _(t,e,n){let r={},a=s=>{s&&!r[s]&&(r[s]=oe(t,e,s))};for(let s of n.nodes){U.lastIndex=0;let p;for(;(p=U.exec(s.content??""))!==null;)a(p[1])}for(let s of n.canvasImages??[])a(s.filename);return r}async function W(t,e,n,r="png"){let a=L(e);try{await w.workspace.fs.createDirectory(a)}catch{}let s=`img_${Date.now()}.${r}`,p=w.Uri.joinPath(a,s);return await w.workspace.fs.writeFile(p,Buffer.from(n,"base64")),{filename:s,webviewUri:t.asWebviewUri(p).toString()}}async function z(t,e){let n=w.Uri.joinPath(L(t),e);try{await w.workspace.fs.delete(n)}catch{}}function g(t){return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function P(t){return/^\s*\|/.test(t)&&t.indexOf("|",1)!==-1}function O(t){return/^\s*\|[\s\-:|]+\|\s*$/.test(t)&&!/[a-zA-Z0-9]/.test(t)}function F(t){return t.replace(/^\s*\|/,"").replace(/\|\s*$/,"").split("|").map(e=>e.trim())}function re(t){if(!t)return[{type:"text",text:"",startChar:0,endChar:0}];let e=t.split(`
+`),n=[],r=0,a=0,s=p=>e[p].length+(p<e.length-1?1:0);for(;r<e.length;)if(P(e[r])&&r+1<e.length&&O(e[r+1])){let c=a,i=[];for(;r<e.length&&P(e[r]);)i.push(e[r]),a+=s(r),r++;i.length>=3?n.push({type:"table",headers:F(i[0]),rows:i.slice(2).map(F),startChar:c,endChar:a}):n.push({type:"text",text:i.join(`
+`),startChar:c,endChar:a})}else{let c=a,i=[];for(;r<e.length&&!(P(e[r])&&r+1<e.length&&O(e[r+1]));)i.push(e[r]),a+=s(r),r++;n.push({type:"text",text:i.join(`
+`),startChar:c,endChar:a})}return n}function H(t){let e=t.split(`
+`);for(let n=0;n+1<e.length;n++)if(P(e[n])&&O(e[n+1]))return!0;return!1}function Y(t,e){let n=/\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g,r="",a=0,s;for(;(s=n.exec(t))!==null;){s.index>a&&(r+=g(t.slice(a,s.index)));let p=s[1],c=s[2],i=s[3],d=c&&i?` width="${c}" height="${i}"`:"",o=e[p];r+=o?`<img class="ng-img${d?" ng-img-sized":""}" src="${o}"${d} alt="${g(p)}" onclick="showLightbox(this.src)" title="Click to enlarge">`:`<span class="ng-img-missing">${g(p)}</span>`,a=s.index+s[0].length}return a<t.length&&(r+=g(t.slice(a))),r}function ie(t,e){let n=t.headers.map(a=>`<th>${Y(a,e)}</th>`).join(""),r=t.rows.map(a=>`<tr>${a.map(s=>`<td>${Y(s,e)}</td>`).join("")}</tr>`).join("");return`<div class="ng-table-wrap"><table class="ng-table"><thead><tr>${n}</tr></thead><tbody>${r}</tbody></table></div>`}function ae(t,e,n,r,a){let s=e?.color??"#888",p=e?.shape==="rounded"?"22px":"2px",c=g(e?.label??t.template),i=Math.round(t.position.x+n),d=Math.round(t.position.y+r),o="",u=t.content??"";if(H(u)){let h=re(u);o+='<div class="ng-content">';for(let m of h)m.type==="table"?o+=ie(m,a):m.text&&(o+=`<div class="ng-seg">${Y(m.text,a).replace(/\n/g,"<br>")}</div>`);o+="</div>"}else u&&(o+=`<div class="ng-content">${Y(u,a).replace(/\n/g,"<br>")}</div>`);if(t.original){let h=g(t.original.title??"Original"),m=t.originalExpanded?" open":"";o+=`<details class="ng-original"${m}><summary>${h}${t.original.location?` <span class="ng-loc">${g(t.original.location)}</span>`:""}</summary>
+<div class="ng-orig-text">${g(t.original.text).replace(/\n/g,"<br>")}</div></details>`}for(let h of t.toggleItems??[])o+=`<details class="ng-toggle"${h.expanded?" open":""}><summary>${g(h.title||"(untitled)")}</summary>
+<div class="ng-toggle-body">${g(h.content).replace(/\n/g,"<br>")}</div></details>`;t.links.length&&(o+=`<div class="ng-links">${t.links.map(h=>{let m=h.type==="url"?"\u{1F517}":h.type==="pdf"?"\u{1F4C4}":h.type==="obsidian"?"\u{1F7E3}":"\u2B21";return`<a class="ng-link"${h.type==="url"||h.type==="pdf"?` href="${g(h.target)}" target="_blank"`:""}>${m} ${g(h.label||h.target)}</a>`}).join("")}</div>`);let E=!!o,b=t.contentExpanded?"":' style="display:none"',S=t.children.length?` data-children="${t.children.join(",")}"`:"",A=H(u)?" ng-has-table":"",k=/\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g,y=0,I;for(;(I=k.exec(u))!==null;)y=Math.max(y,Number(I[1]));let v=y>0?H(u)?y+280:y+32:0,f=[t.nodeWidth?`min-width:${t.nodeWidth}px`:v>220?`min-width:${v}px`:"",t.nodeHeight?`min-height:${t.nodeHeight}px`:""].filter(Boolean).join(";");return`<div class="ng-node${A}" id="node-${g(t.id)}"${S} style="--color:${s};border-radius:${p};left:${i}px;top:${d}px${f?";"+f:""}">
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,${s} 22%,transparent);color:${s}">${c}</span>
+    ${E?`<span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">${g(t.title)}</span>`:`<span class="ng-title">${g(t.title)}</span>`}
   </div>
   ${E?`<div class="ng-body"${b}${t.fontSize?` style="font-size:${t.fontSize}px"`:""}>${o}</div>`:""}
-</div>`}function W(t,e={}){let n=1/0,r=1/0;for(let o of t.nodes)n=Math.min(n,o.position.x),r=Math.min(r,o.position.y);isFinite(n)||(n=0,r=0);let i=-n+100,s=-r+100,p=t.nodes.map(o=>ae(o,t.nodeTemplates[o.template],i,s,e)).join(`
-`),l=JSON.stringify(t.nodes.map(o=>({id:o.id,lx:Math.round(o.position.x+i),ly:Math.round(o.position.y+s),children:o.children??[],template:o.template,contentExpanded:o.contentExpanded,isMain:(t.nodeTemplates[o.template]?.shape??"sharp")==="sharp",nodeHeight:o.nodeHeight??null,naturalY:Math.round((o.nodeNaturalY??o.position.y)+s),searchText:[o.title,o.content??"",o.original?.text??""].join(" ").toLowerCase()}))),a=JSON.stringify(t.edges.map(o=>({source:o.source,target:o.target,type:o.type,label:o.label||""}))),d=t.source?`${f(t.source.authors)} \xB7 ${f(t.source.venue)}`:"";return`<!DOCTYPE html>
+</div>`}function j(t,e={}){let n=1/0,r=1/0;for(let o of t.nodes)n=Math.min(n,o.position.x),r=Math.min(r,o.position.y);isFinite(n)||(n=0,r=0);let a=-n+100,s=-r+100,p=t.nodes.map(o=>ae(o,t.nodeTemplates[o.template],a,s,e)).join(`
+`),c=JSON.stringify(t.nodes.map(o=>({id:o.id,lx:Math.round(o.position.x+a),ly:Math.round(o.position.y+s),children:o.children??[],template:o.template,contentExpanded:o.contentExpanded,isMain:(t.nodeTemplates[o.template]?.shape??"sharp")==="sharp",nodeHeight:o.nodeHeight??null,naturalY:Math.round((o.nodeNaturalY??o.position.y)+s),searchText:[o.title,o.content??"",o.original?.text??""].join(" ").toLowerCase()}))),i=JSON.stringify(t.edges.map(o=>({source:o.source,target:o.target,type:o.type,label:o.label||""}))),d=t.source?`${g(t.source.authors)} \xB7 ${g(t.source.venue)}`:"";return`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${f(t.title)}</title>
+<title>${g(t.title)}</title>
 <!-- KaTeX for LaTeX rendering -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.js"></script>
@@ -35,19 +34,17 @@ body{background:#f4f4f5;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFo
 button{background:#fff;color:#1a1a1a;border:1px solid #c0c0c0;border-radius:3px;padding:2px 10px;font-size:11px;cursor:pointer;flex-shrink:0}
 button:hover{background:#e8e8e8;border-color:#aaa}
 .tb-sep{width:1px;height:14px;background:#d4d4d4;flex-shrink:0}
-#viewport{position:fixed;top:0;left:0;right:0;bottom:0;overflow:hidden;cursor:grab}
+#viewport{position:fixed;top:0;left:0;right:0;bottom:0;overflow:hidden;cursor:grab;}
 #viewport.pan-drag{cursor:grabbing}
 #canvas{position:absolute;transform-origin:0 0}
 #wire-svg{position:absolute;top:0;left:0;width:10000px;height:10000px;pointer-events:none;overflow:visible}
 .ng-node{position:absolute;min-width:220px;background:color-mix(in srgb,var(--color) 10%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .ng-node.ng-selected{box-shadow:0 0 0 2px color-mix(in srgb,var(--color) 80%,transparent),0 2px 8px rgba(0,0,0,.12)}
 .ng-node.ng-dragging{opacity:.88;transition:box-shadow .1s;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:100}
-.ng-header{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;user-select:none}
+.ng-header{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:default;user-select:none}
 .ng-header:hover{background:rgba(0,0,0,.04)}
-.ng-tag{font-size:10px;font-weight:600;padding:2px 6px;border-radius:3px;flex-shrink:0;white-space:nowrap}
-.ng-title{flex:1;font-size:13px;font-weight:500;color:#1a1a1a;white-space:nowrap}
-.ng-chevron{font-size:9px;opacity:.5;flex-shrink:0;padding:2px 4px;border-radius:2px}
-.ng-chevron:hover{background:rgba(0,0,0,.08);opacity:.9}
+.ng-tag{font-size:10px;font-weight:600;padding:2px 6px;border-radius:3px;flex-shrink:0;white-space:nowrap;cursor:move;user-select:none}
+.ng-title{flex:1;font-size:13px;font-weight:500;color:#1a1a1a;white-space:nowrap;cursor:pointer;user-select:none}
 .ng-body{padding:8px 10px 10px;font-size:12px}
 .ng-content{line-height:1.6;color:#333;white-space:pre-wrap;word-break:break-word;margin-bottom:6px}
 .ng-seg{white-space:pre-wrap;word-break:break-word;line-height:1.6;color:#333}
@@ -80,10 +77,17 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 #lightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:4px;box-shadow:0 4px 32px rgba(0,0,0,.4);cursor:default}
 #lightbox-close{position:absolute;top:16px;right:20px;color:#fff;font-size:22px;opacity:.8;cursor:pointer;user-select:none}
 /* Search */
-#search-bar{display:none;align-items:center;gap:4px;background:#fff;border:1px solid #d1d5db;border-radius:5px;padding:2px 6px}
-#search-bar.open{display:flex}
-#search-input{border:none;outline:none;font-size:12px;width:160px;background:transparent;color:#111}
-#search-count{font-size:11px;color:#6b7280;white-space:nowrap;min-width:52px;text-align:right}
+#search-wrap{position:absolute;top:10px;right:14px;z-index:500;display:none}
+#search-wrap.open{display:block}
+#search-row{display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:4px 6px;box-shadow:0 4px 16px rgba(0,0,0,0.15)}
+#search-row.dropdown-open{border-radius:6px 6px 0 0}
+#search-input{border:none;outline:none;font-size:13px;width:200px;background:transparent;color:#111}
+#search-count{font-size:11px;color:#6b7280;white-space:nowrap;min-width:60px;text-align:right}
+#search-drop{position:absolute;top:100%;right:0;min-width:100%;max-height:280px;overflow-y:auto;background:#fff;border:1px solid #d1d5db;border-top:none;border-radius:0 0 6px 6px;box-shadow:0 8px 16px rgba(0,0,0,0.15);z-index:501;display:none}
+#search-drop.open{display:block}
+.ng-drop-item{padding:6px 12px;font-size:12px;color:#1a1a1a;cursor:pointer;border-bottom:1px solid #f3f4f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px}
+.ng-drop-item:last-child{border-bottom:none}
+.ng-drop-item:hover{background:#f3f4f6}
 .ng-node.ng-search-match{border:2px solid #fcd34d !important}
 .ng-node.ng-search-active{border:2px solid #f59e0b !important;box-shadow:0 0 0 3px rgba(245,158,11,0.35),0 2px 8px rgba(0,0,0,.18) !important}
 </style>
@@ -91,7 +95,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 <body>
 <div id="toolbar">
   <div id="tb-row1">
-    <span id="tb-title">${f(t.title)}</span>
+    <span id="tb-title">${g(t.title)}</span>
     <span id="tb-source">${d}</span>
   </div>
   <div id="tb-row2">
@@ -100,20 +104,20 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <button onclick="doExpand()" title="Expand selected node + children (all if none selected)">Expand\u2193</button>
     <button onclick="doCollapse()" title="Collapse selected node + children (all if none selected)">Collapse\u2191</button>
     <div class="tb-sep"></div>
-    <button id="search-btn" onclick="openSearch()" title="Search nodes (Ctrl+F)">\u{1F50D} Search</button>
-    <div id="search-bar">
-      <input id="search-input" placeholder="Search nodes\u2026" oninput="doSearch(this.value)" onkeydown="onSearchKey(event)">
-      <span id="search-count"></span>
-      <div style="width:1px;height:14px;background:#e5e7eb;margin:0 2px;flex-shrink:0"></div>
-      <button onclick="searchPrev()" title="Previous (Shift+Enter)" style="border:none;background:none;cursor:pointer;padding:2px 5px;font-size:12px;color:#374151">\u2191</button>
-      <button onclick="searchNext()" title="Next (Enter)" style="border:none;background:none;cursor:pointer;padding:2px 5px;font-size:12px;color:#374151">\u2193</button>
-      <button onclick="closeSearch()" title="Close (Escape)" style="border:none;background:none;cursor:pointer;padding:2px 5px;font-size:12px;color:#6b7280">\u2715</button>
-    </div>
     <div class="tb-sep"></div>
     <span id="tb-sel" style="opacity:.35">Click a node to select</span>
   </div>
 </div>
 <div id="viewport">
+  <div id="search-wrap">
+    <div id="search-row">
+      <input id="search-input" placeholder="Search nodes\u2026 (Ctrl+F)" oninput="doSearch(this.value)" onkeydown="onSearchKey(event)" onclick="onSearchInputClick()">
+      <span id="search-count"></span>
+      <div style="width:1px;height:16px;background:#e5e7eb;margin:0 2px;flex-shrink:0"></div>
+      <button onclick="closeSearch()" title="Close (Escape)" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:13px;color:#6b7280;border-radius:3px;line-height:1">\u2715</button>
+    </div>
+    <div id="search-drop"></div>
+  </div>
   <div id="canvas">
     <svg id="wire-svg">
       <defs>
@@ -130,8 +134,8 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
   <span id="lightbox-close" onclick="closeLightbox()">\u2715</span>
 </div>
 <script>
-var NODES_DATA = ${l};
-var EDGES = ${a};
+var NODES_DATA = ${c};
+var EDGES = ${i};
 var HEADER_H = 36;
 
 var vp = document.getElementById('viewport');
@@ -206,21 +210,23 @@ function onHeaderClick(hdr) {
   selectNode(selectedNodeId === nodeId ? null : nodeId);
 }
 
-// Chevron click = toggle this node only (no cascade, stopPropagation)
-function toggleFold(e, hdr) {
+// Title click = fold/unfold this node
+function onTitleClick(e, titleEl) {
   e.stopPropagation();
-  var body = hdr.nextElementSibling;
+  var nodeEl = titleEl.closest('.ng-node');
+  var body = nodeEl.querySelector('.ng-body');
   if (!body) return;
-  var chevron = hdr.querySelector('.ng-chevron');
   var expanding = body.style.display === 'none';
   body.style.display = expanding ? '' : 'none';
-  if (chevron) chevron.textContent = expanding ? '\u25B2' : '\u25BC';
-  var nodeEl = hdr.parentNode;
   var nodeId = nodeEl.id.replace('node-', '');
   for (var i = 0; i < NODES_DATA.length; i++) {
     if (NODES_DATA[i].id === nodeId) { NODES_DATA[i].contentExpanded = expanding; break; }
   }
   setTimeout(recomputePositions, 0);
+  // \uAC80\uC0C9 \uB4DC\uB86D\uB2E4\uC6B4\uC774 \uC5F4\uB824\uC788\uC73C\uBA74 search input \uD3EC\uCEE4\uC2A4 \uBCF5\uC6D0 (\uD654\uC0B4\uD45C \uD0A4 \uC720\uC9C0)
+  if (document.getElementById('search-wrap').classList.contains('open') && searchSelectedId === null) {
+    setTimeout(function() { document.getElementById('search-input').focus(); }, 0);
+  }
 }
 
 // Get node datum by id
@@ -320,8 +326,8 @@ function doCollapse() {
   }
 }
 
-// Per-node drag with logical-position tracking
-function onNodeHeaderMousedown(e, nodeEl) {
+// Tag drag handle
+function onNodeTagMousedown(e, nodeEl) {
   e.stopPropagation();
   lastWasDrag = false;
   var x0 = e.clientX, y0 = e.clientY;
@@ -351,110 +357,112 @@ function onNodeHeaderMousedown(e, nodeEl) {
   window.addEventListener('mouseup', onUp);
 }
 
-// Keep original node positions \u2014 collapse/expand does not push other nodes
-function getNodeRootId(nodeId) {
-  var childToParent = getChildToParentMap();
-  var cur = nodeId;
-  while (childToParent[cur]) cur = childToParent[cur];
-  return cur;
-}
-function getChildToParentMap() {
-  var map = {};
-  NODES_DATA.forEach(function(n) {
-    (n.children || []).forEach(function(childId) { map[childId] = n.id; });
-  });
-  return map;
-}
 function recomputePositions() {
-  var childToParent = getChildToParentMap();
-  function rootOf(id) {
+  var childToParent = {};
+  NODES_DATA.forEach(function(n) {
+    (n.children || []).forEach(function(childId) { childToParent[childId] = n.id; });
+  });
+  function getRootId(id) {
     var cur = id;
     while (childToParent[cur]) cur = childToParent[cur];
     return cur;
   }
   function isDescendantOf(descendant, ancestor) {
     var cur = descendant;
-    while (childToParent[cur]) {
-      cur = childToParent[cur];
-      if (cur === ancestor) return true;
-    }
+    while (childToParent[cur]) { cur = childToParent[cur]; if (cur === ancestor) return true; }
     return false;
   }
+  function isDirectedConnected(sourceId, targetId) {
+    return EDGES.some(function(e) { return e.source === sourceId && e.target === targetId; });
+  }
+
   var sorted = NODES_DATA.slice().sort(function(a, b) {
     if (a.ly !== b.ly) return a.ly - b.ly;
     return a.lx - b.lx;
   });
   var renderY = {};
-  sorted.forEach(function(n) {
-    var nIsMain = n.isMain;
-    var y = n.ly;
-    var nEl = document.getElementById('node-' + n.id);
-    var nW = nEl ? nEl.offsetWidth : 300;
-    sorted.forEach(function(other) {
-      if (other.id === n.id) return;
-      if (other.ly > n.ly) return;
-      if (other.ly === n.ly && other.lx >= n.lx) return;
-      var otherY = renderY[other.id] !== undefined ? renderY[other.id] : other.ly;
-      var otherEl = document.getElementById('node-' + other.id);
-      var h = otherEl ? otherEl.offsetHeight : HEADER_H;
-      var otherBottom = otherY + h;
-      if (otherBottom <= y) return;
-      if (nIsMain && other.isMain) {
-        // Main \u2192 main: always push regardless of X offset
-        var naturalBottom = other.ly + (other.nodeHeight || HEADER_H);
-        var delta = (otherY + h) - naturalBottom;
-        var nodeNaturalY = n.naturalY !== undefined ? n.naturalY : n.ly;
-        y = Math.max(y, nodeNaturalY + delta, otherBottom + 20);
-      } else {
-        // Rounded pushes: only if X ranges actually overlap (different columns don't push each other)
-        var oW = otherEl ? otherEl.offsetWidth : 300;
-        if (!(n.lx < other.lx + oW && other.lx < n.lx + nW)) return;
-        if (nIsMain) {
-          // Rounded \u2192 main: skip only if descendant AND doesn't reach this node's Y
-          if (isDescendantOf(other.id, n.id) && otherBottom <= n.ly) return;
-          var wasPushed = otherY > other.ly;
-          if (!other.contentExpanded && !wasPushed) return;
-          y = Math.max(y, otherBottom + 48);
+  var MAX_ITER = 8;
+
+  for (var iter = 0; iter < MAX_ITER; iter++) {
+    var prevSnapshot = {};
+    NODES_DATA.forEach(function(n) { prevSnapshot[n.id] = renderY[n.id] !== undefined ? renderY[n.id] : n.ly; });
+
+    // Pass 1: Y-overlap push-down
+    sorted.forEach(function(node) {
+      var nEl = document.getElementById('node-' + node.id);
+      var nodeW = nEl ? nEl.offsetWidth : (node.nodeWidth || 300);
+      var y = node.ly;
+
+      sorted.forEach(function(other) {
+        if (other.id === node.id) return;
+        if (other.ly > node.ly) return;
+        if (other.ly === node.ly && other.lx >= node.lx) return;
+
+        var otherEl = document.getElementById('node-' + other.id);
+        var otherW = otherEl ? otherEl.offsetWidth : (other.nodeWidth || 300);
+        var otherY = renderY[other.id] !== undefined ? renderY[other.id] : other.ly;
+        var otherH = otherEl ? otherEl.offsetHeight : HEADER_H;
+        var otherBottom = otherY + otherH;
+        if (otherBottom <= y) return;
+
+        if (node.isMain && other.isMain) {
+          // Main\u2192Main: X \uBC94\uC704\uAC00 \uACB9\uCE60 \uB54C\uB9CC \uBC00\uC5B4\uB0C4 (\uB2E4\uB978 \uCEEC\uB7FC cascade \uBC29\uC9C0)
+          if (!(node.lx < other.lx + otherW && other.lx < node.lx + nodeW)) return;
+          var naturalBottom = other.ly + (other.nodeHeight || HEADER_H);
+          var delta = (otherY + otherH) - naturalBottom;
+          var nodeNaturalY = node.naturalY !== undefined ? node.naturalY : node.ly;
+          y = Math.max(y, nodeNaturalY + delta, otherBottom + 20);
         } else {
-          // Sub \u2192 sub: always push when X ranges overlap, regardless of expand state
-          var gap = (rootOf(other.id) === rootOf(n.id)) ? 20 : 48;
-          y = Math.max(y, otherBottom + gap);
+          // \uBC29\uD5A5 \uC5E3\uC9C0 \uC5F0\uACB0\uC774\uBA74 X overlap \uC5C6\uC5B4\uB3C4 \uBC00\uC5B4\uB0C4
+          var connected = isDirectedConnected(other.id, node.id);
+          if (!connected && !(node.lx < other.lx + otherW && other.lx < node.lx + nodeW)) return;
+          if (node.isMain) {
+            if (isDescendantOf(other.id, node.id) && otherBottom <= node.ly) return;
+            y = Math.max(y, otherBottom + 48);
+          } else {
+            var isSameRoot = getRootId(other.id) === getRootId(node.id);
+            y = Math.max(y, otherBottom + (isSameRoot ? 30 : 48));
+          }
+        }
+      });
+      renderY[node.id] = y;
+    });
+
+    // Pass 2: \uC11C\uBE0C\uB178\uB4DC\uAC00 \uBD80\uBAA8 main\uC758 push delta\uB9CC\uD07C \uB530\uB77C \uB0B4\uB824\uAC10
+    NODES_DATA.forEach(function(node) {
+      if (node.isMain) return;
+      var parentMain = null;
+      var bestDist = Infinity;
+      NODES_DATA.forEach(function(m) {
+        if (!m.isMain) return;
+        var connected = (m.children && m.children.indexOf(node.id) !== -1) ||
+          EDGES.some(function(e) {
+            return (e.source === m.id && e.target === node.id) || (e.target === m.id && e.source === node.id);
+          });
+        if (connected) {
+          var dist = Math.abs(m.ly - node.ly);
+          if (dist < bestDist) { bestDist = dist; parentMain = m; }
+        }
+      });
+      if (parentMain) {
+        var parentPush = (renderY[parentMain.id] !== undefined ? renderY[parentMain.id] : parentMain.ly) - parentMain.ly;
+        if (parentPush > 0) {
+          var cur = renderY[node.id] !== undefined ? renderY[node.id] : node.ly;
+          renderY[node.id] = Math.max(cur, node.ly + parentPush);
         }
       }
     });
-    renderY[n.id] = y;
-  });
 
-  // Pass 2: sub-nodes follow their parent main node's push delta
-  NODES_DATA.forEach(function(n) {
-    if (n.isMain) return;
-    var parentMain = null;
-    var bestDist = Infinity;
-    NODES_DATA.forEach(function(m) {
-      if (!m.isMain) return;
-      var connected = m.children && m.children.indexOf(n.id) !== -1;
-      if (!connected) {
-        EDGES.some(function(e) {
-          if ((e.source === m.id && e.target === n.id) || (e.target === m.id && e.source === n.id)) {
-            connected = true; return true;
-          }
-        });
-      }
-      if (connected) {
-        var dist = Math.abs(m.ly - n.ly);
-        if (dist < bestDist) { bestDist = dist; parentMain = m; }
-      }
+    // \uC218\uB834 \uD655\uC778
+    var converged = NODES_DATA.every(function(n) {
+      var cur = renderY[n.id] !== undefined ? renderY[n.id] : n.ly;
+      var prev = prevSnapshot[n.id] !== undefined ? prevSnapshot[n.id] : n.ly;
+      return cur === prev;
     });
-    if (parentMain) {
-      var parentPush = (renderY[parentMain.id] !== undefined ? renderY[parentMain.id] : parentMain.ly) - parentMain.ly;
-      if (parentPush > 0) {
-        var cur = renderY[n.id] !== undefined ? renderY[n.id] : n.ly;
-        renderY[n.id] = Math.max(cur, n.ly + parentPush);
-      }
-    }
-  });
+    if (converged) break;
+  }
 
-  // Pass 3: normalize Y spacing within each bus group (same source, same X column)
+  // Pass 3: line \uC5E3\uC9C0 \uBC84\uC2A4 \uADF8\uB8F9 Y \uC815\uADDC\uD654 (gap 30px, \uC5D0\uB514\uD130\uC640 \uB3D9\uC77C)
   var lineBySource = {};
   EDGES.forEach(function(e) {
     if (e.type !== 'line') return;
@@ -466,7 +474,6 @@ function recomputePositions() {
   Object.keys(lineBySource).forEach(function(srcId) {
     var targetIds = lineBySource[srcId].filter(function(id) { return ndMap[id]; });
     if (targetIds.length < 2) return;
-    // Group targets by X column
     var xGroups = [];
     targetIds.forEach(function(id) {
       var el = document.getElementById('node-' + id);
@@ -480,18 +487,17 @@ function recomputePositions() {
       }
       if (!placed) xGroups.push([id]);
     });
-    // Sort and space within each X column group
     xGroups.forEach(function(grp) {
       if (grp.length < 2) return;
-      var sorted = grp.map(function(id) {
+      var grpSorted = grp.map(function(id) {
         var el = document.getElementById('node-' + id);
         return { id: id, y: renderY[id] !== undefined ? renderY[id] : ndMap[id].ly, h: el ? el.offsetHeight : HEADER_H };
       }).sort(function(a, b) { return a.y - b.y; });
-      for (var i = 1; i < sorted.length; i++) {
-        var minY = sorted[i-1].y + sorted[i-1].h + 20;
-        var newY = Math.max(sorted[i].y, minY);
-        sorted[i].y = newY;
-        renderY[sorted[i].id] = newY;
+      for (var i = 1; i < grpSorted.length; i++) {
+        var minY = grpSorted[i-1].y + grpSorted[i-1].h + 30;
+        var newY = Math.max(grpSorted[i].y, minY);
+        grpSorted[i].y = newY;
+        renderY[grpSorted[i].id] = newY;
       }
     });
   });
@@ -500,7 +506,7 @@ function recomputePositions() {
     var el = document.getElementById('node-' + n.id);
     if (!el) return;
     el.style.left = n.lx + 'px';
-    el.style.top  = (renderY[n.id] !== undefined ? renderY[n.id] : n.ly) + 'px';
+    el.style.top = (renderY[n.id] !== undefined ? renderY[n.id] : n.ly) + 'px';
   });
   drawEdges();
 }
@@ -615,67 +621,138 @@ function closeLightbox(){document.getElementById('lightbox').classList.remove('a
 document.addEventListener('keydown',function(e){
   if((e.ctrlKey||e.metaKey)&&e.key==='f'){e.preventDefault();openSearch();return;}
   if(e.key==='Escape'){
-    if(document.getElementById('search-bar').classList.contains('open')){closeSearch();return;}
+    if(document.getElementById('search-wrap').classList.contains('open')){closeSearch();return;}
     closeLightbox();
+  }
+});
+// Middle click: prevent X11 primary selection paste
+vp.addEventListener('mousedown',function(e){if(e.button===1) e.preventDefault();});
+// Background click: close search if open
+vp.addEventListener('mouseup',function(e){
+  if(e.button!==0) return;
+  if(!e.target.closest('.ng-node')&&!e.target.closest('#search-wrap')){
+    if(document.getElementById('search-wrap').classList.contains('open')) closeSearch();
   }
 });
 
 // Search
-var searchMatchIds=[];
-var searchActiveIdx=-1;
+var searchSelectedId=null;
+var searchMatchNodes=[];
+var kbIdx=-1;
+
 function openSearch(){
-  var bar=document.getElementById('search-bar');
-  bar.classList.add('open');
-  document.getElementById('search-btn').style.display='none';
+  document.getElementById('search-wrap').classList.add('open');
   var inp=document.getElementById('search-input');
   inp.focus();inp.select();
+  kbIdx=-1;
   if(inp.value) doSearch(inp.value);
 }
 function closeSearch(){
   clearSearchHighlights();
-  searchMatchIds=[];searchActiveIdx=-1;
-  document.getElementById('search-bar').classList.remove('open');
-  document.getElementById('search-btn').style.display='';
+  searchSelectedId=null;searchMatchNodes=[];kbIdx=-1;
+  document.getElementById('search-wrap').classList.remove('open');
   document.getElementById('search-input').value='';
   document.getElementById('search-count').textContent='';
+  closeDropdown();
 }
 function clearSearchHighlights(){
   document.querySelectorAll('.ng-search-match,.ng-search-active').forEach(function(el){el.classList.remove('ng-search-match','ng-search-active');});
 }
+function closeDropdown(){
+  document.getElementById('search-drop').classList.remove('open');
+  document.getElementById('search-row').classList.remove('dropdown-open');
+  kbIdx=-1;
+}
 function doSearch(q){
   clearSearchHighlights();
-  searchMatchIds=[];searchActiveIdx=0;
+  searchSelectedId=null;kbIdx=-1;
   var query=q.trim().toLowerCase();
-  if(!query){document.getElementById('search-count').textContent='';return;}
-  NODES_DATA.forEach(function(n){if(n.searchText&&n.searchText.indexOf(query)!==-1) searchMatchIds.push(n.id);});
-  searchMatchIds.forEach(function(id){var el=document.getElementById('node-'+id);if(el) el.classList.add('ng-search-match');});
-  if(searchMatchIds.length>0){searchActiveIdx=0;activateSearchMatch(0);}
+  if(!query){document.getElementById('search-count').textContent='';closeDropdown();searchMatchNodes=[];return;}
+  searchMatchNodes=NODES_DATA.filter(function(n){return n.searchText&&n.searchText.indexOf(query)!==-1;});
+  searchMatchNodes.forEach(function(n){var el=document.getElementById('node-'+n.id);if(el) el.classList.add('ng-search-match');});
+  updateSearchCount();
+  renderDropdown();
+}
+function renderDropdown(){
+  var drop=document.getElementById('search-drop');
+  var row=document.getElementById('search-row');
+  drop.innerHTML='';
+  if(!searchMatchNodes.length){closeDropdown();return;}
+  searchMatchNodes.forEach(function(n,i){
+    var div=document.createElement('div');
+    div.className='ng-drop-item';
+    div.setAttribute('data-kb-idx',i);
+    var nodeEl=document.getElementById('node-'+n.id);
+    var titleEl=nodeEl?nodeEl.querySelector('.ng-title'):null;
+    div.textContent=titleEl?titleEl.textContent:n.id;
+    div.addEventListener('mousedown',function(e){e.preventDefault();selectSearchNode(n.id);});
+    div.addEventListener('mouseenter',function(){setKbActive(i);});
+    drop.appendChild(div);
+  });
+  if(kbIdx>=0&&kbIdx<searchMatchNodes.length) applyKbHighlight();
+  drop.classList.add('open');
+  row.classList.add('dropdown-open');
+}
+function setKbActive(idx){
+  kbIdx=idx;
+  applyKbHighlight();
+  var drop=document.getElementById('search-drop');
+  var el=drop.querySelector('[data-kb-idx="'+idx+'"]');
+  if(el) el.scrollIntoView({block:'nearest'});
+}
+function applyKbHighlight(){
+  var drop=document.getElementById('search-drop');
+  drop.querySelectorAll('.ng-drop-item').forEach(function(el){
+    var active=el.getAttribute('data-kb-idx')===String(kbIdx);
+    el.style.background=active?'#e8f0fe':'transparent';
+    el.style.fontWeight=active?'500':'400';
+  });
+}
+function selectSearchNode(id){
+  clearSearchHighlights();
+  searchSelectedId=id;
+  var el=document.getElementById('node-'+id);
+  if(el) el.classList.add('ng-search-active');
+  // Enter \uD655\uC815: \uC120\uD0DD\uB41C \uB178\uB4DC\uB9CC expand, \uB098\uBA38\uC9C0 \uB9E4\uCE58 \uB178\uB4DC collapse
+  searchMatchNodes.forEach(function(n){
+    var nodeEl=document.getElementById('node-'+n.id);
+    if(!nodeEl) return;
+    var body=nodeEl.querySelector('.ng-body');
+    if(!body) return;
+    var datum=null;
+    for(var i=0;i<NODES_DATA.length;i++){if(NODES_DATA[i].id===n.id){datum=NODES_DATA[i];break;}}
+    if(!datum) return;
+    if(n.id===id){
+      if(!datum.contentExpanded){body.style.display='';datum.contentExpanded=true;}
+    } else {
+      if(datum.contentExpanded){body.style.display='none';datum.contentExpanded=false;}
+    }
+  });
+  setTimeout(function(){recomputePositions();flyToNode(id);},0);
+  closeDropdown();
   updateSearchCount();
 }
-function activateSearchMatch(idx){
-  document.querySelectorAll('.ng-search-active').forEach(function(el){el.classList.remove('ng-search-active');});
-  if(!searchMatchIds.length) return;
-  var el=document.getElementById('node-'+searchMatchIds[idx]);
-  if(el){el.classList.add('ng-search-active');flyToNode(searchMatchIds[idx]);}
-}
-function searchNext(){
-  if(!searchMatchIds.length) return;
-  searchActiveIdx=(searchActiveIdx+1)%searchMatchIds.length;
-  activateSearchMatch(searchActiveIdx);updateSearchCount();
-}
-function searchPrev(){
-  if(!searchMatchIds.length) return;
-  searchActiveIdx=(searchActiveIdx-1+searchMatchIds.length)%searchMatchIds.length;
-  activateSearchMatch(searchActiveIdx);updateSearchCount();
+function onSearchInputClick(){
+  if(searchSelectedId!==null){
+    // \uC774\uC804 \uC120\uD0DD \uB178\uB4DC\uC758 \uC778\uB371\uC2A4\uB97C \uCC3E\uC544 kbIdx \uBCF5\uC6D0
+    var idx=-1;
+    for(var i=0;i<searchMatchNodes.length;i++){if(searchMatchNodes[i].id===searchSelectedId){idx=i;break;}}
+    clearSearchHighlights();
+    searchSelectedId=null;
+    searchMatchNodes.forEach(function(n){var el=document.getElementById('node-'+n.id);if(el) el.classList.add('ng-search-match');});
+    updateSearchCount();
+    renderDropdown();
+    if(idx>=0){kbIdx=idx;applyKbHighlight();}
+  }
 }
 function updateSearchCount(){
   var el=document.getElementById('search-count');
   if(!el) return;
   var q=document.getElementById('search-input').value.trim();
   if(!q){el.textContent='';return;}
-  if(!searchMatchIds.length){el.style.color='#ef4444';el.textContent='0 results';return;}
-  el.style.color='#6b7280';
-  el.textContent=(searchActiveIdx+1)+' / '+searchMatchIds.length;
+  if(searchSelectedId){el.style.color='#6b7280';el.textContent='1 selected';return;}
+  if(!searchMatchNodes.length){el.style.color='#ef4444';el.textContent='0 results';return;}
+  el.style.color='#6b7280';el.textContent=searchMatchNodes.length+' results';
 }
 function flyToNode(nodeId){
   var el=document.getElementById('node-'+nodeId);
@@ -689,8 +766,19 @@ function flyToNode(nodeId){
   applyTransform();
 }
 function onSearchKey(e){
-  if(e.key==='Enter'){e.shiftKey?searchPrev():searchNext();e.preventDefault();}
-  if(e.key==='Escape'){closeSearch();e.preventDefault();}
+  var n=searchMatchNodes.length;
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    if(n>0){var newIdx=kbIdx<0?0:(kbIdx+1)%n;setKbActive(newIdx);flyToNode(searchMatchNodes[newIdx].id);}
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    if(n>0){var newIdx=kbIdx<0?n-1:(kbIdx-1+n)%n;setKbActive(newIdx);flyToNode(searchMatchNodes[newIdx].id);}
+  } else if(e.key==='Enter'){
+    e.preventDefault();
+    if(n>0) selectSearchNode(searchMatchNodes[kbIdx>=0?kbIdx:0].id);
+  } else if(e.key==='Escape'){
+    closeSearch();e.preventDefault();
+  }
   e.stopPropagation();
 }
 
@@ -730,11 +818,11 @@ window.addEventListener('load', function() {
 });
 </script>
 </body>
-</html>`}var Y=class t{constructor(e){this.context=e;this._pendingSaves=new Set}static register(e){let n=new t(e);return c.window.registerCustomEditorProvider("nodegraph.editor",n,{webviewOptions:{retainContextWhenHidden:!0}})}async resolveCustomTextEditor(e,n,r){let i=c.Uri.joinPath(e.uri,"..");n.webview.options={enableScripts:!0,localResourceRoots:[this.context.extensionUri,i]},n.webview.html=this._getHtmlForWebview(n.webview);let s=a=>{try{let d=JSON.parse(e.getText()),o=H(n.webview,e.uri,d);n.webview.postMessage({type:a,data:d,imageUris:o})}catch{}},p=n.webview.onDidReceiveMessage(async a=>{if(a.type==="ready")s("load");else if(a.type==="save"){let d=e.uri.toString();this._pendingSaves.add(d);try{let o=new c.WorkspaceEdit,h=new c.Range(e.positionAt(0),e.positionAt(e.getText().length));o.replace(e.uri,h,JSON.stringify(a.data,null,2)),await c.workspace.applyEdit(o),await e.save()}finally{this._pendingSaves.delete(d)}}else if(a.type==="openLink"){let d=a.link;if(d.type==="url")c.env.openExternal(c.Uri.parse(d.target));else if(d.type==="pdf"){let o=c.Uri.joinPath(c.Uri.joinPath(e.uri,".."),d.target);c.env.openExternal(o)}else d.type==="obsidian"&&c.env.openExternal(c.Uri.parse(d.target))}else if(a.type==="exportHtml")try{let d=a.data,o=c.Uri.joinPath(e.uri,".."),h=G.basename(e.uri.fsPath,".nodegraph.json"),E=c.Uri.joinPath(o,`.${h}-imgs`),b={},D=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g,S=async v=>{if(!(!v||b[v]))try{let g=c.Uri.joinPath(E,v),u=await c.workspace.fs.readFile(g),m=v.split(".").pop()?.toLowerCase()??"png",N=m==="jpg"||m==="jpeg"?"image/jpeg":m==="gif"?"image/gif":m==="webp"?"image/webp":"image/png";b[v]=`data:${N};base64,${Buffer.from(u).toString("base64")}`}catch{}};for(let v of d.nodes){D.lastIndex=0;let g;for(;(g=D.exec(v.content??""))!==null;)await S(g[1])}let k=W(d,b),y=c.Uri.joinPath(o,`${h}.html`);await c.workspace.fs.writeFile(y,Buffer.from(k,"utf-8"));let I=await c.window.showInformationMessage(`HTML exported: ${h}.html`,"Open in Browser","Show in Explorer");I==="Open in Browser"?c.env.openExternal(y):I==="Show in Explorer"&&c.commands.executeCommand("revealFileInOS",y)}catch(d){c.window.showErrorMessage(`HTML export failed: ${d}`)}else if(a.type==="saveImage")try{let{filename:d,webviewUri:o}=await F(n.webview,e.uri,a.data,a.ext??"png");n.webview.postMessage({type:"imageSaved",nodeId:a.nodeId,filename:d,webviewUri:o})}catch(d){c.window.showErrorMessage(`Failed to save image: ${d}`)}else if(a.type==="deleteImageFile")await z(e.uri,a.filename);else if(a.type==="reload")try{let d=await c.workspace.fs.readFile(e.uri),o=Buffer.from(d).toString("utf-8"),h=JSON.parse(o),E=H(n.webview,e.uri,h);n.webview.postMessage({type:"load",data:h,imageUris:E})}catch{s("load")}}),l=c.workspace.onDidChangeTextDocument(a=>{a.document.uri.toString()===e.uri.toString()&&(this._pendingSaves.has(e.uri.toString())||s("externalChange"))});n.onDidDispose(()=>{p.dispose(),l.dispose()})}_getHtmlForWebview(e){let n=e.asWebviewUri(c.Uri.joinPath(this.context.extensionUri,"dist","webview.js")),r=e.asWebviewUri(c.Uri.joinPath(this.context.extensionUri,"dist","katex","katex.min.css")),i=se();return`<!DOCTYPE html>
+</html>`}var C=class t{constructor(e){this.context=e;this._pendingSaves=new Set}static register(e){let n=new t(e);return l.window.registerCustomEditorProvider("nodegraph.editor",n,{webviewOptions:{retainContextWhenHidden:!0}})}static{this._activeWebview=null}static postToActive(e){t._activeWebview?.postMessage(e)}async resolveCustomTextEditor(e,n,r){let a=l.Uri.joinPath(e.uri,"..");n.webview.options={enableScripts:!0,localResourceRoots:[this.context.extensionUri,a]},n.webview.html=this._getHtmlForWebview(n.webview);let s=i=>{try{let d=JSON.parse(e.getText()),o=_(n.webview,e.uri,d);n.webview.postMessage({type:i,data:d,imageUris:o})}catch{}},p=n.webview.onDidReceiveMessage(async i=>{if(i.type==="ready")s("load");else if(i.type==="save"){let d=e.uri.toString();this._pendingSaves.add(d);try{let o=new l.WorkspaceEdit,u=new l.Range(e.positionAt(0),e.positionAt(e.getText().length));o.replace(e.uri,u,JSON.stringify(i.data,null,2)),await l.workspace.applyEdit(o),await e.save()}finally{this._pendingSaves.delete(d)}}else if(i.type==="openLink"){let d=i.link;if(d.type==="url")l.env.openExternal(l.Uri.parse(d.target));else if(d.type==="pdf"){let o=l.Uri.joinPath(l.Uri.joinPath(e.uri,".."),d.target);l.env.openExternal(o)}else d.type==="obsidian"&&l.env.openExternal(l.Uri.parse(d.target))}else if(i.type==="exportHtml")try{let d=i.data,o=l.Uri.joinPath(e.uri,".."),u=G.basename(e.uri.fsPath,".nodegraph.json"),E=l.Uri.joinPath(o,`.${u}-imgs`),b={},S=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g,A=async v=>{if(!(!v||b[v]))try{let f=l.Uri.joinPath(E,v),h=await l.workspace.fs.readFile(f),m=v.split(".").pop()?.toLowerCase()??"png",$=m==="jpg"||m==="jpeg"?"image/jpeg":m==="gif"?"image/gif":m==="webp"?"image/webp":"image/png";b[v]=`data:${$};base64,${Buffer.from(h).toString("base64")}`}catch{}};for(let v of d.nodes){S.lastIndex=0;let f;for(;(f=S.exec(v.content??""))!==null;)await A(f[1])}let k=j(d,b),y=l.Uri.joinPath(o,`${u}.html`);await l.workspace.fs.writeFile(y,Buffer.from(k,"utf-8"));let I=await l.window.showInformationMessage(`HTML exported: ${u}.html`,"Open in Browser","Show in Explorer");I==="Open in Browser"?l.env.openExternal(y):I==="Show in Explorer"&&l.commands.executeCommand("revealFileInOS",y)}catch(d){l.window.showErrorMessage(`HTML export failed: ${d}`)}else if(i.type==="saveImage")try{let{filename:d,webviewUri:o}=await W(n.webview,e.uri,i.data,i.ext??"png");n.webview.postMessage({type:"imageSaved",nodeId:i.nodeId,filename:d,webviewUri:o})}catch(d){l.window.showErrorMessage(`Failed to save image: ${d}`)}else if(i.type==="deleteImageFile")await z(e.uri,i.filename);else if(i.type==="reload")try{let d=await l.workspace.fs.readFile(e.uri),o=Buffer.from(d).toString("utf-8"),u=JSON.parse(o),E=_(n.webview,e.uri,u);n.webview.postMessage({type:"load",data:u,imageUris:E})}catch{s("load")}}),c=l.workspace.onDidChangeTextDocument(i=>{i.document.uri.toString()===e.uri.toString()&&(this._pendingSaves.has(e.uri.toString())||s("externalChange"))});t._activeWebview=n.webview,n.onDidChangeViewState(i=>{i.webviewPanel.active&&(t._activeWebview=n.webview)}),n.onDidDispose(()=>{p.dispose(),c.dispose(),t._activeWebview===n.webview&&(t._activeWebview=null)})}_getHtmlForWebview(e){let n=e.asWebviewUri(l.Uri.joinPath(this.context.extensionUri,"dist","webview.js")),r=e.asWebviewUri(l.Uri.joinPath(this.context.extensionUri,"dist","katex","katex.min.css")),a=se();return`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${e.cspSource} blob: data:; script-src 'nonce-${i}'; style-src 'unsafe-inline' ${e.cspSource}; font-src ${e.cspSource};">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${e.cspSource} blob: data:; script-src 'nonce-${a}'; style-src 'unsafe-inline' ${e.cspSource}; font-src ${e.cspSource};">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NodeGraph</title>
   <link rel="stylesheet" href="${r}">
@@ -753,7 +841,7 @@ window.addEventListener('load', function() {
 </head>
 <body>
   <div id="root"></div>
-  <script nonce="${i}" src="${n}"></script>
+  <script nonce="${a}" src="${n}"></script>
 </body>
-</html>`}};function se(){let t="",e="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";for(let n=0;n<32;n++)t+=e.charAt(Math.floor(Math.random()*e.length));return t}var A=M(require("vscode")),X=M(require("child_process"));function C(t){try{return X.execSync(t,{timeout:5e3,stdio:["pipe","pipe","pipe"]}).toString().trim()}catch{return""}}function x(t){return C(t)!==""}async function q(t){if(!t||t.length===0)return;let e=[],n=new Date().toISOString(),r=process.platform,i=r==="win32"?"Windows":r==="darwin"?"macOS":"Linux",s=process.arch,p=C("python3 --version 2>&1")||C("python --version 2>&1"),l=x("python3 --version 2>&1")?"python3":x("python --version 2>&1")?"python":"",a=l!=="",d=a&&x(`${l} -c "import fitz" 2>&1 && echo ok`),o=d?C(`${l} -c "import fitz; print(fitz.__version__)"`):"",h=a&&x(`${l} -c "import pdfplumber" 2>&1 && echo ok`),E=a&&x(`${l} -c "import pdfminer" 2>&1 && echo ok`),b=a&&x(`${l} -c "from PIL import Image" 2>&1 && echo ok`),D=b?C(`${l} -c "from PIL import __version__; print(__version__)"`):"",S=a&&x(`${l} -c "import cv2" 2>&1 && echo ok`),k=x("pdftotext -v 2>&1 && echo ok")||x("pdftotext --help 2>&1 && echo ok"),y=x("convert --version 2>&1 && echo ok"),I=x("magick --version 2>&1 && echo ok"),v=x("gs --version 2>&1 && echo ok")||x("gswin64c --version 2>&1 && echo ok"),g=m=>m?"\u2705":"\u274C";e.push("# NodeGraph \u2014 Agent Environment Report"),e.push(""),e.push("> Auto-generated by the NodeGraph extension at activation."),e.push("> **AI agents: read this file to understand what tools are available on this machine.**"),e.push("> Re-generated each time a `.nodegraph.json` file is opened."),e.push(""),e.push(`Generated: \`${n}\``),e.push(""),e.push("---"),e.push(""),e.push("## System"),e.push(""),e.push("| | |"),e.push("|---|---|"),e.push(`| OS | ${i} (\`${r}\`) |`),e.push(`| Architecture | \`${s}\` |`),e.push(`| Python | ${a?`${g(!0)} \`${p}\``:`${g(!1)} not found`} |`),e.push(`| Python command | ${a?`\`${l}\``:"N/A"} |`),e.push(""),e.push("---"),e.push(""),e.push("## PDF Reading Capabilities"),e.push(""),e.push("| Tool | Available | Notes |"),e.push("|------|:---------:|-------|"),e.push(`| PyMuPDF (\`fitz\`) | ${g(d)} | ${d?`v${o} \u2014 recommended`:"Install: `pip install pymupdf`"} |`),e.push(`| pdfplumber | ${g(h)} | ${h?"available":"Install: `pip install pdfplumber`"} |`),e.push(`| pdfminer | ${g(E)} | ${E?"available":"Install: `pip install pdfminer.six`"} |`),e.push(`| poppler (\`pdftotext\`) | ${g(k)} | ${k?"CLI tool available":r==="win32"?"Install: download poppler for Windows":r==="darwin"?"Install: `brew install poppler`":"Install: `apt install poppler-utils`"} |`),e.push(`| Ghostscript (\`gs\`) | ${g(v)} | ${v?"available":"optional"} |`),e.push(""),e.push("---"),e.push(""),e.push("## Image Processing Capabilities"),e.push(""),e.push("| Tool | Available | Notes |"),e.push("|------|:---------:|-------|"),e.push(`| Pillow (\`PIL\`) | ${g(b)} | ${b?`v${D} \u2014 recommended`:"Install: `pip install Pillow`"} |`),e.push(`| OpenCV (\`cv2\`) | ${g(S)} | ${S?"available":"Install: `pip install opencv-python`"} |`),e.push(`| ImageMagick (\`convert\`) | ${g(y||I)} | ${y||I?"CLI tool available":r==="win32"?"Install: imagemagick.org":r==="darwin"?"Install: `brew install imagemagick`":"Install: `apt install imagemagick`"} |`),e.push(""),e.push("---"),e.push(""),e.push("## Agent Recommendations"),e.push(""),a||(e.push("> \u26A0\uFE0F **Python not found.** PDF reading and image processing via Python are not available."),e.push("> Install Python from https://python.org, then reopen a `.nodegraph.json` file to re-run this check."),e.push("")),e.push("### Reading a PDF"),d?(e.push("Use PyMuPDF (recommended \u2014 fastest and most accurate):"),e.push("```python"),e.push("import fitz"),e.push('doc = fitz.open("paper.pdf")'),e.push('text = "\\n".join(page.get_text() for page in doc)'),e.push("```")):h?(e.push("Use pdfplumber:"),e.push("```python"),e.push("import pdfplumber"),e.push('with pdfplumber.open("paper.pdf") as pdf:'),e.push('    text = "\\n".join(p.extract_text() or "" for p in pdf.pages)'),e.push("```")):k?(e.push("Use poppler CLI:"),e.push("```bash"),e.push("pdftotext paper.pdf -"),e.push("```")):e.push("\u274C No PDF reading tool available. Ask the user to install PyMuPDF: `pip install pymupdf`"),e.push(""),e.push("### Extracting images from a PDF"),d?(e.push("```python"),e.push("import fitz"),e.push('doc = fitz.open("paper.pdf")'),e.push("for i, page in enumerate(doc):"),e.push("    for img in page.get_images():"),e.push("        xref = img[0]"),e.push("        pix = fitz.Pixmap(doc, xref)"),e.push('        pix.save(f"fig_{i}_{xref}.png")'),e.push("```")):b?e.push("Pillow is available but cannot extract from PDF directly. Use PyMuPDF for extraction."):e.push("\u274C No image extraction tool available."),e.push(""),e.push("---"),e.push(""),e.push("*To refresh this report, reopen any `.nodegraph.json` file.*");let u=e.join(`
-`);for(let m of t){let N=A.Uri.joinPath(m.uri,".agent"),K=A.Uri.joinPath(N,"ENVIRONMENT.md");try{await A.workspace.fs.createDirectory(N),await A.workspace.fs.writeFile(K,Buffer.from(u,"utf-8"))}catch{}}}var de=[{id:"tomoki1207.pdf",name:"vscode-pdf (PDF Viewer)"}];async function ce(){for(let t of de)if(!$.extensions.getExtension(t.id))try{await $.commands.executeCommand("workbench.extensions.installExtension",t.id)}catch{}}function le(t){t.subscriptions.push(Y.register(t)),q($.workspace.workspaceFolders??[]),ce()}function pe(){}0&&(module.exports={activate,deactivate});
+</html>`}};function se(){let t="",e="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";for(let n=0;n<32;n++)t+=e.charAt(Math.floor(Math.random()*e.length));return t}var M=N(require("vscode")),X=N(require("child_process"));function T(t){try{return X.execSync(t,{timeout:5e3,stdio:["pipe","pipe","pipe"]}).toString().trim()}catch{return""}}function x(t){return T(t)!==""}async function q(t){if(!t||t.length===0)return;let e=[],n=new Date().toISOString(),r=process.platform,a=r==="win32"?"Windows":r==="darwin"?"macOS":"Linux",s=process.arch,p=T("python3 --version 2>&1")||T("python --version 2>&1"),c=x("python3 --version 2>&1")?"python3":x("python --version 2>&1")?"python":"",i=c!=="",d=i&&x(`${c} -c "import fitz" 2>&1 && echo ok`),o=d?T(`${c} -c "import fitz; print(fitz.__version__)"`):"",u=i&&x(`${c} -c "import pdfplumber" 2>&1 && echo ok`),E=i&&x(`${c} -c "import pdfminer" 2>&1 && echo ok`),b=i&&x(`${c} -c "from PIL import Image" 2>&1 && echo ok`),S=b?T(`${c} -c "from PIL import __version__; print(__version__)"`):"",A=i&&x(`${c} -c "import cv2" 2>&1 && echo ok`),k=x("pdftotext -v 2>&1 && echo ok")||x("pdftotext --help 2>&1 && echo ok"),y=x("convert --version 2>&1 && echo ok"),I=x("magick --version 2>&1 && echo ok"),v=x("gs --version 2>&1 && echo ok")||x("gswin64c --version 2>&1 && echo ok"),f=m=>m?"\u2705":"\u274C";e.push("# NodeGraph \u2014 Agent Environment Report"),e.push(""),e.push("> Auto-generated by the NodeGraph extension at activation."),e.push("> **AI agents: read this file to understand what tools are available on this machine.**"),e.push("> Re-generated each time a `.nodegraph.json` file is opened."),e.push(""),e.push(`Generated: \`${n}\``),e.push(""),e.push("---"),e.push(""),e.push("## System"),e.push(""),e.push("| | |"),e.push("|---|---|"),e.push(`| OS | ${a} (\`${r}\`) |`),e.push(`| Architecture | \`${s}\` |`),e.push(`| Python | ${i?`${f(!0)} \`${p}\``:`${f(!1)} not found`} |`),e.push(`| Python command | ${i?`\`${c}\``:"N/A"} |`),e.push(""),e.push("---"),e.push(""),e.push("## PDF Reading Capabilities"),e.push(""),e.push("| Tool | Available | Notes |"),e.push("|------|:---------:|-------|"),e.push(`| PyMuPDF (\`fitz\`) | ${f(d)} | ${d?`v${o} \u2014 recommended`:"Install: `pip install pymupdf`"} |`),e.push(`| pdfplumber | ${f(u)} | ${u?"available":"Install: `pip install pdfplumber`"} |`),e.push(`| pdfminer | ${f(E)} | ${E?"available":"Install: `pip install pdfminer.six`"} |`),e.push(`| poppler (\`pdftotext\`) | ${f(k)} | ${k?"CLI tool available":r==="win32"?"Install: download poppler for Windows":r==="darwin"?"Install: `brew install poppler`":"Install: `apt install poppler-utils`"} |`),e.push(`| Ghostscript (\`gs\`) | ${f(v)} | ${v?"available":"optional"} |`),e.push(""),e.push("---"),e.push(""),e.push("## Image Processing Capabilities"),e.push(""),e.push("| Tool | Available | Notes |"),e.push("|------|:---------:|-------|"),e.push(`| Pillow (\`PIL\`) | ${f(b)} | ${b?`v${S} \u2014 recommended`:"Install: `pip install Pillow`"} |`),e.push(`| OpenCV (\`cv2\`) | ${f(A)} | ${A?"available":"Install: `pip install opencv-python`"} |`),e.push(`| ImageMagick (\`convert\`) | ${f(y||I)} | ${y||I?"CLI tool available":r==="win32"?"Install: imagemagick.org":r==="darwin"?"Install: `brew install imagemagick`":"Install: `apt install imagemagick`"} |`),e.push(""),e.push("---"),e.push(""),e.push("## Agent Recommendations"),e.push(""),i||(e.push("> \u26A0\uFE0F **Python not found.** PDF reading and image processing via Python are not available."),e.push("> Install Python from https://python.org, then reopen a `.nodegraph.json` file to re-run this check."),e.push("")),e.push("### Reading a PDF"),d?(e.push("Use PyMuPDF (recommended \u2014 fastest and most accurate):"),e.push("```python"),e.push("import fitz"),e.push('doc = fitz.open("paper.pdf")'),e.push('text = "\\n".join(page.get_text() for page in doc)'),e.push("```")):u?(e.push("Use pdfplumber:"),e.push("```python"),e.push("import pdfplumber"),e.push('with pdfplumber.open("paper.pdf") as pdf:'),e.push('    text = "\\n".join(p.extract_text() or "" for p in pdf.pages)'),e.push("```")):k?(e.push("Use poppler CLI:"),e.push("```bash"),e.push("pdftotext paper.pdf -"),e.push("```")):e.push("\u274C No PDF reading tool available. Ask the user to install PyMuPDF: `pip install pymupdf`"),e.push(""),e.push("### Extracting images from a PDF"),d?(e.push("```python"),e.push("import fitz"),e.push('doc = fitz.open("paper.pdf")'),e.push("for i, page in enumerate(doc):"),e.push("    for img in page.get_images():"),e.push("        xref = img[0]"),e.push("        pix = fitz.Pixmap(doc, xref)"),e.push('        pix.save(f"fig_{i}_{xref}.png")'),e.push("```")):b?e.push("Pillow is available but cannot extract from PDF directly. Use PyMuPDF for extraction."):e.push("\u274C No image extraction tool available."),e.push(""),e.push("---"),e.push(""),e.push("*To refresh this report, reopen any `.nodegraph.json` file.*");let h=e.join(`
+`);for(let m of t){let $=M.Uri.joinPath(m.uri,".agent"),K=M.Uri.joinPath($,"ENVIRONMENT.md");try{await M.workspace.fs.createDirectory($),await M.workspace.fs.writeFile(K,Buffer.from(h,"utf-8"))}catch{}}}var de=[{id:"tomoki1207.pdf",name:"vscode-pdf (PDF Viewer)"}];async function le(){for(let t of de)if(!D.extensions.getExtension(t.id))try{await D.commands.executeCommand("workbench.extensions.installExtension",t.id)}catch{}}function ce(t){t.subscriptions.push(C.register(t)),t.subscriptions.push(D.commands.registerCommand("nodegraph.search",()=>{C.postToActive({type:"openSearch"})})),q(D.workspace.workspaceFolders??[]),le()}function pe(){}0&&(module.exports={activate,deactivate});

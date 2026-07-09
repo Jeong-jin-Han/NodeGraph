@@ -14,6 +14,13 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
     )
   }
 
+  // Track the most recently active webview so extension commands can post messages to it
+  private static _activeWebview: vscode.Webview | null = null
+
+  public static postToActive(message: unknown): void {
+    NodeGraphEditorProvider._activeWebview?.postMessage(message)
+  }
+
   private readonly _pendingSaves = new Set<string>()
 
   constructor(private readonly context: vscode.ExtensionContext) {}
@@ -142,9 +149,18 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
       sendGraph('externalChange')
     })
 
+    // Track which webview is currently active so extension commands can reach it
+    NodeGraphEditorProvider._activeWebview = webviewPanel.webview
+    webviewPanel.onDidChangeViewState(e => {
+      if (e.webviewPanel.active) NodeGraphEditorProvider._activeWebview = webviewPanel.webview
+    })
+
     webviewPanel.onDidDispose(() => {
       msgDisposable.dispose()
       changeDisposable.dispose()
+      if (NodeGraphEditorProvider._activeWebview === webviewPanel.webview) {
+        NodeGraphEditorProvider._activeWebview = null
+      }
     })
   }
 

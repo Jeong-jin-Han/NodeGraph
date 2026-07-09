@@ -28,6 +28,10 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graph !== null])
 
+  // openSearch is called by the extension command (Ctrl+F keybinding in package.json)
+  // because VSCode intercepts Ctrl+F before the webview JS keydown handler sees it.
+  const [openSearchSignal, setOpenSearchSignal] = React.useState(0)
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo() }
@@ -37,6 +41,14 @@ export function App() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [undo, redo, saveGraph])
+
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'openSearch') setOpenSearchSignal(n => n + 1)
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [])
 
   if (!graph) {
     return (
@@ -48,6 +60,7 @@ export function App() {
 
   return (
     <Canvas
+      openSearchSignal={openSearchSignal}
       viewport={viewport}
       cursor={cursor}
       nativeWheelHandler={nativeWheelHandler}

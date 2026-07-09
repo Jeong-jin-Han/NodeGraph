@@ -158,10 +158,9 @@ function renderNodeCard(
   ].filter(Boolean).join(';')
 
   return `<div class="ng-node${hasTableClass}" id="node-${escHtml(node.id)}"${childrenAttr} style="--color:${color};border-radius:${borderRadius};left:${nx}px;top:${ny}px${extraStyle ? ';' + extraStyle : ''}">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,${color} 22%,transparent);color:${color}">${label}</span>
-    <span class="ng-title">${escHtml(node.title)}</span>
-    ${hasBody ? `<span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">${node.contentExpanded ? '▲' : '▼'}</span>` : ''}
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,${color} 22%,transparent);color:${color}">${label}</span>
+    ${hasBody ? `<span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">${escHtml(node.title)}</span>` : `<span class="ng-title">${escHtml(node.title)}</span>`}
   </div>
   ${hasBody ? `<div class="ng-body"${bodyDisplay}${node.fontSize ? ` style="font-size:${node.fontSize}px"` : ''}>${bodyHtml}</div>` : ''}
 </div>`
@@ -221,19 +220,17 @@ body{background:#f4f4f5;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFo
 button{background:#fff;color:#1a1a1a;border:1px solid #c0c0c0;border-radius:3px;padding:2px 10px;font-size:11px;cursor:pointer;flex-shrink:0}
 button:hover{background:#e8e8e8;border-color:#aaa}
 .tb-sep{width:1px;height:14px;background:#d4d4d4;flex-shrink:0}
-#viewport{position:fixed;top:0;left:0;right:0;bottom:0;overflow:hidden;cursor:grab}
+#viewport{position:fixed;top:0;left:0;right:0;bottom:0;overflow:hidden;cursor:grab;}
 #viewport.pan-drag{cursor:grabbing}
 #canvas{position:absolute;transform-origin:0 0}
 #wire-svg{position:absolute;top:0;left:0;width:10000px;height:10000px;pointer-events:none;overflow:visible}
 .ng-node{position:absolute;min-width:220px;background:color-mix(in srgb,var(--color) 10%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .ng-node.ng-selected{box-shadow:0 0 0 2px color-mix(in srgb,var(--color) 80%,transparent),0 2px 8px rgba(0,0,0,.12)}
 .ng-node.ng-dragging{opacity:.88;transition:box-shadow .1s;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:100}
-.ng-header{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;user-select:none}
+.ng-header{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:default;user-select:none}
 .ng-header:hover{background:rgba(0,0,0,.04)}
-.ng-tag{font-size:10px;font-weight:600;padding:2px 6px;border-radius:3px;flex-shrink:0;white-space:nowrap}
-.ng-title{flex:1;font-size:13px;font-weight:500;color:#1a1a1a;white-space:nowrap}
-.ng-chevron{font-size:9px;opacity:.5;flex-shrink:0;padding:2px 4px;border-radius:2px}
-.ng-chevron:hover{background:rgba(0,0,0,.08);opacity:.9}
+.ng-tag{font-size:10px;font-weight:600;padding:2px 6px;border-radius:3px;flex-shrink:0;white-space:nowrap;cursor:move;user-select:none}
+.ng-title{flex:1;font-size:13px;font-weight:500;color:#1a1a1a;white-space:nowrap;cursor:pointer;user-select:none}
 .ng-body{padding:8px 10px 10px;font-size:12px}
 .ng-content{line-height:1.6;color:#333;white-space:pre-wrap;word-break:break-word;margin-bottom:6px}
 .ng-seg{white-space:pre-wrap;word-break:break-word;line-height:1.6;color:#333}
@@ -266,10 +263,17 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 #lightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:4px;box-shadow:0 4px 32px rgba(0,0,0,.4);cursor:default}
 #lightbox-close{position:absolute;top:16px;right:20px;color:#fff;font-size:22px;opacity:.8;cursor:pointer;user-select:none}
 /* Search */
-#search-bar{display:none;align-items:center;gap:4px;background:#fff;border:1px solid #d1d5db;border-radius:5px;padding:2px 6px}
-#search-bar.open{display:flex}
-#search-input{border:none;outline:none;font-size:12px;width:160px;background:transparent;color:#111}
-#search-count{font-size:11px;color:#6b7280;white-space:nowrap;min-width:52px;text-align:right}
+#search-wrap{position:absolute;top:10px;right:14px;z-index:500;display:none}
+#search-wrap.open{display:block}
+#search-row{display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:4px 6px;box-shadow:0 4px 16px rgba(0,0,0,0.15)}
+#search-row.dropdown-open{border-radius:6px 6px 0 0}
+#search-input{border:none;outline:none;font-size:13px;width:200px;background:transparent;color:#111}
+#search-count{font-size:11px;color:#6b7280;white-space:nowrap;min-width:60px;text-align:right}
+#search-drop{position:absolute;top:100%;right:0;min-width:100%;max-height:280px;overflow-y:auto;background:#fff;border:1px solid #d1d5db;border-top:none;border-radius:0 0 6px 6px;box-shadow:0 8px 16px rgba(0,0,0,0.15);z-index:501;display:none}
+#search-drop.open{display:block}
+.ng-drop-item{padding:6px 12px;font-size:12px;color:#1a1a1a;cursor:pointer;border-bottom:1px solid #f3f4f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px}
+.ng-drop-item:last-child{border-bottom:none}
+.ng-drop-item:hover{background:#f3f4f6}
 .ng-node.ng-search-match{border:2px solid #fcd34d !important}
 .ng-node.ng-search-active{border:2px solid #f59e0b !important;box-shadow:0 0 0 3px rgba(245,158,11,0.35),0 2px 8px rgba(0,0,0,.18) !important}
 </style>
@@ -286,20 +290,20 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <button onclick="doExpand()" title="Expand selected node + children (all if none selected)">Expand↓</button>
     <button onclick="doCollapse()" title="Collapse selected node + children (all if none selected)">Collapse↑</button>
     <div class="tb-sep"></div>
-    <button id="search-btn" onclick="openSearch()" title="Search nodes (Ctrl+F)">🔍 Search</button>
-    <div id="search-bar">
-      <input id="search-input" placeholder="Search nodes…" oninput="doSearch(this.value)" onkeydown="onSearchKey(event)">
-      <span id="search-count"></span>
-      <div style="width:1px;height:14px;background:#e5e7eb;margin:0 2px;flex-shrink:0"></div>
-      <button onclick="searchPrev()" title="Previous (Shift+Enter)" style="border:none;background:none;cursor:pointer;padding:2px 5px;font-size:12px;color:#374151">↑</button>
-      <button onclick="searchNext()" title="Next (Enter)" style="border:none;background:none;cursor:pointer;padding:2px 5px;font-size:12px;color:#374151">↓</button>
-      <button onclick="closeSearch()" title="Close (Escape)" style="border:none;background:none;cursor:pointer;padding:2px 5px;font-size:12px;color:#6b7280">✕</button>
-    </div>
     <div class="tb-sep"></div>
     <span id="tb-sel" style="opacity:.35">Click a node to select</span>
   </div>
 </div>
 <div id="viewport">
+  <div id="search-wrap">
+    <div id="search-row">
+      <input id="search-input" placeholder="Search nodes… (Ctrl+F)" oninput="doSearch(this.value)" onkeydown="onSearchKey(event)" onclick="onSearchInputClick()">
+      <span id="search-count"></span>
+      <div style="width:1px;height:16px;background:#e5e7eb;margin:0 2px;flex-shrink:0"></div>
+      <button onclick="closeSearch()" title="Close (Escape)" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:13px;color:#6b7280;border-radius:3px;line-height:1">✕</button>
+    </div>
+    <div id="search-drop"></div>
+  </div>
   <div id="canvas">
     <svg id="wire-svg">
       <defs>
@@ -392,21 +396,23 @@ function onHeaderClick(hdr) {
   selectNode(selectedNodeId === nodeId ? null : nodeId);
 }
 
-// Chevron click = toggle this node only (no cascade, stopPropagation)
-function toggleFold(e, hdr) {
+// Title click = fold/unfold this node
+function onTitleClick(e, titleEl) {
   e.stopPropagation();
-  var body = hdr.nextElementSibling;
+  var nodeEl = titleEl.closest('.ng-node');
+  var body = nodeEl.querySelector('.ng-body');
   if (!body) return;
-  var chevron = hdr.querySelector('.ng-chevron');
   var expanding = body.style.display === 'none';
   body.style.display = expanding ? '' : 'none';
-  if (chevron) chevron.textContent = expanding ? '▲' : '▼';
-  var nodeEl = hdr.parentNode;
   var nodeId = nodeEl.id.replace('node-', '');
   for (var i = 0; i < NODES_DATA.length; i++) {
     if (NODES_DATA[i].id === nodeId) { NODES_DATA[i].contentExpanded = expanding; break; }
   }
   setTimeout(recomputePositions, 0);
+  // 검색 드롭다운이 열려있으면 search input 포커스 복원 (화살표 키 유지)
+  if (document.getElementById('search-wrap').classList.contains('open') && searchSelectedId === null) {
+    setTimeout(function() { document.getElementById('search-input').focus(); }, 0);
+  }
 }
 
 // Get node datum by id
@@ -506,8 +512,8 @@ function doCollapse() {
   }
 }
 
-// Per-node drag with logical-position tracking
-function onNodeHeaderMousedown(e, nodeEl) {
+// Tag drag handle
+function onNodeTagMousedown(e, nodeEl) {
   e.stopPropagation();
   lastWasDrag = false;
   var x0 = e.clientX, y0 = e.clientY;
@@ -537,110 +543,112 @@ function onNodeHeaderMousedown(e, nodeEl) {
   window.addEventListener('mouseup', onUp);
 }
 
-// Keep original node positions — collapse/expand does not push other nodes
-function getNodeRootId(nodeId) {
-  var childToParent = getChildToParentMap();
-  var cur = nodeId;
-  while (childToParent[cur]) cur = childToParent[cur];
-  return cur;
-}
-function getChildToParentMap() {
-  var map = {};
-  NODES_DATA.forEach(function(n) {
-    (n.children || []).forEach(function(childId) { map[childId] = n.id; });
-  });
-  return map;
-}
 function recomputePositions() {
-  var childToParent = getChildToParentMap();
-  function rootOf(id) {
+  var childToParent = {};
+  NODES_DATA.forEach(function(n) {
+    (n.children || []).forEach(function(childId) { childToParent[childId] = n.id; });
+  });
+  function getRootId(id) {
     var cur = id;
     while (childToParent[cur]) cur = childToParent[cur];
     return cur;
   }
   function isDescendantOf(descendant, ancestor) {
     var cur = descendant;
-    while (childToParent[cur]) {
-      cur = childToParent[cur];
-      if (cur === ancestor) return true;
-    }
+    while (childToParent[cur]) { cur = childToParent[cur]; if (cur === ancestor) return true; }
     return false;
   }
+  function isDirectedConnected(sourceId, targetId) {
+    return EDGES.some(function(e) { return e.source === sourceId && e.target === targetId; });
+  }
+
   var sorted = NODES_DATA.slice().sort(function(a, b) {
     if (a.ly !== b.ly) return a.ly - b.ly;
     return a.lx - b.lx;
   });
   var renderY = {};
-  sorted.forEach(function(n) {
-    var nIsMain = n.isMain;
-    var y = n.ly;
-    var nEl = document.getElementById('node-' + n.id);
-    var nW = nEl ? nEl.offsetWidth : 300;
-    sorted.forEach(function(other) {
-      if (other.id === n.id) return;
-      if (other.ly > n.ly) return;
-      if (other.ly === n.ly && other.lx >= n.lx) return;
-      var otherY = renderY[other.id] !== undefined ? renderY[other.id] : other.ly;
-      var otherEl = document.getElementById('node-' + other.id);
-      var h = otherEl ? otherEl.offsetHeight : HEADER_H;
-      var otherBottom = otherY + h;
-      if (otherBottom <= y) return;
-      if (nIsMain && other.isMain) {
-        // Main → main: always push regardless of X offset
-        var naturalBottom = other.ly + (other.nodeHeight || HEADER_H);
-        var delta = (otherY + h) - naturalBottom;
-        var nodeNaturalY = n.naturalY !== undefined ? n.naturalY : n.ly;
-        y = Math.max(y, nodeNaturalY + delta, otherBottom + 20);
-      } else {
-        // Rounded pushes: only if X ranges actually overlap (different columns don't push each other)
-        var oW = otherEl ? otherEl.offsetWidth : 300;
-        if (!(n.lx < other.lx + oW && other.lx < n.lx + nW)) return;
-        if (nIsMain) {
-          // Rounded → main: skip only if descendant AND doesn't reach this node's Y
-          if (isDescendantOf(other.id, n.id) && otherBottom <= n.ly) return;
-          var wasPushed = otherY > other.ly;
-          if (!other.contentExpanded && !wasPushed) return;
-          y = Math.max(y, otherBottom + 48);
+  var MAX_ITER = 8;
+
+  for (var iter = 0; iter < MAX_ITER; iter++) {
+    var prevSnapshot = {};
+    NODES_DATA.forEach(function(n) { prevSnapshot[n.id] = renderY[n.id] !== undefined ? renderY[n.id] : n.ly; });
+
+    // Pass 1: Y-overlap push-down
+    sorted.forEach(function(node) {
+      var nEl = document.getElementById('node-' + node.id);
+      var nodeW = nEl ? nEl.offsetWidth : (node.nodeWidth || 300);
+      var y = node.ly;
+
+      sorted.forEach(function(other) {
+        if (other.id === node.id) return;
+        if (other.ly > node.ly) return;
+        if (other.ly === node.ly && other.lx >= node.lx) return;
+
+        var otherEl = document.getElementById('node-' + other.id);
+        var otherW = otherEl ? otherEl.offsetWidth : (other.nodeWidth || 300);
+        var otherY = renderY[other.id] !== undefined ? renderY[other.id] : other.ly;
+        var otherH = otherEl ? otherEl.offsetHeight : HEADER_H;
+        var otherBottom = otherY + otherH;
+        if (otherBottom <= y) return;
+
+        if (node.isMain && other.isMain) {
+          // Main→Main: X 범위가 겹칠 때만 밀어냄 (다른 컬럼 cascade 방지)
+          if (!(node.lx < other.lx + otherW && other.lx < node.lx + nodeW)) return;
+          var naturalBottom = other.ly + (other.nodeHeight || HEADER_H);
+          var delta = (otherY + otherH) - naturalBottom;
+          var nodeNaturalY = node.naturalY !== undefined ? node.naturalY : node.ly;
+          y = Math.max(y, nodeNaturalY + delta, otherBottom + 20);
         } else {
-          // Sub → sub: always push when X ranges overlap, regardless of expand state
-          var gap = (rootOf(other.id) === rootOf(n.id)) ? 20 : 48;
-          y = Math.max(y, otherBottom + gap);
+          // 방향 엣지 연결이면 X overlap 없어도 밀어냄
+          var connected = isDirectedConnected(other.id, node.id);
+          if (!connected && !(node.lx < other.lx + otherW && other.lx < node.lx + nodeW)) return;
+          if (node.isMain) {
+            if (isDescendantOf(other.id, node.id) && otherBottom <= node.ly) return;
+            y = Math.max(y, otherBottom + 48);
+          } else {
+            var isSameRoot = getRootId(other.id) === getRootId(node.id);
+            y = Math.max(y, otherBottom + (isSameRoot ? 30 : 48));
+          }
+        }
+      });
+      renderY[node.id] = y;
+    });
+
+    // Pass 2: 서브노드가 부모 main의 push delta만큼 따라 내려감
+    NODES_DATA.forEach(function(node) {
+      if (node.isMain) return;
+      var parentMain = null;
+      var bestDist = Infinity;
+      NODES_DATA.forEach(function(m) {
+        if (!m.isMain) return;
+        var connected = (m.children && m.children.indexOf(node.id) !== -1) ||
+          EDGES.some(function(e) {
+            return (e.source === m.id && e.target === node.id) || (e.target === m.id && e.source === node.id);
+          });
+        if (connected) {
+          var dist = Math.abs(m.ly - node.ly);
+          if (dist < bestDist) { bestDist = dist; parentMain = m; }
+        }
+      });
+      if (parentMain) {
+        var parentPush = (renderY[parentMain.id] !== undefined ? renderY[parentMain.id] : parentMain.ly) - parentMain.ly;
+        if (parentPush > 0) {
+          var cur = renderY[node.id] !== undefined ? renderY[node.id] : node.ly;
+          renderY[node.id] = Math.max(cur, node.ly + parentPush);
         }
       }
     });
-    renderY[n.id] = y;
-  });
 
-  // Pass 2: sub-nodes follow their parent main node's push delta
-  NODES_DATA.forEach(function(n) {
-    if (n.isMain) return;
-    var parentMain = null;
-    var bestDist = Infinity;
-    NODES_DATA.forEach(function(m) {
-      if (!m.isMain) return;
-      var connected = m.children && m.children.indexOf(n.id) !== -1;
-      if (!connected) {
-        EDGES.some(function(e) {
-          if ((e.source === m.id && e.target === n.id) || (e.target === m.id && e.source === n.id)) {
-            connected = true; return true;
-          }
-        });
-      }
-      if (connected) {
-        var dist = Math.abs(m.ly - n.ly);
-        if (dist < bestDist) { bestDist = dist; parentMain = m; }
-      }
+    // 수렴 확인
+    var converged = NODES_DATA.every(function(n) {
+      var cur = renderY[n.id] !== undefined ? renderY[n.id] : n.ly;
+      var prev = prevSnapshot[n.id] !== undefined ? prevSnapshot[n.id] : n.ly;
+      return cur === prev;
     });
-    if (parentMain) {
-      var parentPush = (renderY[parentMain.id] !== undefined ? renderY[parentMain.id] : parentMain.ly) - parentMain.ly;
-      if (parentPush > 0) {
-        var cur = renderY[n.id] !== undefined ? renderY[n.id] : n.ly;
-        renderY[n.id] = Math.max(cur, n.ly + parentPush);
-      }
-    }
-  });
+    if (converged) break;
+  }
 
-  // Pass 3: normalize Y spacing within each bus group (same source, same X column)
+  // Pass 3: line 엣지 버스 그룹 Y 정규화 (gap 30px, 에디터와 동일)
   var lineBySource = {};
   EDGES.forEach(function(e) {
     if (e.type !== 'line') return;
@@ -652,7 +660,6 @@ function recomputePositions() {
   Object.keys(lineBySource).forEach(function(srcId) {
     var targetIds = lineBySource[srcId].filter(function(id) { return ndMap[id]; });
     if (targetIds.length < 2) return;
-    // Group targets by X column
     var xGroups = [];
     targetIds.forEach(function(id) {
       var el = document.getElementById('node-' + id);
@@ -666,18 +673,17 @@ function recomputePositions() {
       }
       if (!placed) xGroups.push([id]);
     });
-    // Sort and space within each X column group
     xGroups.forEach(function(grp) {
       if (grp.length < 2) return;
-      var sorted = grp.map(function(id) {
+      var grpSorted = grp.map(function(id) {
         var el = document.getElementById('node-' + id);
         return { id: id, y: renderY[id] !== undefined ? renderY[id] : ndMap[id].ly, h: el ? el.offsetHeight : HEADER_H };
       }).sort(function(a, b) { return a.y - b.y; });
-      for (var i = 1; i < sorted.length; i++) {
-        var minY = sorted[i-1].y + sorted[i-1].h + 20;
-        var newY = Math.max(sorted[i].y, minY);
-        sorted[i].y = newY;
-        renderY[sorted[i].id] = newY;
+      for (var i = 1; i < grpSorted.length; i++) {
+        var minY = grpSorted[i-1].y + grpSorted[i-1].h + 30;
+        var newY = Math.max(grpSorted[i].y, minY);
+        grpSorted[i].y = newY;
+        renderY[grpSorted[i].id] = newY;
       }
     });
   });
@@ -686,7 +692,7 @@ function recomputePositions() {
     var el = document.getElementById('node-' + n.id);
     if (!el) return;
     el.style.left = n.lx + 'px';
-    el.style.top  = (renderY[n.id] !== undefined ? renderY[n.id] : n.ly) + 'px';
+    el.style.top = (renderY[n.id] !== undefined ? renderY[n.id] : n.ly) + 'px';
   });
   drawEdges();
 }
@@ -801,67 +807,138 @@ function closeLightbox(){document.getElementById('lightbox').classList.remove('a
 document.addEventListener('keydown',function(e){
   if((e.ctrlKey||e.metaKey)&&e.key==='f'){e.preventDefault();openSearch();return;}
   if(e.key==='Escape'){
-    if(document.getElementById('search-bar').classList.contains('open')){closeSearch();return;}
+    if(document.getElementById('search-wrap').classList.contains('open')){closeSearch();return;}
     closeLightbox();
+  }
+});
+// Middle click: prevent X11 primary selection paste
+vp.addEventListener('mousedown',function(e){if(e.button===1) e.preventDefault();});
+// Background click: close search if open
+vp.addEventListener('mouseup',function(e){
+  if(e.button!==0) return;
+  if(!e.target.closest('.ng-node')&&!e.target.closest('#search-wrap')){
+    if(document.getElementById('search-wrap').classList.contains('open')) closeSearch();
   }
 });
 
 // Search
-var searchMatchIds=[];
-var searchActiveIdx=-1;
+var searchSelectedId=null;
+var searchMatchNodes=[];
+var kbIdx=-1;
+
 function openSearch(){
-  var bar=document.getElementById('search-bar');
-  bar.classList.add('open');
-  document.getElementById('search-btn').style.display='none';
+  document.getElementById('search-wrap').classList.add('open');
   var inp=document.getElementById('search-input');
   inp.focus();inp.select();
+  kbIdx=-1;
   if(inp.value) doSearch(inp.value);
 }
 function closeSearch(){
   clearSearchHighlights();
-  searchMatchIds=[];searchActiveIdx=-1;
-  document.getElementById('search-bar').classList.remove('open');
-  document.getElementById('search-btn').style.display='';
+  searchSelectedId=null;searchMatchNodes=[];kbIdx=-1;
+  document.getElementById('search-wrap').classList.remove('open');
   document.getElementById('search-input').value='';
   document.getElementById('search-count').textContent='';
+  closeDropdown();
 }
 function clearSearchHighlights(){
   document.querySelectorAll('.ng-search-match,.ng-search-active').forEach(function(el){el.classList.remove('ng-search-match','ng-search-active');});
 }
+function closeDropdown(){
+  document.getElementById('search-drop').classList.remove('open');
+  document.getElementById('search-row').classList.remove('dropdown-open');
+  kbIdx=-1;
+}
 function doSearch(q){
   clearSearchHighlights();
-  searchMatchIds=[];searchActiveIdx=0;
+  searchSelectedId=null;kbIdx=-1;
   var query=q.trim().toLowerCase();
-  if(!query){document.getElementById('search-count').textContent='';return;}
-  NODES_DATA.forEach(function(n){if(n.searchText&&n.searchText.indexOf(query)!==-1) searchMatchIds.push(n.id);});
-  searchMatchIds.forEach(function(id){var el=document.getElementById('node-'+id);if(el) el.classList.add('ng-search-match');});
-  if(searchMatchIds.length>0){searchActiveIdx=0;activateSearchMatch(0);}
+  if(!query){document.getElementById('search-count').textContent='';closeDropdown();searchMatchNodes=[];return;}
+  searchMatchNodes=NODES_DATA.filter(function(n){return n.searchText&&n.searchText.indexOf(query)!==-1;});
+  searchMatchNodes.forEach(function(n){var el=document.getElementById('node-'+n.id);if(el) el.classList.add('ng-search-match');});
+  updateSearchCount();
+  renderDropdown();
+}
+function renderDropdown(){
+  var drop=document.getElementById('search-drop');
+  var row=document.getElementById('search-row');
+  drop.innerHTML='';
+  if(!searchMatchNodes.length){closeDropdown();return;}
+  searchMatchNodes.forEach(function(n,i){
+    var div=document.createElement('div');
+    div.className='ng-drop-item';
+    div.setAttribute('data-kb-idx',i);
+    var nodeEl=document.getElementById('node-'+n.id);
+    var titleEl=nodeEl?nodeEl.querySelector('.ng-title'):null;
+    div.textContent=titleEl?titleEl.textContent:n.id;
+    div.addEventListener('mousedown',function(e){e.preventDefault();selectSearchNode(n.id);});
+    div.addEventListener('mouseenter',function(){setKbActive(i);});
+    drop.appendChild(div);
+  });
+  if(kbIdx>=0&&kbIdx<searchMatchNodes.length) applyKbHighlight();
+  drop.classList.add('open');
+  row.classList.add('dropdown-open');
+}
+function setKbActive(idx){
+  kbIdx=idx;
+  applyKbHighlight();
+  var drop=document.getElementById('search-drop');
+  var el=drop.querySelector('[data-kb-idx="'+idx+'"]');
+  if(el) el.scrollIntoView({block:'nearest'});
+}
+function applyKbHighlight(){
+  var drop=document.getElementById('search-drop');
+  drop.querySelectorAll('.ng-drop-item').forEach(function(el){
+    var active=el.getAttribute('data-kb-idx')===String(kbIdx);
+    el.style.background=active?'#e8f0fe':'transparent';
+    el.style.fontWeight=active?'500':'400';
+  });
+}
+function selectSearchNode(id){
+  clearSearchHighlights();
+  searchSelectedId=id;
+  var el=document.getElementById('node-'+id);
+  if(el) el.classList.add('ng-search-active');
+  // Enter 확정: 선택된 노드만 expand, 나머지 매치 노드 collapse
+  searchMatchNodes.forEach(function(n){
+    var nodeEl=document.getElementById('node-'+n.id);
+    if(!nodeEl) return;
+    var body=nodeEl.querySelector('.ng-body');
+    if(!body) return;
+    var datum=null;
+    for(var i=0;i<NODES_DATA.length;i++){if(NODES_DATA[i].id===n.id){datum=NODES_DATA[i];break;}}
+    if(!datum) return;
+    if(n.id===id){
+      if(!datum.contentExpanded){body.style.display='';datum.contentExpanded=true;}
+    } else {
+      if(datum.contentExpanded){body.style.display='none';datum.contentExpanded=false;}
+    }
+  });
+  setTimeout(function(){recomputePositions();flyToNode(id);},0);
+  closeDropdown();
   updateSearchCount();
 }
-function activateSearchMatch(idx){
-  document.querySelectorAll('.ng-search-active').forEach(function(el){el.classList.remove('ng-search-active');});
-  if(!searchMatchIds.length) return;
-  var el=document.getElementById('node-'+searchMatchIds[idx]);
-  if(el){el.classList.add('ng-search-active');flyToNode(searchMatchIds[idx]);}
-}
-function searchNext(){
-  if(!searchMatchIds.length) return;
-  searchActiveIdx=(searchActiveIdx+1)%searchMatchIds.length;
-  activateSearchMatch(searchActiveIdx);updateSearchCount();
-}
-function searchPrev(){
-  if(!searchMatchIds.length) return;
-  searchActiveIdx=(searchActiveIdx-1+searchMatchIds.length)%searchMatchIds.length;
-  activateSearchMatch(searchActiveIdx);updateSearchCount();
+function onSearchInputClick(){
+  if(searchSelectedId!==null){
+    // 이전 선택 노드의 인덱스를 찾아 kbIdx 복원
+    var idx=-1;
+    for(var i=0;i<searchMatchNodes.length;i++){if(searchMatchNodes[i].id===searchSelectedId){idx=i;break;}}
+    clearSearchHighlights();
+    searchSelectedId=null;
+    searchMatchNodes.forEach(function(n){var el=document.getElementById('node-'+n.id);if(el) el.classList.add('ng-search-match');});
+    updateSearchCount();
+    renderDropdown();
+    if(idx>=0){kbIdx=idx;applyKbHighlight();}
+  }
 }
 function updateSearchCount(){
   var el=document.getElementById('search-count');
   if(!el) return;
   var q=document.getElementById('search-input').value.trim();
   if(!q){el.textContent='';return;}
-  if(!searchMatchIds.length){el.style.color='#ef4444';el.textContent='0 results';return;}
-  el.style.color='#6b7280';
-  el.textContent=(searchActiveIdx+1)+' / '+searchMatchIds.length;
+  if(searchSelectedId){el.style.color='#6b7280';el.textContent='1 selected';return;}
+  if(!searchMatchNodes.length){el.style.color='#ef4444';el.textContent='0 results';return;}
+  el.style.color='#6b7280';el.textContent=searchMatchNodes.length+' results';
 }
 function flyToNode(nodeId){
   var el=document.getElementById('node-'+nodeId);
@@ -875,8 +952,19 @@ function flyToNode(nodeId){
   applyTransform();
 }
 function onSearchKey(e){
-  if(e.key==='Enter'){e.shiftKey?searchPrev():searchNext();e.preventDefault();}
-  if(e.key==='Escape'){closeSearch();e.preventDefault();}
+  var n=searchMatchNodes.length;
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    if(n>0){var newIdx=kbIdx<0?0:(kbIdx+1)%n;setKbActive(newIdx);flyToNode(searchMatchNodes[newIdx].id);}
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    if(n>0){var newIdx=kbIdx<0?n-1:(kbIdx-1+n)%n;setKbActive(newIdx);flyToNode(searchMatchNodes[newIdx].id);}
+  } else if(e.key==='Enter'){
+    e.preventDefault();
+    if(n>0) selectSearchNode(searchMatchNodes[kbIdx>=0?kbIdx:0].id);
+  } else if(e.key==='Escape'){
+    closeSearch();e.preventDefault();
+  }
   e.stopPropagation();
 }
 

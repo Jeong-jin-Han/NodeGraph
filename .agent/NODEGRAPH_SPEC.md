@@ -303,6 +303,23 @@ When asked to create a nodegraph from a PDF:
 
 ---
 
+## Editor interaction (for reference)
+
+> This section describes UI behaviour — not JSON schema. Agents editing JSON do not need to reproduce this, but knowing it helps when setting `contentExpanded`.
+
+| Interaction | Behaviour |
+|-------------|-----------|
+| Click **tag badge** (e.g. "Gap / Idea") | Drag node |
+| Click **node title** | Toggle `contentExpanded` (fold / unfold) |
+| Right-click **node title** | Edit title inline |
+| `Ctrl+F` / `Cmd+F` | Open search dropdown (live filter by title + content) |
+| `↑` / `↓` in search | Preview node (viewport flies to it); dropdown stays open |
+| `Enter` in search | Confirm: expands selected node, collapses all other matches |
+
+When an agent sets `"contentExpanded": true` on nodes it wants to highlight, those nodes will open automatically when the file is loaded or reloaded.
+
+---
+
 ## Post-edit checklist
 
 After any edit, verify:

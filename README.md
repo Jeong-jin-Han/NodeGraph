@@ -21,8 +21,9 @@ A VS Code extension for building node-based knowledge graphs from research paper
 - **Rich node content** — Markdown tables, LaTeX (KaTeX), inline images
 - **Node types** — Main topic, Method, Result, Claim, Question, Gap/Idea, Reference, Memo
 - **Image support** — paste or drag images directly onto a node; stored as `[[IMG:filename:WxH]]` tokens
-- **Expand / Collapse** — fold individual nodes or entire subtrees with one click
-- **HTML export** — generate a self-contained HTML viewer (toolbar → Export HTML)
+- **Fold / Unfold** — click node title to toggle; right-click title to edit; drag via the tag badge
+- **Ctrl+F Search** — live dropdown search by title/content; arrow keys preview nodes; Enter expands selected and collapses others
+- **HTML export** — generate a self-contained HTML viewer with full search and navigation (toolbar → Export HTML)
 - **Toggle sections** — collapsible sub-sections inside each node
 - **Original text** — attach the verbatim source quote alongside your summary
 - **Edge types** — `arrow` (causal flow) or `line` (reference / association)
@@ -31,26 +32,48 @@ A VS Code extension for building node-based knowledge graphs from research paper
 - **Auto-save** — `Ctrl+S` writes to disk immediately
 - **Reload from disk** — Reload button re-reads the JSON file; useful after an external agent edits it
 
-## Mouse Controls
+## Mouse & Keyboard Controls
+
+### Canvas
 
 | Action | Control |
 |--------|---------|
 | Pan canvas | Left-drag on background |
-| Deselect all | Left-click on background |
+| Deselect / close search | Left-click on background |
 | Zoom | Scroll wheel |
 | Box-select nodes | Right-drag on background |
 | Select node | Left-click node header |
-| Drag node | Left-drag node header |
-| Delete selected nodes | `Delete` or `Backspace` key |
+| **Drag node** | **Left-drag the tag badge** (e.g. "Gap / Idea") |
+| Delete selected nodes | `Delete` or `Backspace` |
 | Draw edge | Drag from port dot (appears on hover) |
+
+### Node
+
+| Action | Control |
+|--------|---------|
+| **Fold / Unfold content** | **Click node title** |
+| **Edit node title** | **Right-click node title** |
+| Edit content / original | Click text area |
+| Add image | 📎 button in node header |
+
+### Search (Ctrl+F)
+
+| Action | Control |
+|--------|---------|
+| Open search | `Ctrl+F` (or `Cmd+F` on Mac) |
+| Close search | `Escape` or ✕ button |
+| Navigate results | `↑` / `↓` — moves dropdown highlight **and** flies viewport to that node |
+| Select node | `Enter` — expands selected node, collapses other matches |
+| Reopen after select | Click search input — resumes from last selected position |
 
 ## Getting Started
 
 1. Install from the VS Code Marketplace (search **NodeGraph**).
 2. Run **NodeGraph: New Graph** (`Ctrl+Shift+P`) to create a new `.nodegraph.json` file.
 3. The custom editor opens automatically for any `*.nodegraph.json` file.
-4. Click a node header to select it; drag to reposition.
+4. **Drag nodes** by grabbing the colored tag badge; **click the title** to fold/unfold content; **right-click the title** to edit it.
 5. Use the toolbar — **Expand↓ / Collapse↑ / Fit View / Reduce Edges / Export HTML / ↺ Reload**.
+6. Press **Ctrl+F** to search nodes by title or content.
 
 ## Node Content Syntax
 
@@ -131,12 +154,13 @@ A worked example is included at `test-demo-v2/attention-is-all-you-need.nodegrap
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `NodeGraph: New Graph` | Create a new empty graph |
-| `NodeGraph: Fit to View` | Fit all nodes in the viewport |
-| `NodeGraph: Expand All` | Expand all node bodies |
-| `NodeGraph: Collapse All` | Collapse all node bodies |
+| Command | Shortcut | Description |
+|---------|----------|-------------|
+| `NodeGraph: New Graph` | — | Create a new empty graph |
+| `NodeGraph: Fit to View` | — | Fit all nodes in the viewport |
+| `NodeGraph: Expand All` | — | Expand all node bodies |
+| `NodeGraph: Collapse All` | — | Collapse all node bodies |
+| `NodeGraph: Search Nodes` | `Ctrl+F` / `Cmd+F` | Open search dropdown |
 
 ## License
 

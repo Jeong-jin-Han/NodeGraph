@@ -139,7 +139,7 @@ export function NodeCard({
     return () => document.removeEventListener('keydown', handler)
   }, [lightboxSrc])
 
-  // 표 렌더 후 노드 너비 자동 확장
+// 표 렌더 후 노드 너비 자동 확장
   useEffect(() => {
     if (!node.contentExpanded) return
     if (!tableBodyRef.current) return
@@ -171,6 +171,7 @@ export function NodeCard({
     setEditingField(field)
     setEditValue(value)
   }
+
 
   const commitEdit = useCallback(() => {
     if (!editingField) return
@@ -289,46 +290,52 @@ export function NodeCard({
         {/* Header */}
         <div
           onMouseDown={(e) => {
+            e.stopPropagation()
             onSelect(node.id, e.shiftKey || e.ctrlKey || e.metaKey)
-            if (editingField === 'title') return
-            if (isMultiSelected && extraDragNodes && extraDragNodes.length > 0) {
-              e.stopPropagation()
-              e.preventDefault()
-              const snapshot = [{ id: node.id, x: node.position.x, y: node.position.y }, ...extraDragNodes]
-              const startX = e.clientX
-              const startY = e.clientY
-              const onMove = (ev: MouseEvent) => {
-                const dx = (ev.clientX - startX) / viewportZoom
-                const dy = (ev.clientY - startY) / viewportZoom
-                for (const n of snapshot) onUpdatePosition(n.id, n.x + dx, n.y + dy)
-              }
-              const onUp = () => {
-                document.removeEventListener('mousemove', onMove)
-                document.removeEventListener('mouseup', onUp)
-              }
-              document.addEventListener('mousemove', onMove)
-              document.addEventListener('mouseup', onUp)
-            } else {
-              onDragStart(e)
-            }
           }}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 6,
             padding: '6px 8px',
-            cursor: editingField === 'title' ? 'default' : 'move',
+            cursor: 'default',
             borderBottom: node.contentExpanded
               ? `1px solid color-mix(in srgb, ${color} 20%, transparent)`
               : 'none',
             borderRadius: `${borderRadius}px ${borderRadius}px ${node.contentExpanded ? 0 : borderRadius}px ${node.contentExpanded ? 0 : borderRadius}px`,
           }}
         >
-          <span style={{
-            padding: '1px 6px', borderRadius: 3, fontSize: 10, fontWeight: 600,
-            background: `color-mix(in srgb, ${color} 20%, transparent)`,
-            color, flexShrink: 0, whiteSpace: 'nowrap',
-          }}>
+          <span
+            onMouseDown={(e) => {
+              onSelect(node.id, e.shiftKey || e.ctrlKey || e.metaKey)
+              if (isMultiSelected && extraDragNodes && extraDragNodes.length > 0) {
+                e.stopPropagation()
+                e.preventDefault()
+                const snapshot = [{ id: node.id, x: node.position.x, y: node.position.y }, ...extraDragNodes]
+                const startX = e.clientX
+                const startY = e.clientY
+                const onMove = (ev: MouseEvent) => {
+                  const dx = (ev.clientX - startX) / viewportZoom
+                  const dy = (ev.clientY - startY) / viewportZoom
+                  for (const n of snapshot) onUpdatePosition(n.id, n.x + dx, n.y + dy)
+                }
+                const onUp = () => {
+                  document.removeEventListener('mousemove', onMove)
+                  document.removeEventListener('mouseup', onUp)
+                }
+                document.addEventListener('mousemove', onMove)
+                document.addEventListener('mouseup', onUp)
+              } else {
+                onDragStart(e)
+              }
+            }}
+            style={{
+              padding: '1px 6px', borderRadius: 3, fontSize: 10, fontWeight: 600,
+              background: `color-mix(in srgb, ${color} 20%, transparent)`,
+              color, flexShrink: 0, whiteSpace: 'nowrap',
+              cursor: 'move', userSelect: 'none',
+            }}
+          >
             {template?.label ?? node.template}
           </span>
 
@@ -356,9 +363,10 @@ export function NodeCard({
             </div>
           ) : (
             <span
-              onDoubleClick={(e) => startEdit('title', node.title, e)}
-              title="Double-click to edit"
-              style={{ flex: 1, fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', cursor: 'text' }}
+              onClick={(e) => { e.stopPropagation(); onToggleContent(node.id) }}
+              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); startEdit('title', node.title, e) }}
+              title="Click to fold/unfold · Right-click to edit"
+              style={{ flex: 1, fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }}
             >
               {node.title}
             </span>
@@ -367,9 +375,6 @@ export function NodeCard({
           <div style={{ display: 'flex', gap: 2, flexShrink: 0 }} onMouseDown={(e) => e.stopPropagation()}>
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} />
             <button onClick={() => fileInputRef.current?.click()} title="이미지 첨부 (파일 선택)" style={btnStyle}>📎</button>
-            <button onClick={() => onToggleContent(node.id)} title={node.contentExpanded ? '접기' : '펼치기'} style={btnStyle}>
-              {node.contentExpanded ? '▲' : '▼'}
-            </button>
           </div>
         </div>
 

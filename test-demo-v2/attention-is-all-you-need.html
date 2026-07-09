@@ -21,19 +21,17 @@ body{background:#f4f4f5;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFo
 button{background:#fff;color:#1a1a1a;border:1px solid #c0c0c0;border-radius:3px;padding:2px 10px;font-size:11px;cursor:pointer;flex-shrink:0}
 button:hover{background:#e8e8e8;border-color:#aaa}
 .tb-sep{width:1px;height:14px;background:#d4d4d4;flex-shrink:0}
-#viewport{position:fixed;top:0;left:0;right:0;bottom:0;overflow:hidden;cursor:grab}
+#viewport{position:fixed;top:0;left:0;right:0;bottom:0;overflow:hidden;cursor:grab;}
 #viewport.pan-drag{cursor:grabbing}
 #canvas{position:absolute;transform-origin:0 0}
 #wire-svg{position:absolute;top:0;left:0;width:10000px;height:10000px;pointer-events:none;overflow:visible}
 .ng-node{position:absolute;min-width:220px;background:color-mix(in srgb,var(--color) 10%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .ng-node.ng-selected{box-shadow:0 0 0 2px color-mix(in srgb,var(--color) 80%,transparent),0 2px 8px rgba(0,0,0,.12)}
 .ng-node.ng-dragging{opacity:.88;transition:box-shadow .1s;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:100}
-.ng-header{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;user-select:none}
+.ng-header{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:default;user-select:none}
 .ng-header:hover{background:rgba(0,0,0,.04)}
-.ng-tag{font-size:10px;font-weight:600;padding:2px 6px;border-radius:3px;flex-shrink:0;white-space:nowrap}
-.ng-title{flex:1;font-size:13px;font-weight:500;color:#1a1a1a;white-space:nowrap}
-.ng-chevron{font-size:9px;opacity:.5;flex-shrink:0;padding:2px 4px;border-radius:2px}
-.ng-chevron:hover{background:rgba(0,0,0,.08);opacity:.9}
+.ng-tag{font-size:10px;font-weight:600;padding:2px 6px;border-radius:3px;flex-shrink:0;white-space:nowrap;cursor:move;user-select:none}
+.ng-title{flex:1;font-size:13px;font-weight:500;color:#1a1a1a;white-space:nowrap;cursor:pointer;user-select:none}
 .ng-body{padding:8px 10px 10px;font-size:12px}
 .ng-content{line-height:1.6;color:#333;white-space:pre-wrap;word-break:break-word;margin-bottom:6px}
 .ng-seg{white-space:pre-wrap;word-break:break-word;line-height:1.6;color:#333}
@@ -66,10 +64,17 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 #lightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:4px;box-shadow:0 4px 32px rgba(0,0,0,.4);cursor:default}
 #lightbox-close{position:absolute;top:16px;right:20px;color:#fff;font-size:22px;opacity:.8;cursor:pointer;user-select:none}
 /* Search */
-#search-bar{display:none;align-items:center;gap:4px;background:#fff;border:1px solid #d1d5db;border-radius:5px;padding:2px 6px}
-#search-bar.open{display:flex}
-#search-input{border:none;outline:none;font-size:12px;width:160px;background:transparent;color:#111}
-#search-count{font-size:11px;color:#6b7280;white-space:nowrap;min-width:52px;text-align:right}
+#search-wrap{position:absolute;top:10px;right:14px;z-index:500;display:none}
+#search-wrap.open{display:block}
+#search-row{display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:4px 6px;box-shadow:0 4px 16px rgba(0,0,0,0.15)}
+#search-row.dropdown-open{border-radius:6px 6px 0 0}
+#search-input{border:none;outline:none;font-size:13px;width:200px;background:transparent;color:#111}
+#search-count{font-size:11px;color:#6b7280;white-space:nowrap;min-width:60px;text-align:right}
+#search-drop{position:absolute;top:100%;right:0;min-width:100%;max-height:280px;overflow-y:auto;background:#fff;border:1px solid #d1d5db;border-top:none;border-radius:0 0 6px 6px;box-shadow:0 8px 16px rgba(0,0,0,0.15);z-index:501;display:none}
+#search-drop.open{display:block}
+.ng-drop-item{padding:6px 12px;font-size:12px;color:#1a1a1a;cursor:pointer;border-bottom:1px solid #f3f4f6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px}
+.ng-drop-item:last-child{border-bottom:none}
+.ng-drop-item:hover{background:#f3f4f6}
 .ng-node.ng-search-match{border:2px solid #fcd34d !important}
 .ng-node.ng-search-active{border:2px solid #f59e0b !important;box-shadow:0 0 0 3px rgba(245,158,11,0.35),0 2px 8px rgba(0,0,0,.18) !important}
 </style>
@@ -86,20 +91,20 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <button onclick="doExpand()" title="Expand selected node + children (all if none selected)">Expand↓</button>
     <button onclick="doCollapse()" title="Collapse selected node + children (all if none selected)">Collapse↑</button>
     <div class="tb-sep"></div>
-    <button id="search-btn" onclick="openSearch()" title="Search nodes (Ctrl+F)">🔍 Search</button>
-    <div id="search-bar">
-      <input id="search-input" placeholder="Search nodes…" oninput="doSearch(this.value)" onkeydown="onSearchKey(event)">
-      <span id="search-count"></span>
-      <div style="width:1px;height:14px;background:#e5e7eb;margin:0 2px;flex-shrink:0"></div>
-      <button onclick="searchPrev()" title="Previous (Shift+Enter)" style="border:none;background:none;cursor:pointer;padding:2px 5px;font-size:12px;color:#374151">↑</button>
-      <button onclick="searchNext()" title="Next (Enter)" style="border:none;background:none;cursor:pointer;padding:2px 5px;font-size:12px;color:#374151">↓</button>
-      <button onclick="closeSearch()" title="Close (Escape)" style="border:none;background:none;cursor:pointer;padding:2px 5px;font-size:12px;color:#6b7280">✕</button>
-    </div>
     <div class="tb-sep"></div>
     <span id="tb-sel" style="opacity:.35">Click a node to select</span>
   </div>
 </div>
 <div id="viewport">
+  <div id="search-wrap">
+    <div id="search-row">
+      <input id="search-input" placeholder="Search nodes… (Ctrl+F)" oninput="doSearch(this.value)" onkeydown="onSearchKey(event)" onclick="onSearchInputClick()">
+      <span id="search-count"></span>
+      <div style="width:1px;height:16px;background:#e5e7eb;margin:0 2px;flex-shrink:0"></div>
+      <button onclick="closeSearch()" title="Close (Escape)" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:13px;color:#6b7280;border-radius:3px;line-height:1">✕</button>
+    </div>
+    <div id="search-drop"></div>
+  </div>
   <div id="canvas">
     <svg id="wire-svg">
       <defs>
@@ -109,74 +114,66 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
       </defs>
     </svg>
     <div class="ng-node" id="node-node_001" data-children="node_010,node_011" style="--color:#4B8BBE;border-radius:2px;left:100px;top:150px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
-    <span class="ng-title">Background &amp; Motivation</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Background &amp; Motivation</span>
   </div>
   <div class="ng-body"><div class="ng-content">Dominant sequence transduction models (LSTM, GRU) process tokens sequentially, generating hidden states $h_t = f(h_{t-1}, x_t)$. This recurrence **prevents parallelization during training** and forces gradient signals to traverse $O(n)$ steps for long-range dependencies.<br><br>Attention mechanisms had already existed, but were always used *alongside* RNNs as a soft alignment add-on (Bahdanau et al., 2014). The Transformer is the first architecture to rely **entirely on attention**, discarding recurrence and convolutions entirely — allowing full parallelization and $O(1)$ path length between any two positions.</div><details class="ng-original"><summary>Original <span class="ng-loc">§1, p.1</span></summary>
 <div class="ng-orig-text">Recurrent models typically factor computation along the symbol positions of the input and output sequences... This inherently sequential nature precludes parallelization within training examples, which becomes critical at longer sequence lengths.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_002" data-children="node_012,node_013,node_014" style="--color:#4B8BBE;border-radius:2px;left:100px;top:450px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
-    <span class="ng-title">Model Architecture: Encoder-Decoder Stacks</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Model Architecture: Encoder-Decoder Stacks</span>
   </div>
   <div class="ng-body"><div class="ng-content">The Transformer uses an **encoder-decoder** structure (Fig. 1). Both encoder and decoder are stacks of $N=6$ identical layers.<br><br>**Encoder**: Each layer has two sublayers — (1) multi-head self-attention, (2) position-wise FFN. Each sublayer is wrapped with residual connection + layer norm:<br>$$\text{output} = \text{LayerNorm}(x + \text{Sublayer}(x))$$<br>All sublayers and embeddings produce dimension $d_{\text{model}} = 512$.<br><br>**Decoder**: Same 6-layer stack, but adds a **third sublayer** for cross-attention over encoder output. Self-attention in the decoder is **causally masked** (upper-triangle set to $-\infty$) to preserve the auto-regressive property.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.1, p.3</span></summary>
 <div class="ng-orig-text">The encoder is composed of a stack of N=6 identical layers. Each layer has two sub-layers... We employ a residual connection around each of the two sub-layers, followed by layer normalization.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_003" data-children="node_015,node_016,node_017" style="--color:#4B8BBE;border-radius:2px;left:100px;top:750px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
-    <span class="ng-title">Scaled Dot-Product Attention</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Scaled Dot-Product Attention</span>
   </div>
   <div class="ng-body"><div class="ng-content">The attention function maps a query and a set of key-value pairs to an output — a weighted sum of values where the weight is the compatibility of the query with each key:<br><br>$$\text{Attention}(Q,K,V) = \text{softmax}\!\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$<br><br>$Q \in \mathbb{R}^{n \times d_k}$, $K \in \mathbb{R}^{m \times d_k}$, $V \in \mathbb{R}^{m \times d_v}$. The scaling factor $\tfrac{1}{\sqrt{d_k}}$ prevents large dot-product magnitudes from saturating the softmax (see §3.2.1 footnote). Compared to additive attention (which uses a feed-forward net for compatibility), dot-product attention is faster and more space-efficient via matrix multiplication, with identical quality after scaling.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2.1, p.4</span></summary>
 <div class="ng-orig-text">We call our particular attention 'Scaled Dot-Product Attention'. The input consists of queries and keys of dimension d_k, and values of dimension d_v.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_004" data-children="node_018,node_019,node_020,node_036" style="--color:#4B8BBE;border-radius:2px;left:100px;top:1050px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
-    <span class="ng-title">Multi-Head Attention</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Multi-Head Attention</span>
   </div>
   <div class="ng-body"><div class="ng-content">Instead of one attention function over $d_{\text{model}}$-dimensional vectors, the model **projects Q, K, V $h$ times** into smaller subspaces and runs attention in parallel:<br><br>$$\text{MultiHead}(Q,K,V) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h)\, W^O$$<br>$$\text{head}_i = \text{Attention}(QW_i^Q,\; KW_i^K,\; VW_i^V)$$<br><br>Projection matrices: $W_i^Q, W_i^K \in \mathbb{R}^{d_{\text{model}} \times d_k}$, $W_i^V \in \mathbb{R}^{d_{\text{model}} \times d_v}$, $W^O \in \mathbb{R}^{hd_v \times d_{\text{model}}}$.<br><br>In this work: $h=8$, $d_k = d_v = d_{\text{model}}/h = 512/8 = 64$. Total compute matches single-head full-dim attention (each head is cheaper; combined they are equivalent).</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2.2, p.4</span></summary>
 <div class="ng-orig-text">Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions. With a single attention head, averaging inhibits this.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_005" data-children="node_021,node_022" style="--color:#4B8BBE;border-radius:2px;left:100px;top:1350px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
-    <span class="ng-title">FFN, Embeddings &amp; Positional Encoding</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">FFN, Embeddings &amp; Positional Encoding</span>
   </div>
   <div class="ng-body"><div class="ng-content">**Position-wise FFN** (applied identically and independently to each position):<br>$$\text{FFN}(x) = \max(0,\; xW_1 + b_1)\,W_2 + b_2$$<br>$d_{\text{model}} = 512 \to d_{ff} = 2048 \to 512$. Equivalent to two convolutions with kernel size 1.<br><br>**Positional Encoding** (sinusoidal, fixed — no learned parameters):<br>$$PE_{(pos,\,2i)} = \sin\!\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right), \qquad PE_{(pos,\,2i+1)} = \cos\!\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right)$$<br><br>Wavelengths form a geometric progression from $2\pi$ to $10000 \cdot 2\pi$. The key property: for any fixed offset $k$, $PE_{pos+k}$ is a linear function of $PE_{pos}$ (via angle-addition), allowing the model to attend by relative offset. Learned embeddings gave nearly identical results (Table 3, row E).</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.5, p.6</span></summary>
 <div class="ng-orig-text">Since our model contains no recurrence and no convolution, in order for the model to make use of the order of the sequence, we must inject some information about the relative or absolute position of the tokens.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_006" data-children="node_023,node_024" style="--color:#4B8BBE;border-radius:2px;left:100px;top:1650px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
-    <span class="ng-title">Why Self-Attention? Complexity Analysis</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Why Self-Attention? Complexity Analysis</span>
   </div>
   <div class="ng-body"><div class="ng-content">Three criteria motivate self-attention over recurrent/convolutional layers:<br>1. **Complexity per layer** — total compute<br>2. **Parallelizable operations** — minimum sequential steps (bottleneck for training speed)<br>3. **Maximum path length** — shorter paths = easier long-range dependency learning<br><br>Self-attention: $O(n^2 \cdot d)$ compute, $O(1)$ sequential, $O(1)$ path. Recurrent: $O(n \cdot d^2)$ compute, $O(n)$ sequential, $O(n)$ path. Self-attention is better when $n &lt; d$ — true for typical sentence-level NLP where $n \approx 50{-}200$ and $d_{\text{model}} = 512$. For very long sequences ($n \gg d$), self-attention becomes the bottleneck.</div><details class="ng-original"><summary>Original <span class="ng-loc">§4, p.6</span></summary>
 <div class="ng-orig-text">In this section we compare various aspects of self-attention layers to the recurrent and convolutional layers commonly used for mapping one variable-length sequence of symbol representations... Motivating our use of self-attention we consider three desiderata.</div></details><details class="ng-toggle"><summary>Table 1: Layer-Type Complexity Comparison</summary>
 <div class="ng-toggle-body">| Layer Type | Complexity / Layer | Sequential Ops | Max Path Length |<br>|---|---|---|---|<br>| Self-Attention | $O(n^2 \cdot d)$ | $O(1)$ | $O(1)$ |<br>| Recurrent | $O(n \cdot d^2)$ | $O(n)$ | $O(n)$ |<br>| Convolutional | $O(k \cdot n \cdot d^2)$ | $O(1)$ | $O(\log_k n)$ |<br>| Self-Attn (restricted, nbhd $r$) | $O(r \cdot n \cdot d)$ | $O(1)$ | $O(n/r)$ |<br><br>*n = sequence length, d = representation dim, k = conv kernel size, r = neighborhood size*</div></details></div>
 </div>
 <div class="ng-node" id="node-node_007" data-children="node_025,node_026" style="--color:#4B8BBE;border-radius:2px;left:100px;top:1950px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
-    <span class="ng-title">Training Setup</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Training Setup</span>
   </div>
   <div class="ng-body"><div class="ng-content">**Data**: WMT 2014 EN→DE (~4.5M sentence pairs, BPE vocab 37K shared source-target); EN→FR (36M pairs, word-piece vocab 32K). Batched by approximate sequence length; each batch ~25K source + 25K target tokens.<br><br>**Hardware**: 8× NVIDIA P100 GPUs. Base model: 100K steps at ~0.4 s/step (~12 hrs). Big model: 300K steps at ~1.0 s/step (~3.5 days).<br><br>**Optimizer**: Adam ($\beta_1=0.9$, $\beta_2=0.98$, $\epsilon=10^{-9}$) with warmup schedule:<br>$$lrate = d_{\text{model}}^{-0.5} \cdot \min(step^{-0.5},\; step \cdot warmup^{-1.5}), \quad warmup = 4000 \text{ steps}$$<br><br>**Regularization**: Residual Dropout ($P_{drop}=0.1$) on each sublayer output before Add &amp; Norm + on embedding sums. Label Smoothing ($\epsilon_{ls}=0.1$).</div><details class="ng-original"><summary>Original <span class="ng-loc">§5.2–5.3, p.7</span></summary>
 <div class="ng-orig-text">We trained our models on one machine with 8 NVIDIA P100 GPUs... We used the Adam optimizer with β1=0.9, β2=0.98 and ε=10^{−9}. We varied the learning rate over the course of training, according to the formula lrate = d_model^{−0.5}·min(step_num^{−0.5}, step_num·warmup_steps^{−1.5}).</div></details></div>
 </div>
 <div class="ng-node" id="node-node_008" data-children="node_027,node_028,node_029" style="--color:#4B8BBE;border-radius:2px;left:100px;top:2250px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
-    <span class="ng-title">Results: Machine Translation</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Results: Machine Translation</span>
   </div>
   <div class="ng-body"><div class="ng-content">**EN→DE (newstest2014)**: Transformer (big) achieves **28.4 BLEU**, surpassing all prior models including ensembles by **&gt;2.0 BLEU**. Prior best: ConvS2S Ensemble at 26.36. Training cost: $2.3 \times 10^{19}$ FLOPs vs. $7.7 \times 10^{19}$ for ConvS2S Ensemble.<br><br>**EN→FR (newstest2014)**: **41.8 BLEU**, surpassing all prior single models at **less than 1/4 the training cost** of GNMT+RL ($1.4 \times 10^{20}$ FLOPs).<br><br>**Constituency Parsing** (WSJ §23 F1): 4-layer Transformer achieves **92.7** (semi-supervised), outperforming all RNN seq2seq baselines and matching specialized parsers — demonstrating task generalization.</div><details class="ng-original"><summary>Original <span class="ng-loc">§6.1, p.8</span></summary>
 <div class="ng-orig-text">On the WMT 2014 English-to-German translation task, the big transformer model outperforms the best previously reported models, including ensembles, by more than 2.0 BLEU, establishing a new state-of-the-art BLEU score of 28.4.</div></details><details class="ng-toggle"><summary>Table 2: BLEU vs Training Cost (from paper)</summary>
@@ -184,238 +181,210 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 <div class="ng-toggle-body">| Variant | N | $d_{\text{model}}$ | h | $d_k$ | PPL(dev) | BLEU(dev) | Params(M) |<br>|---|---|---|---|---|---|---|---|<br>| **base** | 6 | 512 | 8 | 64 | 4.92 | 25.8 | 65 |<br>| (A) h=1 | — | — | 1 | 512 | 5.29 | 24.9 | — |<br>| (A) h=4 | — | — | 4 | 128 | 5.00 | 25.5 | — |<br>| (A) h=32 | — | — | 32 | 16 | 5.01 | 25.4 | — |<br>| (B) $d_k$=16 | — | — | — | 16 | 5.16 | 25.1 | 58 |<br>| (C) N=2 | 2 | — | — | — | 6.11 | 23.7 | 36 |<br>| (C) $d_{\text{model}}$=1024 | — | 1024 | — | — | 4.66 | 26.0 | 168 |<br>| (D) no dropout | — | — | — | — | 5.77 | 24.6 | — |<br>| (E) learned PE | — | — | — | — | 4.92 | 25.7 | — |<br>| **big** | 6 | 1024 | 16 | — | **4.33** | **26.4** | 213 |</div></details></div>
 </div>
 <div class="ng-node" id="node-node_009" data-children="node_030,node_031" style="--color:#4B8BBE;border-radius:2px;left:100px;top:2550px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
-    <span class="ng-title">Conclusion &amp; Outlook</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▲</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Conclusion &amp; Outlook</span>
   </div>
   <div class="ng-body"><div class="ng-content">The Transformer is the **first sequence transduction model based entirely on self-attention**, replacing recurrent layers in encoder-decoder architectures. It achieves state-of-the-art EN→DE (28.4 BLEU) and EN→FR (41.8 BLEU) while training significantly faster (3.5 days on 8 P100s).<br><br>Beyond translation, it generalizes to English constituency parsing with minimal task-specific tuning (WSJ F1: 92.7 semi-supervised).<br><br>**Future directions named by authors**: extend to images, audio, video; local/restricted attention for long inputs; making generation less sequential. These were all realized within 2–4 years (ViT, Speech Transformer, Video Transformer, Longformer).</div><details class="ng-original"><summary>Original <span class="ng-loc">§7, p.10</span></summary>
 <div class="ng-orig-text">In this work, we presented the Transformer, the first sequence transduction model based entirely on attention... We are excited about the future of attention-based models and plan to apply them to other tasks.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_010" style="--color:#E5A835;border-radius:22px;left:550px;top:100px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
-    <span class="ng-title">Why is sequential computation fundamentally limiting?</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Why is sequential computation fundamentally limiting?</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">RNN hidden state $h_t = f(h_{t-1}, x_t)$ creates a strict dependency chain: step $t$ cannot start until step $t-1$ finishes. This means training time scales with sequence length even with unlimited hardware. More critically, for long-range dependencies, gradient must flow backward through $O(n)$ operations — leading to vanishing/exploding gradients. Recent work (factorization tricks, conditional computation in [21, 32]) reduces per-step cost but does not break the sequential bottleneck. Transformers reduce the path to $O(1)$ at the cost of $O(n^2)$ memory.</div><details class="ng-original"><summary>Original <span class="ng-loc">§1, p.1</span></summary>
 <div class="ng-orig-text">This inherently sequential nature precludes parallelization within training examples, which becomes critical at longer sequence lengths, as memory constraints limit batching across examples.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_011" style="--color:#E24B4A;border-radius:22px;left:550px;top:220px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#E24B4A 22%,transparent);color:#E24B4A">Gap / Idea</span>
-    <span class="ng-title">Key novelty: attention as the sole mechanism, not a supplement</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E24B4A 22%,transparent);color:#E24B4A">Gap / Idea</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Key novelty: attention as the sole mechanism, not a supplement</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">Bahdanau et al. (2014) introduced attention for NMT, but used BiRNN encoder + RNN decoder. Attention there was a soft alignment mechanism over RNN hidden states — it did not eliminate sequential computation. Transformer's novelty is treating attention as the *primary* (and sole) representational mechanism. This allows every layer to be fully parallelized. The paper is not the first to use attention — it is the first to use *only* attention.</div><details class="ng-original"><summary>Original <span class="ng-loc">§1, p.1</span></summary>
 <div class="ng-orig-text">In all but a few cases, however, such attention mechanisms are used in conjunction with a recurrent network. In this work we propose the Transformer, a model architecture eschewing recurrence and instead relying entirely on an attention mechanism.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_012" style="--color:#2E86AB;border-radius:2px;left:550px;top:400px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#2E86AB 22%,transparent);color:#2E86AB">Method</span>
-    <span class="ng-title">Residual + LayerNorm: why it matters</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#2E86AB 22%,transparent);color:#2E86AB">Method</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Residual + LayerNorm: why it matters</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">Each sublayer output: $\text{LayerNorm}(x + \text{Sublayer}(x))$. The residual connection (He et al., 2016) ensures that gradients flow directly through the network without vanishing, allowing deep stacks (N=6) to train stably. LayerNorm (Ba et al., 2016) normalizes over the *feature* dimension (unlike BatchNorm which normalizes over the batch), making it more suitable for variable-length sequences and small batches. The residual constraint forces $d_{\text{model}} = 512$ uniformly across all sublayers.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.1, p.3</span></summary>
 <div class="ng-orig-text">We employ a residual connection around each of the two sub-layers, followed by layer normalization. That is, the output of each sub-layer is LayerNorm(x + Sublayer(x)).</div></details></div>
 </div>
 <div class="ng-node" id="node-node_013" style="--color:#2E86AB;border-radius:2px;left:550px;top:490px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#2E86AB 22%,transparent);color:#2E86AB">Method</span>
-    <span class="ng-title">Causal masking in decoder: enforcing auto-regression</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#2E86AB 22%,transparent);color:#2E86AB">Method</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Causal masking in decoder: enforcing auto-regression</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">At inference time, the decoder generates one token at a time: position $i$ sees only tokens $1, \ldots, i-1$. During training (teacher forcing), all target positions are available simultaneously — without masking, the model could simply copy future tokens via self-attention. The fix: set all upper-triangular entries of the $n \times n$ attention score matrix to $-\infty$ before softmax, giving them zero weight. Output embeddings are also shifted right by one position (prepend `&lt;BOS&gt;`) so that target token at position $i$ predicts the $(i+1)$-th token.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.1, p.3</span></summary>
 <div class="ng-orig-text">We also modify the self-attention sub-layer in the decoder stack to prevent positions from attending to subsequent positions. This masking, combined with fact that the output embeddings are offset by one position, ensures that the predictions for position i can depend only on the known outputs at positions less than i.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_014" style="--color:#E5A835;border-radius:22px;left:550px;top:580px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
-    <span class="ng-title">Why N=6? Is this a principled choice or trial-and-error?</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Why N=6? Is this a principled choice or trial-and-error?</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">The paper provides no theoretical justification for N=6. Table 3 (row C) shows: N=2 → 23.7 BLEU, N=4 → 25.3, N=6 (base) → 25.8. The gains diminish, but there is no ablation for N=8 or N=12. The 'big' model keeps N=6 but increases width ($d_{\text{model}}=1024$), suggesting the authors prioritized width over depth at this scale. This is consistent with the observation in many architectures that beyond a certain depth, additional layers provide diminishing returns without LR or regularization tuning.</div></div>
 </div>
 <div class="ng-node" id="node-node_015" style="--color:#3A506B;border-radius:2px;left:550px;top:700px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#3A506B 22%,transparent);color:#3A506B">Claim</span>
-    <span class="ng-title">Scaling by 1/√d_k prevents softmax saturation</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#3A506B 22%,transparent);color:#3A506B">Claim</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Scaling by 1/√d_k prevents softmax saturation</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">If $q_i, k_i \overset{\text{i.i.d.}}{\sim} \mathcal{N}(0, 1)$, then the dot product $q \cdot k = \sum_{i=1}^{d_k} q_i k_i$ has mean 0 and **variance $d_k$** (standard deviation $\sqrt{d_k}$). For large $d_k$ (e.g., $d_k = 512$), dot products have typical magnitude $\sim 22$, pushing softmax outputs toward one-hot distributions with near-zero gradients almost everywhere. Dividing by $\sqrt{d_k}$ restores variance to 1, keeping the softmax input in its well-gradient regime. Without this scaling, training diverges for larger $d_k$.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2.1, footnote 4, p.4</span></summary>
 <div class="ng-orig-text">We suspect that for large values of d_k, the dot products grow large in magnitude, pushing the softmax function into regions where it has extremely small gradients.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_016" style="--color:#E5A835;border-radius:22px;left:550px;top:810px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
-    <span class="ng-title">Q/K/V roles are the author's intent — does training actually enforce them?</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Q/K/V roles are the author's intent — does training actually enforce them?</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">The authors describe Q (what to look for), K (what is available), V (content to retrieve) as conceptually distinct roles. But Q, K, V are simply outputs of three learned linear projections $W^Q, W^K, W^V$ from the same input embedding. The loss function (cross-entropy over next tokens) places no explicit constraint on *how* these matrices should differ.<br><br>**Concern**: The network could learn to set $W^Q \approx W^K \approx W^V$ if that minimizes loss. Or it could learn completely entangled representations that happen to be expressive — the Q/K/V framing being a post-hoc interpretation. Appendix A shows attention heads that appear to track anaphora or syntax, but correlation is not causation.<br><br>**Partial answer**: The symmetry between Q and K is broken structurally — the softmax over $QK^T$ is not symmetric, so K appears in the exponent while Q selects the distribution. V is summed with attention weights, not used for matching. These structural asymmetries provide an inductive bias, but do not *guarantee* the intended role specialization.</div></div>
 </div>
 <div class="ng-node" id="node-node_017" style="--color:#E24B4A;border-radius:22px;left:550px;top:920px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#E24B4A 22%,transparent);color:#E24B4A">Gap / Idea</span>
-    <span class="ng-title">Dot-product vs. additive attention: where does scaling fail?</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E24B4A 22%,transparent);color:#E24B4A">Gap / Idea</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Dot-product vs. additive attention: where does scaling fail?</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">Additive attention (Bahdanau 2014): $\text{score}(q, k) = v^T \tanh(W_1 q + W_2 k)$ — uses a feed-forward net; output is bounded by $\tanh$ so no saturation problem. Dot-product attention without scaling underperforms additive attention for large $d_k$ (Britz et al., 2017). With $1/\sqrt{d_k}$ scaling it matches additive quality while being $\sim 10\times$ faster due to matrix multiply hardware. However, simple dot product may fail for highly non-linear compatibility functions — this is an open question for complex structured reasoning tasks where attention patterns are not simply low-dimensional.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2.1, p.4</span></summary>
 <div class="ng-orig-text">While the two are similar in theoretical complexity, dot-product attention is much faster and more space-efficient in practice, since it can be implemented using highly optimized matrix multiplication code.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_018" style="--color:#2E86AB;border-radius:2px;left:550px;top:1000px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#2E86AB 22%,transparent);color:#2E86AB">Method</span>
-    <span class="ng-title">Three applications of attention in the Transformer</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#2E86AB 22%,transparent);color:#2E86AB">Method</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Three applications of attention in the Transformer</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">1. **Encoder self-attention**: Q, K, V all from the previous encoder layer. Each position attends to all positions in the previous layer → $O(1)$ max path, full context at every layer.<br>2. **Encoder-decoder cross-attention** (decoder layer 2): Q from previous decoder layer; K, V from encoder output. Allows each decoder position to attend over the full input sequence — the equivalent of soft alignment in seq2seq models.<br>3. **Decoder masked self-attention** (decoder layer 1): Q, K, V from previous decoder layer, with upper-triangular mask to $-\infty$. Maintains auto-regressive generation while still parallelizing training.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2.3, p.5</span></summary>
 <div class="ng-orig-text">The Transformer uses multi-head attention in three different ways...</div></details></div>
 </div>
 <div class="ng-node" id="node-node_019" style="--color:#E5A835;border-radius:22px;left:550px;top:1100px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
-    <span class="ng-title">Do the 8 heads actually learn different representations?</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Do the 8 heads actually learn different representations?</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">The paper claims heads attend to &quot;different representation subspaces&quot; but provides only qualitative evidence (attention visualizations in Appendix A). Key counter-evidence: Michel et al. (2019) showed that 70–80% of heads in a trained Transformer can be pruned at test time with minimal BLEU drop — suggesting many heads are redundant. Voita et al. (2019) confirmed with head importance scoring. The ablation (Table 3A) shows h=1 costs only 0.9 BLEU and h=32 also hurts slightly, suggesting there is a sweet spot around h=8 but not that each of the 8 heads is qualitatively indispensable.</div></div>
 </div>
 <div class="ng-node" id="node-node_020" style="--color:#3A506B;border-radius:2px;left:550px;top:1200px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#3A506B 22%,transparent);color:#3A506B">Claim</span>
-    <span class="ng-title">Multi-head compute is equivalent to single-head — benefit is diversity, not efficiency</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#3A506B 22%,transparent);color:#3A506B">Claim</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Multi-head compute is equivalent to single-head — benefit is diversity, not efficiency</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">With $h=8$ heads, each head operates on $d_k = d_v = 64$. Total multiply-add operations for attention score computation: $8 \times n^2 \times 64 = n^2 \times 512$ — identical to one-head attention at $d_k = 512$. So multi-head attention is **not** a free lunch computationally. The benefit is that projecting into $h$ subspaces allows the model to jointly attend to information from different representation subspaces — something single-head attention suppresses by averaging. The $W^O$ projection at the end recombines the $h$ outputs into $d_{\text{model}}$.</div></div>
 </div>
 <div class="ng-node" id="node-node_021" style="--color:#E5A835;border-radius:22px;left:550px;top:1300px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
-    <span class="ng-title">Can sinusoidal PE actually encode relative position?</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Can sinusoidal PE actually encode relative position?</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">The authors hypothesize that sinusoidal PE allows the model to attend by relative offsets. The mathematical basis: via angle-addition identities, $PE_{pos+k}$ is a *linear* function of $PE_{pos}$ for fixed $k$:<br>$$\sin(pos+k) = \sin(pos)\cos(k) + \cos(pos)\sin(k)$$<br>So relative position $k$ can be represented as a linear projection. But this requires the model to learn to apply that specific linear transformation — not guaranteed. Table 3 row E shows learned PE gives BLEU 25.7 vs. sinusoidal 25.8: indistinguishable. This suggests the specific PE form is not critical as long as unique position signals exist. The sinusoidal choice was motivated by extrapolation to longer sequences, but this too was not rigorously validated in the paper.</div></div>
 </div>
 <div class="ng-node" id="node-node_022" style="--color:#E24B4A;border-radius:22px;left:550px;top:1410px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#E24B4A 22%,transparent);color:#E24B4A">Gap / Idea</span>
-    <span class="ng-title">Absolute PE is a limitation → relative PE as successor</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E24B4A 22%,transparent);color:#E24B4A">Gap / Idea</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Absolute PE is a limitation → relative PE as successor</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">Absolute sinusoidal PE assigns a fixed vector to each absolute position index. This means: (1) model may not generalize to positions not seen during training; (2) the model must implicitly learn position-invariant operations despite receiving absolute signals. Shaw et al. (2018) introduced **Relative Position Representations** modifying attention to directly use offset $(i-j)$. Later: RoPE (Rotary Position Embedding, 2021) — applied as rotation to Q and K, making the dot product naturally encode relative distance; ALiBi (2022) — adds a linear bias to attention scores proportional to distance. These are now dominant in LLMs.</div></div>
 </div>
 <div class="ng-node" id="node-node_023" style="--color:#E24B4A;border-radius:22px;left:550px;top:1600px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#E24B4A 22%,transparent);color:#E24B4A">Gap / Idea</span>
-    <span class="ng-title">O(n²) attention: quadratic bottleneck for long sequences</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E24B4A 22%,transparent);color:#E24B4A">Gap / Idea</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">O(n²) attention: quadratic bottleneck for long sequences</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">Self-attention computes all $n^2$ pairwise scores per layer. For long documents (n=8192 tokens), memory alone requires $8192^2 \times \text{precision} \approx 256\text{MB per layer per head}$ — prohibitive for 8 heads × 6 layers. The paper mentions &quot;restricted self-attention&quot; (neighborhood of size $r$, reducing to $O(r \cdot n \cdot d)$) but does not implement it. This limitation spawned: Longformer (local + global attention), BigBird (random + local + global), Linformer (low-rank approximation $O(n)$), FlashAttention (IO-aware exact implementation, same O(n²) FLOPs but memory-efficient via tiling). The quadratic wall remains the central challenge for long-context LLMs.</div></div>
 </div>
 <div class="ng-node" id="node-node_024" style="--color:#3A506B;border-radius:2px;left:550px;top:1710px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#3A506B 22%,transparent);color:#3A506B">Claim</span>
-    <span class="ng-title">Attention weights as interpretability — and its limits</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#3A506B 22%,transparent);color:#3A506B">Claim</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Attention weights as interpretability — and its limits</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">Unlike RNN hidden states, attention weights are directly observable $n \times n$ distributions. Appendix A shows heads that appear to track anaphora (head 5, layer 5) or syntactic distance. This interpretability is cited as a side benefit of self-attention. However, Jain &amp; Wallace (2019) showed that high attention weight does not imply causal importance: one can often replace the top-attended token with another and the output barely changes. This sparked the &quot;attention is not explanation&quot; debate. Gradient-based attribution methods (LIME, SHAP, Integrated Gradients) are considered more reliable for causal importance.</div><details class="ng-original"><summary>Original <span class="ng-loc">§4, p.7</span></summary>
 <div class="ng-orig-text">As side benefit, self-attention could yield more interpretable models... Not only do individual attention heads clearly learn to perform different tasks, many appear to exhibit behavior related to the syntactic and semantic structure of the sentences.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_025" style="--color:#2E86AB;border-radius:2px;left:550px;top:1900px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#2E86AB 22%,transparent);color:#2E86AB">Method</span>
-    <span class="ng-title">Warmup LR schedule: why linear ramp is essential</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#2E86AB 22%,transparent);color:#2E86AB">Method</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Warmup LR schedule: why linear ramp is essential</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">The warmup schedule linearly increases LR from 0 to peak over 4000 steps, then decays as $1/\sqrt{step}$. Early in training, weight matrices $W^Q, W^K, W^V, W^O$ are randomly initialized — gradient magnitudes are large and noisy. Starting with a high LR causes the loss to diverge before the optimizer can find a stable direction. The 4000-step linear ramp allows the model to establish a coherent loss landscape first. The $d_{\text{model}}^{-0.5}$ normalization means larger models (bigger $d_{\text{model}}$) automatically get a smaller peak LR, an implicit form of scale-adaptive learning rate.</div></div>
 </div>
 <div class="ng-node" id="node-node_026" style="--color:#3A506B;border-radius:2px;left:550px;top:2010px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#3A506B 22%,transparent);color:#3A506B">Claim</span>
-    <span class="ng-title">Label smoothing: hurts perplexity but improves BLEU</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#3A506B 22%,transparent);color:#3A506B">Claim</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Label smoothing: hurts perplexity but improves BLEU</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">Standard cross-entropy trains the model to assign all probability to the correct token (one-hot targets). Label smoothing ($\epsilon_{ls}=0.1$) replaces this with: $y_{smooth} = (1-\epsilon_{ls}) \cdot y_{\text{one-hot}} + \epsilon_{ls}/V$. The model is penalized for being overconfident, improving calibration. This **hurts perplexity** (cross-entropy on the true token increases because the model is forced to spread probability), but **improves BLEU** because calibrated uncertainty leads to better beam search diversity and more accurate translations. This counter-intuitive trade-off ($\uparrow$ perplexity, $\uparrow$ BLEU) is a recurring theme in generation models.</div><details class="ng-original"><summary>Original <span class="ng-loc">§5.4, p.8</span></summary>
 <div class="ng-orig-text">During training, we employed label smoothing of value ε_ls = 0.1. This hurts perplexity, as the model learns to be more unsure, but improves accuracy and BLEU score.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_027" style="--color:#1B998B;border-radius:2px;left:550px;top:2200px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#1B998B 22%,transparent);color:#1B998B">Result</span>
-    <span class="ng-title">EN→DE: +2 BLEU over all prior ensembles at 3× less compute</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#1B998B 22%,transparent);color:#1B998B">Result</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">EN→DE: +2 BLEU over all prior ensembles at 3× less compute</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">Transformer (big): **28.4 BLEU** vs. ConvS2S Ensemble best prior: 26.36. Delta: **+2.04 BLEU** — a very large improvement in MT. Training cost: $2.3 \times 10^{19}$ FLOPs vs. $7.7 \times 10^{19}$ for ConvS2S Ensemble (**3.3× cheaper**). Even Transformer (base): 27.3 BLEU at $3.3 \times 10^{18}$ FLOPs — **23× cheaper** than the ConvS2S Ensemble while still outperforming it. The efficiency-quality combination is arguably the paper's most important contribution.</div></div>
 </div>
 <div class="ng-node" id="node-node_028" style="--color:#1B998B;border-radius:2px;left:550px;top:2310px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#1B998B 22%,transparent);color:#1B998B">Result</span>
-    <span class="ng-title">EN→FR: 41.8 BLEU at 1/6 the cost of prior best single model</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#1B998B 22%,transparent);color:#1B998B">Result</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">EN→FR: 41.8 BLEU at 1/6 the cost of prior best single model</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">Transformer (big): **41.8 BLEU** on WMT 2014 EN→FR newstest2014, surpassing all prior single models. Training cost: $2.3 \times 10^{19}$ FLOPs vs. GNMT+RL (prior best single model) at $1.4 \times 10^{20}$ FLOPs — approximately **6× cheaper**. Note: the EN→FR big model used $P_{drop}=0.1$ (vs. 0.3 for EN→DE) — the dropout rate required task-specific tuning, suggesting regularization is not free of language-pair-specific hyperparameter search.</div></div>
 </div>
 <div class="ng-node" id="node-node_029" style="--color:#E5A835;border-radius:22px;left:550px;top:2420px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
-    <span class="ng-title">BLEU as a proxy: what does it miss?</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">BLEU as a proxy: what does it miss?</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">BLEU (Papineni et al., 2002) measures n-gram overlap (n=1..4) between hypothesis and references, penalizing short outputs. Known weaknesses: (1) penalizes valid paraphrases that don't overlap n-grams with references; (2) insensitive to semantic equivalence across different surface forms; (3) corpus-level metric — high BLEU can hide sentence-level failures. The paper uses BLEU as the *sole* evaluation metric. Later work (BERTScore, COMET, BLEURT) showed embedding-based metrics correlate better with human judgment. Meta-evaluation studies suggest Transformer improvements are *even larger* under semantic metrics than BLEU suggests.</div></div>
 </div>
 <div class="ng-node" id="node-node_030" style="--color:#E24B4A;border-radius:22px;left:550px;top:2500px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#E24B4A 22%,transparent);color:#E24B4A">Gap / Idea</span>
-    <span class="ng-title">Impact: Transformer as the universal architecture</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E24B4A 22%,transparent);color:#E24B4A">Gap / Idea</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Impact: Transformer as the universal architecture</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">As of 2024, virtually every state-of-the-art model in NLP, vision, audio, protein structure prediction, code generation, and multimodal AI is a Transformer variant. Key milestones this paper enabled: BERT (2018, encoder-only), GPT series (decoder-only), T5 (encoder-decoder at scale), ViT (vision), AlphaFold 2 (protein), Whisper (speech), DALL-E / Stable Diffusion (vision-language). The quadratic $O(n^2)$ attention cost is the main ongoing research bottleneck — efficient attention (FlashAttention, linear attention, Mamba/SSM hybrids) remains an active area.</div></div>
 </div>
 <div class="ng-node" id="node-node_031" style="--color:#9C6ADE;border-radius:22px;left:550px;top:2610px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#9C6ADE 22%,transparent);color:#9C6ADE">Ext. reference</span>
-    <span class="ng-title">Code: tensorflow/tensor2tensor → Hugging Face</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#9C6ADE 22%,transparent);color:#9C6ADE">Ext. reference</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Code: tensorflow/tensor2tensor → Hugging Face</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">Original release: github.com/tensorflow/tensor2tensor (TensorFlow). Was the dominant research codebase 2017–2019. Replaced by: Mesh TensorFlow → Trax (Google). The ecosystem shift to PyTorch meant most practitioners now use Hugging Face Transformers library (2019–present), which provides pretrained weights and training infrastructure. NVIDIA's Megatron-LM and Microsoft's DeepSpeed added model parallelism for billion-parameter scale. The original tensor2tensor code remains historically significant but is rarely used directly.</div><details class="ng-original"><summary>Original <span class="ng-loc">§7, p.10</span></summary>
 <div class="ng-orig-text">The code we used to train and evaluate our models is available at https://github.com/tensorflow/tensor2tensor.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_032" data-children="node_033,node_034,node_035" style="--color:#E5A835;border-radius:22px;left:550px;top:1070px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
-    <span class="ng-title">KV Cache: why can K and V be reused but not Q?</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">KV Cache: why can K and V be reused but not Q?</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">Analogy: Q = 🔑 (key), K = 🔒 (lock), V = 💎 (treasure)<br><br>$$\text{Attention}(Q,K,V) = \text{softmax}\!\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$<br><br>During autoregressive decoding, one token is generated at a time. At step $t$:<br>- Tokens $1 \ldots t-1$ already have their $K$ and $V$ computed and **do not change**<br>- Only the new token $t$ needs its $Q$ computed<br><br>Since the attention score depends on $QK^T$, the score changes whenever $Q$ changes — but $K$ and $V$ from past tokens are fixed.<br><br>\&gt; **KV Cache**: cache all previous $K$ and $V$; at each new step, compute only the new token's $Q$, then attend over the cached $K$ and $V$.<br><br>Why $Q$ cannot be cached: each new token queries the entire context from its own perspective — the query is unique to the token being generated.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2, p.3</span></summary>
 <div class="ng-orig-text">An attention function can be described as mapping a query and a set of key-value pairs to an output, where the query, keys, values, and output are all vectors.</div></details></div>
 </div>
 <div class="ng-node ng-has-table" id="node-node_036" style="--color:#E5A835;border-radius:22px;left:1000px;top:1200px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
-    <span class="ng-title">d_model vs d_k/d_v: single-head와 multi-head의 차이</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">d_model vs d_k/d_v: single-head와 multi-head의 차이</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content"><div class="ng-seg">**차원 관계 정리**<br></div><div class="ng-table-wrap"><table class="ng-table"><thead><tr><th></th><th>Single-head (h=1)</th><th>Multi-head (h=8)</th></tr></thead><tbody><tr><td>Q, K 차원 $d_k$</td><td>$d_{\text{model}}$ (512)</td><td>$d_{\text{model}}/h$ = 64</td></tr><tr><td>V 차원 $d_v$</td><td>$d_{\text{model}}$ (512)</td><td>$d_{\text{model}}/h$ = 64</td></tr><tr><td>각 head 출력</td><td>$(n \times d_{\text{model}})$</td><td>$(n \times 64)$</td></tr><tr><td>concat 후</td><td>—</td><td>$(n \times 8 \cdot 64) = (n \times d_{\text{model}})$</td></tr></tbody></table></div><div class="ng-seg"><br>**d_k = d_v는 필수가 아니다**<br><br>$Q \cdot K^T$가 성립하려면 Q와 K의 차원이 같아야 하므로 $d_q = d_k$는 구조적 필수 조건. 반면 V는 attention weight $(n \times m)$과 곱해지므로 $d_v$는 아무 값이어도 됨:<br><br>$$\underbrace{(n \times m)}_{\text{attn weights}} \times \underbrace{(m \times d_v)}_{V} = (n \times d_v)$$<br><br>논문에서 $d_k = d_v = 64$로 맞춘 것은 수학적 필요가 아닌 **설계 단순화**. 일부 efficient attention 변형은 $d_k \neq d_v$를 사용.<br><br>**Multi-head의 핵심 직관**<br><br>&gt; Multi-head attention = **feature를 축소한 attention map을 여러 개** 병렬로 계산하는 것<br><br>- Single-head: $d_{\text{model}}$ 차원 전체를 하나의 attention map으로 처리 → 한 가지 관점<br>- Multi-head: $d_{\text{model}}$을 $h$등분한 **축소된 subspace** 각각에서 독립적인 attention map 계산 → $h$가지 관점 동시 포착<br>- 각 head의 attention map은 $(n \times n)$ 크기지만 보는 feature 공간이 다름<br><br>**연산량은 동일** (ablation Table 3A 근거):<br>$$h=1: n^2 \times 512, \quad h=8: 8 \times n^2 \times 64 = n^2 \times 512$$<br><br>Multi-head는 효율이 아닌 **표현 다양성**을 위한 선택.</div></div></div>
 </div>
 <div class="ng-node ng-has-table" id="node-node_033" style="--color:#E5A835;border-radius:22px;left:1050px;top:930px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
-    <span class="ng-title">Multi-layer: layer 간에 흐르는 것은 V가 아니라 hidden state</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Multi-layer: layer 간에 흐르는 것은 V가 아니라 hidden state</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content"><div class="ng-seg">각 Transformer layer 간에 흐르는 것은 **V 벡터가 아니라 hidden state** $(1 \times d_{\text{model}})$입니다.<br><br>각 layer는 **독립적인 $W_Q, W_K, W_V$** 가중치를 가집니다. Layer $l$의 입력 $h^{(l-1)}$로부터:<br><br>$$Q^{(l)} = h^{(l-1)} W_Q^{(l)}, \quad K^{(l)} = h^{(l-1)} W_K^{(l)}, \quad V^{(l)} = h^{(l-1)} W_V^{(l)}$$<br><br>그리고 layer $l$의 출력:<br>$$h^{(l)} = \text{FFN}\!\left(\text{Attention}(Q^{(l)}, K^{(l)}, V^{(l)})\right)$$<br><br>이 $h^{(l)}$이 다음 layer의 **입력**이 됩니다. V는 해당 layer 내부에서만 사용되고 밖으로 흘러나가지 않습니다.<br></div><div class="ng-table-wrap"><table class="ng-table"><thead><tr><th>무엇이 흐르는가</th><th>설명</th></tr></thead><tbody><tr><td>hidden state $h^{(l)}$</td><td>✅ layer 간 전달</td></tr><tr><td>V 벡터</td><td>❌ 해당 layer 내부에서만 사용</td></tr></tbody></table></div></div></div>
 </div>
 <div class="ng-node ng-has-table" id="node-node_034" style="--color:#E5A835;border-radius:22px;left:1050px;top:1120px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
-    <span class="ng-title">KV Cache = Causal masking(이유) + 캐싱(구현)의 합성</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">KV Cache = Causal masking(이유) + 캐싱(구현)의 합성</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content"><div class="ng-seg">KV Cache는 **두 가지 개념의 합성**입니다.<br><br>**① Causal Masking** → 이전 토큰 representation이 불변인 이유<br>- 토큰 $i$는 $1 \ldots i$만 봄 (미래 마스킹)<br>- 이후 토큰이 추가되어도 토큰 $i$의 K, V는 변하지 않음<br><br>**② KV Cache** → 이 불변성을 이용한 구현 최적화<br>- 이미 계산된 K, V를 메모리에 저장<br>- 새 토큰 생성 시 저장된 K, V 재사용 → 재계산 생략<br></div><div class="ng-table-wrap"><table class="ng-table"><thead><tr><th>개념</th><th>역할</th></tr></thead><tbody><tr><td>Causal masking</td><td>'재사용해도 되는 이유' — 구조적 성질</td></tr><tr><td>KV Cache</td><td>'실제로 재사용하는 방법' — 구현 최적화</td></tr></tbody></table></div><div class="ng-seg"><br>이전 $(n-1)$개 토큰의 full representation을 복붙하는 것과도 다릅니다 — Q는 버리고, K와 V projection만 저장합니다.</div></div></div>
 </div>
 <div class="ng-node" id="node-node_035" style="--color:#E5A835;border-radius:22px;left:1050px;top:1310px">
-  <div class="ng-header" onclick="onHeaderClick(this)" onmousedown="onNodeHeaderMousedown(event,this.parentNode)" title="Click to select node">
-    <span class="ng-tag" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
-    <span class="ng-title">Prefill vs Decode: n개 입력 시 중간 토큰을 건너뛸 수 있나?</span>
-    <span class="ng-chevron" onclick="toggleFold(event,this.closest('.ng-header'))" title="Fold / unfold this node">▼</span>
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Prefill vs Decode: n개 입력 시 중간 토큰을 건너뛸 수 있나?</span>
   </div>
   <div class="ng-body" style="display:none"><div class="ng-content">$n$개의 토큰이 input으로 주어졌을 때, $(n+1)$번째 토큰 예측을 위해 중간 토큰 $2 \ldots n-1$을 건너뛸 수 있는가?<br><br>**Single-layer: ✅ 가능**<br>- K, V는 embedding → linear projection이므로 모든 토큰에 대해 직접 계산 가능<br>- 토큰 $n$의 attention output만 구하면 됨; 중간 토큰의 full output 불필요<br><br>**Multi-layer: ❌ 불가능**<br>- Layer 2의 K, V = $W_K^{(2)} \cdot h^{(1)}$ → Layer 1 output이 필요<br>- 토큰 $n$이 layer 2에서 토큰 $1 \ldots n-1$의 $K_2, V_2$를 참조해야 함<br>- 따라서 모든 토큰의 Layer 1 output을 계산해야만 함<br><br>**Prefill** (최초 1회): 1...n을 **병렬로 동시에** 계산 — 건너뛰는 게 아니라 한꺼번에 처리<br>**Decode** (이후 반복): 새 토큰 1개만 각 layer 통과 → Prefill에서 캐싱된 K, V 재사용</div></div>
 </div>
@@ -502,21 +471,23 @@ function onHeaderClick(hdr) {
   selectNode(selectedNodeId === nodeId ? null : nodeId);
 }
 
-// Chevron click = toggle this node only (no cascade, stopPropagation)
-function toggleFold(e, hdr) {
+// Title click = fold/unfold this node
+function onTitleClick(e, titleEl) {
   e.stopPropagation();
-  var body = hdr.nextElementSibling;
+  var nodeEl = titleEl.closest('.ng-node');
+  var body = nodeEl.querySelector('.ng-body');
   if (!body) return;
-  var chevron = hdr.querySelector('.ng-chevron');
   var expanding = body.style.display === 'none';
   body.style.display = expanding ? '' : 'none';
-  if (chevron) chevron.textContent = expanding ? '▲' : '▼';
-  var nodeEl = hdr.parentNode;
   var nodeId = nodeEl.id.replace('node-', '');
   for (var i = 0; i < NODES_DATA.length; i++) {
     if (NODES_DATA[i].id === nodeId) { NODES_DATA[i].contentExpanded = expanding; break; }
   }
   setTimeout(recomputePositions, 0);
+  // 검색 드롭다운이 열려있으면 search input 포커스 복원 (화살표 키 유지)
+  if (document.getElementById('search-wrap').classList.contains('open') && searchSelectedId === null) {
+    setTimeout(function() { document.getElementById('search-input').focus(); }, 0);
+  }
 }
 
 // Get node datum by id
@@ -616,8 +587,8 @@ function doCollapse() {
   }
 }
 
-// Per-node drag with logical-position tracking
-function onNodeHeaderMousedown(e, nodeEl) {
+// Tag drag handle
+function onNodeTagMousedown(e, nodeEl) {
   e.stopPropagation();
   lastWasDrag = false;
   var x0 = e.clientX, y0 = e.clientY;
@@ -647,110 +618,112 @@ function onNodeHeaderMousedown(e, nodeEl) {
   window.addEventListener('mouseup', onUp);
 }
 
-// Keep original node positions — collapse/expand does not push other nodes
-function getNodeRootId(nodeId) {
-  var childToParent = getChildToParentMap();
-  var cur = nodeId;
-  while (childToParent[cur]) cur = childToParent[cur];
-  return cur;
-}
-function getChildToParentMap() {
-  var map = {};
-  NODES_DATA.forEach(function(n) {
-    (n.children || []).forEach(function(childId) { map[childId] = n.id; });
-  });
-  return map;
-}
 function recomputePositions() {
-  var childToParent = getChildToParentMap();
-  function rootOf(id) {
+  var childToParent = {};
+  NODES_DATA.forEach(function(n) {
+    (n.children || []).forEach(function(childId) { childToParent[childId] = n.id; });
+  });
+  function getRootId(id) {
     var cur = id;
     while (childToParent[cur]) cur = childToParent[cur];
     return cur;
   }
   function isDescendantOf(descendant, ancestor) {
     var cur = descendant;
-    while (childToParent[cur]) {
-      cur = childToParent[cur];
-      if (cur === ancestor) return true;
-    }
+    while (childToParent[cur]) { cur = childToParent[cur]; if (cur === ancestor) return true; }
     return false;
   }
+  function isDirectedConnected(sourceId, targetId) {
+    return EDGES.some(function(e) { return e.source === sourceId && e.target === targetId; });
+  }
+
   var sorted = NODES_DATA.slice().sort(function(a, b) {
     if (a.ly !== b.ly) return a.ly - b.ly;
     return a.lx - b.lx;
   });
   var renderY = {};
-  sorted.forEach(function(n) {
-    var nIsMain = n.isMain;
-    var y = n.ly;
-    var nEl = document.getElementById('node-' + n.id);
-    var nW = nEl ? nEl.offsetWidth : 300;
-    sorted.forEach(function(other) {
-      if (other.id === n.id) return;
-      if (other.ly > n.ly) return;
-      if (other.ly === n.ly && other.lx >= n.lx) return;
-      var otherY = renderY[other.id] !== undefined ? renderY[other.id] : other.ly;
-      var otherEl = document.getElementById('node-' + other.id);
-      var h = otherEl ? otherEl.offsetHeight : HEADER_H;
-      var otherBottom = otherY + h;
-      if (otherBottom <= y) return;
-      if (nIsMain && other.isMain) {
-        // Main → main: always push regardless of X offset
-        var naturalBottom = other.ly + (other.nodeHeight || HEADER_H);
-        var delta = (otherY + h) - naturalBottom;
-        var nodeNaturalY = n.naturalY !== undefined ? n.naturalY : n.ly;
-        y = Math.max(y, nodeNaturalY + delta, otherBottom + 20);
-      } else {
-        // Rounded pushes: only if X ranges actually overlap (different columns don't push each other)
-        var oW = otherEl ? otherEl.offsetWidth : 300;
-        if (!(n.lx < other.lx + oW && other.lx < n.lx + nW)) return;
-        if (nIsMain) {
-          // Rounded → main: skip only if descendant AND doesn't reach this node's Y
-          if (isDescendantOf(other.id, n.id) && otherBottom <= n.ly) return;
-          var wasPushed = otherY > other.ly;
-          if (!other.contentExpanded && !wasPushed) return;
-          y = Math.max(y, otherBottom + 48);
+  var MAX_ITER = 8;
+
+  for (var iter = 0; iter < MAX_ITER; iter++) {
+    var prevSnapshot = {};
+    NODES_DATA.forEach(function(n) { prevSnapshot[n.id] = renderY[n.id] !== undefined ? renderY[n.id] : n.ly; });
+
+    // Pass 1: Y-overlap push-down
+    sorted.forEach(function(node) {
+      var nEl = document.getElementById('node-' + node.id);
+      var nodeW = nEl ? nEl.offsetWidth : (node.nodeWidth || 300);
+      var y = node.ly;
+
+      sorted.forEach(function(other) {
+        if (other.id === node.id) return;
+        if (other.ly > node.ly) return;
+        if (other.ly === node.ly && other.lx >= node.lx) return;
+
+        var otherEl = document.getElementById('node-' + other.id);
+        var otherW = otherEl ? otherEl.offsetWidth : (other.nodeWidth || 300);
+        var otherY = renderY[other.id] !== undefined ? renderY[other.id] : other.ly;
+        var otherH = otherEl ? otherEl.offsetHeight : HEADER_H;
+        var otherBottom = otherY + otherH;
+        if (otherBottom <= y) return;
+
+        if (node.isMain && other.isMain) {
+          // Main→Main: X 범위가 겹칠 때만 밀어냄 (다른 컬럼 cascade 방지)
+          if (!(node.lx < other.lx + otherW && other.lx < node.lx + nodeW)) return;
+          var naturalBottom = other.ly + (other.nodeHeight || HEADER_H);
+          var delta = (otherY + otherH) - naturalBottom;
+          var nodeNaturalY = node.naturalY !== undefined ? node.naturalY : node.ly;
+          y = Math.max(y, nodeNaturalY + delta, otherBottom + 20);
         } else {
-          // Sub → sub: always push when X ranges overlap, regardless of expand state
-          var gap = (rootOf(other.id) === rootOf(n.id)) ? 20 : 48;
-          y = Math.max(y, otherBottom + gap);
+          // 방향 엣지 연결이면 X overlap 없어도 밀어냄
+          var connected = isDirectedConnected(other.id, node.id);
+          if (!connected && !(node.lx < other.lx + otherW && other.lx < node.lx + nodeW)) return;
+          if (node.isMain) {
+            if (isDescendantOf(other.id, node.id) && otherBottom <= node.ly) return;
+            y = Math.max(y, otherBottom + 48);
+          } else {
+            var isSameRoot = getRootId(other.id) === getRootId(node.id);
+            y = Math.max(y, otherBottom + (isSameRoot ? 30 : 48));
+          }
+        }
+      });
+      renderY[node.id] = y;
+    });
+
+    // Pass 2: 서브노드가 부모 main의 push delta만큼 따라 내려감
+    NODES_DATA.forEach(function(node) {
+      if (node.isMain) return;
+      var parentMain = null;
+      var bestDist = Infinity;
+      NODES_DATA.forEach(function(m) {
+        if (!m.isMain) return;
+        var connected = (m.children && m.children.indexOf(node.id) !== -1) ||
+          EDGES.some(function(e) {
+            return (e.source === m.id && e.target === node.id) || (e.target === m.id && e.source === node.id);
+          });
+        if (connected) {
+          var dist = Math.abs(m.ly - node.ly);
+          if (dist < bestDist) { bestDist = dist; parentMain = m; }
+        }
+      });
+      if (parentMain) {
+        var parentPush = (renderY[parentMain.id] !== undefined ? renderY[parentMain.id] : parentMain.ly) - parentMain.ly;
+        if (parentPush > 0) {
+          var cur = renderY[node.id] !== undefined ? renderY[node.id] : node.ly;
+          renderY[node.id] = Math.max(cur, node.ly + parentPush);
         }
       }
     });
-    renderY[n.id] = y;
-  });
 
-  // Pass 2: sub-nodes follow their parent main node's push delta
-  NODES_DATA.forEach(function(n) {
-    if (n.isMain) return;
-    var parentMain = null;
-    var bestDist = Infinity;
-    NODES_DATA.forEach(function(m) {
-      if (!m.isMain) return;
-      var connected = m.children && m.children.indexOf(n.id) !== -1;
-      if (!connected) {
-        EDGES.some(function(e) {
-          if ((e.source === m.id && e.target === n.id) || (e.target === m.id && e.source === n.id)) {
-            connected = true; return true;
-          }
-        });
-      }
-      if (connected) {
-        var dist = Math.abs(m.ly - n.ly);
-        if (dist < bestDist) { bestDist = dist; parentMain = m; }
-      }
+    // 수렴 확인
+    var converged = NODES_DATA.every(function(n) {
+      var cur = renderY[n.id] !== undefined ? renderY[n.id] : n.ly;
+      var prev = prevSnapshot[n.id] !== undefined ? prevSnapshot[n.id] : n.ly;
+      return cur === prev;
     });
-    if (parentMain) {
-      var parentPush = (renderY[parentMain.id] !== undefined ? renderY[parentMain.id] : parentMain.ly) - parentMain.ly;
-      if (parentPush > 0) {
-        var cur = renderY[n.id] !== undefined ? renderY[n.id] : n.ly;
-        renderY[n.id] = Math.max(cur, n.ly + parentPush);
-      }
-    }
-  });
+    if (converged) break;
+  }
 
-  // Pass 3: normalize Y spacing within each bus group (same source, same X column)
+  // Pass 3: line 엣지 버스 그룹 Y 정규화 (gap 30px, 에디터와 동일)
   var lineBySource = {};
   EDGES.forEach(function(e) {
     if (e.type !== 'line') return;
@@ -762,7 +735,6 @@ function recomputePositions() {
   Object.keys(lineBySource).forEach(function(srcId) {
     var targetIds = lineBySource[srcId].filter(function(id) { return ndMap[id]; });
     if (targetIds.length < 2) return;
-    // Group targets by X column
     var xGroups = [];
     targetIds.forEach(function(id) {
       var el = document.getElementById('node-' + id);
@@ -776,18 +748,17 @@ function recomputePositions() {
       }
       if (!placed) xGroups.push([id]);
     });
-    // Sort and space within each X column group
     xGroups.forEach(function(grp) {
       if (grp.length < 2) return;
-      var sorted = grp.map(function(id) {
+      var grpSorted = grp.map(function(id) {
         var el = document.getElementById('node-' + id);
         return { id: id, y: renderY[id] !== undefined ? renderY[id] : ndMap[id].ly, h: el ? el.offsetHeight : HEADER_H };
       }).sort(function(a, b) { return a.y - b.y; });
-      for (var i = 1; i < sorted.length; i++) {
-        var minY = sorted[i-1].y + sorted[i-1].h + 20;
-        var newY = Math.max(sorted[i].y, minY);
-        sorted[i].y = newY;
-        renderY[sorted[i].id] = newY;
+      for (var i = 1; i < grpSorted.length; i++) {
+        var minY = grpSorted[i-1].y + grpSorted[i-1].h + 30;
+        var newY = Math.max(grpSorted[i].y, minY);
+        grpSorted[i].y = newY;
+        renderY[grpSorted[i].id] = newY;
       }
     });
   });
@@ -796,7 +767,7 @@ function recomputePositions() {
     var el = document.getElementById('node-' + n.id);
     if (!el) return;
     el.style.left = n.lx + 'px';
-    el.style.top  = (renderY[n.id] !== undefined ? renderY[n.id] : n.ly) + 'px';
+    el.style.top = (renderY[n.id] !== undefined ? renderY[n.id] : n.ly) + 'px';
   });
   drawEdges();
 }
@@ -911,67 +882,138 @@ function closeLightbox(){document.getElementById('lightbox').classList.remove('a
 document.addEventListener('keydown',function(e){
   if((e.ctrlKey||e.metaKey)&&e.key==='f'){e.preventDefault();openSearch();return;}
   if(e.key==='Escape'){
-    if(document.getElementById('search-bar').classList.contains('open')){closeSearch();return;}
+    if(document.getElementById('search-wrap').classList.contains('open')){closeSearch();return;}
     closeLightbox();
+  }
+});
+// Middle click: prevent X11 primary selection paste
+vp.addEventListener('mousedown',function(e){if(e.button===1) e.preventDefault();});
+// Background click: close search if open
+vp.addEventListener('mouseup',function(e){
+  if(e.button!==0) return;
+  if(!e.target.closest('.ng-node')&&!e.target.closest('#search-wrap')){
+    if(document.getElementById('search-wrap').classList.contains('open')) closeSearch();
   }
 });
 
 // Search
-var searchMatchIds=[];
-var searchActiveIdx=-1;
+var searchSelectedId=null;
+var searchMatchNodes=[];
+var kbIdx=-1;
+
 function openSearch(){
-  var bar=document.getElementById('search-bar');
-  bar.classList.add('open');
-  document.getElementById('search-btn').style.display='none';
+  document.getElementById('search-wrap').classList.add('open');
   var inp=document.getElementById('search-input');
   inp.focus();inp.select();
+  kbIdx=-1;
   if(inp.value) doSearch(inp.value);
 }
 function closeSearch(){
   clearSearchHighlights();
-  searchMatchIds=[];searchActiveIdx=-1;
-  document.getElementById('search-bar').classList.remove('open');
-  document.getElementById('search-btn').style.display='';
+  searchSelectedId=null;searchMatchNodes=[];kbIdx=-1;
+  document.getElementById('search-wrap').classList.remove('open');
   document.getElementById('search-input').value='';
   document.getElementById('search-count').textContent='';
+  closeDropdown();
 }
 function clearSearchHighlights(){
   document.querySelectorAll('.ng-search-match,.ng-search-active').forEach(function(el){el.classList.remove('ng-search-match','ng-search-active');});
 }
+function closeDropdown(){
+  document.getElementById('search-drop').classList.remove('open');
+  document.getElementById('search-row').classList.remove('dropdown-open');
+  kbIdx=-1;
+}
 function doSearch(q){
   clearSearchHighlights();
-  searchMatchIds=[];searchActiveIdx=0;
+  searchSelectedId=null;kbIdx=-1;
   var query=q.trim().toLowerCase();
-  if(!query){document.getElementById('search-count').textContent='';return;}
-  NODES_DATA.forEach(function(n){if(n.searchText&&n.searchText.indexOf(query)!==-1) searchMatchIds.push(n.id);});
-  searchMatchIds.forEach(function(id){var el=document.getElementById('node-'+id);if(el) el.classList.add('ng-search-match');});
-  if(searchMatchIds.length>0){searchActiveIdx=0;activateSearchMatch(0);}
+  if(!query){document.getElementById('search-count').textContent='';closeDropdown();searchMatchNodes=[];return;}
+  searchMatchNodes=NODES_DATA.filter(function(n){return n.searchText&&n.searchText.indexOf(query)!==-1;});
+  searchMatchNodes.forEach(function(n){var el=document.getElementById('node-'+n.id);if(el) el.classList.add('ng-search-match');});
+  updateSearchCount();
+  renderDropdown();
+}
+function renderDropdown(){
+  var drop=document.getElementById('search-drop');
+  var row=document.getElementById('search-row');
+  drop.innerHTML='';
+  if(!searchMatchNodes.length){closeDropdown();return;}
+  searchMatchNodes.forEach(function(n,i){
+    var div=document.createElement('div');
+    div.className='ng-drop-item';
+    div.setAttribute('data-kb-idx',i);
+    var nodeEl=document.getElementById('node-'+n.id);
+    var titleEl=nodeEl?nodeEl.querySelector('.ng-title'):null;
+    div.textContent=titleEl?titleEl.textContent:n.id;
+    div.addEventListener('mousedown',function(e){e.preventDefault();selectSearchNode(n.id);});
+    div.addEventListener('mouseenter',function(){setKbActive(i);});
+    drop.appendChild(div);
+  });
+  if(kbIdx>=0&&kbIdx<searchMatchNodes.length) applyKbHighlight();
+  drop.classList.add('open');
+  row.classList.add('dropdown-open');
+}
+function setKbActive(idx){
+  kbIdx=idx;
+  applyKbHighlight();
+  var drop=document.getElementById('search-drop');
+  var el=drop.querySelector('[data-kb-idx="'+idx+'"]');
+  if(el) el.scrollIntoView({block:'nearest'});
+}
+function applyKbHighlight(){
+  var drop=document.getElementById('search-drop');
+  drop.querySelectorAll('.ng-drop-item').forEach(function(el){
+    var active=el.getAttribute('data-kb-idx')===String(kbIdx);
+    el.style.background=active?'#e8f0fe':'transparent';
+    el.style.fontWeight=active?'500':'400';
+  });
+}
+function selectSearchNode(id){
+  clearSearchHighlights();
+  searchSelectedId=id;
+  var el=document.getElementById('node-'+id);
+  if(el) el.classList.add('ng-search-active');
+  // Enter 확정: 선택된 노드만 expand, 나머지 매치 노드 collapse
+  searchMatchNodes.forEach(function(n){
+    var nodeEl=document.getElementById('node-'+n.id);
+    if(!nodeEl) return;
+    var body=nodeEl.querySelector('.ng-body');
+    if(!body) return;
+    var datum=null;
+    for(var i=0;i<NODES_DATA.length;i++){if(NODES_DATA[i].id===n.id){datum=NODES_DATA[i];break;}}
+    if(!datum) return;
+    if(n.id===id){
+      if(!datum.contentExpanded){body.style.display='';datum.contentExpanded=true;}
+    } else {
+      if(datum.contentExpanded){body.style.display='none';datum.contentExpanded=false;}
+    }
+  });
+  setTimeout(function(){recomputePositions();flyToNode(id);},0);
+  closeDropdown();
   updateSearchCount();
 }
-function activateSearchMatch(idx){
-  document.querySelectorAll('.ng-search-active').forEach(function(el){el.classList.remove('ng-search-active');});
-  if(!searchMatchIds.length) return;
-  var el=document.getElementById('node-'+searchMatchIds[idx]);
-  if(el){el.classList.add('ng-search-active');flyToNode(searchMatchIds[idx]);}
-}
-function searchNext(){
-  if(!searchMatchIds.length) return;
-  searchActiveIdx=(searchActiveIdx+1)%searchMatchIds.length;
-  activateSearchMatch(searchActiveIdx);updateSearchCount();
-}
-function searchPrev(){
-  if(!searchMatchIds.length) return;
-  searchActiveIdx=(searchActiveIdx-1+searchMatchIds.length)%searchMatchIds.length;
-  activateSearchMatch(searchActiveIdx);updateSearchCount();
+function onSearchInputClick(){
+  if(searchSelectedId!==null){
+    // 이전 선택 노드의 인덱스를 찾아 kbIdx 복원
+    var idx=-1;
+    for(var i=0;i<searchMatchNodes.length;i++){if(searchMatchNodes[i].id===searchSelectedId){idx=i;break;}}
+    clearSearchHighlights();
+    searchSelectedId=null;
+    searchMatchNodes.forEach(function(n){var el=document.getElementById('node-'+n.id);if(el) el.classList.add('ng-search-match');});
+    updateSearchCount();
+    renderDropdown();
+    if(idx>=0){kbIdx=idx;applyKbHighlight();}
+  }
 }
 function updateSearchCount(){
   var el=document.getElementById('search-count');
   if(!el) return;
   var q=document.getElementById('search-input').value.trim();
   if(!q){el.textContent='';return;}
-  if(!searchMatchIds.length){el.style.color='#ef4444';el.textContent='0 results';return;}
-  el.style.color='#6b7280';
-  el.textContent=(searchActiveIdx+1)+' / '+searchMatchIds.length;
+  if(searchSelectedId){el.style.color='#6b7280';el.textContent='1 selected';return;}
+  if(!searchMatchNodes.length){el.style.color='#ef4444';el.textContent='0 results';return;}
+  el.style.color='#6b7280';el.textContent=searchMatchNodes.length+' results';
 }
 function flyToNode(nodeId){
   var el=document.getElementById('node-'+nodeId);
@@ -985,8 +1027,19 @@ function flyToNode(nodeId){
   applyTransform();
 }
 function onSearchKey(e){
-  if(e.key==='Enter'){e.shiftKey?searchPrev():searchNext();e.preventDefault();}
-  if(e.key==='Escape'){closeSearch();e.preventDefault();}
+  var n=searchMatchNodes.length;
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    if(n>0){var newIdx=kbIdx<0?0:(kbIdx+1)%n;setKbActive(newIdx);flyToNode(searchMatchNodes[newIdx].id);}
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    if(n>0){var newIdx=kbIdx<0?n-1:(kbIdx-1+n)%n;setKbActive(newIdx);flyToNode(searchMatchNodes[newIdx].id);}
+  } else if(e.key==='Enter'){
+    e.preventDefault();
+    if(n>0) selectSearchNode(searchMatchNodes[kbIdx>=0?kbIdx:0].id);
+  } else if(e.key==='Escape'){
+    closeSearch();e.preventDefault();
+  }
   e.stopPropagation();
 }
 

@@ -23,6 +23,15 @@ export function activate(context: vscode.ExtensionContext): void {
     NodeGraphEditorProvider.register(context)
   )
 
+  // Ctrl+F in the NodeGraph editor opens the in-graph search bar.
+  // VSCode intercepts Ctrl+F before the webview JS can see it, so we register
+  // a keybinding (package.json) that fires this command instead.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('nodegraph.search', () => {
+      NodeGraphEditorProvider.postToActive({ type: 'openSearch' })
+    })
+  )
+
   // Generate .agent/ENVIRONMENT.md so AI agents know what tools are available
   writeEnvironmentReport(vscode.workspace.workspaceFolders ?? [])
 

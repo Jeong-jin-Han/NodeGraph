@@ -2,7 +2,7 @@
   "name": "nodegraph",
   "displayName": "NodeGraph",
   "description": "Node-based knowledge graph for research paper analysis",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "publisher": "JeongjinHan",
   "repository": {
     "type": "git",
@@ -48,6 +48,18 @@
       {
         "command": "nodegraph.expandAll",
         "title": "NodeGraph: Expand All"
+      },
+      {
+        "command": "nodegraph.search",
+        "title": "NodeGraph: Search Nodes"
+      }
+    ],
+    "keybindings": [
+      {
+        "key": "ctrl+f",
+        "mac": "cmd+f",
+        "command": "nodegraph.search",
+        "when": "activeCustomEditorId == 'nodegraph.editor'"
       }
     ]
   },
