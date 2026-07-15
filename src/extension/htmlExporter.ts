@@ -74,11 +74,17 @@ function hasHtmlTable(content: string): boolean {
   return false
 }
 
+// \$ → 리터럴 달러(통화): 단독 <span>으로 분리해 KaTeX auto-render가 텍스트 노드 안에서
+// math 구분자 $로 짝짓지 못하게 함 (auto-render는 텍스트 노드 단위로만 스캔)
+function escDollar(s: string): string {
+  return escHtml(s).replace(/\\\$/g, () => '<span class="ng-cur">$</span>')
+}
+
 // Text → HTML: parse [[IMG:...]] tokens + **bold** markers
 // LaTeX delimiters ($...$) are left as-is for KaTeX auto-render
 function renderTextSegment(text: string): string {
   // **...** → <strong> (bold, 1.1em, markers hidden in view)
-  return escHtml(text).replace(/\*\*(.+?)\*\*/g, '<strong style="font-size:1.1em">$1</strong>')
+  return escDollar(text).replace(/\*\*(.+?)\*\*/g, '<strong style="font-size:1.1em">$1</strong>')
 }
 
 function renderCellHtml(cellText: string, imageData: Record<string, string>): string {
@@ -143,11 +149,11 @@ function renderNodeCard(
     const origTitle = escHtml(node.original.title ?? 'Original')
     const openAttr = node.originalExpanded ? ' open' : ''
     bodyHtml += `<details class="ng-original"${openAttr}><summary>${origTitle}${node.original.location ? ` <span class="ng-loc">${escHtml(node.original.location)}</span>` : ''}</summary>
-<div class="ng-orig-text">${escHtml(node.original.text).replace(/\n/g, '<br>')}</div></details>`
+<div class="ng-orig-text">${escDollar(node.original.text).replace(/\n/g, '<br>')}</div></details>`
   }
   for (const t of node.toggleItems ?? []) {
     bodyHtml += `<details class="ng-toggle"${t.expanded ? ' open' : ''}><summary>${escHtml(t.title || '(untitled)')}</summary>
-<div class="ng-toggle-body">${escHtml(t.content).replace(/\n/g, '<br>')}</div></details>`
+<div class="ng-toggle-body">${escDollar(t.content).replace(/\n/g, '<br>')}</div></details>`
   }
   if (node.links.length) {
     bodyHtml += `<div class="ng-links">${node.links.map(l => {

@@ -310,6 +310,11 @@ Different fields have different rendering capabilities:
 > The renderer only processes `$...$` and `$$...$$` blocks — Unicode symbols outside these
 > blocks appear as raw characters and look inconsistent or broken.
 
+> 💲 **Literal dollar signs (currency) must be escaped as `\$`** — e.g. `**\$4.28/GB**`.
+> A bare `$` opens an inline-math region and swallows the text up to the next `$`,
+> breaking both the math renderer (red error text) and `**bold**` pairing.
+> The renderer displays `\$` as a plain `$`.
+
 | ❌ Unicode (do NOT use) | ✅ KaTeX (always use this) |
 |------------------------|--------------------------|
 | `α β γ δ θ λ μ σ φ ω` | `$\alpha$ $\beta$ $\gamma$ $\delta$ $\theta$ $\lambda$ $\mu$ $\sigma$ $\phi$ $\omega$` |
