@@ -1433,6 +1433,7 @@ export function Canvas({
               wireHoverTargetId={wireHoverTarget}
               selectedEdgeId={selectedEdgeId}
               highlightEdgeIds={genHighlight.edgeIds}
+              fastRoute={draggingNodeId !== null}
               onSelectEdge={setSelectedEdgeId}
             />
           </div>

@@ -1,6 +1,10 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { GraphEdge, GraphNode } from '../types/graph'
-import { getNearestPorts, getPortPosition, getRoutedPath, Rect, Port } from '../utils/wireGeometry'
+import {
+  getNearestPorts, getPortPosition, getRoutedPath,
+  routeEdgesOnGrid, pointsToPath, spreadPoints, RouteRequest,
+  Rect, Port,
+} from '../utils/wireGeometry'
 
 interface WireLayerProps {
   nodes: GraphNode[]
@@ -11,6 +15,7 @@ interface WireLayerProps {
   wireHoverTargetId: string | null
   selectedEdgeId: string | null
   highlightEdgeIds: Set<string>
+  fastRoute: boolean
   onSelectEdge: (id: string | null) => void
 }
 
@@ -41,61 +46,95 @@ function getRect(
   }
 }
 
-export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wireHoverTargetId, selectedEdgeId, highlightEdgeIds, onSelectEdge }: WireLayerProps) {
-  const nodeMap = new Map(nodes.map((n) => [n.id, n]))
+export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wireHoverTargetId, selectedEdgeId, highlightEdgeIds, fastRoute, onSelectEdge }: WireLayerProps) {
+  // 지오메트리 모델 — 선택/하이라이트와 무관하게 노드·엣지 배치가 바뀔 때만 재계산
+  const { nodeMap, busGroups, busEdgeIds, allRects, spreadMap } = useMemo(() => {
+    const nodeMap = new Map(nodes.map((n) => [n.id, n]))
 
-  // line 엣지를 source별로 grouping
-  const lineBySource = new Map<string, GraphEdge[]>()
-  for (const edge of edges) {
-    if (edge.type !== 'line') continue
-    if (!lineBySource.has(edge.source)) lineBySource.set(edge.source, [])
-    lineBySource.get(edge.source)!.push(edge)
-  }
+    // line 엣지를 source별로 grouping
+    const lineBySource = new Map<string, GraphEdge[]>()
+    for (const edge of edges) {
+      if (edge.type !== 'line') continue
+      if (!lineBySource.has(edge.source)) lineBySource.set(edge.source, [])
+      lineBySource.get(edge.source)!.push(edge)
+    }
 
-  // bus 라우팅 대상 엣지 ID 집합
-  const busEdgeIds = new Set<string>()
-  const busGroups: Array<{ srcId: string; edgeGroup: GraphEdge[] }> = []
-
-  lineBySource.forEach((group, srcId) => {
-    if (group.length < 2) return
-    if (!nodeMap.has(srcId)) return
-    const sr = getRect(srcId, renderPositions, nodeSizes, nodes)
-    // 모든 타겟이 source 오른쪽에 있을 때만 bus
-    const valid = group.every((e) => {
-      if (!nodeMap.has(e.target)) return false
-      const tr = getRect(e.target, renderPositions, nodeSizes, nodes)
-      return (tr.x + tr.width / 2) > (sr.x + sr.width / 2)
+    // bus 라우팅 대상 엣지 ID 집합
+    const busEdgeIds = new Set<string>()
+    const busGroups: Array<{ srcId: string; edgeGroup: GraphEdge[] }> = []
+    lineBySource.forEach((group, srcId) => {
+      if (group.length < 2) return
+      if (!nodeMap.has(srcId)) return
+      const sr = getRect(srcId, renderPositions, nodeSizes, nodes)
+      // 모든 타겟이 source 오른쪽에 있을 때만 bus
+      const valid = group.every((e) => {
+        if (!nodeMap.has(e.target)) return false
+        const tr = getRect(e.target, renderPositions, nodeSizes, nodes)
+        return (tr.x + tr.width / 2) > (sr.x + sr.width / 2)
+      })
+      if (!valid) return
+      busGroups.push({ srcId, edgeGroup: group })
+      group.forEach((e) => busEdgeIds.add(e.id))
     })
-    if (!valid) return
-    busGroups.push({ srcId, edgeGroup: group })
-    group.forEach((e) => busEdgeIds.add(e.id))
-  })
 
-  // 라우팅 장애물: 모든 노드 rect (각 엣지에서 자기 양 끝 노드는 제외)
-  const allRects = new Map<string, Rect>()
-  for (const n of nodes) {
-    const pos = renderPositions[n.id] ?? n.position
-    const sz = nodeSizes[n.id] ?? { width: DEFAULT_W, height: DEFAULT_H }
-    allRects.set(n.id, { x: pos.x, y: pos.y, width: sz.width, height: sz.height })
-  }
+    // 라우팅 장애물: 모든 노드 rect (각 엣지에서 자기 양 끝 노드는 제외)
+    const allRects = new Map<string, Rect>()
+    for (const n of nodes) {
+      const pos = renderPositions[n.id] ?? n.position
+      const sz = nodeSizes[n.id] ?? { width: DEFAULT_W, height: DEFAULT_H }
+      allRects.set(n.id, { x: pos.x, y: pos.y, width: sz.width, height: sz.height })
+    }
 
-  // 같은 source에서 나가는 비-버스 엣지들은 겹치지 않게 분산(spread) 오프셋 부여
-  const spreadMap = new Map<string, number>()
-  const nonBusBySrc = new Map<string, GraphEdge[]>()
-  for (const e of edges) {
-    if (busEdgeIds.has(e.id)) continue
-    if (!nodeMap.has(e.source) || !nodeMap.has(e.target)) continue
-    if (!nonBusBySrc.has(e.source)) nonBusBySrc.set(e.source, [])
-    nonBusBySrc.get(e.source)!.push(e)
-  }
-  nonBusBySrc.forEach((group) => {
-    if (group.length < 2) return
-    const sorted = [...group].sort((a, b) => {
-      const ra = allRects.get(a.target)!, rb = allRects.get(b.target)!
-      return (ra.y + ra.height / 2) - (rb.y + rb.height / 2)
-    })
-    sorted.forEach((e, idx) => spreadMap.set(e.id, (idx - (sorted.length - 1) / 2) * 16))
-  })
+    // 같은 source에서 나가거나 같은 target으로 모이는 비-버스 엣지들은
+    // 겹치지 않게 분산(spread) 오프셋 부여 — 두 그룹 오프셋 합산
+    const spreadMap = new Map<string, number>()
+    const addSpread = (groups: Map<string, GraphEdge[]>, rectOf: (e: GraphEdge) => Rect) => {
+      groups.forEach((group) => {
+        if (group.length < 2) return
+        const sorted = [...group].sort((a, b) => {
+          const ra = rectOf(a), rb = rectOf(b)
+          return (ra.y + ra.height / 2) - (rb.y + rb.height / 2)
+        })
+        sorted.forEach((e, idx) =>
+          spreadMap.set(e.id, (spreadMap.get(e.id) ?? 0) + (idx - (sorted.length - 1) / 2) * 16))
+      })
+    }
+    const bySrc = new Map<string, GraphEdge[]>()
+    const byTgt = new Map<string, GraphEdge[]>()
+    for (const e of edges) {
+      if (busEdgeIds.has(e.id)) continue
+      if (!nodeMap.has(e.source) || !nodeMap.has(e.target)) continue
+      if (!bySrc.has(e.source)) bySrc.set(e.source, [])
+      bySrc.get(e.source)!.push(e)
+      if (!byTgt.has(e.target)) byTgt.set(e.target, [])
+      byTgt.get(e.target)!.push(e)
+    }
+    addSpread(bySrc, (e) => allRects.get(e.target)!)
+    addSpread(byTgt, (e) => allRects.get(e.source)!)
+
+    return { nodeMap, busGroups, busEdgeIds, allRects, spreadMap }
+  }, [nodes, edges, nodeSizes, renderPositions])
+
+  // 그리드 A* 전역 라우팅 — 드래그 중(fastRoute)에는 스킵하고 경량 휴리스틱 사용
+  const gridRoutes = useMemo(() => {
+    if (fastRoute) return null
+    const reqs: RouteRequest[] = []
+    for (const edge of edges) {
+      if (busEdgeIds.has(edge.id)) continue
+      const srcR = allRects.get(edge.source), tgtR = allRects.get(edge.target)
+      if (!srcR || !tgtR) continue
+      const { sourcePort, targetPort } = getNearestPorts(srcR, tgtR)
+      reqs.push({
+        key: edge.id,
+        src: getPortPosition(srcR, sourcePort),
+        tgt: getPortPosition(tgtR, targetPort),
+        srcId: edge.source,
+        tgtId: edge.target,
+      })
+    }
+    const rectList = [...allRects].map(([id, rect]) => ({ id, rect }))
+    return routeEdgesOnGrid(reqs, rectList)
+  }, [edges, busEdgeIds, allRects, fastRoute])
 
   return (
     <svg
@@ -215,9 +254,21 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
         const { sourcePort, targetPort } = getNearestPorts(srcRect, tgtRect)
         const srcPt = getPortPosition(srcRect, sourcePort)
         const tgtPt = getPortPosition(tgtRect, targetPort)
-        const obstacles: Rect[] = []
-        allRects.forEach((r, id) => { if (id !== edge.source && id !== edge.target) obstacles.push(r) })
-        const d = getRoutedPath(srcPt, tgtPt, sourcePort, targetPort, obstacles, spreadMap.get(edge.id) ?? 0)
+        const spread = spreadMap.get(edge.id) ?? 0
+        const gridPts = gridRoutes ? gridRoutes[edge.id] : null
+        let d: string
+        if (gridPts && gridPts.length > 2) {
+          // 그리드 A* 경로 (노드 회피 + congestion 분산) + 같은 소스/타겟 묶음 분산
+          d = pointsToPath(spreadPoints(gridPts, spread))
+        } else if (gridPts) {
+          // 직선 경로: 기존 bezier 모양 유지
+          d = getRoutedPath(srcPt, tgtPt, sourcePort, targetPort, [], spread)
+        } else {
+          // 드래그 중(fast) 또는 A* 실패: 경량 우회 휴리스틱
+          const obstacles: Rect[] = []
+          allRects.forEach((r, id) => { if (id !== edge.source && id !== edge.target) obstacles.push(r) })
+          d = getRoutedPath(srcPt, tgtPt, sourcePort, targetPort, obstacles, spread)
+        }
         const isSel = selectedEdgeId === edge.id
         const isGen = !isSel && highlightEdgeIds.has(edge.id)
         const strokeColor = isSel ? '#007acc' : isGen ? '#f59e0b' : '#666'

@@ -1111,7 +1111,7 @@ var require_react_development = __commonJS({
           var dispatcher = resolveDispatcher();
           return dispatcher.useCallback(callback, deps);
         }
-        function useMemo5(create, deps) {
+        function useMemo6(create, deps) {
           var dispatcher = resolveDispatcher();
           return dispatcher.useMemo(create, deps);
         }
@@ -1883,7 +1883,7 @@ var require_react_development = __commonJS({
         exports.useImperativeHandle = useImperativeHandle;
         exports.useInsertionEffect = useInsertionEffect;
         exports.useLayoutEffect = useLayoutEffect2;
-        exports.useMemo = useMemo5;
+        exports.useMemo = useMemo6;
         exports.useReducer = useReducer;
         exports.useRef = useRef8;
         exports.useState = useState7;
@@ -2382,9 +2382,9 @@ var require_react_dom_development = __commonJS({
         if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== "undefined" && typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart === "function") {
           __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
         }
-        var React7 = require_react();
+        var React8 = require_react();
         var Scheduler = require_scheduler();
-        var ReactSharedInternals = React7.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+        var ReactSharedInternals = React8.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
         var suppressWarning = false;
         function setSuppressWarning(newSuppressWarning) {
           {
@@ -3989,7 +3989,7 @@ var require_react_dom_development = __commonJS({
           {
             if (props.value == null) {
               if (typeof props.children === "object" && props.children !== null) {
-                React7.Children.forEach(props.children, function(child) {
+                React8.Children.forEach(props.children, function(child) {
                   if (child == null) {
                     return;
                   }
@@ -23558,7 +23558,7 @@ var require_react_jsx_runtime_development = __commonJS({
     if (true) {
       (function() {
         "use strict";
-        var React7 = require_react();
+        var React8 = require_react();
         var REACT_ELEMENT_TYPE = Symbol.for("react.element");
         var REACT_PORTAL_TYPE = Symbol.for("react.portal");
         var REACT_FRAGMENT_TYPE = Symbol.for("react.fragment");
@@ -23584,7 +23584,7 @@ var require_react_jsx_runtime_development = __commonJS({
           }
           return null;
         }
-        var ReactSharedInternals = React7.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+        var ReactSharedInternals = React8.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
         function error(format) {
           {
             {
@@ -24460,7 +24460,7 @@ var require_jsx_runtime = __commonJS({
 var import_client = __toESM(require_client());
 
 // src/webview/App.tsx
-var import_react9 = __toESM(require_react());
+var import_react10 = __toESM(require_react());
 
 // src/webview/hooks/useGraph.ts
 var import_react = __toESM(require_react());
@@ -25116,7 +25116,7 @@ function useViewport(initial = { x: 0, y: 0, zoom: 1 }) {
 }
 
 // src/webview/components/Canvas.tsx
-var import_react8 = __toESM(require_react());
+var import_react9 = __toESM(require_react());
 
 // src/webview/components/NodeCard.tsx
 var import_react5 = __toESM(require_react());
@@ -40707,6 +40707,9 @@ function NodeCard({
   ] });
 }
 
+// src/webview/components/WireLayer.tsx
+var import_react6 = __toESM(require_react());
+
 // src/webview/utils/wireGeometry.ts
 function getNearestPorts(source, target) {
   const sp = [
@@ -40821,6 +40824,211 @@ function routeAroundObstacles(src, tgt, obstacles) {
   }
   return pts;
 }
+function pointsToPath(P) {
+  if (P.length < 2)
+    return "";
+  if (P.length === 2)
+    return `M ${P[0].x} ${P[0].y} L ${P[1].x} ${P[1].y}`;
+  let d = `M ${P[0].x} ${P[0].y}`;
+  for (let k = 1; k < P.length - 1; k++) {
+    const end = k < P.length - 2 ? { x: (P[k].x + P[k + 1].x) / 2, y: (P[k].y + P[k + 1].y) / 2 } : P[P.length - 1];
+    d += ` Q ${P[k].x} ${P[k].y} ${end.x} ${end.y}`;
+  }
+  return d;
+}
+function spreadPoints(pts, spread) {
+  if (!spread || pts.length < 3)
+    return pts;
+  const s = pts[0], t = pts[pts.length - 1];
+  const dl = dlen(s, t) || 1;
+  const nx = -(t.y - s.y) / dl, ny = (t.x - s.x) / dl;
+  return [s, ...pts.slice(1, -1).map((p) => ({ x: p.x + nx * spread, y: p.y + ny * spread })), t];
+}
+function routeEdgesOnGrid(reqs, rects) {
+  const out = {};
+  if (reqs.length === 0)
+    return out;
+  const NEAR = 8, INSIDE = 200, USE = 14, TURN = 0.4;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const { rect } of rects) {
+    minX = Math.min(minX, rect.x);
+    minY = Math.min(minY, rect.y);
+    maxX = Math.max(maxX, rect.x + rect.width);
+    maxY = Math.max(maxY, rect.y + rect.height);
+  }
+  for (const r of reqs) {
+    minX = Math.min(minX, r.src.x, r.tgt.x);
+    minY = Math.min(minY, r.src.y, r.tgt.y);
+    maxX = Math.max(maxX, r.src.x, r.tgt.x);
+    maxY = Math.max(maxY, r.src.y, r.tgt.y);
+  }
+  minX -= 80;
+  minY -= 80;
+  maxX += 80;
+  maxY += 80;
+  let cell = 24;
+  while ((maxX - minX) / cell * ((maxY - minY) / cell) > 15e4)
+    cell *= 2;
+  const gw = Math.max(2, Math.ceil((maxX - minX) / cell));
+  const gh = Math.max(2, Math.ceil((maxY - minY) / cell));
+  const N = gw * gh;
+  const cellX = (x) => Math.min(gw - 1, Math.max(0, Math.floor((x - minX) / cell)));
+  const cellY = (y) => Math.min(gh - 1, Math.max(0, Math.floor((y - minY) / cell)));
+  const baseCost = new Float64Array(N);
+  for (const { rect } of rects) {
+    const ox0 = cellX(rect.x - cell), ox1 = cellX(rect.x + rect.width + cell);
+    const oy0 = cellY(rect.y - cell), oy1 = cellY(rect.y + rect.height + cell);
+    const ix0 = cellX(rect.x), ix1 = cellX(rect.x + rect.width);
+    const iy0 = cellY(rect.y), iy1 = cellY(rect.y + rect.height);
+    for (let gy = oy0; gy <= oy1; gy++)
+      for (let gx = ox0; gx <= ox1; gx++) {
+        const inside = gx >= ix0 && gx <= ix1 && gy >= iy0 && gy <= iy1;
+        baseCost[gy * gw + gx] += inside ? INSIDE : NEAR;
+      }
+  }
+  const useCost = new Float64Array(N);
+  const gScore = new Float64Array(N);
+  const stampArr = new Int32Array(N);
+  const fromArr = new Int32Array(N);
+  const dirArr = new Int8Array(N);
+  let stamp = 0;
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+  const STEP = [1, 1, 1, 1, Math.SQRT2, Math.SQRT2, Math.SQRT2, Math.SQRT2];
+  const order = [...reqs].sort(
+    (a, b) => dlen(a.src, a.tgt) - dlen(b.src, b.tgt) || (a.srcId < b.srcId ? -1 : a.srcId > b.srcId ? 1 : 0) || (a.tgtId < b.tgtId ? -1 : a.tgtId > b.tgtId ? 1 : 0)
+  );
+  for (const req of order) {
+    const sIdx = cellY(req.src.y) * gw + cellX(req.src.x);
+    const tIdx = cellY(req.tgt.y) * gw + cellX(req.tgt.x);
+    if (sIdx === tIdx) {
+      out[req.key] = [req.src, req.tgt];
+      continue;
+    }
+    stamp++;
+    const heapF = [], heapI = [];
+    const hpush = (f, idx) => {
+      let i2 = heapF.length;
+      heapF.push(f);
+      heapI.push(idx);
+      while (i2 > 0) {
+        const p = i2 - 1 >> 1;
+        if (heapF[p] <= heapF[i2])
+          break;
+        const tf = heapF[p];
+        heapF[p] = heapF[i2];
+        heapF[i2] = tf;
+        const ti = heapI[p];
+        heapI[p] = heapI[i2];
+        heapI[i2] = ti;
+        i2 = p;
+      }
+    };
+    const hpop = () => {
+      const top = heapI[0];
+      const lf = heapF.pop(), li = heapI.pop();
+      if (heapF.length) {
+        heapF[0] = lf;
+        heapI[0] = li;
+        let i2 = 0;
+        for (; ; ) {
+          const l = i2 * 2 + 1, r = l + 1;
+          let m = i2;
+          if (l < heapF.length && heapF[l] < heapF[m])
+            m = l;
+          if (r < heapF.length && heapF[r] < heapF[m])
+            m = r;
+          if (m === i2)
+            break;
+          const tf = heapF[m];
+          heapF[m] = heapF[i2];
+          heapF[i2] = tf;
+          const ti = heapI[m];
+          heapI[m] = heapI[i2];
+          heapI[i2] = ti;
+          i2 = m;
+        }
+      }
+      return top;
+    };
+    const tgx = tIdx % gw, tgy = tIdx / gw | 0;
+    const hDist = (idx) => Math.hypot(idx % gw - tgx, (idx / gw | 0) - tgy);
+    gScore[sIdx] = 0;
+    stampArr[sIdx] = stamp;
+    fromArr[sIdx] = -1;
+    dirArr[sIdx] = -1;
+    hpush(hDist(sIdx), sIdx);
+    let found = false;
+    let iter = 0;
+    while (heapF.length && iter < 6e4) {
+      iter++;
+      const cur = hpop();
+      if (cur === tIdx) {
+        found = true;
+        break;
+      }
+      const cgx = cur % gw, cgy = cur / gw | 0;
+      const cg = gScore[cur], cd = dirArr[cur];
+      for (let di = 0; di < 8; di++) {
+        const ngx = cgx + DIRS[di][0], ngy = cgy + DIRS[di][1];
+        if (ngx < 0 || ngy < 0 || ngx >= gw || ngy >= gh)
+          continue;
+        const nIdx = ngy * gw + ngx;
+        const ng = cg + STEP[di] + baseCost[nIdx] + useCost[nIdx] + (cd !== -1 && cd !== di ? TURN : 0);
+        if (stampArr[nIdx] === stamp && gScore[nIdx] <= ng)
+          continue;
+        stampArr[nIdx] = stamp;
+        gScore[nIdx] = ng;
+        fromArr[nIdx] = cur;
+        dirArr[nIdx] = di;
+        hpush(ng + hDist(nIdx), nIdx);
+      }
+    }
+    if (!found) {
+      out[req.key] = null;
+      continue;
+    }
+    const cellsRev = [];
+    for (let c = tIdx; c !== -1; c = fromArr[c])
+      cellsRev.push(c);
+    cellsRev.reverse();
+    const raw = cellsRev.map((c) => ({
+      x: minX + c % gw * cell + cell / 2,
+      y: minY + (c / gw | 0) * cell + cell / 2
+    }));
+    raw[0] = { x: req.src.x, y: req.src.y };
+    raw[raw.length - 1] = { x: req.tgt.x, y: req.tgt.y };
+    const blockers = [];
+    for (const { id, rect } of rects)
+      if (id !== req.srcId && id !== req.tgtId)
+        blockers.push(rect);
+    const clearSeg = (a, b) => {
+      for (const r of blockers)
+        if (segIntersectsRect(a.x, a.y, b.x, b.y, r, 6) !== null)
+          return false;
+      return true;
+    };
+    const pts = [raw[0]];
+    let i = 0;
+    while (i < raw.length - 1) {
+      let j = raw.length - 1;
+      while (j > i + 1 && !clearSeg(raw[i], raw[j]))
+        j--;
+      pts.push(raw[j]);
+      i = j;
+    }
+    out[req.key] = pts;
+    for (let k = 0; k < pts.length - 1; k++) {
+      const a = pts[k], b = pts[k + 1];
+      const steps = Math.max(1, Math.ceil(dlen(a, b) / cell));
+      for (let s = 0; s <= steps; s++) {
+        const px = a.x + (b.x - a.x) * (s / steps);
+        const py = a.y + (b.y - a.y) * (s / steps);
+        useCost[cellY(py) * gw + cellX(px)] += USE;
+      }
+    }
+  }
+  return out;
+}
 function getRoutedPath(sourcePos, targetPos, sourcePort, targetPort, obstacles, spread) {
   const pts = routeAroundObstacles(sourcePos, targetPos, obstacles);
   const dx = targetPos.x - sourcePos.x, dy = targetPos.y - sourcePos.y;
@@ -40867,61 +41075,94 @@ function getRect(nodeId, renderPositions, nodeSizes, nodes) {
     cy: pos.y + size.height / 2
   };
 }
-function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wireHoverTargetId, selectedEdgeId, highlightEdgeIds, onSelectEdge }) {
-  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-  const lineBySource = /* @__PURE__ */ new Map();
-  for (const edge of edges) {
-    if (edge.type !== "line")
-      continue;
-    if (!lineBySource.has(edge.source))
-      lineBySource.set(edge.source, []);
-    lineBySource.get(edge.source).push(edge);
-  }
-  const busEdgeIds = /* @__PURE__ */ new Set();
-  const busGroups = [];
-  lineBySource.forEach((group, srcId) => {
-    if (group.length < 2)
-      return;
-    if (!nodeMap.has(srcId))
-      return;
-    const sr = getRect(srcId, renderPositions, nodeSizes, nodes);
-    const valid = group.every((e) => {
-      if (!nodeMap.has(e.target))
-        return false;
-      const tr = getRect(e.target, renderPositions, nodeSizes, nodes);
-      return tr.x + tr.width / 2 > sr.x + sr.width / 2;
+function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wireHoverTargetId, selectedEdgeId, highlightEdgeIds, fastRoute, onSelectEdge }) {
+  const { nodeMap, busGroups, busEdgeIds, allRects, spreadMap } = (0, import_react6.useMemo)(() => {
+    const nodeMap2 = new Map(nodes.map((n) => [n.id, n]));
+    const lineBySource = /* @__PURE__ */ new Map();
+    for (const edge of edges) {
+      if (edge.type !== "line")
+        continue;
+      if (!lineBySource.has(edge.source))
+        lineBySource.set(edge.source, []);
+      lineBySource.get(edge.source).push(edge);
+    }
+    const busEdgeIds2 = /* @__PURE__ */ new Set();
+    const busGroups2 = [];
+    lineBySource.forEach((group, srcId) => {
+      if (group.length < 2)
+        return;
+      if (!nodeMap2.has(srcId))
+        return;
+      const sr = getRect(srcId, renderPositions, nodeSizes, nodes);
+      const valid = group.every((e) => {
+        if (!nodeMap2.has(e.target))
+          return false;
+        const tr = getRect(e.target, renderPositions, nodeSizes, nodes);
+        return tr.x + tr.width / 2 > sr.x + sr.width / 2;
+      });
+      if (!valid)
+        return;
+      busGroups2.push({ srcId, edgeGroup: group });
+      group.forEach((e) => busEdgeIds2.add(e.id));
     });
-    if (!valid)
-      return;
-    busGroups.push({ srcId, edgeGroup: group });
-    group.forEach((e) => busEdgeIds.add(e.id));
-  });
-  const allRects = /* @__PURE__ */ new Map();
-  for (const n of nodes) {
-    const pos = renderPositions[n.id] ?? n.position;
-    const sz = nodeSizes[n.id] ?? { width: DEFAULT_W, height: DEFAULT_H };
-    allRects.set(n.id, { x: pos.x, y: pos.y, width: sz.width, height: sz.height });
-  }
-  const spreadMap = /* @__PURE__ */ new Map();
-  const nonBusBySrc = /* @__PURE__ */ new Map();
-  for (const e of edges) {
-    if (busEdgeIds.has(e.id))
-      continue;
-    if (!nodeMap.has(e.source) || !nodeMap.has(e.target))
-      continue;
-    if (!nonBusBySrc.has(e.source))
-      nonBusBySrc.set(e.source, []);
-    nonBusBySrc.get(e.source).push(e);
-  }
-  nonBusBySrc.forEach((group) => {
-    if (group.length < 2)
-      return;
-    const sorted = [...group].sort((a, b) => {
-      const ra = allRects.get(a.target), rb = allRects.get(b.target);
-      return ra.y + ra.height / 2 - (rb.y + rb.height / 2);
-    });
-    sorted.forEach((e, idx) => spreadMap.set(e.id, (idx - (sorted.length - 1) / 2) * 16));
-  });
+    const allRects2 = /* @__PURE__ */ new Map();
+    for (const n of nodes) {
+      const pos = renderPositions[n.id] ?? n.position;
+      const sz = nodeSizes[n.id] ?? { width: DEFAULT_W, height: DEFAULT_H };
+      allRects2.set(n.id, { x: pos.x, y: pos.y, width: sz.width, height: sz.height });
+    }
+    const spreadMap2 = /* @__PURE__ */ new Map();
+    const addSpread = (groups, rectOf) => {
+      groups.forEach((group) => {
+        if (group.length < 2)
+          return;
+        const sorted = [...group].sort((a, b) => {
+          const ra = rectOf(a), rb = rectOf(b);
+          return ra.y + ra.height / 2 - (rb.y + rb.height / 2);
+        });
+        sorted.forEach((e, idx) => spreadMap2.set(e.id, (spreadMap2.get(e.id) ?? 0) + (idx - (sorted.length - 1) / 2) * 16));
+      });
+    };
+    const bySrc = /* @__PURE__ */ new Map();
+    const byTgt = /* @__PURE__ */ new Map();
+    for (const e of edges) {
+      if (busEdgeIds2.has(e.id))
+        continue;
+      if (!nodeMap2.has(e.source) || !nodeMap2.has(e.target))
+        continue;
+      if (!bySrc.has(e.source))
+        bySrc.set(e.source, []);
+      bySrc.get(e.source).push(e);
+      if (!byTgt.has(e.target))
+        byTgt.set(e.target, []);
+      byTgt.get(e.target).push(e);
+    }
+    addSpread(bySrc, (e) => allRects2.get(e.target));
+    addSpread(byTgt, (e) => allRects2.get(e.source));
+    return { nodeMap: nodeMap2, busGroups: busGroups2, busEdgeIds: busEdgeIds2, allRects: allRects2, spreadMap: spreadMap2 };
+  }, [nodes, edges, nodeSizes, renderPositions]);
+  const gridRoutes = (0, import_react6.useMemo)(() => {
+    if (fastRoute)
+      return null;
+    const reqs = [];
+    for (const edge of edges) {
+      if (busEdgeIds.has(edge.id))
+        continue;
+      const srcR = allRects.get(edge.source), tgtR = allRects.get(edge.target);
+      if (!srcR || !tgtR)
+        continue;
+      const { sourcePort, targetPort } = getNearestPorts(srcR, tgtR);
+      reqs.push({
+        key: edge.id,
+        src: getPortPosition(srcR, sourcePort),
+        tgt: getPortPosition(tgtR, targetPort),
+        srcId: edge.source,
+        tgtId: edge.target
+      });
+    }
+    const rectList = [...allRects].map(([id, rect]) => ({ id, rect }));
+    return routeEdgesOnGrid(reqs, rectList);
+  }, [edges, busEdgeIds, allRects, fastRoute]);
   return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
     "svg",
     {
@@ -41059,12 +41300,21 @@ function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wire
           const { sourcePort, targetPort } = getNearestPorts(srcRect, tgtRect);
           const srcPt = getPortPosition(srcRect, sourcePort);
           const tgtPt = getPortPosition(tgtRect, targetPort);
-          const obstacles = [];
-          allRects.forEach((r, id) => {
-            if (id !== edge.source && id !== edge.target)
-              obstacles.push(r);
-          });
-          const d = getRoutedPath(srcPt, tgtPt, sourcePort, targetPort, obstacles, spreadMap.get(edge.id) ?? 0);
+          const spread = spreadMap.get(edge.id) ?? 0;
+          const gridPts = gridRoutes ? gridRoutes[edge.id] : null;
+          let d;
+          if (gridPts && gridPts.length > 2) {
+            d = pointsToPath(spreadPoints(gridPts, spread));
+          } else if (gridPts) {
+            d = getRoutedPath(srcPt, tgtPt, sourcePort, targetPort, [], spread);
+          } else {
+            const obstacles = [];
+            allRects.forEach((r, id) => {
+              if (id !== edge.source && id !== edge.target)
+                obstacles.push(r);
+            });
+            d = getRoutedPath(srcPt, tgtPt, sourcePort, targetPort, obstacles, spread);
+          }
           const isSel = selectedEdgeId === edge.id;
           const isGen = !isSel && highlightEdgeIds.has(edge.id);
           const strokeColor = isSel ? "#007acc" : isGen ? "#f59e0b" : "#666";
@@ -41129,7 +41379,7 @@ function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wire
 }
 
 // src/webview/components/CanvasImageLayer.tsx
-var import_react6 = __toESM(require_react());
+var import_react7 = __toESM(require_react());
 var import_jsx_runtime4 = __toESM(require_jsx_runtime());
 function CanvasImageLayer({
   canvasImages,
@@ -41141,8 +41391,8 @@ function CanvasImageLayer({
   onUpdateSize,
   onDrop
 }) {
-  const [draggingId, setDraggingId] = (0, import_react6.useState)(null);
-  const viewportRef = (0, import_react6.useRef)(viewport);
+  const [draggingId, setDraggingId] = (0, import_react7.useState)(null);
+  const viewportRef = (0, import_react7.useRef)(viewport);
   viewportRef.current = viewport;
   const handleMouseDown = (e, img) => {
     if (e.button !== 0)
@@ -41266,19 +41516,19 @@ function CanvasImageLayer({
 }
 
 // src/webview/components/SearchBar.tsx
-var import_react7 = __toESM(require_react());
+var import_react8 = __toESM(require_react());
 var import_jsx_runtime5 = __toESM(require_jsx_runtime());
 function SearchBar({ query, onQueryChange, matches, showDropdown, selectedId, onSelectNode, onPreviewNode, onClose, onReopen, inputRef }) {
-  const [kbIdx, setKbIdx] = import_react7.default.useState(-1);
-  const dropRef = (0, import_react7.useRef)(null);
-  (0, import_react7.useEffect)(() => {
+  const [kbIdx, setKbIdx] = import_react8.default.useState(-1);
+  const dropRef = (0, import_react8.useRef)(null);
+  (0, import_react8.useEffect)(() => {
     inputRef.current?.focus();
   }, []);
-  const matchKey = (0, import_react7.useMemo)(() => matches.map((m) => m.id).join(","), [matches]);
-  (0, import_react7.useEffect)(() => {
+  const matchKey = (0, import_react8.useMemo)(() => matches.map((m) => m.id).join(","), [matches]);
+  (0, import_react8.useEffect)(() => {
     setKbIdx(-1);
   }, [matchKey]);
-  (0, import_react7.useEffect)(() => {
+  (0, import_react8.useEffect)(() => {
     if (!dropRef.current || kbIdx < 0)
       return;
     const el = dropRef.current.querySelector(`[data-kb-idx="${kbIdx}"]`);
@@ -41729,46 +41979,46 @@ function Canvas({
   onMoveCanvasImageToNode,
   lastAddedCanvasImageId
 }) {
-  const divRef = (0, import_react8.useRef)(null);
-  const [nodeSizes, setNodeSizes] = (0, import_react8.useState)({});
-  const [fontDropOpen, setFontDropOpen] = (0, import_react8.useState)(false);
-  const fontInputRef = (0, import_react8.useRef)(null);
-  const fontDropPosRef = (0, import_react8.useRef)({ left: 0, top: 0 });
-  const [selectedIds, _setSelectedIds] = (0, import_react8.useState)(/* @__PURE__ */ new Set());
-  const selectedIdsRef = (0, import_react8.useRef)(/* @__PURE__ */ new Set());
-  const hoveredNodeIdRef = (0, import_react8.useRef)(null);
-  const setSelectedIds = (0, import_react8.useCallback)((val) => {
+  const divRef = (0, import_react9.useRef)(null);
+  const [nodeSizes, setNodeSizes] = (0, import_react9.useState)({});
+  const [fontDropOpen, setFontDropOpen] = (0, import_react9.useState)(false);
+  const fontInputRef = (0, import_react9.useRef)(null);
+  const fontDropPosRef = (0, import_react9.useRef)({ left: 0, top: 0 });
+  const [selectedIds, _setSelectedIds] = (0, import_react9.useState)(/* @__PURE__ */ new Set());
+  const selectedIdsRef = (0, import_react9.useRef)(/* @__PURE__ */ new Set());
+  const hoveredNodeIdRef = (0, import_react9.useRef)(null);
+  const setSelectedIds = (0, import_react9.useCallback)((val) => {
     _setSelectedIds((prev) => {
       const next = typeof val === "function" ? val(prev) : val;
       selectedIdsRef.current = next;
       return next;
     });
   }, []);
-  const [selectedCanvasImgIds, _setSelectedCanvasImgIds] = (0, import_react8.useState)(/* @__PURE__ */ new Set());
-  const selectedCanvasImgIdsRef = (0, import_react8.useRef)(/* @__PURE__ */ new Set());
-  const setSelectedCanvasImgIds = (0, import_react8.useCallback)((val) => {
+  const [selectedCanvasImgIds, _setSelectedCanvasImgIds] = (0, import_react9.useState)(/* @__PURE__ */ new Set());
+  const selectedCanvasImgIdsRef = (0, import_react9.useRef)(/* @__PURE__ */ new Set());
+  const setSelectedCanvasImgIds = (0, import_react9.useCallback)((val) => {
     selectedCanvasImgIdsRef.current = val;
     _setSelectedCanvasImgIds(val);
   }, []);
-  const canvasClipboardRef = (0, import_react8.useRef)(null);
-  const pasteBlockedRef = (0, import_react8.useRef)(false);
-  const mousePosRef = (0, import_react8.useRef)({ x: 0, y: 0 });
-  const [selectionBox, setSelectionBox] = (0, import_react8.useState)(null);
-  const [selectedTemplate, setSelectedTemplate] = (0, import_react8.useState)("");
-  const selBoxRef = (0, import_react8.useRef)(null);
-  const panStartPosRef = (0, import_react8.useRef)(null);
-  const [wireDrawing, setWireDrawing] = (0, import_react8.useState)(null);
-  const [wireHoverTarget, setWireHoverTarget] = (0, import_react8.useState)(null);
-  const [draggingNodeId, setDraggingNodeId] = (0, import_react8.useState)(null);
-  const [selectedEdgeId, _setSelectedEdgeId] = (0, import_react8.useState)(null);
-  const selectedEdgeIdRef = (0, import_react8.useRef)(null);
-  const setSelectedEdgeId = (0, import_react8.useCallback)((id) => {
+  const canvasClipboardRef = (0, import_react9.useRef)(null);
+  const pasteBlockedRef = (0, import_react9.useRef)(false);
+  const mousePosRef = (0, import_react9.useRef)({ x: 0, y: 0 });
+  const [selectionBox, setSelectionBox] = (0, import_react9.useState)(null);
+  const [selectedTemplate, setSelectedTemplate] = (0, import_react9.useState)("");
+  const selBoxRef = (0, import_react9.useRef)(null);
+  const panStartPosRef = (0, import_react9.useRef)(null);
+  const [wireDrawing, setWireDrawing] = (0, import_react9.useState)(null);
+  const [wireHoverTarget, setWireHoverTarget] = (0, import_react9.useState)(null);
+  const [draggingNodeId, setDraggingNodeId] = (0, import_react9.useState)(null);
+  const [selectedEdgeId, _setSelectedEdgeId] = (0, import_react9.useState)(null);
+  const selectedEdgeIdRef = (0, import_react9.useRef)(null);
+  const setSelectedEdgeId = (0, import_react9.useCallback)((id) => {
     selectedEdgeIdRef.current = id;
     _setSelectedEdgeId(id);
   }, []);
-  const lastToolbarInteractionRef = (0, import_react8.useRef)(0);
-  const toolbarRef = (0, import_react8.useRef)(null);
-  (0, import_react8.useEffect)(() => {
+  const lastToolbarInteractionRef = (0, import_react9.useRef)(0);
+  const toolbarRef = (0, import_react9.useRef)(null);
+  (0, import_react9.useEffect)(() => {
     const el = toolbarRef.current;
     if (!el)
       return;
@@ -41784,29 +42034,29 @@ function Canvas({
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
-  const [searchOpen, setSearchOpen] = (0, import_react8.useState)(false);
-  const [searchQuery, setSearchQuery] = (0, import_react8.useState)("");
-  const [searchSelectedId, setSearchSelectedId] = (0, import_react8.useState)(null);
-  const searchInputRef = (0, import_react8.useRef)(null);
-  const searchSelectedIdRef = (0, import_react8.useRef)(null);
+  const [searchOpen, setSearchOpen] = (0, import_react9.useState)(false);
+  const [searchQuery, setSearchQuery] = (0, import_react9.useState)("");
+  const [searchSelectedId, setSearchSelectedId] = (0, import_react9.useState)(null);
+  const searchInputRef = (0, import_react9.useRef)(null);
+  const searchSelectedIdRef = (0, import_react9.useRef)(null);
   searchSelectedIdRef.current = searchSelectedId;
-  const searchOpenRef = (0, import_react8.useRef)(false);
+  const searchOpenRef = (0, import_react9.useRef)(false);
   searchOpenRef.current = searchOpen;
-  (0, import_react8.useEffect)(() => {
+  (0, import_react9.useEffect)(() => {
     if (openSearchSignal === 0)
       return;
     setSearchOpen(true);
     setTimeout(() => searchInputRef.current?.focus(), 0);
   }, [openSearchSignal]);
-  const viewportRef = (0, import_react8.useRef)(viewport);
+  const viewportRef = (0, import_react9.useRef)(viewport);
   viewportRef.current = viewport;
-  const graphNodesRef = (0, import_react8.useRef)(graph.nodes);
+  const graphNodesRef = (0, import_react9.useRef)(graph.nodes);
   graphNodesRef.current = graph.nodes;
-  const canvasImagesRef = (0, import_react8.useRef)(graph.canvasImages);
+  const canvasImagesRef = (0, import_react9.useRef)(graph.canvasImages);
   canvasImagesRef.current = graph.canvasImages;
-  const renderPositionsRef = (0, import_react8.useRef)({});
-  const nodeSizesRef = (0, import_react8.useRef)({});
-  (0, import_react8.useEffect)(() => {
+  const renderPositionsRef = (0, import_react9.useRef)({});
+  const nodeSizesRef = (0, import_react9.useRef)({});
+  (0, import_react9.useEffect)(() => {
     const el = divRef.current;
     if (!el)
       return;
@@ -41821,14 +42071,14 @@ function Canvas({
       el.removeEventListener("mousedown", onMidDown);
     };
   }, [nativeWheelHandler]);
-  (0, import_react8.useEffect)(() => {
+  (0, import_react9.useEffect)(() => {
     const onMove = (e) => {
       mousePosRef.current = { x: e.clientX, y: e.clientY };
     };
     window.addEventListener("mousemove", onMove);
     return () => window.removeEventListener("mousemove", onMove);
   }, []);
-  (0, import_react8.useEffect)(() => {
+  (0, import_react9.useEffect)(() => {
     const handler = (e) => {
       const active = document.activeElement;
       console.log("[KB]", e.key, "ctrl:", e.ctrlKey, "meta:", e.metaKey, "active:", active?.tagName, active?.id);
@@ -41988,7 +42238,7 @@ function Canvas({
     window.addEventListener("keydown", handler, true);
     return () => window.removeEventListener("keydown", handler, true);
   }, [onRemoveCanvasImage, onAddCanvasImage, onSaveImage, onSaveCanvasImage]);
-  (0, import_react8.useEffect)(() => {
+  (0, import_react9.useEffect)(() => {
     if (selectedIds.size >= 1) {
       const active = document.activeElement;
       if (active?.tagName !== "TEXTAREA" && active?.tagName !== "INPUT") {
@@ -41996,14 +42246,14 @@ function Canvas({
       }
     }
   }, [selectedIds]);
-  const handleNodeHoverStart = (0, import_react8.useCallback)((id) => {
+  const handleNodeHoverStart = (0, import_react9.useCallback)((id) => {
     hoveredNodeIdRef.current = id;
   }, []);
-  const handleNodeHoverEnd = (0, import_react8.useCallback)((id) => {
+  const handleNodeHoverEnd = (0, import_react9.useCallback)((id) => {
     if (hoveredNodeIdRef.current === id)
       hoveredNodeIdRef.current = null;
   }, []);
-  const handleCanvasPaste = (0, import_react8.useCallback)(async (e) => {
+  const handleCanvasPaste = (0, import_react9.useCallback)(async (e) => {
     const ids = selectedIdsRef.current;
     const nodeId = ids.size === 1 ? [...ids][0] : hoveredNodeIdRef.current;
     console.log("[PASTE] fired. nodeId=", nodeId, "clipboard=", canvasClipboardRef.current);
@@ -42070,25 +42320,25 @@ function Canvas({
     } catch {
     }
   }, [onSaveImage, onSaveCanvasImage, onAddCanvasImage]);
-  (0, import_react8.useEffect)(() => {
+  (0, import_react9.useEffect)(() => {
     if (lastAddedCanvasImageId) {
       setSelectedCanvasImgIds(/* @__PURE__ */ new Set([lastAddedCanvasImageId]));
       divRef.current?.focus({ preventScroll: true });
     }
   }, [lastAddedCanvasImageId]);
-  (0, import_react8.useEffect)(() => {
+  (0, import_react9.useEffect)(() => {
     setSelectedIds((prev) => {
       const nodeIds = new Set(graph.nodes.map((n) => n.id));
       const next = new Set([...prev].filter((id) => nodeIds.has(id)));
       return next.size === prev.size ? prev : next;
     });
   }, [graph.nodes]);
-  (0, import_react8.useEffect)(() => {
+  (0, import_react9.useEffect)(() => {
     const keys = Object.keys(graph.nodeTemplates);
     if (keys.length > 0 && !keys.includes(selectedTemplate))
       setSelectedTemplate(keys[0]);
   }, [graph.nodeTemplates, selectedTemplate]);
-  const handleNodeResize = (0, import_react8.useCallback)((id, width, height) => {
+  const handleNodeResize = (0, import_react9.useCallback)((id, width, height) => {
     setNodeSizes((prev) => {
       const cur = prev[id];
       if (cur && cur.width === width && cur.height === height)
@@ -42096,13 +42346,13 @@ function Canvas({
       return { ...prev, [id]: { width, height } };
     });
   }, []);
-  const renderPositions = (0, import_react8.useMemo)(
+  const renderPositions = (0, import_react9.useMemo)(
     () => computeRenderPositions(graph.nodes, nodeSizes, graph.nodeTemplates, graph.edges, draggingNodeId),
     [graph.nodes, nodeSizes, graph.nodeTemplates, graph.edges, draggingNodeId]
   );
   renderPositionsRef.current = renderPositions;
   nodeSizesRef.current = nodeSizes;
-  const searchMatchNodes = (0, import_react8.useMemo)(() => {
+  const searchMatchNodes = (0, import_react9.useMemo)(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q)
       return [];
@@ -42111,7 +42361,7 @@ function Canvas({
     ).map((n) => ({ id: n.id, title: n.title }));
   }, [searchQuery, graph.nodes]);
   const showSearchDropdown = searchOpen && searchQuery.trim() !== "" && searchSelectedId === null;
-  const genHighlight = (0, import_react8.useMemo)(() => {
+  const genHighlight = (0, import_react9.useMemo)(() => {
     const nodeIds = /* @__PURE__ */ new Set();
     const edgeIds = /* @__PURE__ */ new Set();
     if (selectedIds.size === 0)
@@ -42136,7 +42386,7 @@ function Canvas({
     }
     return { nodeIds, edgeIds };
   }, [selectedIds, graph.edges, graph.nodes]);
-  const flyToNode = (0, import_react8.useCallback)((nodeId) => {
+  const flyToNode = (0, import_react9.useCallback)((nodeId) => {
     const node = graph.nodes.find((n) => n.id === nodeId);
     if (!node || !divRef.current)
       return;
@@ -42151,10 +42401,10 @@ function Canvas({
       y: clientHeight / 2 - (pos.y + nodeH / 2) * vp.zoom
     });
   }, [graph.nodes, onSetViewport]);
-  const handlePreviewSearchNode = (0, import_react8.useCallback)((id) => {
+  const handlePreviewSearchNode = (0, import_react9.useCallback)((id) => {
     flyToNode(id);
   }, [flyToNode]);
-  const handleSelectSearchNode = (0, import_react8.useCallback)((id) => {
+  const handleSelectSearchNode = (0, import_react9.useCallback)((id) => {
     setSearchSelectedId(id);
     for (const match of searchMatchNodes) {
       const node = graph.nodes.find((n) => n.id === match.id);
@@ -42170,16 +42420,16 @@ function Canvas({
     }
     requestAnimationFrame(() => flyToNode(id));
   }, [flyToNode, searchMatchNodes, graph.nodes, onToggleContent]);
-  const handleSearchQueryChange = (0, import_react8.useCallback)((q) => {
+  const handleSearchQueryChange = (0, import_react9.useCallback)((q) => {
     setSearchQuery(q);
     setSearchSelectedId(null);
   }, []);
-  const handleCloseSearch = (0, import_react8.useCallback)(() => {
+  const handleCloseSearch = (0, import_react9.useCallback)(() => {
     setSearchOpen(false);
     setSearchQuery("");
     setSearchSelectedId(null);
   }, []);
-  const handleToggleContent = (0, import_react8.useCallback)((id) => {
+  const handleToggleContent = (0, import_react9.useCallback)((id) => {
     onToggleContent(id);
     const pinnedId = searchSelectedIdRef.current;
     if (pinnedId) {
@@ -42189,7 +42439,7 @@ function Canvas({
       requestAnimationFrame(() => searchInputRef.current?.focus());
     }
   }, [onToggleContent, flyToNode]);
-  const handleNodeSelect = (0, import_react8.useCallback)((id, additive) => {
+  const handleNodeSelect = (0, import_react9.useCallback)((id, additive) => {
     setSelectedCanvasImgIds(/* @__PURE__ */ new Set());
     setSelectedEdgeId(null);
     setSelectedIds((prev) => {
@@ -42206,7 +42456,7 @@ function Canvas({
       return /* @__PURE__ */ new Set([id]);
     });
   }, [setSelectedCanvasImgIds]);
-  const handlePortDragStart = (0, import_react8.useCallback)((nodeId, port, clientX, clientY) => {
+  const handlePortDragStart = (0, import_react9.useCallback)((nodeId, port, clientX, clientY) => {
     const toCanvas = (cx, cy) => ({
       x: (cx - viewport.x) / viewport.zoom,
       y: (cy - viewport.y) / viewport.zoom
@@ -42240,7 +42490,7 @@ function Canvas({
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   }, [viewport, graph.nodes, renderPositions, nodeSizes, onAddEdge]);
-  const handleCanvasMouseDown = (0, import_react8.useCallback)((e) => {
+  const handleCanvasMouseDown = (0, import_react9.useCallback)((e) => {
     if (e.button === 2) {
       e.preventDefault();
       const startX = e.clientX, startY = e.clientY;
@@ -42304,12 +42554,12 @@ function Canvas({
       e.preventDefault();
     }
   }, [onMouseDown]);
-  const handleCanvasMouseMove = (0, import_react8.useCallback)((e) => {
+  const handleCanvasMouseMove = (0, import_react9.useCallback)((e) => {
     if (!selBoxRef.current) {
       onMouseMove(e);
     }
   }, [onMouseMove]);
-  const handleCanvasMouseUp = (0, import_react8.useCallback)((e) => {
+  const handleCanvasMouseUp = (0, import_react9.useCallback)((e) => {
     if (e.button === 0) {
       const start = panStartPosRef.current;
       panStartPosRef.current = null;
@@ -42330,10 +42580,10 @@ function Canvas({
       onMouseUp(e);
     }
   }, [onMouseUp, setSelectedCanvasImgIds]);
-  const handleCanvasMouseLeave = (0, import_react8.useCallback)((e) => {
+  const handleCanvasMouseLeave = (0, import_react9.useCallback)((e) => {
     onMouseLeave(e);
   }, [onMouseLeave]);
-  const handleAddNode = (0, import_react8.useCallback)(() => {
+  const handleAddNode = (0, import_react9.useCallback)(() => {
     const el = divRef.current;
     if (!el)
       return;
@@ -42365,13 +42615,13 @@ function Canvas({
     }
     onAddNode(baseX, baseY, selectedTemplate);
   }, [viewport, graph.nodes, onAddNode, selectedTemplate]);
-  const handleDeleteSelected = (0, import_react8.useCallback)(() => {
+  const handleDeleteSelected = (0, import_react9.useCallback)(() => {
     if (selectedIds.size === 0)
       return;
     onDeleteNodes([...selectedIds]);
     setSelectedIds(/* @__PURE__ */ new Set());
   }, [selectedIds, onDeleteNodes]);
-  const handleFitView = (0, import_react8.useCallback)(() => {
+  const handleFitView = (0, import_react9.useCallback)(() => {
     const el = divRef.current;
     if (!el || graph.nodes.length === 0)
       return;
@@ -42389,7 +42639,7 @@ function Canvas({
     const zoom = Math.min((W - pad2 * 2) / (maxX - minX), (H - pad2 * 2) / (maxY - minY), 1.5);
     onSetViewport({ zoom, x: (W - (maxX - minX) * zoom) / 2 - minX * zoom, y: (H - (maxY - minY) * zoom) / 2 - minY * zoom });
   }, [graph.nodes, nodeSizes, renderPositions, onSetViewport]);
-  const handleCanvasImageDrop = (0, import_react8.useCallback)((imgId, clientX, clientY) => {
+  const handleCanvasImageDrop = (0, import_react9.useCallback)((imgId, clientX, clientY) => {
     const elements = document.elementsFromPoint(clientX, clientY);
     const el = elements.find((e) => !e.closest(".canvas-image-item")) ?? null;
     if (!el)
@@ -42845,6 +43095,7 @@ function Canvas({
                 wireHoverTargetId: wireHoverTarget,
                 selectedEdgeId,
                 highlightEdgeIds: genHighlight.edgeIds,
+                fastRoute: draggingNodeId !== null,
                 onSelectEdge: setSelectedEdgeId
               }
             )
@@ -42944,12 +43195,12 @@ function App() {
     onMouseLeave,
     onContextMenu
   } = useViewport();
-  (0, import_react9.useEffect)(() => {
+  (0, import_react10.useEffect)(() => {
     if (graph?.viewport)
       setViewport(graph.viewport);
   }, [graph !== null]);
-  const [openSearchSignal, setOpenSearchSignal] = import_react9.default.useState(0);
-  (0, import_react9.useEffect)(() => {
+  const [openSearchSignal, setOpenSearchSignal] = import_react10.default.useState(0);
+  (0, import_react10.useEffect)(() => {
     const handler = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
@@ -42967,7 +43218,7 @@ function App() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [undo, redo, saveGraph]);
-  (0, import_react9.useEffect)(() => {
+  (0, import_react10.useEffect)(() => {
     const handler = (e) => {
       if (e.data?.type === "openSearch")
         setOpenSearchSignal((n) => n + 1);

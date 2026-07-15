@@ -671,7 +671,7 @@ function onNodeTagMousedown(e, nodeEl) {
     if (!moved && (Math.abs(rawDx) > 5 || Math.abs(rawDy) > 5)) { moved = true; nodeEl.classList.add('ng-dragging'); }
     if (moved) {
       var dx = rawDx / scale, dy = rawDy / scale;
-      nodeEl.style.left=(left0+dx)+'px'; nodeEl.style.top=(top0+dy)+'px'; finalDX=dx; finalDY=dy; drawEdges();
+      nodeEl.style.left=(left0+dx)+'px'; nodeEl.style.top=(top0+dy)+'px'; finalDX=dx; finalDY=dy; drawEdges(true);
     }
   }
   function onUp() {
@@ -931,9 +931,153 @@ function routeAround(src,tgt,obstacles){
   }
   return pts;
 }
+// \uACBD\uC720\uC810 \uD3F4\uB9AC\uB77C\uC778 \u2192 \uBD80\uB4DC\uB7EC\uC6B4 path (\uACBD\uC720\uC810 = Q \uC81C\uC5B4\uC810, \uB2E4\uC74C \uACBD\uC720\uC810\uACFC\uC758 \uC911\uC810 \uC5F0\uACB0)
+function ptsToPath(P){
+  if(P.length<2) return '';
+  if(P.length===2) return 'M'+P[0].x+','+P[0].y+' L'+P[1].x+','+P[1].y;
+  var d='M'+P[0].x+','+P[0].y;
+  for(var k=1;k<P.length-1;k++){
+    var ex,ey;
+    if(k<P.length-2){ex=(P[k].x+P[k+1].x)/2;ey=(P[k].y+P[k+1].y)/2;}
+    else{ex=P[P.length-1].x;ey=P[P.length-1].y;}
+    d+=' Q'+P[k].x+','+P[k].y+' '+ex+','+ey;
+  }
+  return d;
+}
+// \uD3F4\uB9AC\uB77C\uC778 \uC911\uAC04 \uACBD\uC720\uC810\uB4E4\uC744 \uBC95\uC120 \uBC29\uD5A5\uC73C\uB85C spread\uB9CC\uD07C \uC774\uB3D9 (\uD3C9\uD589 \uC5E3\uC9C0 \uBD84\uC0B0)
+function spreadPts(pts,spread){
+  if(!spread||pts.length<3) return pts;
+  var s=pts[0],t=pts[pts.length-1];
+  var dl=dlen(s,t)||1;
+  var nx=-(t.y-s.y)/dl,ny=(t.x-s.x)/dl;
+  var mid=pts.slice(1,-1).map(function(p){return{x:p.x+nx*spread,y:p.y+ny*spread};});
+  return [s].concat(mid,[t]);
+}
+// \u2500\u2500 \uADF8\uB9AC\uB4DC A* \uC804\uC5ED \uB77C\uC6B0\uD305 (\uC5D0\uB514\uD130 wireGeometry.routeEdgesOnGrid\uC640 \uB3D9\uC77C \uC54C\uACE0\uB9AC\uC998) \u2500\u2500
+// \uC140 \uBE44\uC6A9: \uB178\uB4DC \uB0B4\uBD80 200(\uBD88\uAC00\uD53C\uD558\uBA74 \uD1B5\uACFC \uAC00\uB2A5), \uB178\uB4DC \uC8FC\uBCC0 \uBC34\uB4DC 8(\uAC70\uB9AC \uC720\uC9C0),
+// \uC774\uBBF8 \uD655\uC815\uB41C \uC120\uC774 \uC9C0\uB098\uAC04 \uC140 +14(\uC120\uB07C\uB9AC \uBD84\uC0B0 \u2014 \uBE48 \uACF5\uAC04\uC774 \uC788\uC73C\uBA74 \uADF8\uCABD\uC73C\uB85C \uC6B0\uD68C)
+function routeEdgesGrid(reqs,rects){
+  var out={};
+  if(!reqs.length) return out;
+  var NEAR=8,INSIDE=200,USE=14,TURN=0.4;
+  var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  rects.forEach(function(o){var r=o.rect;
+    minX=Math.min(minX,r.x);minY=Math.min(minY,r.y);
+    maxX=Math.max(maxX,r.x+r.w);maxY=Math.max(maxY,r.y+r.h);});
+  reqs.forEach(function(r){
+    minX=Math.min(minX,r.src.x,r.tgt.x);minY=Math.min(minY,r.src.y,r.tgt.y);
+    maxX=Math.max(maxX,r.src.x,r.tgt.x);maxY=Math.max(maxY,r.src.y,r.tgt.y);});
+  minX-=80;minY-=80;maxX+=80;maxY+=80;
+  var cell=24;
+  while(((maxX-minX)/cell)*((maxY-minY)/cell)>150000) cell*=2;
+  var gw=Math.max(2,Math.ceil((maxX-minX)/cell));
+  var gh=Math.max(2,Math.ceil((maxY-minY)/cell));
+  var N=gw*gh;
+  function cellX(x){return Math.min(gw-1,Math.max(0,Math.floor((x-minX)/cell)));}
+  function cellY(y){return Math.min(gh-1,Math.max(0,Math.floor((y-minY)/cell)));}
+  var baseCost=new Float64Array(N);
+  rects.forEach(function(o){var r=o.rect;
+    var ox0=cellX(r.x-cell),ox1=cellX(r.x+r.w+cell);
+    var oy0=cellY(r.y-cell),oy1=cellY(r.y+r.h+cell);
+    var ix0=cellX(r.x),ix1=cellX(r.x+r.w),iy0=cellY(r.y),iy1=cellY(r.y+r.h);
+    for(var gy=oy0;gy<=oy1;gy++)for(var gx=ox0;gx<=ox1;gx++){
+      var inside=gx>=ix0&&gx<=ix1&&gy>=iy0&&gy<=iy1;
+      baseCost[gy*gw+gx]+=inside?INSIDE:NEAR;
+    }});
+  var useCost=new Float64Array(N),gScore=new Float64Array(N);
+  var stampArr=new Int32Array(N),fromArr=new Int32Array(N),dirArr=new Int8Array(N);
+  var stamp=0;
+  var DIRS8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+  var STEP8=[1,1,1,1,Math.SQRT2,Math.SQRT2,Math.SQRT2,Math.SQRT2];
+  // \uC9E7\uC740 \uC5E3\uC9C0\uBD80\uD130 (\uB3D9\uB960\uC774\uBA74 srcId/tgtId \uC0AC\uC804\uC21C \u2014 \uC5D0\uB514\uD130\uC640 \uACB0\uACFC \uC77C\uCE58 \uBCF4\uC7A5)
+  var order=reqs.slice().sort(function(a,b){
+    return (dlen(a.src,a.tgt)-dlen(b.src,b.tgt))||
+      (a.srcId<b.srcId?-1:a.srcId>b.srcId?1:0)||
+      (a.tgtId<b.tgtId?-1:a.tgtId>b.tgtId?1:0);});
+  order.forEach(function(req){
+    var sIdx=cellY(req.src.y)*gw+cellX(req.src.x);
+    var tIdx=cellY(req.tgt.y)*gw+cellX(req.tgt.x);
+    if(sIdx===tIdx){out[req.key]=[req.src,req.tgt];return;}
+    stamp++;
+    var heapF=[],heapI=[];
+    function hpush(f,idx){
+      var i=heapF.length;heapF.push(f);heapI.push(idx);
+      while(i>0){var p=(i-1)>>1;
+        if(heapF[p]<=heapF[i])break;
+        var tf=heapF[p];heapF[p]=heapF[i];heapF[i]=tf;
+        var ti=heapI[p];heapI[p]=heapI[i];heapI[i]=ti;i=p;}
+    }
+    function hpop(){
+      var top=heapI[0];var lf=heapF.pop(),li=heapI.pop();
+      if(heapF.length){heapF[0]=lf;heapI[0]=li;var i=0;
+        for(;;){var l=i*2+1,r=l+1,m=i;
+          if(l<heapF.length&&heapF[l]<heapF[m])m=l;
+          if(r<heapF.length&&heapF[r]<heapF[m])m=r;
+          if(m===i)break;
+          var tf=heapF[m];heapF[m]=heapF[i];heapF[i]=tf;
+          var ti=heapI[m];heapI[m]=heapI[i];heapI[i]=ti;i=m;}}
+      return top;
+    }
+    var tgx=tIdx%gw,tgy=(tIdx/gw)|0;
+    function hDist(idx){return Math.hypot((idx%gw)-tgx,((idx/gw)|0)-tgy);}
+    gScore[sIdx]=0;stampArr[sIdx]=stamp;fromArr[sIdx]=-1;dirArr[sIdx]=-1;
+    hpush(hDist(sIdx),sIdx);
+    var found=false,iter=0;
+    while(heapF.length&&iter<60000){
+      iter++;
+      var cur=hpop();
+      if(cur===tIdx){found=true;break;}
+      var cgx=cur%gw,cgy=(cur/gw)|0,cg=gScore[cur],cd=dirArr[cur];
+      for(var di=0;di<8;di++){
+        var ngx=cgx+DIRS8[di][0],ngy=cgy+DIRS8[di][1];
+        if(ngx<0||ngy<0||ngx>=gw||ngy>=gh)continue;
+        var nIdx=ngy*gw+ngx;
+        var ng=cg+STEP8[di]+baseCost[nIdx]+useCost[nIdx]+(cd!==-1&&cd!==di?TURN:0);
+        if(stampArr[nIdx]===stamp&&gScore[nIdx]<=ng)continue;
+        stampArr[nIdx]=stamp;gScore[nIdx]=ng;fromArr[nIdx]=cur;dirArr[nIdx]=di;
+        hpush(ng+hDist(nIdx),nIdx);
+      }
+    }
+    if(!found){out[req.key]=null;return;}
+    // \uACBD\uB85C \uBCF5\uC6D0 (\uC140 \uC911\uC2EC) \u2014 \uC591 \uB05D\uC740 \uC2E4\uC81C \uD3EC\uD2B8 \uC88C\uD45C\uB85C \uB300\uCCB4
+    var cellsRev=[];
+    for(var c=tIdx;c!==-1;c=fromArr[c])cellsRev.push(c);
+    cellsRev.reverse();
+    var raw=cellsRev.map(function(c2){return{x:minX+(c2%gw)*cell+cell/2,y:minY+((c2/gw)|0)*cell+cell/2};});
+    raw[0]={x:req.src.x,y:req.src.y};
+    raw[raw.length-1]={x:req.tgt.x,y:req.tgt.y};
+    // string pulling: \uC790\uAE30 \uC591\uB05D \uB178\uB4DC\uB97C \uC81C\uC678\uD55C \uB178\uB4DC \uB0B4\uBD80\uB97C \uC9C0\uB098\uC9C0 \uC54A\uB294 \uD55C \uC9C1\uC120\uD654
+    var blockers=[];
+    rects.forEach(function(o){if(o.id!==req.srcId&&o.id!==req.tgtId)blockers.push(o.rect);});
+    function clearSeg(a,b){
+      for(var bi=0;bi<blockers.length;bi++)
+        if(segRectT(a.x,a.y,b.x,b.y,blockers[bi],6)!==null)return false;
+      return true;
+    }
+    var pts=[raw[0]];
+    var i2=0;
+    while(i2<raw.length-1){
+      var j=raw.length-1;
+      while(j>i2+1&&!clearSeg(raw[i2],raw[j]))j--;
+      pts.push(raw[j]);i2=j;
+    }
+    out[req.key]=pts;
+    // \uC774\uD6C4 \uC5E3\uC9C0\uC758 congestion \uBE44\uC6A9: \uD655\uC815 \uACBD\uB85C\uAC00 \uC9C0\uB098\uB294 \uC140\uC5D0 \uAC00\uC0B0
+    for(var k=0;k<pts.length-1;k++){
+      var a2=pts[k],b2=pts[k+1];
+      var steps=Math.max(1,Math.ceil(dlen(a2,b2)/cell));
+      for(var s2=0;s2<=steps;s2++){
+        var px=a2.x+(b2.x-a2.x)*(s2/steps);
+        var py=a2.y+(b2.y-a2.y)*(s2/steps);
+        useCost[cellY(py)*gw+cellX(px)]+=USE;
+      }
+    }
+  });
+  return out;
+}
 function svgLine(x1,y1,x2,y2,stroke,sw){var l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('stroke',stroke);l.setAttribute('stroke-width',sw);return l;}
 function svgCirc(cx,cy,r,fill){var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',r);c.setAttribute('fill',fill);return c;}
-function drawEdges() {
+function drawEdges(fast) {
   var svg=document.getElementById('wire-svg');
   svg.querySelectorAll('.ng-eg').forEach(function(el){el.remove();});
 
@@ -999,23 +1143,46 @@ function drawEdges() {
     if(el) rectById[n.id]=getNodeRect(el);
   });
 
-  // \uAC19\uC740 source\uC5D0\uC11C \uB098\uAC00\uB294 \uBE44-\uBC84\uC2A4 \uC5E3\uC9C0 \uBD84\uC0B0(spread) \uC624\uD504\uC14B \u2014 \uACB9\uCE68 \uBC29\uC9C0
+  // \uAC19\uC740 source\uC5D0\uC11C \uB098\uAC00\uAC70\uB098 \uAC19\uC740 target\uC73C\uB85C \uBAA8\uC774\uB294 \uBE44-\uBC84\uC2A4 \uC5E3\uC9C0 \uBD84\uC0B0 \uC624\uD504\uC14B (\uD569\uC0B0)
   var spreadByIdx={};
   (function(){
-    var groups={};
+    var bySrc={},byTgt={};
     EDGES.forEach(function(e,idx){
       if(busDrawn[e.source+'-'+e.target]) return;
       if(!rectById[e.source]||!rectById[e.target]) return;
-      if(!groups[e.source]) groups[e.source]=[];
-      groups[e.source].push(idx);
+      (bySrc[e.source]=bySrc[e.source]||[]).push(idx);
+      (byTgt[e.target]=byTgt[e.target]||[]).push(idx);
     });
-    Object.keys(groups).forEach(function(src){
-      var idxs=groups[src];
-      if(idxs.length<2) return;
-      idxs.sort(function(ia,ib){return rectById[EDGES[ia].target].cy-rectById[EDGES[ib].target].cy;});
-      idxs.forEach(function(ei,k){spreadByIdx[ei]=(k-(idxs.length-1)/2)*16;});
-    });
+    function add(groups,cyOf){
+      Object.keys(groups).forEach(function(gk){
+        var idxs=groups[gk];
+        if(idxs.length<2) return;
+        idxs.sort(function(ia,ib){return cyOf(ia)-cyOf(ib);});
+        idxs.forEach(function(ei,k){spreadByIdx[ei]=(spreadByIdx[ei]||0)+(k-(idxs.length-1)/2)*16;});
+      });
+    }
+    add(bySrc,function(i){return rectById[EDGES[i].target].cy;});
+    add(byTgt,function(i){return rectById[EDGES[i].source].cy;});
   })();
+
+  // \uADF8\uB9AC\uB4DC A* \uC804\uC5ED \uB77C\uC6B0\uD305 \u2014 \uB4DC\uB798\uADF8 \uC911(fast)\uC5D0\uB294 \uC2A4\uD0B5\uD558\uACE0 \uACBD\uB7C9 \uD734\uB9AC\uC2A4\uD2F1 \uC0AC\uC6A9
+  var gridRoutes=null;
+  if(!fast){
+    var reqs=[];
+    EDGES.forEach(function(e,idx){
+      if(busDrawn[e.source+'-'+e.target]) return;
+      var sr3=rectById[e.source],tr3=rectById[e.target];
+      if(!sr3||!tr3) return;
+      var ports3=getBestPorts(sr3,tr3);
+      if(!ports3) return;
+      reqs.push({key:String(idx),
+        src:{x:ports3.sp.p[0],y:ports3.sp.p[1]},
+        tgt:{x:ports3.tp.p[0],y:ports3.tp.p[1]},
+        srcId:e.source,tgtId:e.target});
+    });
+    var rectList=Object.keys(rectById).map(function(nid){return{id:nid,rect:rectById[nid]};});
+    gridRoutes=routeEdgesGrid(reqs,rectList);
+  }
 
   // Remaining edges: obstacle-avoiding curves
   EDGES.forEach(function(edge,edgeIdx){
@@ -1026,32 +1193,34 @@ function drawEdges() {
     if(!ports) return;
     var sp=ports.sp.p,spD=DIR[ports.sp.name],tp=ports.tp.p,tpD=DIR[ports.tp.name];
     var srcP={x:sp[0],y:sp[1]},tgtP={x:tp[0],y:tp[1]};
-    var obstacles=[];
-    Object.keys(rectById).forEach(function(nid){
-      if(nid!==edge.source&&nid!==edge.target) obstacles.push(rectById[nid]);
-    });
-    var pts=routeAround(srcP,tgtP,obstacles);
     var ddl=dlen(srcP,tgtP)||1;
     var nx=-(tgtP.y-srcP.y)/ddl, nyv=(tgtP.x-srcP.x)/ddl;
     var spread=spreadByIdx[edgeIdx]||0;
+    var gridPts=gridRoutes?gridRoutes[String(edgeIdx)]:null;
     var d;
-    if(pts.length===2){
-      // \uC6B0\uD68C \uBD88\uD544\uC694: \uAE30\uC874 bezier \uBAA8\uC591 \uC720\uC9C0 (spread\uB9CC\uD07C \uC81C\uC5B4\uC810\uC744 \uBC95\uC120 \uBC29\uD5A5 \uC774\uB3D9)
+    if(gridPts&&gridPts.length>2){
+      // \uADF8\uB9AC\uB4DC A* \uACBD\uB85C (\uB178\uB4DC \uD68C\uD53C + congestion \uBD84\uC0B0) + \uAC19\uC740 \uC18C\uC2A4/\uD0C0\uAC9F \uBB36\uC74C \uBD84\uC0B0
+      d=ptsToPath(spreadPts(gridPts,spread));
+    } else if(gridPts){
+      // \uC9C1\uC120 \uACBD\uB85C: \uAE30\uC874 bezier \uBAA8\uC591 \uC720\uC9C0 (spread\uB9CC\uD07C \uC81C\uC5B4\uC810\uC744 \uBC95\uC120 \uBC29\uD5A5 \uC774\uB3D9)
       var bend=Math.min(ddl*.45,150);
       var cx1=sp[0]+spD[0]*bend+nx*spread,cy1=sp[1]+spD[1]*bend+nyv*spread;
       var cx2=tp[0]+tpD[0]*bend+nx*spread,cy2=tp[1]+tpD[1]*bend+nyv*spread;
       d='M'+sp[0]+','+sp[1]+' C'+cx1+','+cy1+' '+cx2+','+cy2+' '+tp[0]+','+tp[1];
     } else {
-      // \uACBD\uC720\uC810\uC744 \uC9C0\uB098\uB294 \uBD80\uB4DC\uB7EC\uC6B4 \uACE1\uC120 (\uACBD\uC720\uC810 = Q \uC81C\uC5B4\uC810, \uC911\uC810 \uC5F0\uACB0)
-      var P=[pts[0]];
-      for(var wi=1;wi<pts.length-1;wi++) P.push({x:pts[wi].x+nx*spread,y:pts[wi].y+nyv*spread});
-      P.push(pts[pts.length-1]);
-      d='M'+P[0].x+','+P[0].y;
-      for(var k2=1;k2<P.length-1;k2++){
-        var ex,ey;
-        if(k2<P.length-2){ex=(P[k2].x+P[k2+1].x)/2;ey=(P[k2].y+P[k2+1].y)/2;}
-        else{ex=P[P.length-1].x;ey=P[P.length-1].y;}
-        d+=' Q'+P[k2].x+','+P[k2].y+' '+ex+','+ey;
+      // \uB4DC\uB798\uADF8 \uC911(fast) \uB610\uB294 A* \uC2E4\uD328: \uACBD\uB7C9 \uC6B0\uD68C \uD734\uB9AC\uC2A4\uD2F1
+      var obstacles=[];
+      Object.keys(rectById).forEach(function(nid){
+        if(nid!==edge.source&&nid!==edge.target) obstacles.push(rectById[nid]);
+      });
+      var pts=routeAround(srcP,tgtP,obstacles);
+      if(pts.length===2){
+        var bend2=Math.min(ddl*.45,150);
+        var bx1=sp[0]+spD[0]*bend2+nx*spread,by1=sp[1]+spD[1]*bend2+nyv*spread;
+        var bx2=tp[0]+tpD[0]*bend2+nx*spread,by2=tp[1]+tpD[1]*bend2+nyv*spread;
+        d='M'+sp[0]+','+sp[1]+' C'+bx1+','+by1+' '+bx2+','+by2+' '+tp[0]+','+tp[1];
+      } else {
+        d=ptsToPath(spreadPts(pts,spread));
       }
     }
     // \uC138\uB300 \uD558\uC774\uB77C\uC774\uD2B8: \uC120\uD0DD \uB178\uB4DC\uC640 \uC9C1\uC811 \uC5F0\uACB0\uB41C wire\uB294 \uB178\uB780\uC0C9

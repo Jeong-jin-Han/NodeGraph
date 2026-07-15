@@ -607,7 +607,7 @@ function onNodeTagMousedown(e, nodeEl) {
     if (!moved && (Math.abs(rawDx) > 5 || Math.abs(rawDy) > 5)) { moved = true; nodeEl.classList.add('ng-dragging'); }
     if (moved) {
       var dx = rawDx / scale, dy = rawDy / scale;
-      nodeEl.style.left=(left0+dx)+'px'; nodeEl.style.top=(top0+dy)+'px'; finalDX=dx; finalDY=dy; drawEdges();
+      nodeEl.style.left=(left0+dx)+'px'; nodeEl.style.top=(top0+dy)+'px'; finalDX=dx; finalDY=dy; drawEdges(true);
     }
   }
   function onUp() {
@@ -867,9 +867,153 @@ function routeAround(src,tgt,obstacles){
   }
   return pts;
 }
+// 경유점 폴리라인 → 부드러운 path (경유점 = Q 제어점, 다음 경유점과의 중점 연결)
+function ptsToPath(P){
+  if(P.length<2) return '';
+  if(P.length===2) return 'M'+P[0].x+','+P[0].y+' L'+P[1].x+','+P[1].y;
+  var d='M'+P[0].x+','+P[0].y;
+  for(var k=1;k<P.length-1;k++){
+    var ex,ey;
+    if(k<P.length-2){ex=(P[k].x+P[k+1].x)/2;ey=(P[k].y+P[k+1].y)/2;}
+    else{ex=P[P.length-1].x;ey=P[P.length-1].y;}
+    d+=' Q'+P[k].x+','+P[k].y+' '+ex+','+ey;
+  }
+  return d;
+}
+// 폴리라인 중간 경유점들을 법선 방향으로 spread만큼 이동 (평행 엣지 분산)
+function spreadPts(pts,spread){
+  if(!spread||pts.length<3) return pts;
+  var s=pts[0],t=pts[pts.length-1];
+  var dl=dlen(s,t)||1;
+  var nx=-(t.y-s.y)/dl,ny=(t.x-s.x)/dl;
+  var mid=pts.slice(1,-1).map(function(p){return{x:p.x+nx*spread,y:p.y+ny*spread};});
+  return [s].concat(mid,[t]);
+}
+// ── 그리드 A* 전역 라우팅 (에디터 wireGeometry.routeEdgesOnGrid와 동일 알고리즘) ──
+// 셀 비용: 노드 내부 200(불가피하면 통과 가능), 노드 주변 밴드 8(거리 유지),
+// 이미 확정된 선이 지나간 셀 +14(선끼리 분산 — 빈 공간이 있으면 그쪽으로 우회)
+function routeEdgesGrid(reqs,rects){
+  var out={};
+  if(!reqs.length) return out;
+  var NEAR=8,INSIDE=200,USE=14,TURN=0.4;
+  var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  rects.forEach(function(o){var r=o.rect;
+    minX=Math.min(minX,r.x);minY=Math.min(minY,r.y);
+    maxX=Math.max(maxX,r.x+r.w);maxY=Math.max(maxY,r.y+r.h);});
+  reqs.forEach(function(r){
+    minX=Math.min(minX,r.src.x,r.tgt.x);minY=Math.min(minY,r.src.y,r.tgt.y);
+    maxX=Math.max(maxX,r.src.x,r.tgt.x);maxY=Math.max(maxY,r.src.y,r.tgt.y);});
+  minX-=80;minY-=80;maxX+=80;maxY+=80;
+  var cell=24;
+  while(((maxX-minX)/cell)*((maxY-minY)/cell)>150000) cell*=2;
+  var gw=Math.max(2,Math.ceil((maxX-minX)/cell));
+  var gh=Math.max(2,Math.ceil((maxY-minY)/cell));
+  var N=gw*gh;
+  function cellX(x){return Math.min(gw-1,Math.max(0,Math.floor((x-minX)/cell)));}
+  function cellY(y){return Math.min(gh-1,Math.max(0,Math.floor((y-minY)/cell)));}
+  var baseCost=new Float64Array(N);
+  rects.forEach(function(o){var r=o.rect;
+    var ox0=cellX(r.x-cell),ox1=cellX(r.x+r.w+cell);
+    var oy0=cellY(r.y-cell),oy1=cellY(r.y+r.h+cell);
+    var ix0=cellX(r.x),ix1=cellX(r.x+r.w),iy0=cellY(r.y),iy1=cellY(r.y+r.h);
+    for(var gy=oy0;gy<=oy1;gy++)for(var gx=ox0;gx<=ox1;gx++){
+      var inside=gx>=ix0&&gx<=ix1&&gy>=iy0&&gy<=iy1;
+      baseCost[gy*gw+gx]+=inside?INSIDE:NEAR;
+    }});
+  var useCost=new Float64Array(N),gScore=new Float64Array(N);
+  var stampArr=new Int32Array(N),fromArr=new Int32Array(N),dirArr=new Int8Array(N);
+  var stamp=0;
+  var DIRS8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+  var STEP8=[1,1,1,1,Math.SQRT2,Math.SQRT2,Math.SQRT2,Math.SQRT2];
+  // 짧은 엣지부터 (동률이면 srcId/tgtId 사전순 — 에디터와 결과 일치 보장)
+  var order=reqs.slice().sort(function(a,b){
+    return (dlen(a.src,a.tgt)-dlen(b.src,b.tgt))||
+      (a.srcId<b.srcId?-1:a.srcId>b.srcId?1:0)||
+      (a.tgtId<b.tgtId?-1:a.tgtId>b.tgtId?1:0);});
+  order.forEach(function(req){
+    var sIdx=cellY(req.src.y)*gw+cellX(req.src.x);
+    var tIdx=cellY(req.tgt.y)*gw+cellX(req.tgt.x);
+    if(sIdx===tIdx){out[req.key]=[req.src,req.tgt];return;}
+    stamp++;
+    var heapF=[],heapI=[];
+    function hpush(f,idx){
+      var i=heapF.length;heapF.push(f);heapI.push(idx);
+      while(i>0){var p=(i-1)>>1;
+        if(heapF[p]<=heapF[i])break;
+        var tf=heapF[p];heapF[p]=heapF[i];heapF[i]=tf;
+        var ti=heapI[p];heapI[p]=heapI[i];heapI[i]=ti;i=p;}
+    }
+    function hpop(){
+      var top=heapI[0];var lf=heapF.pop(),li=heapI.pop();
+      if(heapF.length){heapF[0]=lf;heapI[0]=li;var i=0;
+        for(;;){var l=i*2+1,r=l+1,m=i;
+          if(l<heapF.length&&heapF[l]<heapF[m])m=l;
+          if(r<heapF.length&&heapF[r]<heapF[m])m=r;
+          if(m===i)break;
+          var tf=heapF[m];heapF[m]=heapF[i];heapF[i]=tf;
+          var ti=heapI[m];heapI[m]=heapI[i];heapI[i]=ti;i=m;}}
+      return top;
+    }
+    var tgx=tIdx%gw,tgy=(tIdx/gw)|0;
+    function hDist(idx){return Math.hypot((idx%gw)-tgx,((idx/gw)|0)-tgy);}
+    gScore[sIdx]=0;stampArr[sIdx]=stamp;fromArr[sIdx]=-1;dirArr[sIdx]=-1;
+    hpush(hDist(sIdx),sIdx);
+    var found=false,iter=0;
+    while(heapF.length&&iter<60000){
+      iter++;
+      var cur=hpop();
+      if(cur===tIdx){found=true;break;}
+      var cgx=cur%gw,cgy=(cur/gw)|0,cg=gScore[cur],cd=dirArr[cur];
+      for(var di=0;di<8;di++){
+        var ngx=cgx+DIRS8[di][0],ngy=cgy+DIRS8[di][1];
+        if(ngx<0||ngy<0||ngx>=gw||ngy>=gh)continue;
+        var nIdx=ngy*gw+ngx;
+        var ng=cg+STEP8[di]+baseCost[nIdx]+useCost[nIdx]+(cd!==-1&&cd!==di?TURN:0);
+        if(stampArr[nIdx]===stamp&&gScore[nIdx]<=ng)continue;
+        stampArr[nIdx]=stamp;gScore[nIdx]=ng;fromArr[nIdx]=cur;dirArr[nIdx]=di;
+        hpush(ng+hDist(nIdx),nIdx);
+      }
+    }
+    if(!found){out[req.key]=null;return;}
+    // 경로 복원 (셀 중심) — 양 끝은 실제 포트 좌표로 대체
+    var cellsRev=[];
+    for(var c=tIdx;c!==-1;c=fromArr[c])cellsRev.push(c);
+    cellsRev.reverse();
+    var raw=cellsRev.map(function(c2){return{x:minX+(c2%gw)*cell+cell/2,y:minY+((c2/gw)|0)*cell+cell/2};});
+    raw[0]={x:req.src.x,y:req.src.y};
+    raw[raw.length-1]={x:req.tgt.x,y:req.tgt.y};
+    // string pulling: 자기 양끝 노드를 제외한 노드 내부를 지나지 않는 한 직선화
+    var blockers=[];
+    rects.forEach(function(o){if(o.id!==req.srcId&&o.id!==req.tgtId)blockers.push(o.rect);});
+    function clearSeg(a,b){
+      for(var bi=0;bi<blockers.length;bi++)
+        if(segRectT(a.x,a.y,b.x,b.y,blockers[bi],6)!==null)return false;
+      return true;
+    }
+    var pts=[raw[0]];
+    var i2=0;
+    while(i2<raw.length-1){
+      var j=raw.length-1;
+      while(j>i2+1&&!clearSeg(raw[i2],raw[j]))j--;
+      pts.push(raw[j]);i2=j;
+    }
+    out[req.key]=pts;
+    // 이후 엣지의 congestion 비용: 확정 경로가 지나는 셀에 가산
+    for(var k=0;k<pts.length-1;k++){
+      var a2=pts[k],b2=pts[k+1];
+      var steps=Math.max(1,Math.ceil(dlen(a2,b2)/cell));
+      for(var s2=0;s2<=steps;s2++){
+        var px=a2.x+(b2.x-a2.x)*(s2/steps);
+        var py=a2.y+(b2.y-a2.y)*(s2/steps);
+        useCost[cellY(py)*gw+cellX(px)]+=USE;
+      }
+    }
+  });
+  return out;
+}
 function svgLine(x1,y1,x2,y2,stroke,sw){var l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('stroke',stroke);l.setAttribute('stroke-width',sw);return l;}
 function svgCirc(cx,cy,r,fill){var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',r);c.setAttribute('fill',fill);return c;}
-function drawEdges() {
+function drawEdges(fast) {
   var svg=document.getElementById('wire-svg');
   svg.querySelectorAll('.ng-eg').forEach(function(el){el.remove();});
 
@@ -935,23 +1079,46 @@ function drawEdges() {
     if(el) rectById[n.id]=getNodeRect(el);
   });
 
-  // 같은 source에서 나가는 비-버스 엣지 분산(spread) 오프셋 — 겹침 방지
+  // 같은 source에서 나가거나 같은 target으로 모이는 비-버스 엣지 분산 오프셋 (합산)
   var spreadByIdx={};
   (function(){
-    var groups={};
+    var bySrc={},byTgt={};
     EDGES.forEach(function(e,idx){
       if(busDrawn[e.source+'-'+e.target]) return;
       if(!rectById[e.source]||!rectById[e.target]) return;
-      if(!groups[e.source]) groups[e.source]=[];
-      groups[e.source].push(idx);
+      (bySrc[e.source]=bySrc[e.source]||[]).push(idx);
+      (byTgt[e.target]=byTgt[e.target]||[]).push(idx);
     });
-    Object.keys(groups).forEach(function(src){
-      var idxs=groups[src];
-      if(idxs.length<2) return;
-      idxs.sort(function(ia,ib){return rectById[EDGES[ia].target].cy-rectById[EDGES[ib].target].cy;});
-      idxs.forEach(function(ei,k){spreadByIdx[ei]=(k-(idxs.length-1)/2)*16;});
-    });
+    function add(groups,cyOf){
+      Object.keys(groups).forEach(function(gk){
+        var idxs=groups[gk];
+        if(idxs.length<2) return;
+        idxs.sort(function(ia,ib){return cyOf(ia)-cyOf(ib);});
+        idxs.forEach(function(ei,k){spreadByIdx[ei]=(spreadByIdx[ei]||0)+(k-(idxs.length-1)/2)*16;});
+      });
+    }
+    add(bySrc,function(i){return rectById[EDGES[i].target].cy;});
+    add(byTgt,function(i){return rectById[EDGES[i].source].cy;});
   })();
+
+  // 그리드 A* 전역 라우팅 — 드래그 중(fast)에는 스킵하고 경량 휴리스틱 사용
+  var gridRoutes=null;
+  if(!fast){
+    var reqs=[];
+    EDGES.forEach(function(e,idx){
+      if(busDrawn[e.source+'-'+e.target]) return;
+      var sr3=rectById[e.source],tr3=rectById[e.target];
+      if(!sr3||!tr3) return;
+      var ports3=getBestPorts(sr3,tr3);
+      if(!ports3) return;
+      reqs.push({key:String(idx),
+        src:{x:ports3.sp.p[0],y:ports3.sp.p[1]},
+        tgt:{x:ports3.tp.p[0],y:ports3.tp.p[1]},
+        srcId:e.source,tgtId:e.target});
+    });
+    var rectList=Object.keys(rectById).map(function(nid){return{id:nid,rect:rectById[nid]};});
+    gridRoutes=routeEdgesGrid(reqs,rectList);
+  }
 
   // Remaining edges: obstacle-avoiding curves
   EDGES.forEach(function(edge,edgeIdx){
@@ -962,32 +1129,34 @@ function drawEdges() {
     if(!ports) return;
     var sp=ports.sp.p,spD=DIR[ports.sp.name],tp=ports.tp.p,tpD=DIR[ports.tp.name];
     var srcP={x:sp[0],y:sp[1]},tgtP={x:tp[0],y:tp[1]};
-    var obstacles=[];
-    Object.keys(rectById).forEach(function(nid){
-      if(nid!==edge.source&&nid!==edge.target) obstacles.push(rectById[nid]);
-    });
-    var pts=routeAround(srcP,tgtP,obstacles);
     var ddl=dlen(srcP,tgtP)||1;
     var nx=-(tgtP.y-srcP.y)/ddl, nyv=(tgtP.x-srcP.x)/ddl;
     var spread=spreadByIdx[edgeIdx]||0;
+    var gridPts=gridRoutes?gridRoutes[String(edgeIdx)]:null;
     var d;
-    if(pts.length===2){
-      // 우회 불필요: 기존 bezier 모양 유지 (spread만큼 제어점을 법선 방향 이동)
+    if(gridPts&&gridPts.length>2){
+      // 그리드 A* 경로 (노드 회피 + congestion 분산) + 같은 소스/타겟 묶음 분산
+      d=ptsToPath(spreadPts(gridPts,spread));
+    } else if(gridPts){
+      // 직선 경로: 기존 bezier 모양 유지 (spread만큼 제어점을 법선 방향 이동)
       var bend=Math.min(ddl*.45,150);
       var cx1=sp[0]+spD[0]*bend+nx*spread,cy1=sp[1]+spD[1]*bend+nyv*spread;
       var cx2=tp[0]+tpD[0]*bend+nx*spread,cy2=tp[1]+tpD[1]*bend+nyv*spread;
       d='M'+sp[0]+','+sp[1]+' C'+cx1+','+cy1+' '+cx2+','+cy2+' '+tp[0]+','+tp[1];
     } else {
-      // 경유점을 지나는 부드러운 곡선 (경유점 = Q 제어점, 중점 연결)
-      var P=[pts[0]];
-      for(var wi=1;wi<pts.length-1;wi++) P.push({x:pts[wi].x+nx*spread,y:pts[wi].y+nyv*spread});
-      P.push(pts[pts.length-1]);
-      d='M'+P[0].x+','+P[0].y;
-      for(var k2=1;k2<P.length-1;k2++){
-        var ex,ey;
-        if(k2<P.length-2){ex=(P[k2].x+P[k2+1].x)/2;ey=(P[k2].y+P[k2+1].y)/2;}
-        else{ex=P[P.length-1].x;ey=P[P.length-1].y;}
-        d+=' Q'+P[k2].x+','+P[k2].y+' '+ex+','+ey;
+      // 드래그 중(fast) 또는 A* 실패: 경량 우회 휴리스틱
+      var obstacles=[];
+      Object.keys(rectById).forEach(function(nid){
+        if(nid!==edge.source&&nid!==edge.target) obstacles.push(rectById[nid]);
+      });
+      var pts=routeAround(srcP,tgtP,obstacles);
+      if(pts.length===2){
+        var bend2=Math.min(ddl*.45,150);
+        var bx1=sp[0]+spD[0]*bend2+nx*spread,by1=sp[1]+spD[1]*bend2+nyv*spread;
+        var bx2=tp[0]+tpD[0]*bend2+nx*spread,by2=tp[1]+tpD[1]*bend2+nyv*spread;
+        d='M'+sp[0]+','+sp[1]+' C'+bx1+','+by1+' '+bx2+','+by2+' '+tp[0]+','+tp[1];
+      } else {
+        d=ptsToPath(spreadPts(pts,spread));
       }
     }
     // 세대 하이라이트: 선택 노드와 직접 연결된 wire는 노란색
