@@ -160,8 +160,9 @@ export function spreadPoints(
 }
 
 // ── 그리드 A* 전역 라우팅 ─────────────────────────────────────────────────
-// 셀 비용: 노드 내부 200(불가피하면 통과 가능), 노드 주변 1셀 밴드 8(거리 유지),
-// 이미 확정된 선이 지나간 셀 +14(선끼리 분산 — 빈 공간이 있으면 그쪽으로 우회).
+// 셀 비용: 노드 내부 200(불가피하면 통과 가능), 노드 주변 1셀 밴드 3(거리 유지),
+// 이미 확정된 선이 지나간 셀 +4(선끼리 분산 — 빈 공간이 있으면 그쪽으로 우회).
+// 페널티는 "셀당 N셀 우회할 가치" — 크게 잡으면 허공을 도는 과한 우회가 생긴다.
 // 짧은 엣지부터 순서대로 라우팅하며 congestion 비용을 누적한다.
 export interface RouteRequest {
   key: string
@@ -177,7 +178,7 @@ export function routeEdgesOnGrid(
 ): Record<string, Array<{ x: number; y: number }> | null> {
   const out: Record<string, Array<{ x: number; y: number }> | null> = {}
   if (reqs.length === 0) return out
-  const NEAR = 8, INSIDE = 200, USE = 14, TURN = 0.4
+  const NEAR = 3, INSIDE = 200, USE = 4, TURN = 0.2
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
   for (const { rect } of rects) {
@@ -304,7 +305,7 @@ export function routeEdgesOnGrid(
     const blockers: Rect[] = []
     for (const { id, rect } of rects) if (id !== req.srcId && id !== req.tgtId) blockers.push(rect)
     const clearSeg = (a: { x: number; y: number }, b: { x: number; y: number }) => {
-      for (const r of blockers) if (segIntersectsRect(a.x, a.y, b.x, b.y, r, 6) !== null) return false
+      for (const r of blockers) if (segIntersectsRect(a.x, a.y, b.x, b.y, r, 12) !== null) return false
       return true
     }
     const pts = [raw[0]]

@@ -66,11 +66,13 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
       if (group.length < 2) return
       if (!nodeMap.has(srcId)) return
       const sr = getRect(srcId, renderPositions, nodeSizes, nodes)
-      // 모든 타겟이 source 오른쪽에 있을 때만 bus
+      // 모든 타겟의 왼쪽 끝이 source 오른쪽 끝 + 40px 이상일 때만 bus.
+      // 중심 기준 비교는 폭이 넓은 타겟에서 트렁크 X가 source보다 왼쪽으로 계산되어
+      // 허공을 지나는 퇴화 버스를 만들었음 (HTML과 조건 통일)
       const valid = group.every((e) => {
         if (!nodeMap.has(e.target)) return false
         const tr = getRect(e.target, renderPositions, nodeSizes, nodes)
-        return (tr.x + tr.width / 2) > (sr.x + sr.width / 2)
+        return tr.x > sr.x + sr.width + 40
       })
       if (!valid) return
       busGroups.push({ srcId, edgeGroup: group })

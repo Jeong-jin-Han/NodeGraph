@@ -40848,7 +40848,7 @@ function routeEdgesOnGrid(reqs, rects) {
   const out = {};
   if (reqs.length === 0)
     return out;
-  const NEAR = 8, INSIDE = 200, USE = 14, TURN = 0.4;
+  const NEAR = 3, INSIDE = 200, USE = 4, TURN = 0.2;
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const { rect } of rects) {
     minX = Math.min(minX, rect.x);
@@ -41003,7 +41003,7 @@ function routeEdgesOnGrid(reqs, rects) {
         blockers.push(rect);
     const clearSeg = (a, b) => {
       for (const r of blockers)
-        if (segIntersectsRect(a.x, a.y, b.x, b.y, r, 6) !== null)
+        if (segIntersectsRect(a.x, a.y, b.x, b.y, r, 12) !== null)
           return false;
       return true;
     };
@@ -41098,7 +41098,7 @@ function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wire
         if (!nodeMap2.has(e.target))
           return false;
         const tr = getRect(e.target, renderPositions, nodeSizes, nodes);
-        return tr.x + tr.width / 2 > sr.x + sr.width / 2;
+        return tr.x > sr.x + sr.width + 40;
       });
       if (!valid)
         return;

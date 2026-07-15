@@ -954,12 +954,12 @@ function spreadPts(pts,spread){
   return [s].concat(mid,[t]);
 }
 // \u2500\u2500 \uADF8\uB9AC\uB4DC A* \uC804\uC5ED \uB77C\uC6B0\uD305 (\uC5D0\uB514\uD130 wireGeometry.routeEdgesOnGrid\uC640 \uB3D9\uC77C \uC54C\uACE0\uB9AC\uC998) \u2500\u2500
-// \uC140 \uBE44\uC6A9: \uB178\uB4DC \uB0B4\uBD80 200(\uBD88\uAC00\uD53C\uD558\uBA74 \uD1B5\uACFC \uAC00\uB2A5), \uB178\uB4DC \uC8FC\uBCC0 \uBC34\uB4DC 8(\uAC70\uB9AC \uC720\uC9C0),
-// \uC774\uBBF8 \uD655\uC815\uB41C \uC120\uC774 \uC9C0\uB098\uAC04 \uC140 +14(\uC120\uB07C\uB9AC \uBD84\uC0B0 \u2014 \uBE48 \uACF5\uAC04\uC774 \uC788\uC73C\uBA74 \uADF8\uCABD\uC73C\uB85C \uC6B0\uD68C)
+// \uC140 \uBE44\uC6A9: \uB178\uB4DC \uB0B4\uBD80 200(\uBD88\uAC00\uD53C\uD558\uBA74 \uD1B5\uACFC \uAC00\uB2A5), \uB178\uB4DC \uC8FC\uBCC0 \uBC34\uB4DC 3(\uAC70\uB9AC \uC720\uC9C0),
+// \uC774\uBBF8 \uD655\uC815\uB41C \uC120\uC774 \uC9C0\uB098\uAC04 \uC140 +4(\uC120\uB07C\uB9AC \uBD84\uC0B0 \u2014 \uBE48 \uACF5\uAC04\uC774 \uC788\uC73C\uBA74 \uADF8\uCABD\uC73C\uB85C \uC6B0\uD68C)
 function routeEdgesGrid(reqs,rects){
   var out={};
   if(!reqs.length) return out;
-  var NEAR=8,INSIDE=200,USE=14,TURN=0.4;
+  var NEAR=3,INSIDE=200,USE=4,TURN=0.2;
   var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
   rects.forEach(function(o){var r=o.rect;
     minX=Math.min(minX,r.x);minY=Math.min(minY,r.y);
@@ -1051,7 +1051,7 @@ function routeEdgesGrid(reqs,rects){
     rects.forEach(function(o){if(o.id!==req.srcId&&o.id!==req.tgtId)blockers.push(o.rect);});
     function clearSeg(a,b){
       for(var bi=0;bi<blockers.length;bi++)
-        if(segRectT(a.x,a.y,b.x,b.y,blockers[bi],6)!==null)return false;
+        if(segRectT(a.x,a.y,b.x,b.y,blockers[bi],12)!==null)return false;
       return true;
     }
     var pts=[raw[0]];
@@ -1105,8 +1105,8 @@ function drawEdges(fast) {
       targets.push({e:e,r:getNodeRect(tEl)});
     });
     if(targets.length<2) return;
-    // Check all targets are to the right
-    var allRight=targets.every(function(t){return t.r.x>=sr.x+sr.w-5;});
+    // \uBAA8\uB4E0 \uD0C0\uAC9F\uC758 \uC67C\uCABD \uB05D\uC774 source \uC624\uB978\uCABD \uB05D + 40px \uC774\uC0C1\uC77C \uB54C\uB9CC bus (\uC5D0\uB514\uD130\uC640 \uC870\uAC74 \uD1B5\uC77C)
+    var allRight=targets.every(function(t){return t.r.x>sr.x+sr.w+40;});
     if(!allRight) return;
 
     var busX=sr.x+sr.w+Math.min.apply(null,targets.map(function(t){return t.r.x-(sr.x+sr.w);})) * 0.5;

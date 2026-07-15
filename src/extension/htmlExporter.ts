@@ -890,12 +890,12 @@ function spreadPts(pts,spread){
   return [s].concat(mid,[t]);
 }
 // ── 그리드 A* 전역 라우팅 (에디터 wireGeometry.routeEdgesOnGrid와 동일 알고리즘) ──
-// 셀 비용: 노드 내부 200(불가피하면 통과 가능), 노드 주변 밴드 8(거리 유지),
-// 이미 확정된 선이 지나간 셀 +14(선끼리 분산 — 빈 공간이 있으면 그쪽으로 우회)
+// 셀 비용: 노드 내부 200(불가피하면 통과 가능), 노드 주변 밴드 3(거리 유지),
+// 이미 확정된 선이 지나간 셀 +4(선끼리 분산 — 빈 공간이 있으면 그쪽으로 우회)
 function routeEdgesGrid(reqs,rects){
   var out={};
   if(!reqs.length) return out;
-  var NEAR=8,INSIDE=200,USE=14,TURN=0.4;
+  var NEAR=3,INSIDE=200,USE=4,TURN=0.2;
   var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
   rects.forEach(function(o){var r=o.rect;
     minX=Math.min(minX,r.x);minY=Math.min(minY,r.y);
@@ -987,7 +987,7 @@ function routeEdgesGrid(reqs,rects){
     rects.forEach(function(o){if(o.id!==req.srcId&&o.id!==req.tgtId)blockers.push(o.rect);});
     function clearSeg(a,b){
       for(var bi=0;bi<blockers.length;bi++)
-        if(segRectT(a.x,a.y,b.x,b.y,blockers[bi],6)!==null)return false;
+        if(segRectT(a.x,a.y,b.x,b.y,blockers[bi],12)!==null)return false;
       return true;
     }
     var pts=[raw[0]];
@@ -1041,8 +1041,8 @@ function drawEdges(fast) {
       targets.push({e:e,r:getNodeRect(tEl)});
     });
     if(targets.length<2) return;
-    // Check all targets are to the right
-    var allRight=targets.every(function(t){return t.r.x>=sr.x+sr.w-5;});
+    // 모든 타겟의 왼쪽 끝이 source 오른쪽 끝 + 40px 이상일 때만 bus (에디터와 조건 통일)
+    var allRight=targets.every(function(t){return t.r.x>sr.x+sr.w+40;});
     if(!allRight) return;
 
     var busX=sr.x+sr.w+Math.min.apply(null,targets.map(function(t){return t.r.x-(sr.x+sr.w);})) * 0.5;
