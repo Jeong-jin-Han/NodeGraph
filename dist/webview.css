@@ -15,6 +15,15 @@ button:focus-visible {
   outline: 1px solid var(--vscode-focusBorder, #007fd4);
   outline-offset: 1px;
 }
+.ng-toolbar {
+  scrollbar-width: none;
+}
+.ng-toolbar::-webkit-scrollbar {
+  display: none;
+}
+.ng-toolbar > * {
+  flex-shrink: 0;
+}
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

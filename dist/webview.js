@@ -41620,6 +41620,7 @@ function Canvas({
   const [nodeSizes, setNodeSizes] = (0, import_react8.useState)({});
   const [fontDropOpen, setFontDropOpen] = (0, import_react8.useState)(false);
   const fontInputRef = (0, import_react8.useRef)(null);
+  const fontDropPosRef = (0, import_react8.useRef)({ left: 0, top: 0 });
   const [selectedIds, _setSelectedIds] = (0, import_react8.useState)(/* @__PURE__ */ new Set());
   const selectedIdsRef = (0, import_react8.useRef)(/* @__PURE__ */ new Set());
   const hoveredNodeIdRef = (0, import_react8.useRef)(null);
@@ -41653,6 +41654,23 @@ function Canvas({
     _setSelectedEdgeId(id);
   }, []);
   const lastToolbarInteractionRef = (0, import_react8.useRef)(0);
+  const toolbarRef = (0, import_react8.useRef)(null);
+  (0, import_react8.useEffect)(() => {
+    const el = toolbarRef.current;
+    if (!el)
+      return;
+    const onWheel = (e) => {
+      if (el.scrollWidth <= el.clientWidth)
+        return;
+      const delta = e.shiftKey ? e.deltaY || e.deltaX : e.deltaX;
+      if (delta) {
+        e.preventDefault();
+        el.scrollLeft += delta;
+      }
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
   const [searchOpen, setSearchOpen] = (0, import_react8.useState)(false);
   const [searchQuery, setSearchQuery] = (0, import_react8.useState)("");
   const [searchSelectedId, setSearchSelectedId] = (0, import_react8.useState)(null);
@@ -42285,6 +42303,8 @@ function Canvas({
     /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
       "div",
       {
+        ref: toolbarRef,
+        className: "ng-toolbar",
         onMouseDown: (e) => {
           e.stopPropagation();
           lastToolbarInteractionRef.current = Date.now();
@@ -42297,7 +42317,8 @@ function Canvas({
           background: "#f0f2f5",
           borderBottom: "1px solid #d1d5db",
           flexShrink: 0,
-          zIndex: 200
+          zIndex: 200,
+          overflowX: "auto"
         },
         children: [
           /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
@@ -42460,6 +42481,11 @@ function Canvas({
                     onMouseDown: (e) => {
                       e.preventDefault();
                       e.stopPropagation();
+                      const wrap = e.currentTarget.parentElement;
+                      if (wrap) {
+                        const r = wrap.getBoundingClientRect();
+                        fontDropPosRef.current = { left: r.left, top: r.bottom };
+                      }
                       setFontDropOpen((o) => !o);
                     },
                     style: {
@@ -42484,9 +42510,9 @@ function Canvas({
                   {
                     onMouseDown: (e) => e.stopPropagation(),
                     style: {
-                      position: "absolute",
-                      top: "100%",
-                      left: 0,
+                      position: "fixed",
+                      top: fontDropPosRef.current.top,
+                      left: fontDropPosRef.current.left,
                       zIndex: 9999,
                       width: 52,
                       maxHeight: 200,

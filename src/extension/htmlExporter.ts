@@ -222,7 +222,9 @@ export function generateHtml(graph: NodeGraph, imageData: Record<string, string>
 body{background:#f4f4f5;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden;height:100vh}
 #toolbar{position:fixed;top:0;left:0;right:0;background:#ffffff;border-bottom:1px solid #d4d4d4;z-index:200;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 #tb-row1{display:flex;align-items:baseline;gap:10px;padding:6px 12px 4px;border-bottom:1px solid #ececec;min-height:0}
-#tb-row2{display:flex;align-items:center;gap:6px;padding:3px 12px 4px}
+#tb-row2{display:flex;align-items:center;gap:6px;padding:3px 12px 4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-x}
+#tb-row2::-webkit-scrollbar{display:none}
+#tb-row2>*{flex-shrink:0}
 #tb-title{font-weight:700;color:#1a1a1a;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw}
 #tb-source{opacity:.5;font-size:11px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #tb-sel{opacity:.7;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#0066cc}
@@ -913,6 +915,13 @@ document.addEventListener('keydown',function(e){
 });
 // Middle click: prevent X11 primary selection paste
 vp.addEventListener('mousedown',function(e){if(e.button===1) e.preventDefault();});
+// 좁은 화면: 툴바 버튼 행 가로 슬라이드 (Shift+휠 / 가로휠 / 터치 스와이프는 native)
+var tbRow2=document.getElementById('tb-row2');
+tbRow2.addEventListener('wheel',function(e){
+  if(tbRow2.scrollWidth<=tbRow2.clientWidth) return;
+  var d=e.shiftKey?(e.deltaY||e.deltaX):e.deltaX;
+  if(d){e.preventDefault();tbRow2.scrollLeft+=d;}
+},{passive:false});
 // Background click: close search if open
 vp.addEventListener('mouseup',function(e){
   if(e.button!==0) return;

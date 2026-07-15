@@ -17,6 +17,11 @@ button:focus-visible {
   outline-offset: 1px;
 }
 
+/* 좁은 화면에서 툴바를 가로 슬라이드로 — 스크롤바는 숨기고 버튼은 줄어들지 않게 */
+.ng-toolbar { scrollbar-width: none; }
+.ng-toolbar::-webkit-scrollbar { display: none; }
+.ng-toolbar > * { flex-shrink: 0; }
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb {
   background: var(--vscode-scrollbarSlider-background, rgba(128,128,128,0.4));

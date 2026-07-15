@@ -343,6 +343,8 @@ export function Canvas({
   const [nodeSizes, setNodeSizes] = useState<Record<string, { width: number; height: number }>>({})
   const [fontDropOpen, setFontDropOpen] = useState(false)
   const fontInputRef = useRef<HTMLInputElement>(null)
+  // 툴바가 overflow-x:auto라 absolute 드롭다운이 클리핑됨 → fixed 좌표로 띄움
+  const fontDropPosRef = useRef({ left: 0, top: 0 })
   const [selectedIds, _setSelectedIds] = useState<Set<string>>(new Set())
   const selectedIdsRef = useRef<Set<string>>(new Set())
   const hoveredNodeIdRef = useRef<string | null>(null)
@@ -379,6 +381,20 @@ export function Canvas({
     _setSelectedEdgeId(id)
   }, [])
   const lastToolbarInteractionRef = useRef<number>(0)
+  const toolbarRef = useRef<HTMLDivElement>(null)
+
+  // 좁은 화면에서 툴바 가로 슬라이드: Shift+휠(또는 가로휠)로 좌우 스크롤
+  useEffect(() => {
+    const el = toolbarRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth) return
+      const delta = e.shiftKey ? (e.deltaY || e.deltaX) : e.deltaX
+      if (delta) { e.preventDefault(); el.scrollLeft += delta }
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
 
   // Search state
   const [searchOpen, setSearchOpen] = useState(false)
@@ -1072,6 +1088,8 @@ export function Canvas({
 
       {/* 상단 툴바 — mouseDown을 캔버스로 전파하지 않음 (폰트 컨트롤 클릭 시 선택 해제 방지) */}
       <div
+        ref={toolbarRef}
+        className="ng-toolbar"
         onMouseDown={(e) => { e.stopPropagation(); lastToolbarInteractionRef.current = Date.now() }}
         style={{
           display: 'flex',
@@ -1082,6 +1100,7 @@ export function Canvas({
           borderBottom: '1px solid #d1d5db',
           flexShrink: 0,
           zIndex: 200,
+          overflowX: 'auto',
         }}>
         {/* Undo / Redo */}
         <button
@@ -1207,7 +1226,15 @@ export function Canvas({
                     title="폰트 크기 (직접 입력 후 Enter)"
                   />
                   <button
-                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setFontDropOpen(o => !o) }}
+                    onMouseDown={(e) => {
+                      e.preventDefault(); e.stopPropagation()
+                      const wrap = (e.currentTarget as HTMLElement).parentElement
+                      if (wrap) {
+                        const r = wrap.getBoundingClientRect()
+                        fontDropPosRef.current = { left: r.left, top: r.bottom }
+                      }
+                      setFontDropOpen(o => !o)
+                    }}
                     style={{
                       width: 16, padding: 0, fontSize: 9, cursor: 'pointer', lineHeight: 1,
                       background: '#f0f0f0', color: '#333',
@@ -1219,7 +1246,7 @@ export function Canvas({
                     <div
                       onMouseDown={(e) => e.stopPropagation()}
                       style={{
-                        position: 'absolute', top: '100%', left: 0, zIndex: 9999,
+                        position: 'fixed', top: fontDropPosRef.current.top, left: fontDropPosRef.current.left, zIndex: 9999,
                         width: 52, maxHeight: 200, overflowY: 'auto',
                         background: '#fff',
                         border: '1px solid #d1d5db', borderRadius: 3,
