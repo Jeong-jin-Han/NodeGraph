@@ -355,7 +355,8 @@ function applyTransform() {
   canvas.style.transform = 'translate('+tx+'px,'+ty+'px) scale('+scale+')';
 }
 
-// 창 크기 변경: 스케일은 유지하고, 화면 중앙에 보이던 지점이 계속 중앙에 오도록 이동
+// 창 크기 변경: 화면 중앙에 보이던 지점을 중앙에 유지하면서,
+// 창 너비 비율만큼 스케일도 함께 조정 (줄이면 축소, 다시 키우면 확대 — 대칭 동작)
 var lastVW = 0, lastVH = 0;
 (function() {
   var r = vp.getBoundingClientRect();
@@ -364,9 +365,12 @@ var lastVW = 0, lastVH = 0;
 window.addEventListener('resize', function() {
   syncViewportTop();
   var r = vp.getBoundingClientRect();
-  if (lastVW) {
-    tx += (r.width - lastVW) / 2;
-    ty += (r.height - lastVH) / 2;
+  if (lastVW > 0 && r.width > 0) {
+    var cxw = (lastVW / 2 - tx) / scale;   // 기존 중앙의 월드 좌표
+    var cyw = (lastVH / 2 - ty) / scale;
+    scale = Math.max(0.1, Math.min(4, scale * (r.width / lastVW)));
+    tx = r.width / 2 - cxw * scale;
+    ty = r.height / 2 - cyw * scale;
     applyTransform();
   }
   lastVW = r.width; lastVH = r.height;

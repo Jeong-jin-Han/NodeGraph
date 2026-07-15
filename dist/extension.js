@@ -419,7 +419,8 @@ function applyTransform() {
   canvas.style.transform = 'translate('+tx+'px,'+ty+'px) scale('+scale+')';
 }
 
-// \uCC3D \uD06C\uAE30 \uBCC0\uACBD: \uC2A4\uCF00\uC77C\uC740 \uC720\uC9C0\uD558\uACE0, \uD654\uBA74 \uC911\uC559\uC5D0 \uBCF4\uC774\uB358 \uC9C0\uC810\uC774 \uACC4\uC18D \uC911\uC559\uC5D0 \uC624\uB3C4\uB85D \uC774\uB3D9
+// \uCC3D \uD06C\uAE30 \uBCC0\uACBD: \uD654\uBA74 \uC911\uC559\uC5D0 \uBCF4\uC774\uB358 \uC9C0\uC810\uC744 \uC911\uC559\uC5D0 \uC720\uC9C0\uD558\uBA74\uC11C,
+// \uCC3D \uB108\uBE44 \uBE44\uC728\uB9CC\uD07C \uC2A4\uCF00\uC77C\uB3C4 \uD568\uAED8 \uC870\uC815 (\uC904\uC774\uBA74 \uCD95\uC18C, \uB2E4\uC2DC \uD0A4\uC6B0\uBA74 \uD655\uB300 \u2014 \uB300\uCE6D \uB3D9\uC791)
 var lastVW = 0, lastVH = 0;
 (function() {
   var r = vp.getBoundingClientRect();
@@ -428,9 +429,12 @@ var lastVW = 0, lastVH = 0;
 window.addEventListener('resize', function() {
   syncViewportTop();
   var r = vp.getBoundingClientRect();
-  if (lastVW) {
-    tx += (r.width - lastVW) / 2;
-    ty += (r.height - lastVH) / 2;
+  if (lastVW > 0 && r.width > 0) {
+    var cxw = (lastVW / 2 - tx) / scale;   // \uAE30\uC874 \uC911\uC559\uC758 \uC6D4\uB4DC \uC88C\uD45C
+    var cyw = (lastVH / 2 - ty) / scale;
+    scale = Math.max(0.1, Math.min(4, scale * (r.width / lastVW)));
+    tx = r.width / 2 - cxw * scale;
+    ty = r.height / 2 - cyw * scale;
     applyTransform();
   }
   lastVW = r.width; lastVH = r.height;
