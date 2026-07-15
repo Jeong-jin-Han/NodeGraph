@@ -265,7 +265,7 @@ export function NodeCard({
               : isSearchMatch
                 ? '2px solid #fcd34d'
                 : isGenHighlight
-                  ? '2px solid #fcd34d'
+                  ? '2px solid #f87171'
                   : `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
           borderRadius,
           fontFamily: 'var(--vscode-font-family)',
@@ -274,7 +274,7 @@ export function NodeCard({
           boxShadow: isActiveSearchMatch
             ? '0 0 0 3px rgba(245,158,11,0.35), 0 2px 8px rgba(0,0,0,0.25)'
             : isGenHighlight && !selected
-              ? '0 0 0 3px rgba(252,211,77,0.28), 0 2px 8px rgba(0,0,0,0.25)'
+              ? '0 0 0 3px rgba(248,113,113,0.3), 0 2px 8px rgba(0,0,0,0.25)'
               : isDragging ? '0 6px 20px rgba(0,0,0,0.35)' : '0 2px 8px rgba(0,0,0,0.25)',
           transition: 'box-shadow 0.1s',
           zIndex: isDragging ? 10 : 1,

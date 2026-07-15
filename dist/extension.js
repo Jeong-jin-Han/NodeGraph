@@ -351,8 +351,8 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 .ng-drop-item:hover{background:#f3f4f6}
 .ng-node.ng-search-match{border:2px solid #fcd34d !important}
 .ng-node.ng-search-active{border:2px solid #f59e0b !important;box-shadow:0 0 0 3px rgba(245,158,11,0.35),0 2px 8px rgba(0,0,0,.18) !important}
-/* \uC120\uD0DD \uB178\uB4DC\uC758 \uD55C \uC138\uB300(\uBD80\uBAA8+\uC790\uC2DD) \uD558\uC774\uB77C\uC774\uD2B8 */
-.ng-node.ng-gen{border:2px solid #fcd34d !important;box-shadow:0 0 0 3px rgba(252,211,77,.28),0 1px 4px rgba(0,0,0,.08) !important}
+/* \uC120\uD0DD \uB178\uB4DC\uC758 \uD55C \uC138\uB300(\uBD80\uBAA8+\uC790\uC2DD) \uD558\uC774\uB77C\uC774\uD2B8 \u2014 Esc\uB85C\uB9CC \uD574\uC81C */
+.ng-node.ng-gen{border:2px solid #f87171 !important;box-shadow:0 0 0 3px rgba(248,113,113,.3),0 1px 4px rgba(0,0,0,.08) !important}
 </style>
 </head>
 <body>
@@ -388,7 +388,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
           <polygon points="0 0,10 3.5,0 7" fill="#666"/>
         </marker>
         <marker id="arrow-hl" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-          <polygon points="0 0,10 3.5,0 7" fill="#f59e0b"/>
+          <polygon points="0 0,10 3.5,0 7" fill="#ef4444"/>
         </marker>
       </defs>
     </svg>
@@ -472,6 +472,8 @@ window.addEventListener('mouseup', function() {
 
 // Node selection
 var selectedNodeId = null;
+// \uC138\uB300 \uD558\uC774\uB77C\uC774\uD2B8\uC758 \uB8E8\uD2B8(pin): \uBC30\uACBD \uD074\uB9AD\uC73C\uB85C \uC120\uD0DD\uC774 \uD480\uB824\uB3C4 \uC720\uC9C0, Esc\uB85C\uB9CC \uD574\uC81C
+var genRootId = null;
 function selectNode(nodeId) {
   if (selectedNodeId) {
     var prev = document.getElementById('node-' + selectedNodeId);
@@ -487,6 +489,7 @@ function selectNode(nodeId) {
   } else {
     if (label) { label.textContent = 'Click a node to select'; label.style.opacity = '0.35'; }
   }
+  if (nodeId) genRootId = nodeId;  // null(\uBC30\uACBD \uD074\uB9AD)\uC774\uC5B4\uB3C4 \uD558\uC774\uB77C\uC774\uD2B8 \uB8E8\uD2B8\uB294 \uC720\uC9C0
   updateGenHighlight();
   drawEdges();
 }
@@ -510,11 +513,14 @@ function getGenNeighbors(nodeId) {
   return ids;
 }
 
-// \uC120\uD0DD \uB178\uB4DC\uC758 \uC774\uC6C3 \uB178\uB4DC\uB4E4\uC5D0 \uB178\uB780 \uD14C\uB450\uB9AC \uC801\uC6A9 (wire \uC0C9\uC740 drawEdges\uC5D0\uC11C \uCC98\uB9AC)
+// \uACE0\uC815\uB41C \uB8E8\uD2B8\uC640 \uADF8 \uC774\uC6C3 \uB178\uB4DC\uB4E4\uC5D0 \uBE68\uAC04 \uD14C\uB450\uB9AC \uC801\uC6A9 (wire \uC0C9\uC740 drawEdges\uC5D0\uC11C \uCC98\uB9AC)
 function updateGenHighlight() {
   document.querySelectorAll('.ng-gen').forEach(function(el) { el.classList.remove('ng-gen'); });
-  if (!selectedNodeId) return;
-  getGenNeighbors(selectedNodeId).forEach(function(id) {
+  if (!genRootId) return;
+  var ids = getGenNeighbors(genRootId);
+  ids.push(genRootId);  // \uB8E8\uD2B8 \uC790\uC2E0\uB3C4 \uD3EC\uD568 (\uC120\uD0DD \uC911\uC5D0\uB294 \uC120\uD0DD \uC2A4\uD0C0\uC77C \uC6B0\uC120)
+  ids.forEach(function(id) {
+    if (id === selectedNodeId) return;
     var el = document.getElementById('node-' + id);
     if (el) el.classList.add('ng-gen');
   });
@@ -1116,10 +1122,10 @@ function drawEdges(fast) {
     var busMinY=Math.min(srcAnchorY,minTY);
     var busMaxY=Math.max(srcAnchorY,maxTY);
 
-    // \uC138\uB300 \uD558\uC774\uB77C\uC774\uD2B8: source\uAC00 \uC120\uD0DD\uB410\uAC70\uB098 \uD0C0\uAC9F \uC911 \uD558\uB098\uAC00 \uC120\uD0DD\uB410\uC73C\uBA74 \uD2B8\uB801\uD06C(\uACF5\uC6A9 \uAD6C\uAC04)\uB3C4 \uB178\uB780\uC0C9
-    var srcSel=srcId===selectedNodeId;
-    var groupHl=srcSel||targets.some(function(t){return t.e.target===selectedNodeId;});
-    var trunkColor=groupHl?'#f59e0b':'#888', trunkW=groupHl?'2.5':'1.5';
+    // \uC138\uB300 \uD558\uC774\uB77C\uC774\uD2B8: \uB8E8\uD2B8\uAC00 source\uAC70\uB098 \uD0C0\uAC9F \uC911 \uD558\uB098\uBA74 \uD2B8\uB801\uD06C(\uACF5\uC6A9 \uAD6C\uAC04)\uB3C4 \uBE68\uAC04\uC0C9
+    var srcSel=srcId===genRootId;
+    var groupHl=srcSel||targets.some(function(t){return t.e.target===genRootId;});
+    var trunkColor=groupHl?'#ef4444':'#888', trunkW=groupHl?'2.5':'1.5';
 
     var g=document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('class','ng-eg');
@@ -1127,8 +1133,8 @@ function drawEdges(fast) {
     g.appendChild(svgLine(busX,busMinY,busX,busMaxY,trunkColor,trunkW));
     g.appendChild(svgCirc(sr.x+sr.w,srcAnchorY,4,trunkColor));
     targets.forEach(function(t){
-      var tHl=srcSel||t.e.target===selectedNodeId;
-      var branchColor=tHl?'#f59e0b':'#888';
+      var tHl=srcSel||t.e.target===genRootId;
+      var branchColor=tHl?'#ef4444':'#888';
       g.appendChild(svgLine(busX,t.r.cy,t.r.x,t.r.cy,branchColor,tHl?'2.5':'1.5'));
       g.appendChild(svgCirc(t.r.x,t.r.cy,4,branchColor));
       busDrawn[t.e.source+'-'+t.e.target]=true;
@@ -1223,9 +1229,9 @@ function drawEdges(fast) {
         d=ptsToPath(spreadPts(pts,spread));
       }
     }
-    // \uC138\uB300 \uD558\uC774\uB77C\uC774\uD2B8: \uC120\uD0DD \uB178\uB4DC\uC640 \uC9C1\uC811 \uC5F0\uACB0\uB41C wire\uB294 \uB178\uB780\uC0C9
-    var hl=selectedNodeId&&(edge.source===selectedNodeId||edge.target===selectedNodeId);
-    var strokeColor=hl?'#f59e0b':'#666';
+    // \uC138\uB300 \uD558\uC774\uB77C\uC774\uD2B8: \uB8E8\uD2B8 \uB178\uB4DC\uC640 \uC9C1\uC811 \uC5F0\uACB0\uB41C wire\uB294 \uBE68\uAC04\uC0C9
+    var hl=genRootId&&(edge.source===genRootId||edge.target===genRootId);
+    var strokeColor=hl?'#ef4444':'#666';
     var g=document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('class','ng-eg');
     var path=document.createElementNS('http://www.w3.org/2000/svg','path');
@@ -1259,6 +1265,8 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){
     if(document.getElementById('search-wrap').classList.contains('open')){closeSearch();return;}
     closeLightbox();
+    // Esc = \uC138\uB300 \uD558\uC774\uB77C\uC774\uD2B8 \uD574\uC81C (\uBC30\uACBD \uD074\uB9AD\uC73C\uB85C\uB294 \uD574\uC81C\uB418\uC9C0 \uC54A\uC74C)
+    if(genRootId){genRootId=null;updateGenHighlight();drawEdges();}
   }
 });
 // Middle click: prevent X11 primary selection paste

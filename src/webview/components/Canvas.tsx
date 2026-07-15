@@ -383,6 +383,12 @@ export function Canvas({
   const lastToolbarInteractionRef = useRef<number>(0)
   const toolbarRef = useRef<HTMLDivElement>(null)
 
+  // 세대 하이라이트의 루트(pin): 배경 클릭으로 선택이 풀려도 유지, Esc로만 해제
+  const [genRootIds, setGenRootIds] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    if (selectedIds.size > 0) setGenRootIds(new Set(selectedIds))
+  }, [selectedIds])
+
   // 좁은 화면에서 툴바 가로 슬라이드: Shift+휠(또는 가로휠)로 좌우 스크롤
   useEffect(() => {
     const el = toolbarRef.current
@@ -458,6 +464,7 @@ export function Canvas({
             ;(active as HTMLElement).blur()
             setSelectedIds(new Set())
             setSelectedCanvasImgIds(new Set())
+            setGenRootIds(new Set())
             return
           }
           // For search input and toolbar inputs, fall through to their own handlers
@@ -475,6 +482,7 @@ export function Canvas({
         if (searchOpenRef.current) { handleCloseSearch(); return }
         setSelectedIds(new Set())
         setSelectedCanvasImgIds(new Set())
+        setGenRootIds(new Set())
         if (canvasClipboardRef.current !== null) pasteBlockedRef.current = true
         canvasClipboardRef.current = null
         return
@@ -757,26 +765,31 @@ export function Canvas({
 
   const showSearchDropdown = searchOpen && searchQuery.trim() !== '' && searchSelectedId === null
 
-  // 선택 노드의 한 세대(부모+자식) 하이라이트 — 연결 wire부터 이웃 노드까지 노란색
+  // 고정된 루트 노드의 한 세대(부모+자식) 하이라이트 — 연결 wire부터 이웃 노드까지 빨간색.
+  // genRootIds 기반이라 배경 클릭으로 선택이 풀려도 유지되고 Esc로만 해제됨
   const genHighlight = useMemo(() => {
     const nodeIds = new Set<string>()
     const edgeIds = new Set<string>()
-    if (selectedIds.size === 0) return { nodeIds, edgeIds }
+    if (genRootIds.size === 0) return { nodeIds, edgeIds }
     for (const e of graph.edges) {
-      const s = selectedIds.has(e.source), t = selectedIds.has(e.target)
+      const s = genRootIds.has(e.source), t = genRootIds.has(e.target)
       if (s || t) edgeIds.add(e.id)
       if (s && !t) nodeIds.add(e.target)
       if (t && !s) nodeIds.add(e.source)
     }
     for (const n of graph.nodes) {
-      if (selectedIds.has(n.id)) {
-        for (const c of n.children) if (!selectedIds.has(c)) nodeIds.add(c)
-      } else if (n.children.some(c => selectedIds.has(c))) {
+      if (genRootIds.has(n.id)) {
+        for (const c of n.children) if (!genRootIds.has(c)) nodeIds.add(c)
+      } else if (n.children.some(c => genRootIds.has(c))) {
         nodeIds.add(n.id)
       }
     }
+    // 루트 자신도 포함 — 선택 해제 후에도 어느 노드 기준의 하이라이트인지 보이도록
+    // (선택 중에는 NodeCard에서 selected 스타일이 우선)
+    const exists = new Set(graph.nodes.map(n => n.id))
+    genRootIds.forEach(id => { if (exists.has(id)) nodeIds.add(id) })
     return { nodeIds, edgeIds }
-  }, [selectedIds, graph.edges, graph.nodes])
+  }, [genRootIds, graph.edges, graph.nodes])
 
   const flyToNode = useCallback((nodeId: string) => {
     const node = graph.nodes.find(n => n.id === nodeId)

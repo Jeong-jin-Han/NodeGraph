@@ -162,7 +162,7 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
           <polygon points="0 0,10 3.5,0 7" fill="#007acc" />
         </marker>
         <marker id="arrowhead-gen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-          <polygon points="0 0,10 3.5,0 7" fill="#f59e0b" />
+          <polygon points="0 0,10 3.5,0 7" fill="#ef4444" />
         </marker>
       </defs>
 
@@ -202,9 +202,9 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
         const busMinY = Math.min(...allCY)
         const busMaxY = Math.max(...allCY)
 
-        // 세대 하이라이트: 그룹 내 하이라이트 엣지가 있으면 트렁크(공용 구간)도 노란색
+        // 세대 하이라이트: 그룹 내 하이라이트 엣지가 있으면 트렁크(공용 구간)도 빨간색
         const groupGen = edgeGroup.some((e) => highlightEdgeIds.has(e.id))
-        const trunkColor = groupGen ? '#f59e0b' : '#888'
+        const trunkColor = groupGen ? '#ef4444' : '#888'
         const trunkW = groupGen ? 2.5 : 1.5
         return (
           <g key={`bus-${srcId}`}>
@@ -220,7 +220,7 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
             {targets.map(({ edge, r }) => {
               const isSel = selectedEdgeId === edge.id
               const isGen = !isSel && highlightEdgeIds.has(edge.id)
-              const branchColor = isSel ? '#007acc' : isGen ? '#f59e0b' : '#888'
+              const branchColor = isSel ? '#007acc' : isGen ? '#ef4444' : '#888'
               return (
                 <g key={edge.id}>
                   <line x1={busX} y1={r.cy} x2={r.x} y2={r.cy}
@@ -273,7 +273,7 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
         }
         const isSel = selectedEdgeId === edge.id
         const isGen = !isSel && highlightEdgeIds.has(edge.id)
-        const strokeColor = isSel ? '#007acc' : isGen ? '#f59e0b' : '#666'
+        const strokeColor = isSel ? '#007acc' : isGen ? '#ef4444' : '#666'
 
         return (
           <g key={edge.id}>

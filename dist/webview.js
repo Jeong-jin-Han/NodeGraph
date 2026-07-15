@@ -39829,12 +39829,12 @@ function NodeCard({
           minWidth: Math.max(node.nodeWidth ?? 0, 432, autoMinWidth),
           minHeight: node.contentExpanded ? node.nodeHeight ?? void 0 : void 0,
           background: `color-mix(in srgb, ${color} 15%, var(--vscode-editor-background, #1e1e1e))`,
-          border: selected ? `2px solid ${color}` : isActiveSearchMatch ? "2px solid #f59e0b" : isSearchMatch ? "2px solid #fcd34d" : isGenHighlight ? "2px solid #fcd34d" : `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
+          border: selected ? `2px solid ${color}` : isActiveSearchMatch ? "2px solid #f59e0b" : isSearchMatch ? "2px solid #fcd34d" : isGenHighlight ? "2px solid #f87171" : `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
           borderRadius,
           fontFamily: "var(--vscode-font-family)",
           fontSize: "var(--vscode-font-size)",
           color: "var(--vscode-editor-foreground)",
-          boxShadow: isActiveSearchMatch ? "0 0 0 3px rgba(245,158,11,0.35), 0 2px 8px rgba(0,0,0,0.25)" : isGenHighlight && !selected ? "0 0 0 3px rgba(252,211,77,0.28), 0 2px 8px rgba(0,0,0,0.25)" : isDragging ? "0 6px 20px rgba(0,0,0,0.35)" : "0 2px 8px rgba(0,0,0,0.25)",
+          boxShadow: isActiveSearchMatch ? "0 0 0 3px rgba(245,158,11,0.35), 0 2px 8px rgba(0,0,0,0.25)" : isGenHighlight && !selected ? "0 0 0 3px rgba(248,113,113,0.3), 0 2px 8px rgba(0,0,0,0.25)" : isDragging ? "0 6px 20px rgba(0,0,0,0.35)" : "0 2px 8px rgba(0,0,0,0.25)",
           transition: "box-shadow 0.1s",
           zIndex: isDragging ? 10 : 1
         },
@@ -41181,7 +41181,7 @@ function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wire
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("marker", { id: "arrowhead", markerWidth: "10", markerHeight: "7", refX: "9", refY: "3.5", orient: "auto", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("polygon", { points: "0 0,10 3.5,0 7", fill: "#666" }) }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("marker", { id: "arrowhead-selected", markerWidth: "10", markerHeight: "7", refX: "9", refY: "3.5", orient: "auto", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("polygon", { points: "0 0,10 3.5,0 7", fill: "#007acc" }) }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("marker", { id: "arrowhead-preview", markerWidth: "10", markerHeight: "7", refX: "9", refY: "3.5", orient: "auto", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("polygon", { points: "0 0,10 3.5,0 7", fill: "#007acc" }) }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("marker", { id: "arrowhead-gen", markerWidth: "10", markerHeight: "7", refX: "9", refY: "3.5", orient: "auto", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("polygon", { points: "0 0,10 3.5,0 7", fill: "#f59e0b" }) })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("marker", { id: "arrowhead-gen", markerWidth: "10", markerHeight: "7", refX: "9", refY: "3.5", orient: "auto", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("polygon", { points: "0 0,10 3.5,0 7", fill: "#ef4444" }) })
         ] }),
         wireHoverTargetId && (() => {
           const hNode = nodes.find((n) => n.id === wireHoverTargetId);
@@ -41218,7 +41218,7 @@ function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wire
           const busMinY = Math.min(...allCY);
           const busMaxY = Math.max(...allCY);
           const groupGen = edgeGroup.some((e) => highlightEdgeIds.has(e.id));
-          const trunkColor = groupGen ? "#f59e0b" : "#888";
+          const trunkColor = groupGen ? "#ef4444" : "#888";
           const trunkW = groupGen ? 2.5 : 1.5;
           return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("g", { children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
@@ -41249,7 +41249,7 @@ function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wire
             targets.map(({ edge, r }) => {
               const isSel = selectedEdgeId === edge.id;
               const isGen = !isSel && highlightEdgeIds.has(edge.id);
-              const branchColor = isSel ? "#007acc" : isGen ? "#f59e0b" : "#888";
+              const branchColor = isSel ? "#007acc" : isGen ? "#ef4444" : "#888";
               return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("g", { children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                   "line",
@@ -41317,7 +41317,7 @@ function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wire
           }
           const isSel = selectedEdgeId === edge.id;
           const isGen = !isSel && highlightEdgeIds.has(edge.id);
-          const strokeColor = isSel ? "#007acc" : isGen ? "#f59e0b" : "#666";
+          const strokeColor = isSel ? "#007acc" : isGen ? "#ef4444" : "#666";
           return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("g", { children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
               "path",
@@ -42018,6 +42018,11 @@ function Canvas({
   }, []);
   const lastToolbarInteractionRef = (0, import_react9.useRef)(0);
   const toolbarRef = (0, import_react9.useRef)(null);
+  const [genRootIds, setGenRootIds] = (0, import_react9.useState)(/* @__PURE__ */ new Set());
+  (0, import_react9.useEffect)(() => {
+    if (selectedIds.size > 0)
+      setGenRootIds(new Set(selectedIds));
+  }, [selectedIds]);
   (0, import_react9.useEffect)(() => {
     const el = toolbarRef.current;
     if (!el)
@@ -42090,6 +42095,7 @@ function Canvas({
             active.blur();
             setSelectedIds(/* @__PURE__ */ new Set());
             setSelectedCanvasImgIds(/* @__PURE__ */ new Set());
+            setGenRootIds(/* @__PURE__ */ new Set());
             return;
           }
           return;
@@ -42106,6 +42112,7 @@ function Canvas({
         }
         setSelectedIds(/* @__PURE__ */ new Set());
         setSelectedCanvasImgIds(/* @__PURE__ */ new Set());
+        setGenRootIds(/* @__PURE__ */ new Set());
         if (canvasClipboardRef.current !== null)
           pasteBlockedRef.current = true;
         canvasClipboardRef.current = null;
@@ -42364,10 +42371,10 @@ function Canvas({
   const genHighlight = (0, import_react9.useMemo)(() => {
     const nodeIds = /* @__PURE__ */ new Set();
     const edgeIds = /* @__PURE__ */ new Set();
-    if (selectedIds.size === 0)
+    if (genRootIds.size === 0)
       return { nodeIds, edgeIds };
     for (const e of graph.edges) {
-      const s = selectedIds.has(e.source), t = selectedIds.has(e.target);
+      const s = genRootIds.has(e.source), t = genRootIds.has(e.target);
       if (s || t)
         edgeIds.add(e.id);
       if (s && !t)
@@ -42376,16 +42383,21 @@ function Canvas({
         nodeIds.add(e.source);
     }
     for (const n of graph.nodes) {
-      if (selectedIds.has(n.id)) {
+      if (genRootIds.has(n.id)) {
         for (const c of n.children)
-          if (!selectedIds.has(c))
+          if (!genRootIds.has(c))
             nodeIds.add(c);
-      } else if (n.children.some((c) => selectedIds.has(c))) {
+      } else if (n.children.some((c) => genRootIds.has(c))) {
         nodeIds.add(n.id);
       }
     }
+    const exists = new Set(graph.nodes.map((n) => n.id));
+    genRootIds.forEach((id) => {
+      if (exists.has(id))
+        nodeIds.add(id);
+    });
     return { nodeIds, edgeIds };
-  }, [selectedIds, graph.edges, graph.nodes]);
+  }, [genRootIds, graph.edges, graph.nodes]);
   const flyToNode = (0, import_react9.useCallback)((nodeId) => {
     const node = graph.nodes.find((n) => n.id === nodeId);
     if (!node || !divRef.current)

@@ -287,8 +287,8 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 .ng-drop-item:hover{background:#f3f4f6}
 .ng-node.ng-search-match{border:2px solid #fcd34d !important}
 .ng-node.ng-search-active{border:2px solid #f59e0b !important;box-shadow:0 0 0 3px rgba(245,158,11,0.35),0 2px 8px rgba(0,0,0,.18) !important}
-/* 선택 노드의 한 세대(부모+자식) 하이라이트 */
-.ng-node.ng-gen{border:2px solid #fcd34d !important;box-shadow:0 0 0 3px rgba(252,211,77,.28),0 1px 4px rgba(0,0,0,.08) !important}
+/* 선택 노드의 한 세대(부모+자식) 하이라이트 — Esc로만 해제 */
+.ng-node.ng-gen{border:2px solid #f87171 !important;box-shadow:0 0 0 3px rgba(248,113,113,.3),0 1px 4px rgba(0,0,0,.08) !important}
 </style>
 </head>
 <body>
@@ -324,7 +324,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
           <polygon points="0 0,10 3.5,0 7" fill="#666"/>
         </marker>
         <marker id="arrow-hl" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-          <polygon points="0 0,10 3.5,0 7" fill="#f59e0b"/>
+          <polygon points="0 0,10 3.5,0 7" fill="#ef4444"/>
         </marker>
       </defs>
     </svg>
@@ -408,6 +408,8 @@ window.addEventListener('mouseup', function() {
 
 // Node selection
 var selectedNodeId = null;
+// 세대 하이라이트의 루트(pin): 배경 클릭으로 선택이 풀려도 유지, Esc로만 해제
+var genRootId = null;
 function selectNode(nodeId) {
   if (selectedNodeId) {
     var prev = document.getElementById('node-' + selectedNodeId);
@@ -423,6 +425,7 @@ function selectNode(nodeId) {
   } else {
     if (label) { label.textContent = 'Click a node to select'; label.style.opacity = '0.35'; }
   }
+  if (nodeId) genRootId = nodeId;  // null(배경 클릭)이어도 하이라이트 루트는 유지
   updateGenHighlight();
   drawEdges();
 }
@@ -446,11 +449,14 @@ function getGenNeighbors(nodeId) {
   return ids;
 }
 
-// 선택 노드의 이웃 노드들에 노란 테두리 적용 (wire 색은 drawEdges에서 처리)
+// 고정된 루트와 그 이웃 노드들에 빨간 테두리 적용 (wire 색은 drawEdges에서 처리)
 function updateGenHighlight() {
   document.querySelectorAll('.ng-gen').forEach(function(el) { el.classList.remove('ng-gen'); });
-  if (!selectedNodeId) return;
-  getGenNeighbors(selectedNodeId).forEach(function(id) {
+  if (!genRootId) return;
+  var ids = getGenNeighbors(genRootId);
+  ids.push(genRootId);  // 루트 자신도 포함 (선택 중에는 선택 스타일 우선)
+  ids.forEach(function(id) {
+    if (id === selectedNodeId) return;
     var el = document.getElementById('node-' + id);
     if (el) el.classList.add('ng-gen');
   });
@@ -1052,10 +1058,10 @@ function drawEdges(fast) {
     var busMinY=Math.min(srcAnchorY,minTY);
     var busMaxY=Math.max(srcAnchorY,maxTY);
 
-    // 세대 하이라이트: source가 선택됐거나 타겟 중 하나가 선택됐으면 트렁크(공용 구간)도 노란색
-    var srcSel=srcId===selectedNodeId;
-    var groupHl=srcSel||targets.some(function(t){return t.e.target===selectedNodeId;});
-    var trunkColor=groupHl?'#f59e0b':'#888', trunkW=groupHl?'2.5':'1.5';
+    // 세대 하이라이트: 루트가 source거나 타겟 중 하나면 트렁크(공용 구간)도 빨간색
+    var srcSel=srcId===genRootId;
+    var groupHl=srcSel||targets.some(function(t){return t.e.target===genRootId;});
+    var trunkColor=groupHl?'#ef4444':'#888', trunkW=groupHl?'2.5':'1.5';
 
     var g=document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('class','ng-eg');
@@ -1063,8 +1069,8 @@ function drawEdges(fast) {
     g.appendChild(svgLine(busX,busMinY,busX,busMaxY,trunkColor,trunkW));
     g.appendChild(svgCirc(sr.x+sr.w,srcAnchorY,4,trunkColor));
     targets.forEach(function(t){
-      var tHl=srcSel||t.e.target===selectedNodeId;
-      var branchColor=tHl?'#f59e0b':'#888';
+      var tHl=srcSel||t.e.target===genRootId;
+      var branchColor=tHl?'#ef4444':'#888';
       g.appendChild(svgLine(busX,t.r.cy,t.r.x,t.r.cy,branchColor,tHl?'2.5':'1.5'));
       g.appendChild(svgCirc(t.r.x,t.r.cy,4,branchColor));
       busDrawn[t.e.source+'-'+t.e.target]=true;
@@ -1159,9 +1165,9 @@ function drawEdges(fast) {
         d=ptsToPath(spreadPts(pts,spread));
       }
     }
-    // 세대 하이라이트: 선택 노드와 직접 연결된 wire는 노란색
-    var hl=selectedNodeId&&(edge.source===selectedNodeId||edge.target===selectedNodeId);
-    var strokeColor=hl?'#f59e0b':'#666';
+    // 세대 하이라이트: 루트 노드와 직접 연결된 wire는 빨간색
+    var hl=genRootId&&(edge.source===genRootId||edge.target===genRootId);
+    var strokeColor=hl?'#ef4444':'#666';
     var g=document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('class','ng-eg');
     var path=document.createElementNS('http://www.w3.org/2000/svg','path');
@@ -1195,6 +1201,8 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){
     if(document.getElementById('search-wrap').classList.contains('open')){closeSearch();return;}
     closeLightbox();
+    // Esc = 세대 하이라이트 해제 (배경 클릭으로는 해제되지 않음)
+    if(genRootId){genRootId=null;updateGenHighlight();drawEdges();}
   }
 });
 // Middle click: prevent X11 primary selection paste
