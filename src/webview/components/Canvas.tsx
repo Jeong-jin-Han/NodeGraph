@@ -383,11 +383,12 @@ export function Canvas({
   const lastToolbarInteractionRef = useRef<number>(0)
   const toolbarRef = useRef<HTMLDivElement>(null)
 
-  // 세대 하이라이트의 루트(pin): 배경 클릭으로 선택이 풀려도 유지, Esc로만 해제
+  // 세대 하이라이트의 루트(pin): tag 클릭 시에만 갱신 — 일반 클릭/fold·unfold는
+  // 하이라이트를 건드리지 않음(불필요한 재계산 방지). Esc로만 해제
   const [genRootIds, setGenRootIds] = useState<Set<string>>(new Set())
-  useEffect(() => {
-    if (selectedIds.size > 0) setGenRootIds(new Set(selectedIds))
-  }, [selectedIds])
+  const handlePinHighlight = useCallback((id: string) => {
+    setGenRootIds(new Set([id]))
+  }, [])
 
   // 좁은 화면에서 툴바 가로 슬라이드: Shift+휠(또는 가로휠)로 좌우 스크롤
   useEffect(() => {
@@ -1432,6 +1433,7 @@ export function Canvas({
                   isSearchMatch={searchSelectedId === null && searchMatchNodes.some(m => m.id === node.id)}
                   isActiveSearchMatch={node.id === searchSelectedId}
                   isGenHighlight={genHighlight.nodeIds.has(node.id)}
+                  onPinHighlight={handlePinHighlight}
                   onNodeDragActivate={setDraggingNodeId}
                   onNodeDragDeactivate={() => setDraggingNodeId(null)}
                 />

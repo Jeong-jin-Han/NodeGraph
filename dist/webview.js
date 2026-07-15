@@ -1083,7 +1083,7 @@ var require_react_development = __commonJS({
           }
           return dispatcher.useContext(Context);
         }
-        function useState7(initialState) {
+        function useState8(initialState) {
           var dispatcher = resolveDispatcher();
           return dispatcher.useState(initialState);
         }
@@ -1095,7 +1095,7 @@ var require_react_development = __commonJS({
           var dispatcher = resolveDispatcher();
           return dispatcher.useRef(initialValue);
         }
-        function useEffect5(create, deps) {
+        function useEffect6(create, deps) {
           var dispatcher = resolveDispatcher();
           return dispatcher.useEffect(create, deps);
         }
@@ -1878,7 +1878,7 @@ var require_react_development = __commonJS({
         exports.useContext = useContext;
         exports.useDebugValue = useDebugValue;
         exports.useDeferredValue = useDeferredValue;
-        exports.useEffect = useEffect5;
+        exports.useEffect = useEffect6;
         exports.useId = useId;
         exports.useImperativeHandle = useImperativeHandle;
         exports.useInsertionEffect = useInsertionEffect;
@@ -1886,7 +1886,7 @@ var require_react_development = __commonJS({
         exports.useMemo = useMemo6;
         exports.useReducer = useReducer;
         exports.useRef = useRef8;
-        exports.useState = useState7;
+        exports.useState = useState8;
         exports.useSyncExternalStore = useSyncExternalStore;
         exports.useTransition = useTransition;
         exports.version = ReactVersion;
@@ -39655,6 +39655,7 @@ function NodeCard({
   isSearchMatch,
   isActiveSearchMatch,
   isGenHighlight,
+  onPinHighlight,
   onNodeDragActivate,
   onNodeDragDeactivate
 }) {
@@ -39901,6 +39902,7 @@ function NodeCard({
                   {
                     onMouseDown: (e) => {
                       onSelect(node.id, e.shiftKey || e.ctrlKey || e.metaKey);
+                      onPinHighlight?.(node.id);
                       if (isMultiSelected && extraDragNodes && extraDragNodes.length > 0) {
                         e.stopPropagation();
                         e.preventDefault();
@@ -41141,27 +41143,34 @@ function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wire
     addSpread(byTgt, (e) => allRects2.get(e.source));
     return { nodeMap: nodeMap2, busGroups: busGroups2, busEdgeIds: busEdgeIds2, allRects: allRects2, spreadMap: spreadMap2 };
   }, [nodes, edges, nodeSizes, renderPositions]);
-  const gridRoutes = (0, import_react6.useMemo)(() => {
-    if (fastRoute)
-      return null;
-    const reqs = [];
-    for (const edge of edges) {
-      if (busEdgeIds.has(edge.id))
-        continue;
-      const srcR = allRects.get(edge.source), tgtR = allRects.get(edge.target);
-      if (!srcR || !tgtR)
-        continue;
-      const { sourcePort, targetPort } = getNearestPorts(srcR, tgtR);
-      reqs.push({
-        key: edge.id,
-        src: getPortPosition(srcR, sourcePort),
-        tgt: getPortPosition(tgtR, targetPort),
-        srcId: edge.source,
-        tgtId: edge.target
-      });
+  const [gridRoutes, setGridRoutes] = (0, import_react6.useState)(null);
+  (0, import_react6.useEffect)(() => {
+    if (fastRoute) {
+      setGridRoutes(null);
+      return;
     }
-    const rectList = [...allRects].map(([id, rect]) => ({ id, rect }));
-    return routeEdgesOnGrid(reqs, rectList);
+    setGridRoutes(null);
+    const t = setTimeout(() => {
+      const reqs = [];
+      for (const edge of edges) {
+        if (busEdgeIds.has(edge.id))
+          continue;
+        const srcR = allRects.get(edge.source), tgtR = allRects.get(edge.target);
+        if (!srcR || !tgtR)
+          continue;
+        const { sourcePort, targetPort } = getNearestPorts(srcR, tgtR);
+        reqs.push({
+          key: edge.id,
+          src: getPortPosition(srcR, sourcePort),
+          tgt: getPortPosition(tgtR, targetPort),
+          srcId: edge.source,
+          tgtId: edge.target
+        });
+      }
+      const rectList = [...allRects].map(([id, rect]) => ({ id, rect }));
+      setGridRoutes(routeEdgesOnGrid(reqs, rectList));
+    }, 150);
+    return () => clearTimeout(t);
   }, [edges, busEdgeIds, allRects, fastRoute]);
   return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
     "svg",
@@ -42019,10 +42028,9 @@ function Canvas({
   const lastToolbarInteractionRef = (0, import_react9.useRef)(0);
   const toolbarRef = (0, import_react9.useRef)(null);
   const [genRootIds, setGenRootIds] = (0, import_react9.useState)(/* @__PURE__ */ new Set());
-  (0, import_react9.useEffect)(() => {
-    if (selectedIds.size > 0)
-      setGenRootIds(new Set(selectedIds));
-  }, [selectedIds]);
+  const handlePinHighlight = (0, import_react9.useCallback)((id) => {
+    setGenRootIds(/* @__PURE__ */ new Set([id]));
+  }, []);
   (0, import_react9.useEffect)(() => {
     const el = toolbarRef.current;
     if (!el)
@@ -43090,6 +43098,7 @@ function Canvas({
                   isSearchMatch: searchSelectedId === null && searchMatchNodes.some((m) => m.id === node.id),
                   isActiveSearchMatch: node.id === searchSelectedId,
                   isGenHighlight: genHighlight.nodeIds.has(node.id),
+                  onPinHighlight: handlePinHighlight,
                   onNodeDragActivate: setDraggingNodeId,
                   onNodeDragDeactivate: () => setDraggingNodeId(null)
                 },

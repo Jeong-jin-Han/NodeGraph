@@ -425,9 +425,9 @@ function selectNode(nodeId) {
   } else {
     if (label) { label.textContent = 'Click a node to select'; label.style.opacity = '0.35'; }
   }
-  if (nodeId) genRootId = nodeId;  // null(배경 클릭)이어도 하이라이트 루트는 유지
+  // 하이라이트 루트는 tag 클릭(onNodeTagMousedown)에서만 갱신 — 일반 클릭/fold는
+  // 하이라이트를 바꾸지 않음. 선택 스타일 우선 규칙만 재적용 (wire 색은 불변)
   updateGenHighlight();
-  drawEdges();
 }
 
 // 선택 노드의 한 세대(부모+자식) 이웃 ID 수집 — edges 양방향 + children 배열
@@ -608,6 +608,10 @@ function onNodeTagMousedown(e, nodeEl) {
   for (var i = 0; i < NODES_DATA.length; i++) {
     if (NODES_DATA[i].id === nodeId) { nodeDatum = NODES_DATA[i]; break; }
   }
+  // tag 클릭 = 세대 하이라이트 pin (배치 불변 → A* 캐시 재사용, 색만 즉시 갱신)
+  genRootId = nodeId;
+  updateGenHighlight();
+  drawEdges();
   function onMove(ev) {
     var rawDx = ev.clientX - x0, rawDy = ev.clientY - y0;
     if (!moved && (Math.abs(rawDx) > 5 || Math.abs(rawDy) > 5)) { moved = true; nodeEl.classList.add('ng-dragging'); }
@@ -814,10 +818,21 @@ function recomputePositions() {
     el.style.left = (renderX[n.id] !== undefined ? renderX[n.id] : n.lx) + 'px';
     el.style.top = (renderY[n.id] !== undefined ? renderY[n.id] : n.ly) + 'px';
   });
-  drawEdges();
+  // 배치가 바뀌었으므로 A* 캐시 무효화 — 즉시 경량으로 그리고 잠잠해지면 정밀화
+  routesDirty=true;
+  drawEdges(true);
+  scheduleEdgeRefine();
 }
 
 // Edge drawing
+// A* 라우팅 캐시: 노드 배치가 바뀔 때만(routesDirty) 재계산 — 색상 변경 등은 재사용
+var cachedRoutes=null, routesDirty=true;
+var edgeRefineTimer=null;
+// fold/드롭 직후: 경량 휴리스틱으로 즉시 그린 뒤 150ms 후 A* 정밀 경로로 교체
+function scheduleEdgeRefine(){
+  if(edgeRefineTimer) clearTimeout(edgeRefineTimer);
+  edgeRefineTimer=setTimeout(function(){edgeRefineTimer=null;drawEdges();},150);
+}
 function getNodeRect(el) {
   var x = parseFloat(el.style.left)||0, y = parseFloat(el.style.top)||0;
   return { x:x, y:y, w:el.offsetWidth, h:el.offsetHeight, cx:x+el.offsetWidth*.5, cy:y+el.offsetHeight*.5 };
@@ -1107,23 +1122,28 @@ function drawEdges(fast) {
     add(byTgt,function(i){return rectById[EDGES[i].source].cy;});
   })();
 
-  // 그리드 A* 전역 라우팅 — 드래그 중(fast)에는 스킵하고 경량 휴리스틱 사용
+  // 그리드 A* 전역 라우팅 — 드래그 중(fast)에는 스킵하고 경량 휴리스틱 사용.
+  // 레이아웃이 바뀌지 않은 재호출(하이라이트 색만 변경 등)은 캐시를 재사용해 즉시 처리
   var gridRoutes=null;
   if(!fast){
-    var reqs=[];
-    EDGES.forEach(function(e,idx){
-      if(busDrawn[e.source+'-'+e.target]) return;
-      var sr3=rectById[e.source],tr3=rectById[e.target];
-      if(!sr3||!tr3) return;
-      var ports3=getBestPorts(sr3,tr3);
-      if(!ports3) return;
-      reqs.push({key:String(idx),
-        src:{x:ports3.sp.p[0],y:ports3.sp.p[1]},
-        tgt:{x:ports3.tp.p[0],y:ports3.tp.p[1]},
-        srcId:e.source,tgtId:e.target});
-    });
-    var rectList=Object.keys(rectById).map(function(nid){return{id:nid,rect:rectById[nid]};});
-    gridRoutes=routeEdgesGrid(reqs,rectList);
+    if(routesDirty||!cachedRoutes){
+      var reqs=[];
+      EDGES.forEach(function(e,idx){
+        if(busDrawn[e.source+'-'+e.target]) return;
+        var sr3=rectById[e.source],tr3=rectById[e.target];
+        if(!sr3||!tr3) return;
+        var ports3=getBestPorts(sr3,tr3);
+        if(!ports3) return;
+        reqs.push({key:String(idx),
+          src:{x:ports3.sp.p[0],y:ports3.sp.p[1]},
+          tgt:{x:ports3.tp.p[0],y:ports3.tp.p[1]},
+          srcId:e.source,tgtId:e.target});
+      });
+      var rectList=Object.keys(rectById).map(function(nid){return{id:nid,rect:rectById[nid]};});
+      cachedRoutes=routeEdgesGrid(reqs,rectList);
+      routesDirty=false;
+    }
+    gridRoutes=cachedRoutes;
   }
 
   // Remaining edges: obstacle-avoiding curves

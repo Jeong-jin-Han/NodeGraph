@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { GraphEdge, GraphNode } from '../types/graph'
 import {
   getNearestPorts, getPortPosition, getRoutedPath,
@@ -117,25 +117,33 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
     return { nodeMap, busGroups, busEdgeIds, allRects, spreadMap }
   }, [nodes, edges, nodeSizes, renderPositions])
 
-  // 그리드 A* 전역 라우팅 — 드래그 중(fastRoute)에는 스킵하고 경량 휴리스틱 사용
-  const gridRoutes = useMemo(() => {
-    if (fastRoute) return null
-    const reqs: RouteRequest[] = []
-    for (const edge of edges) {
-      if (busEdgeIds.has(edge.id)) continue
-      const srcR = allRects.get(edge.source), tgtR = allRects.get(edge.target)
-      if (!srcR || !tgtR) continue
-      const { sourcePort, targetPort } = getNearestPorts(srcR, tgtR)
-      reqs.push({
-        key: edge.id,
-        src: getPortPosition(srcR, sourcePort),
-        tgt: getPortPosition(tgtR, targetPort),
-        srcId: edge.source,
-        tgtId: edge.target,
-      })
-    }
-    const rectList = [...allRects].map(([id, rect]) => ({ id, rect }))
-    return routeEdgesOnGrid(reqs, rectList)
+  // 그리드 A* 전역 라우팅 — 렌더 경로 밖에서 비동기로 실행.
+  // 레이아웃이 바뀌면(fold/unfold 등) 일단 경량 휴리스틱으로 즉시 그리고,
+  // 변경이 잦아든 150ms 후 A* 정밀 경로로 교체 → fold/unfold 지연 없음.
+  // 드래그 중(fastRoute)에는 아예 스킵.
+  const [gridRoutes, setGridRoutes] = useState<Record<string, Array<{ x: number; y: number }> | null> | null>(null)
+  useEffect(() => {
+    if (fastRoute) { setGridRoutes(null); return }
+    setGridRoutes(null)
+    const t = setTimeout(() => {
+      const reqs: RouteRequest[] = []
+      for (const edge of edges) {
+        if (busEdgeIds.has(edge.id)) continue
+        const srcR = allRects.get(edge.source), tgtR = allRects.get(edge.target)
+        if (!srcR || !tgtR) continue
+        const { sourcePort, targetPort } = getNearestPorts(srcR, tgtR)
+        reqs.push({
+          key: edge.id,
+          src: getPortPosition(srcR, sourcePort),
+          tgt: getPortPosition(tgtR, targetPort),
+          srcId: edge.source,
+          tgtId: edge.target,
+        })
+      }
+      const rectList = [...allRects].map(([id, rect]) => ({ id, rect }))
+      setGridRoutes(routeEdgesOnGrid(reqs, rectList))
+    }, 150)
+    return () => clearTimeout(t)
   }, [edges, busEdgeIds, allRects, fastRoute])
 
   return (

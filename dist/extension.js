@@ -489,9 +489,9 @@ function selectNode(nodeId) {
   } else {
     if (label) { label.textContent = 'Click a node to select'; label.style.opacity = '0.35'; }
   }
-  if (nodeId) genRootId = nodeId;  // null(\uBC30\uACBD \uD074\uB9AD)\uC774\uC5B4\uB3C4 \uD558\uC774\uB77C\uC774\uD2B8 \uB8E8\uD2B8\uB294 \uC720\uC9C0
+  // \uD558\uC774\uB77C\uC774\uD2B8 \uB8E8\uD2B8\uB294 tag \uD074\uB9AD(onNodeTagMousedown)\uC5D0\uC11C\uB9CC \uAC31\uC2E0 \u2014 \uC77C\uBC18 \uD074\uB9AD/fold\uB294
+  // \uD558\uC774\uB77C\uC774\uD2B8\uB97C \uBC14\uAFB8\uC9C0 \uC54A\uC74C. \uC120\uD0DD \uC2A4\uD0C0\uC77C \uC6B0\uC120 \uADDC\uCE59\uB9CC \uC7AC\uC801\uC6A9 (wire \uC0C9\uC740 \uBD88\uBCC0)
   updateGenHighlight();
-  drawEdges();
 }
 
 // \uC120\uD0DD \uB178\uB4DC\uC758 \uD55C \uC138\uB300(\uBD80\uBAA8+\uC790\uC2DD) \uC774\uC6C3 ID \uC218\uC9D1 \u2014 edges \uC591\uBC29\uD5A5 + children \uBC30\uC5F4
@@ -672,6 +672,10 @@ function onNodeTagMousedown(e, nodeEl) {
   for (var i = 0; i < NODES_DATA.length; i++) {
     if (NODES_DATA[i].id === nodeId) { nodeDatum = NODES_DATA[i]; break; }
   }
+  // tag \uD074\uB9AD = \uC138\uB300 \uD558\uC774\uB77C\uC774\uD2B8 pin (\uBC30\uCE58 \uBD88\uBCC0 \u2192 A* \uCE90\uC2DC \uC7AC\uC0AC\uC6A9, \uC0C9\uB9CC \uC989\uC2DC \uAC31\uC2E0)
+  genRootId = nodeId;
+  updateGenHighlight();
+  drawEdges();
   function onMove(ev) {
     var rawDx = ev.clientX - x0, rawDy = ev.clientY - y0;
     if (!moved && (Math.abs(rawDx) > 5 || Math.abs(rawDy) > 5)) { moved = true; nodeEl.classList.add('ng-dragging'); }
@@ -878,10 +882,21 @@ function recomputePositions() {
     el.style.left = (renderX[n.id] !== undefined ? renderX[n.id] : n.lx) + 'px';
     el.style.top = (renderY[n.id] !== undefined ? renderY[n.id] : n.ly) + 'px';
   });
-  drawEdges();
+  // \uBC30\uCE58\uAC00 \uBC14\uB00C\uC5C8\uC73C\uBBC0\uB85C A* \uCE90\uC2DC \uBB34\uD6A8\uD654 \u2014 \uC989\uC2DC \uACBD\uB7C9\uC73C\uB85C \uADF8\uB9AC\uACE0 \uC7A0\uC7A0\uD574\uC9C0\uBA74 \uC815\uBC00\uD654
+  routesDirty=true;
+  drawEdges(true);
+  scheduleEdgeRefine();
 }
 
 // Edge drawing
+// A* \uB77C\uC6B0\uD305 \uCE90\uC2DC: \uB178\uB4DC \uBC30\uCE58\uAC00 \uBC14\uB014 \uB54C\uB9CC(routesDirty) \uC7AC\uACC4\uC0B0 \u2014 \uC0C9\uC0C1 \uBCC0\uACBD \uB4F1\uC740 \uC7AC\uC0AC\uC6A9
+var cachedRoutes=null, routesDirty=true;
+var edgeRefineTimer=null;
+// fold/\uB4DC\uB86D \uC9C1\uD6C4: \uACBD\uB7C9 \uD734\uB9AC\uC2A4\uD2F1\uC73C\uB85C \uC989\uC2DC \uADF8\uB9B0 \uB4A4 150ms \uD6C4 A* \uC815\uBC00 \uACBD\uB85C\uB85C \uAD50\uCCB4
+function scheduleEdgeRefine(){
+  if(edgeRefineTimer) clearTimeout(edgeRefineTimer);
+  edgeRefineTimer=setTimeout(function(){edgeRefineTimer=null;drawEdges();},150);
+}
 function getNodeRect(el) {
   var x = parseFloat(el.style.left)||0, y = parseFloat(el.style.top)||0;
   return { x:x, y:y, w:el.offsetWidth, h:el.offsetHeight, cx:x+el.offsetWidth*.5, cy:y+el.offsetHeight*.5 };
@@ -1171,23 +1186,28 @@ function drawEdges(fast) {
     add(byTgt,function(i){return rectById[EDGES[i].source].cy;});
   })();
 
-  // \uADF8\uB9AC\uB4DC A* \uC804\uC5ED \uB77C\uC6B0\uD305 \u2014 \uB4DC\uB798\uADF8 \uC911(fast)\uC5D0\uB294 \uC2A4\uD0B5\uD558\uACE0 \uACBD\uB7C9 \uD734\uB9AC\uC2A4\uD2F1 \uC0AC\uC6A9
+  // \uADF8\uB9AC\uB4DC A* \uC804\uC5ED \uB77C\uC6B0\uD305 \u2014 \uB4DC\uB798\uADF8 \uC911(fast)\uC5D0\uB294 \uC2A4\uD0B5\uD558\uACE0 \uACBD\uB7C9 \uD734\uB9AC\uC2A4\uD2F1 \uC0AC\uC6A9.
+  // \uB808\uC774\uC544\uC6C3\uC774 \uBC14\uB00C\uC9C0 \uC54A\uC740 \uC7AC\uD638\uCD9C(\uD558\uC774\uB77C\uC774\uD2B8 \uC0C9\uB9CC \uBCC0\uACBD \uB4F1)\uC740 \uCE90\uC2DC\uB97C \uC7AC\uC0AC\uC6A9\uD574 \uC989\uC2DC \uCC98\uB9AC
   var gridRoutes=null;
   if(!fast){
-    var reqs=[];
-    EDGES.forEach(function(e,idx){
-      if(busDrawn[e.source+'-'+e.target]) return;
-      var sr3=rectById[e.source],tr3=rectById[e.target];
-      if(!sr3||!tr3) return;
-      var ports3=getBestPorts(sr3,tr3);
-      if(!ports3) return;
-      reqs.push({key:String(idx),
-        src:{x:ports3.sp.p[0],y:ports3.sp.p[1]},
-        tgt:{x:ports3.tp.p[0],y:ports3.tp.p[1]},
-        srcId:e.source,tgtId:e.target});
-    });
-    var rectList=Object.keys(rectById).map(function(nid){return{id:nid,rect:rectById[nid]};});
-    gridRoutes=routeEdgesGrid(reqs,rectList);
+    if(routesDirty||!cachedRoutes){
+      var reqs=[];
+      EDGES.forEach(function(e,idx){
+        if(busDrawn[e.source+'-'+e.target]) return;
+        var sr3=rectById[e.source],tr3=rectById[e.target];
+        if(!sr3||!tr3) return;
+        var ports3=getBestPorts(sr3,tr3);
+        if(!ports3) return;
+        reqs.push({key:String(idx),
+          src:{x:ports3.sp.p[0],y:ports3.sp.p[1]},
+          tgt:{x:ports3.tp.p[0],y:ports3.tp.p[1]},
+          srcId:e.source,tgtId:e.target});
+      });
+      var rectList=Object.keys(rectById).map(function(nid){return{id:nid,rect:rectById[nid]};});
+      cachedRoutes=routeEdgesGrid(reqs,rectList);
+      routesDirty=false;
+    }
+    gridRoutes=cachedRoutes;
   }
 
   // Remaining edges: obstacle-avoiding curves

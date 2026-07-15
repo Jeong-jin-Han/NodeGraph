@@ -45,6 +45,7 @@ interface NodeCardProps {
   isSearchMatch?: boolean
   isActiveSearchMatch?: boolean
   isGenHighlight?: boolean
+  onPinHighlight?: (id: string) => void
   onNodeDragActivate?: (nodeId: string) => void
   onNodeDragDeactivate?: (nodeId: string) => void
 }
@@ -77,7 +78,7 @@ export function NodeCard({
   onAddOriginal, onAddLink, onDeleteLink, onOpenLink, onSetNodeTemplate,
   imageUris, onSaveImage,
   canvasClipboardRef, onAddFilenameToNode,
-  isSearchMatch, isActiveSearchMatch, isGenHighlight,
+  isSearchMatch, isActiveSearchMatch, isGenHighlight, onPinHighlight,
   onNodeDragActivate, onNodeDragDeactivate,
 }: NodeCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
@@ -318,6 +319,7 @@ export function NodeCard({
           <span
             onMouseDown={(e) => {
               onSelect(node.id, e.shiftKey || e.ctrlKey || e.metaKey)
+              onPinHighlight?.(node.id)
               if (isMultiSelected && extraDragNodes && extraDragNodes.length > 0) {
                 e.stopPropagation()
                 e.preventDefault()
