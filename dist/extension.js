@@ -91,6 +91,18 @@ async function deleteImageFile(documentUri, filename) {
 function escHtml(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
+function invertRgbHex(hex) {
+  const h = hex.trim().replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  if (!/^[0-9a-fA-F]{6}$/.test(full))
+    return null;
+  return {
+    r: 255 - parseInt(full.slice(0, 2), 16),
+    g: 255 - parseInt(full.slice(2, 4), 16),
+    b: 255 - parseInt(full.slice(4, 6), 16)
+  };
+}
+var hitKeySafe = (k) => k.replace(/[^a-zA-Z0-9_-]/g, "_");
 function isHtmlTableLine(line) {
   return /^\s*\|/.test(line) && line.indexOf("|", 1) !== -1;
 }
@@ -270,6 +282,12 @@ function generateHtml(graph, imageData = {}) {
     label: e.label || ""
   })));
   const source = graph.source ? `${escHtml(graph.source.authors)} \xB7 ${escHtml(graph.source.venue)}` : "";
+  const hitStyles = Object.entries(graph.nodeTemplates).map(([key, t]) => {
+    const inv = invertRgbHex(t.color);
+    const c = inv ? `rgb(${inv.r},${inv.g},${inv.b})` : "#ff3b30";
+    const bg = inv ? `rgba(${inv.r},${inv.g},${inv.b},0.18)` : "rgba(255,59,48,0.18)";
+    return `::highlight(ng-hit-${hitKeySafe(key)}){color:${c};background-color:${bg};text-decoration:underline}`;
+  }).join("\n");
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -351,6 +369,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 .ng-drop-item:hover{background:#f3f4f6}
 .ng-node.ng-search-match{border:2px solid #fcd34d !important}
 .ng-node.ng-search-active{border:2px solid #f59e0b !important;box-shadow:0 0 0 3px rgba(245,158,11,0.35),0 2px 8px rgba(0,0,0,.18) !important}
+${hitStyles}
 /* \uC120\uD0DD \uB178\uB4DC\uC758 \uD55C \uC138\uB300(\uBD80\uBAA8+\uC790\uC2DD) \uD558\uC774\uB77C\uC774\uD2B8 \u2014 Esc\uB85C\uB9CC \uD574\uC81C */
 .ng-node.ng-gen{border:2px solid #f87171 !important;box-shadow:0 0 0 3px rgba(248,113,113,.3),0 1px 4px rgba(0,0,0,.08) !important}
 </style>
@@ -514,13 +533,13 @@ function getGenNeighbors(nodeId) {
 }
 
 // \uACE0\uC815\uB41C \uB8E8\uD2B8\uC640 \uADF8 \uC774\uC6C3 \uB178\uB4DC\uB4E4\uC5D0 \uBE68\uAC04 \uD14C\uB450\uB9AC \uC801\uC6A9 (wire \uC0C9\uC740 drawEdges\uC5D0\uC11C \uCC98\uB9AC)
+// \uB8E8\uD2B8 \uC790\uC2E0\uB3C4 \uBE68\uAC04\uC0C9 \u2014 \uC120\uD0DD \uC0C1\uD0DC\uC5EC\uB3C4 \uD558\uC774\uB77C\uC774\uD2B8\uAC00 \uC6B0\uC120 (\uC5D0\uB514\uD130\uC640 \uB3D9\uC77C)
 function updateGenHighlight() {
   document.querySelectorAll('.ng-gen').forEach(function(el) { el.classList.remove('ng-gen'); });
   if (!genRootId) return;
   var ids = getGenNeighbors(genRootId);
-  ids.push(genRootId);  // \uB8E8\uD2B8 \uC790\uC2E0\uB3C4 \uD3EC\uD568 (\uC120\uD0DD \uC911\uC5D0\uB294 \uC120\uD0DD \uC2A4\uD0C0\uC77C \uC6B0\uC120)
+  ids.push(genRootId);
   ids.forEach(function(id) {
-    if (id === selectedNodeId) return;
     var el = document.getElementById('node-' + id);
     if (el) el.classList.add('ng-gen');
   });
@@ -1320,6 +1339,7 @@ function openSearch(){
 }
 function closeSearch(){
   clearSearchHighlights();
+  clearTextHits();
   searchSelectedId=null;searchMatchNodes=[];kbIdx=-1;
   document.getElementById('search-wrap').classList.remove('open');
   document.getElementById('search-input').value='';
@@ -1328,6 +1348,43 @@ function closeSearch(){
 }
 function clearSearchHighlights(){
   document.querySelectorAll('.ng-search-match,.ng-search-active').forEach(function(el){el.classList.remove('ng-search-match','ng-search-active');});
+}
+// \uAC80\uC0C9\uC5B4 \uC778\uB77C\uC778 \uD558\uC774\uB77C\uC774\uD2B8 (CSS Custom Highlight API \u2014 \uBBF8\uC9C0\uC6D0 \uBE0C\uB77C\uC6B0\uC800\uB294 \uC870\uC6A9\uD788 \uBB34\uC2DC)
+// \uB9E4\uCE58 \uB178\uB4DC\uC758 \uD14D\uC2A4\uD2B8\uC5D0\uC11C \uAC80\uC0C9\uC5B4 \uBD80\uBD84\uB9CC Range\uB85C \uC218\uC9D1, \uD15C\uD50C\uB9BF\uBCC4 \uBC18\uC804\uC0C9 \uC2A4\uD0C0\uC77C \uC801\uC6A9
+function hitKey(t){return 'ng-hit-'+String(t).replace(/[^a-zA-Z0-9_-]/g,'_');}
+var HIT_KEYS=[];
+function clearTextHits(){
+  if(!window.CSS||!CSS.highlights) return;
+  HIT_KEYS.forEach(function(k){CSS.highlights.delete(k);});
+  HIT_KEYS=[];
+}
+function updateTextHits(){
+  if(!window.CSS||!CSS.highlights||typeof Highlight==='undefined') return;
+  clearTextHits();
+  var q=document.getElementById('search-input').value.trim().toLowerCase();
+  if(!q||!document.getElementById('search-wrap').classList.contains('open')) return;
+  var byTmpl={};
+  searchMatchNodes.forEach(function(n){
+    var el=document.getElementById('node-'+n.id);
+    if(!el) return;
+    var walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+    var tn;
+    while((tn=walker.nextNode())){
+      var par=tn.parentElement;
+      if(!par||par.closest('.katex')) continue;
+      var lower=(tn.textContent||'').toLowerCase();
+      var idx=lower.indexOf(q);
+      while(idx!==-1){
+        var r=new Range();
+        r.setStart(tn,idx);r.setEnd(tn,idx+q.length);
+        var k=hitKey(n.template);
+        if(!byTmpl[k]) byTmpl[k]=new Highlight();
+        byTmpl[k].add(r);
+        idx=lower.indexOf(q,idx+q.length);
+      }
+    }
+  });
+  Object.keys(byTmpl).forEach(function(k){CSS.highlights.set(k,byTmpl[k]);HIT_KEYS.push(k);});
 }
 function closeDropdown(){
   document.getElementById('search-drop').classList.remove('open');
@@ -1343,6 +1400,7 @@ function doSearch(q){
   searchMatchNodes.forEach(function(n){var el=document.getElementById('node-'+n.id);if(el) el.classList.add('ng-search-match');});
   updateSearchCount();
   renderDropdown();
+  updateTextHits();
 }
 function renderDropdown(){
   var drop=document.getElementById('search-drop');
@@ -1402,6 +1460,7 @@ function selectSearchNode(id){
   setTimeout(function(){recomputePositions();flyToNode(id);},0);
   closeDropdown();
   updateSearchCount();
+  updateTextHits();
 }
 function onSearchInputClick(){
   if(searchSelectedId!==null){

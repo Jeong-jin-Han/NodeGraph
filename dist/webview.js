@@ -39830,12 +39830,12 @@ function NodeCard({
           minWidth: Math.max(node.nodeWidth ?? 0, 432, autoMinWidth),
           minHeight: node.contentExpanded ? node.nodeHeight ?? void 0 : void 0,
           background: `color-mix(in srgb, ${color} 15%, var(--vscode-editor-background, #1e1e1e))`,
-          border: selected ? `2px solid ${color}` : isActiveSearchMatch ? "2px solid #f59e0b" : isSearchMatch ? "2px solid #fcd34d" : isGenHighlight ? "2px solid #f87171" : `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
+          border: isGenHighlight ? "2px solid #f87171" : selected ? `2px solid ${color}` : isActiveSearchMatch ? "2px solid #f59e0b" : isSearchMatch ? "2px solid #fcd34d" : `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
           borderRadius,
           fontFamily: "var(--vscode-font-family)",
           fontSize: "var(--vscode-font-size)",
           color: "var(--vscode-editor-foreground)",
-          boxShadow: isActiveSearchMatch ? "0 0 0 3px rgba(245,158,11,0.35), 0 2px 8px rgba(0,0,0,0.25)" : isGenHighlight && !selected ? "0 0 0 3px rgba(248,113,113,0.3), 0 2px 8px rgba(0,0,0,0.25)" : isDragging ? "0 6px 20px rgba(0,0,0,0.35)" : "0 2px 8px rgba(0,0,0,0.25)",
+          boxShadow: isGenHighlight ? "0 0 0 3px rgba(248,113,113,0.3), 0 2px 8px rgba(0,0,0,0.25)" : isActiveSearchMatch ? "0 0 0 3px rgba(245,158,11,0.35), 0 2px 8px rgba(0,0,0,0.25)" : isDragging ? "0 6px 20px rgba(0,0,0,0.35)" : "0 2px 8px rgba(0,0,0,0.25)",
           transition: "box-shadow 0.1s",
           zIndex: isDragging ? 10 : 1
         },
@@ -41930,6 +41930,18 @@ var toolbarBtnStyle = {
   lineHeight: "1.4"
 };
 var FONT_PRESETS = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72];
+function invertRgb(hex) {
+  const h = hex.trim().replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  if (!/^[0-9a-fA-F]{6}$/.test(full))
+    return null;
+  return {
+    r: 255 - parseInt(full.slice(0, 2), 16),
+    g: 255 - parseInt(full.slice(2, 4), 16),
+    b: 255 - parseInt(full.slice(4, 6), 16)
+  };
+}
+var hitKeySafe = (k) => k.replace(/[^a-zA-Z0-9_-]/g, "_");
 function Canvas({
   openSearchSignal,
   viewport,
@@ -42376,6 +42388,45 @@ function Canvas({
     ).map((n) => ({ id: n.id, title: n.title }));
   }, [searchQuery, graph.nodes]);
   const showSearchDropdown = searchOpen && searchQuery.trim() !== "" && searchSelectedId === null;
+  (0, import_react9.useEffect)(() => {
+    const cssAny = CSS;
+    const HighlightCtor = window.Highlight;
+    if (!cssAny.highlights || !HighlightCtor)
+      return;
+    for (const key of Object.keys(graph.nodeTemplates)) {
+      cssAny.highlights.delete(`ng-hit-${hitKeySafe(key)}`);
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (!searchOpen || !q)
+      return;
+    const byTmpl = /* @__PURE__ */ new Map();
+    for (const m of searchMatchNodes) {
+      const node = graph.nodes.find((n) => n.id === m.id);
+      const el = document.querySelector(`[data-node-id="${CSS.escape(m.id)}"]`);
+      if (!node || !el)
+        continue;
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      let tn;
+      while (tn = walker.nextNode()) {
+        const parent = tn.parentElement;
+        if (!parent || parent.closest(".katex"))
+          continue;
+        const lower = (tn.textContent ?? "").toLowerCase();
+        let idx = lower.indexOf(q);
+        while (idx !== -1) {
+          const r = new Range();
+          r.setStart(tn, idx);
+          r.setEnd(tn, idx + q.length);
+          const key = hitKeySafe(node.template);
+          if (!byTmpl.has(key))
+            byTmpl.set(key, new HighlightCtor());
+          byTmpl.get(key).add(r);
+          idx = lower.indexOf(q, idx + q.length);
+        }
+      }
+    }
+    byTmpl.forEach((hl, key) => cssAny.highlights.set(`ng-hit-${key}`, hl));
+  }, [searchOpen, searchQuery, searchMatchNodes, graph.nodes, graph.nodeTemplates, nodeSizes, renderPositions]);
   const genHighlight = (0, import_react9.useMemo)(() => {
     const nodeIds = /* @__PURE__ */ new Set();
     const edgeIds = /* @__PURE__ */ new Set();
@@ -42683,6 +42734,12 @@ function Canvas({
   }, [onMoveCanvasImageToNode]);
   const selCount = selectedIds.size;
   return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { position: "relative", width: "100%", height: "100%", display: "flex", flexDirection: "column" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("style", { children: Object.entries(graph.nodeTemplates).map(([key, t]) => {
+      const inv = invertRgb(t.color);
+      const c = inv ? `rgb(${inv.r},${inv.g},${inv.b})` : "#ff3b30";
+      const bg = inv ? `rgba(${inv.r},${inv.g},${inv.b},0.18)` : "rgba(255,59,48,0.18)";
+      return `::highlight(ng-hit-${hitKeySafe(key)}){color:${c};background-color:${bg};text-decoration:underline}`;
+    }).join("\n") }),
     /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
       "div",
       {

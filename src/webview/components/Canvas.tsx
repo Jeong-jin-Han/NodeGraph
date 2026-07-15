@@ -322,6 +322,19 @@ interface SelectionBox {
 
 const FONT_PRESETS = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72]
 
+// 검색어 인라인 하이라이트: 노드 템플릿 색의 반전색(보색) 계산
+function invertRgb(hex: string): { r: number; g: number; b: number } | null {
+  const h = hex.trim().replace('#', '')
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return null
+  return {
+    r: 255 - parseInt(full.slice(0, 2), 16),
+    g: 255 - parseInt(full.slice(2, 4), 16),
+    b: 255 - parseInt(full.slice(4, 6), 16),
+  }
+}
+const hitKeySafe = (k: string) => k.replace(/[^a-zA-Z0-9_-]/g, '_')
+
 export function Canvas({
   openSearchSignal,
   viewport, cursor, nativeWheelHandler,
@@ -766,6 +779,44 @@ export function Canvas({
 
   const showSearchDropdown = searchOpen && searchQuery.trim() !== '' && searchSelectedId === null
 
+  // 검색어 인라인 하이라이트 — CSS Custom Highlight API (DOM 비변형 → React와 충돌 없음).
+  // 매치 노드의 텍스트에서 검색어 부분만 Range로 수집해 템플릿별 ::highlight 스타일 적용
+  useEffect(() => {
+    const cssAny = CSS as any
+    const HighlightCtor = (window as any).Highlight
+    if (!cssAny.highlights || !HighlightCtor) return
+    for (const key of Object.keys(graph.nodeTemplates)) {
+      cssAny.highlights.delete(`ng-hit-${hitKeySafe(key)}`)
+    }
+    const q = searchQuery.trim().toLowerCase()
+    if (!searchOpen || !q) return
+    const byTmpl = new Map<string, any>()
+    for (const m of searchMatchNodes) {
+      const node = graph.nodes.find(n => n.id === m.id)
+      const el = document.querySelector(`[data-node-id="${CSS.escape(m.id)}"]`)
+      if (!node || !el) continue
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+      let tn: globalThis.Node | null
+      while ((tn = walker.nextNode())) {
+        const parent = tn.parentElement
+        if (!parent || parent.closest('.katex')) continue
+        const lower = (tn.textContent ?? '').toLowerCase()
+        let idx = lower.indexOf(q)
+        while (idx !== -1) {
+          const r = new Range()
+          r.setStart(tn, idx)
+          r.setEnd(tn, idx + q.length)
+          const key = hitKeySafe(node.template)
+          if (!byTmpl.has(key)) byTmpl.set(key, new HighlightCtor())
+          byTmpl.get(key).add(r)
+          idx = lower.indexOf(q, idx + q.length)
+        }
+      }
+    }
+    byTmpl.forEach((hl, key) => cssAny.highlights.set(`ng-hit-${key}`, hl))
+  // nodeSizes/renderPositions: expand/collapse 등 재렌더 후 Range 재수집을 위해 포함
+  }, [searchOpen, searchQuery, searchMatchNodes, graph.nodes, graph.nodeTemplates, nodeSizes, renderPositions])
+
   // 고정된 루트 노드의 한 세대(부모+자식) 하이라이트 — 연결 wire부터 이웃 노드까지 빨간색.
   // genRootIds 기반이라 배경 클릭으로 선택이 풀려도 유지되고 Esc로만 해제됨
   const genHighlight = useMemo(() => {
@@ -1099,6 +1150,13 @@ export function Canvas({
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* 검색어 인라인 하이라이트 스타일 — 템플릿 색의 반전색 + 밑줄 */}
+      <style>{Object.entries(graph.nodeTemplates).map(([key, t]) => {
+        const inv = invertRgb(t.color)
+        const c = inv ? `rgb(${inv.r},${inv.g},${inv.b})` : '#ff3b30'
+        const bg = inv ? `rgba(${inv.r},${inv.g},${inv.b},0.18)` : 'rgba(255,59,48,0.18)'
+        return `::highlight(ng-hit-${hitKeySafe(key)}){color:${c};background-color:${bg};text-decoration:underline}`
+      }).join('\n')}</style>
 
       {/* 상단 툴바 — mouseDown을 캔버스로 전파하지 않음 (폰트 컨트롤 클릭 시 선택 해제 방지) */}
       <div

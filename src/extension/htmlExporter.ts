@@ -4,6 +4,19 @@ function escHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+// 검색어 인라인 하이라이트: 노드 템플릿 색의 반전색(보색) 계산
+function invertRgbHex(hex: string): { r: number; g: number; b: number } | null {
+  const h = hex.trim().replace('#', '')
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return null
+  return {
+    r: 255 - parseInt(full.slice(0, 2), 16),
+    g: 255 - parseInt(full.slice(2, 4), 16),
+    b: 255 - parseInt(full.slice(4, 6), 16),
+  }
+}
+const hitKeySafe = (k: string) => k.replace(/[^a-zA-Z0-9_-]/g, '_')
+
 // ── Markdown table parser (htmlExporter-specific TypeScript version) ──────────
 interface HtmlTextBlock { type: 'text'; text: string; startChar: number; endChar: number }
 interface HtmlTableBlock { type: 'table'; headers: string[]; rows: string[][]; startChar: number; endChar: number }
@@ -206,6 +219,14 @@ export function generateHtml(graph: NodeGraph, imageData: Record<string, string>
   })))
   const source = graph.source ? `${escHtml(graph.source.authors)} · ${escHtml(graph.source.venue)}` : ''
 
+  // 검색어 인라인 하이라이트 스타일 — 템플릿 색의 반전색 + 밑줄 (에디터와 동일 규칙)
+  const hitStyles = Object.entries(graph.nodeTemplates).map(([key, t]) => {
+    const inv = invertRgbHex(t.color)
+    const c = inv ? `rgb(${inv.r},${inv.g},${inv.b})` : '#ff3b30'
+    const bg = inv ? `rgba(${inv.r},${inv.g},${inv.b},0.18)` : 'rgba(255,59,48,0.18)'
+    return `::highlight(ng-hit-${hitKeySafe(key)}){color:${c};background-color:${bg};text-decoration:underline}`
+  }).join('\n')
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -287,6 +308,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 .ng-drop-item:hover{background:#f3f4f6}
 .ng-node.ng-search-match{border:2px solid #fcd34d !important}
 .ng-node.ng-search-active{border:2px solid #f59e0b !important;box-shadow:0 0 0 3px rgba(245,158,11,0.35),0 2px 8px rgba(0,0,0,.18) !important}
+${hitStyles}
 /* 선택 노드의 한 세대(부모+자식) 하이라이트 — Esc로만 해제 */
 .ng-node.ng-gen{border:2px solid #f87171 !important;box-shadow:0 0 0 3px rgba(248,113,113,.3),0 1px 4px rgba(0,0,0,.08) !important}
 </style>
@@ -450,13 +472,13 @@ function getGenNeighbors(nodeId) {
 }
 
 // 고정된 루트와 그 이웃 노드들에 빨간 테두리 적용 (wire 색은 drawEdges에서 처리)
+// 루트 자신도 빨간색 — 선택 상태여도 하이라이트가 우선 (에디터와 동일)
 function updateGenHighlight() {
   document.querySelectorAll('.ng-gen').forEach(function(el) { el.classList.remove('ng-gen'); });
   if (!genRootId) return;
   var ids = getGenNeighbors(genRootId);
-  ids.push(genRootId);  // 루트 자신도 포함 (선택 중에는 선택 스타일 우선)
+  ids.push(genRootId);
   ids.forEach(function(id) {
-    if (id === selectedNodeId) return;
     var el = document.getElementById('node-' + id);
     if (el) el.classList.add('ng-gen');
   });
@@ -1256,6 +1278,7 @@ function openSearch(){
 }
 function closeSearch(){
   clearSearchHighlights();
+  clearTextHits();
   searchSelectedId=null;searchMatchNodes=[];kbIdx=-1;
   document.getElementById('search-wrap').classList.remove('open');
   document.getElementById('search-input').value='';
@@ -1264,6 +1287,43 @@ function closeSearch(){
 }
 function clearSearchHighlights(){
   document.querySelectorAll('.ng-search-match,.ng-search-active').forEach(function(el){el.classList.remove('ng-search-match','ng-search-active');});
+}
+// 검색어 인라인 하이라이트 (CSS Custom Highlight API — 미지원 브라우저는 조용히 무시)
+// 매치 노드의 텍스트에서 검색어 부분만 Range로 수집, 템플릿별 반전색 스타일 적용
+function hitKey(t){return 'ng-hit-'+String(t).replace(/[^a-zA-Z0-9_-]/g,'_');}
+var HIT_KEYS=[];
+function clearTextHits(){
+  if(!window.CSS||!CSS.highlights) return;
+  HIT_KEYS.forEach(function(k){CSS.highlights.delete(k);});
+  HIT_KEYS=[];
+}
+function updateTextHits(){
+  if(!window.CSS||!CSS.highlights||typeof Highlight==='undefined') return;
+  clearTextHits();
+  var q=document.getElementById('search-input').value.trim().toLowerCase();
+  if(!q||!document.getElementById('search-wrap').classList.contains('open')) return;
+  var byTmpl={};
+  searchMatchNodes.forEach(function(n){
+    var el=document.getElementById('node-'+n.id);
+    if(!el) return;
+    var walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+    var tn;
+    while((tn=walker.nextNode())){
+      var par=tn.parentElement;
+      if(!par||par.closest('.katex')) continue;
+      var lower=(tn.textContent||'').toLowerCase();
+      var idx=lower.indexOf(q);
+      while(idx!==-1){
+        var r=new Range();
+        r.setStart(tn,idx);r.setEnd(tn,idx+q.length);
+        var k=hitKey(n.template);
+        if(!byTmpl[k]) byTmpl[k]=new Highlight();
+        byTmpl[k].add(r);
+        idx=lower.indexOf(q,idx+q.length);
+      }
+    }
+  });
+  Object.keys(byTmpl).forEach(function(k){CSS.highlights.set(k,byTmpl[k]);HIT_KEYS.push(k);});
 }
 function closeDropdown(){
   document.getElementById('search-drop').classList.remove('open');
@@ -1279,6 +1339,7 @@ function doSearch(q){
   searchMatchNodes.forEach(function(n){var el=document.getElementById('node-'+n.id);if(el) el.classList.add('ng-search-match');});
   updateSearchCount();
   renderDropdown();
+  updateTextHits();
 }
 function renderDropdown(){
   var drop=document.getElementById('search-drop');
@@ -1338,6 +1399,7 @@ function selectSearchNode(id){
   setTimeout(function(){recomputePositions();flyToNode(id);},0);
   closeDropdown();
   updateSearchCount();
+  updateTextHits();
 }
 function onSearchInputClick(){
   if(searchSelectedId!==null){
