@@ -888,6 +888,49 @@ function getBestPorts(sr, tr) {
   return best;
 }
 var DIR={right:[1,0],left:[-1,0],bottom:[0,1],top:[0,-1]};
+
+// \u2500\u2500 \uC7A5\uC560\uBB3C \uD68C\uD53C \uB77C\uC6B0\uD305 (\uC5D0\uB514\uD130 wireGeometry.getRoutedPath\uC640 \uB3D9\uC77C \uC54C\uACE0\uB9AC\uC998) \u2500\u2500
+// \uC120\uBD84\uC774 (pad\uB9CC\uD07C \uBD80\uD480\uB9B0) \uC0AC\uAC01\uD615\uACFC \uAD50\uCC28\uD558\uBA74 \uC9C4\uC785 t(0~1), \uC544\uB2C8\uBA74 null (Liang-Barsky)
+function segRectT(x1,y1,x2,y2,r,pad){
+  var rx=r.x-pad,ry=r.y-pad,rw=r.w+pad*2,rh=r.h+pad*2;
+  var dx=x2-x1,dy=y2-y1,t0=0,t1=1;
+  var p=[-dx,dx,-dy,dy],q=[x1-rx,rx+rw-x1,y1-ry,ry+rh-y1];
+  for(var i=0;i<4;i++){
+    if(p[i]===0){if(q[i]<0)return null;}
+    else{var t=q[i]/p[i];
+      if(p[i]<0){if(t>t1)return null;if(t>t0)t0=t;}
+      else{if(t<t0)return null;if(t<t1)t1=t;}}
+  }
+  return t0;
+}
+function dlen(a,b){return Math.hypot(b.x-a.x,b.y-a.y);}
+// src\u2192tgt \uC9C1\uC120\uC774 \uB178\uB4DC\uB97C \uAD00\uD1B5\uD558\uBA74 \uC704/\uC544\uB798(\uB610\uB294 \uC88C/\uC6B0) \uC9E7\uC740 \uCABD\uC73C\uB85C \uC6B0\uD68C \uACBD\uC720\uC810 \uC0BD\uC785
+function routeAround(src,tgt,obstacles){
+  var PAD=10,CLEAR=34;
+  var pts=[src,tgt],guard=0,i=0;
+  while(i<pts.length-1&&guard<16&&pts.length<8){
+    guard++;
+    var a=pts[i],b=pts[i+1],hit=null,hitT=Infinity;
+    for(var oi=0;oi<obstacles.length;oi++){
+      var t=segRectT(a.x,a.y,b.x,b.y,obstacles[oi],PAD);
+      if(t!==null&&t<hitT){hitT=t;hit=obstacles[oi];}
+    }
+    if(!hit){i++;continue;}
+    var horiz=Math.abs(b.x-a.x)>=Math.abs(b.y-a.y),w;
+    if(horiz){
+      var top={x:hit.x+hit.w/2,y:hit.y-CLEAR},bot={x:hit.x+hit.w/2,y:hit.y+hit.h+CLEAR};
+      w=dlen(a,top)+dlen(top,b)<=dlen(a,bot)+dlen(bot,b)?top:bot;
+    }else{
+      var lft={x:hit.x-CLEAR,y:hit.y+hit.h/2},rgt={x:hit.x+hit.w+CLEAR,y:hit.y+hit.h/2};
+      w=dlen(a,lft)+dlen(lft,b)<=dlen(a,rgt)+dlen(rgt,b)?lft:rgt;
+    }
+    var dup=pts.some(function(p){return Math.abs(p.x-w.x)<1&&Math.abs(p.y-w.y)<1;});
+    if(dup){i++;continue;}
+    pts.splice(i+1,0,w);
+    // i \uC720\uC9C0 \u2192 a\u2192w \uC138\uADF8\uBA3C\uD2B8 \uC7AC\uAC80\uC0AC
+  }
+  return pts;
+}
 function svgLine(x1,y1,x2,y2,stroke,sw){var l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('stroke',stroke);l.setAttribute('stroke-width',sw);return l;}
 function svgCirc(cx,cy,r,fill){var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',r);c.setAttribute('fill',fill);return c;}
 function drawEdges() {
@@ -949,18 +992,68 @@ function drawEdges() {
     svg.appendChild(g);
   });
 
-  // Remaining edges: Bezier curves
-  EDGES.forEach(function(edge){
+  // \uB178\uB4DC rect \uCE90\uC2DC (\uC5E3\uC9C0 \uB77C\uC6B0\uD305 \uC7A5\uC560\uBB3C \uAC80\uC0AC\uC6A9 \u2014 drawEdges 1\uD68C\uB2F9 1\uD68C\uB9CC DOM \uC870\uD68C)
+  var rectById={};
+  NODES_DATA.forEach(function(n){
+    var el=document.getElementById('node-'+n.id);
+    if(el) rectById[n.id]=getNodeRect(el);
+  });
+
+  // \uAC19\uC740 source\uC5D0\uC11C \uB098\uAC00\uB294 \uBE44-\uBC84\uC2A4 \uC5E3\uC9C0 \uBD84\uC0B0(spread) \uC624\uD504\uC14B \u2014 \uACB9\uCE68 \uBC29\uC9C0
+  var spreadByIdx={};
+  (function(){
+    var groups={};
+    EDGES.forEach(function(e,idx){
+      if(busDrawn[e.source+'-'+e.target]) return;
+      if(!rectById[e.source]||!rectById[e.target]) return;
+      if(!groups[e.source]) groups[e.source]=[];
+      groups[e.source].push(idx);
+    });
+    Object.keys(groups).forEach(function(src){
+      var idxs=groups[src];
+      if(idxs.length<2) return;
+      idxs.sort(function(ia,ib){return rectById[EDGES[ia].target].cy-rectById[EDGES[ib].target].cy;});
+      idxs.forEach(function(ei,k){spreadByIdx[ei]=(k-(idxs.length-1)/2)*16;});
+    });
+  })();
+
+  // Remaining edges: obstacle-avoiding curves
+  EDGES.forEach(function(edge,edgeIdx){
     if(busDrawn[edge.source+'-'+edge.target]) return;
-    var srcEl=document.getElementById('node-'+edge.source), tgtEl=document.getElementById('node-'+edge.target);
-    if(!srcEl||!tgtEl) return;
-    var ports=getBestPorts(getNodeRect(srcEl),getNodeRect(tgtEl));
+    var sr2=rectById[edge.source], tr2=rectById[edge.target];
+    if(!sr2||!tr2) return;
+    var ports=getBestPorts(sr2,tr2);
     if(!ports) return;
     var sp=ports.sp.p,spD=DIR[ports.sp.name],tp=ports.tp.p,tpD=DIR[ports.tp.name];
-    var dist=Math.sqrt(Math.pow(tp[0]-sp[0],2)+Math.pow(tp[1]-sp[1],2));
-    var bend=Math.min(dist*.45,150);
-    var cx1=sp[0]+spD[0]*bend,cy1=sp[1]+spD[1]*bend,cx2=tp[0]+tpD[0]*bend,cy2=tp[1]+tpD[1]*bend;
-    var d='M'+sp[0]+','+sp[1]+' C'+cx1+','+cy1+' '+cx2+','+cy2+' '+tp[0]+','+tp[1];
+    var srcP={x:sp[0],y:sp[1]},tgtP={x:tp[0],y:tp[1]};
+    var obstacles=[];
+    Object.keys(rectById).forEach(function(nid){
+      if(nid!==edge.source&&nid!==edge.target) obstacles.push(rectById[nid]);
+    });
+    var pts=routeAround(srcP,tgtP,obstacles);
+    var ddl=dlen(srcP,tgtP)||1;
+    var nx=-(tgtP.y-srcP.y)/ddl, nyv=(tgtP.x-srcP.x)/ddl;
+    var spread=spreadByIdx[edgeIdx]||0;
+    var d;
+    if(pts.length===2){
+      // \uC6B0\uD68C \uBD88\uD544\uC694: \uAE30\uC874 bezier \uBAA8\uC591 \uC720\uC9C0 (spread\uB9CC\uD07C \uC81C\uC5B4\uC810\uC744 \uBC95\uC120 \uBC29\uD5A5 \uC774\uB3D9)
+      var bend=Math.min(ddl*.45,150);
+      var cx1=sp[0]+spD[0]*bend+nx*spread,cy1=sp[1]+spD[1]*bend+nyv*spread;
+      var cx2=tp[0]+tpD[0]*bend+nx*spread,cy2=tp[1]+tpD[1]*bend+nyv*spread;
+      d='M'+sp[0]+','+sp[1]+' C'+cx1+','+cy1+' '+cx2+','+cy2+' '+tp[0]+','+tp[1];
+    } else {
+      // \uACBD\uC720\uC810\uC744 \uC9C0\uB098\uB294 \uBD80\uB4DC\uB7EC\uC6B4 \uACE1\uC120 (\uACBD\uC720\uC810 = Q \uC81C\uC5B4\uC810, \uC911\uC810 \uC5F0\uACB0)
+      var P=[pts[0]];
+      for(var wi=1;wi<pts.length-1;wi++) P.push({x:pts[wi].x+nx*spread,y:pts[wi].y+nyv*spread});
+      P.push(pts[pts.length-1]);
+      d='M'+P[0].x+','+P[0].y;
+      for(var k2=1;k2<P.length-1;k2++){
+        var ex,ey;
+        if(k2<P.length-2){ex=(P[k2].x+P[k2+1].x)/2;ey=(P[k2].y+P[k2+1].y)/2;}
+        else{ex=P[P.length-1].x;ey=P[P.length-1].y;}
+        d+=' Q'+P[k2].x+','+P[k2].y+' '+ex+','+ey;
+      }
+    }
     // \uC138\uB300 \uD558\uC774\uB77C\uC774\uD2B8: \uC120\uD0DD \uB178\uB4DC\uC640 \uC9C1\uC811 \uC5F0\uACB0\uB41C wire\uB294 \uB178\uB780\uC0C9
     var hl=selectedNodeId&&(edge.source===selectedNodeId||edge.target===selectedNodeId);
     var strokeColor=hl?'#f59e0b':'#666';

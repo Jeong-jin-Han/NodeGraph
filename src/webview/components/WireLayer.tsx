@@ -1,6 +1,6 @@
 import React from 'react'
 import { GraphEdge, GraphNode } from '../types/graph'
-import { getNearestPorts, getPortPosition, getSmartPath, Rect, Port } from '../utils/wireGeometry'
+import { getNearestPorts, getPortPosition, getRoutedPath, Rect, Port } from '../utils/wireGeometry'
 
 interface WireLayerProps {
   nodes: GraphNode[]
@@ -69,6 +69,32 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
     if (!valid) return
     busGroups.push({ srcId, edgeGroup: group })
     group.forEach((e) => busEdgeIds.add(e.id))
+  })
+
+  // 라우팅 장애물: 모든 노드 rect (각 엣지에서 자기 양 끝 노드는 제외)
+  const allRects = new Map<string, Rect>()
+  for (const n of nodes) {
+    const pos = renderPositions[n.id] ?? n.position
+    const sz = nodeSizes[n.id] ?? { width: DEFAULT_W, height: DEFAULT_H }
+    allRects.set(n.id, { x: pos.x, y: pos.y, width: sz.width, height: sz.height })
+  }
+
+  // 같은 source에서 나가는 비-버스 엣지들은 겹치지 않게 분산(spread) 오프셋 부여
+  const spreadMap = new Map<string, number>()
+  const nonBusBySrc = new Map<string, GraphEdge[]>()
+  for (const e of edges) {
+    if (busEdgeIds.has(e.id)) continue
+    if (!nodeMap.has(e.source) || !nodeMap.has(e.target)) continue
+    if (!nonBusBySrc.has(e.source)) nonBusBySrc.set(e.source, [])
+    nonBusBySrc.get(e.source)!.push(e)
+  }
+  nonBusBySrc.forEach((group) => {
+    if (group.length < 2) return
+    const sorted = [...group].sort((a, b) => {
+      const ra = allRects.get(a.target)!, rb = allRects.get(b.target)!
+      return (ra.y + ra.height / 2) - (rb.y + rb.height / 2)
+    })
+    sorted.forEach((e, idx) => spreadMap.set(e.id, (idx - (sorted.length - 1) / 2) * 16))
   })
 
   return (
@@ -189,7 +215,9 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
         const { sourcePort, targetPort } = getNearestPorts(srcRect, tgtRect)
         const srcPt = getPortPosition(srcRect, sourcePort)
         const tgtPt = getPortPosition(tgtRect, targetPort)
-        const d = getSmartPath(srcPt, tgtPt, sourcePort, targetPort)
+        const obstacles: Rect[] = []
+        allRects.forEach((r, id) => { if (id !== edge.source && id !== edge.target) obstacles.push(r) })
+        const d = getRoutedPath(srcPt, tgtPt, sourcePort, targetPort, obstacles, spreadMap.get(edge.id) ?? 0)
         const isSel = selectedEdgeId === edge.id
         const isGen = !isSel && highlightEdgeIds.has(edge.id)
         const strokeColor = isSel ? '#007acc' : isGen ? '#f59e0b' : '#666'

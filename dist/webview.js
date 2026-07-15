@@ -40752,18 +40752,100 @@ var PORT_DIR = {
   bottom: [0, 1],
   top: [0, -1]
 };
-function getSmartPath(sourcePos, targetPos, sourcePort, targetPort) {
-  const sx = sourcePos.x, sy = sourcePos.y;
-  const tx = targetPos.x, ty = targetPos.y;
-  const dist = Math.sqrt((tx - sx) ** 2 + (ty - sy) ** 2);
-  const bend = Math.min(dist * 0.45, 150);
-  const [sdx, sdy] = PORT_DIR[sourcePort];
-  const [tdx, tdy] = PORT_DIR[targetPort];
-  const cx1 = sx + sdx * bend;
-  const cy1 = sy + sdy * bend;
-  const cx2 = tx + tdx * bend;
-  const cy2 = ty + tdy * bend;
-  return `M ${sx} ${sy} C ${cx1} ${cy1} ${cx2} ${cy2} ${tx} ${ty}`;
+function segIntersectsRect(x1, y1, x2, y2, r, pad2) {
+  const rx = r.x - pad2, ry = r.y - pad2;
+  const rw = r.width + pad2 * 2, rh = r.height + pad2 * 2;
+  const dx = x2 - x1, dy = y2 - y1;
+  let t0 = 0, t1 = 1;
+  const p = [-dx, dx, -dy, dy];
+  const q = [x1 - rx, rx + rw - x1, y1 - ry, ry + rh - y1];
+  for (let i = 0; i < 4; i++) {
+    if (p[i] === 0) {
+      if (q[i] < 0)
+        return null;
+    } else {
+      const t = q[i] / p[i];
+      if (p[i] < 0) {
+        if (t > t1)
+          return null;
+        if (t > t0)
+          t0 = t;
+      } else {
+        if (t < t0)
+          return null;
+        if (t < t1)
+          t1 = t;
+      }
+    }
+  }
+  return t0;
+}
+var dlen = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+function routeAroundObstacles(src, tgt, obstacles) {
+  const PAD = 10, CLEAR = 34;
+  const pts = [src, tgt];
+  let guard = 0;
+  let i = 0;
+  while (i < pts.length - 1 && guard < 16 && pts.length < 8) {
+    guard++;
+    const a = pts[i], b = pts[i + 1];
+    let hit = null;
+    let hitT = Infinity;
+    for (const r of obstacles) {
+      const t = segIntersectsRect(a.x, a.y, b.x, b.y, r, PAD);
+      if (t !== null && t < hitT) {
+        hitT = t;
+        hit = r;
+      }
+    }
+    if (!hit) {
+      i++;
+      continue;
+    }
+    const horiz = Math.abs(b.x - a.x) >= Math.abs(b.y - a.y);
+    let w;
+    if (horiz) {
+      const top = { x: hit.x + hit.width / 2, y: hit.y - CLEAR };
+      const bot = { x: hit.x + hit.width / 2, y: hit.y + hit.height + CLEAR };
+      w = dlen(a, top) + dlen(top, b) <= dlen(a, bot) + dlen(bot, b) ? top : bot;
+    } else {
+      const lft = { x: hit.x - CLEAR, y: hit.y + hit.height / 2 };
+      const rgt = { x: hit.x + hit.width + CLEAR, y: hit.y + hit.height / 2 };
+      w = dlen(a, lft) + dlen(lft, b) <= dlen(a, rgt) + dlen(rgt, b) ? lft : rgt;
+    }
+    if (pts.some((p) => Math.abs(p.x - w.x) < 1 && Math.abs(p.y - w.y) < 1)) {
+      i++;
+      continue;
+    }
+    pts.splice(i + 1, 0, w);
+  }
+  return pts;
+}
+function getRoutedPath(sourcePos, targetPos, sourcePort, targetPort, obstacles, spread) {
+  const pts = routeAroundObstacles(sourcePos, targetPos, obstacles);
+  const dx = targetPos.x - sourcePos.x, dy = targetPos.y - sourcePos.y;
+  const dl = Math.hypot(dx, dy) || 1;
+  const nx = -dy / dl, ny = dx / dl;
+  if (pts.length === 2) {
+    const sx = sourcePos.x, sy = sourcePos.y;
+    const tx = targetPos.x, ty = targetPos.y;
+    const bend = Math.min(dl * 0.45, 150);
+    const [sdx, sdy] = PORT_DIR[sourcePort];
+    const [tdx, tdy] = PORT_DIR[targetPort];
+    const cx1 = sx + sdx * bend + nx * spread;
+    const cy1 = sy + sdy * bend + ny * spread;
+    const cx2 = tx + tdx * bend + nx * spread;
+    const cy2 = ty + tdy * bend + ny * spread;
+    return `M ${sx} ${sy} C ${cx1} ${cy1} ${cx2} ${cy2} ${tx} ${ty}`;
+  }
+  const inner2 = pts.slice(1, -1).map((p) => ({ x: p.x + nx * spread, y: p.y + ny * spread }));
+  const P = [pts[0], ...inner2, pts[pts.length - 1]];
+  let d = `M ${P[0].x} ${P[0].y}`;
+  for (let k = 1; k < P.length - 1; k++) {
+    const end = k < P.length - 2 ? { x: (P[k].x + P[k + 1].x) / 2, y: (P[k].y + P[k + 1].y) / 2 } : P[P.length - 1];
+    d += ` Q ${P[k].x} ${P[k].y} ${end.x} ${end.y}`;
+  }
+  return d;
 }
 
 // src/webview/components/WireLayer.tsx
@@ -40813,6 +40895,32 @@ function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wire
       return;
     busGroups.push({ srcId, edgeGroup: group });
     group.forEach((e) => busEdgeIds.add(e.id));
+  });
+  const allRects = /* @__PURE__ */ new Map();
+  for (const n of nodes) {
+    const pos = renderPositions[n.id] ?? n.position;
+    const sz = nodeSizes[n.id] ?? { width: DEFAULT_W, height: DEFAULT_H };
+    allRects.set(n.id, { x: pos.x, y: pos.y, width: sz.width, height: sz.height });
+  }
+  const spreadMap = /* @__PURE__ */ new Map();
+  const nonBusBySrc = /* @__PURE__ */ new Map();
+  for (const e of edges) {
+    if (busEdgeIds.has(e.id))
+      continue;
+    if (!nodeMap.has(e.source) || !nodeMap.has(e.target))
+      continue;
+    if (!nonBusBySrc.has(e.source))
+      nonBusBySrc.set(e.source, []);
+    nonBusBySrc.get(e.source).push(e);
+  }
+  nonBusBySrc.forEach((group) => {
+    if (group.length < 2)
+      return;
+    const sorted = [...group].sort((a, b) => {
+      const ra = allRects.get(a.target), rb = allRects.get(b.target);
+      return ra.y + ra.height / 2 - (rb.y + rb.height / 2);
+    });
+    sorted.forEach((e, idx) => spreadMap.set(e.id, (idx - (sorted.length - 1) / 2) * 16));
   });
   return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
     "svg",
@@ -40951,7 +41059,12 @@ function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wire
           const { sourcePort, targetPort } = getNearestPorts(srcRect, tgtRect);
           const srcPt = getPortPosition(srcRect, sourcePort);
           const tgtPt = getPortPosition(tgtRect, targetPort);
-          const d = getSmartPath(srcPt, tgtPt, sourcePort, targetPort);
+          const obstacles = [];
+          allRects.forEach((r, id) => {
+            if (id !== edge.source && id !== edge.target)
+              obstacles.push(r);
+          });
+          const d = getRoutedPath(srcPt, tgtPt, sourcePort, targetPort, obstacles, spreadMap.get(edge.id) ?? 0);
           const isSel = selectedEdgeId === edge.id;
           const isGen = !isSel && highlightEdgeIds.has(edge.id);
           const strokeColor = isSel ? "#007acc" : isGen ? "#f59e0b" : "#666";
