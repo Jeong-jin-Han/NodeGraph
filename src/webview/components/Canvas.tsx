@@ -741,6 +741,27 @@ export function Canvas({
 
   const showSearchDropdown = searchOpen && searchQuery.trim() !== '' && searchSelectedId === null
 
+  // 선택 노드의 한 세대(부모+자식) 하이라이트 — 연결 wire부터 이웃 노드까지 노란색
+  const genHighlight = useMemo(() => {
+    const nodeIds = new Set<string>()
+    const edgeIds = new Set<string>()
+    if (selectedIds.size === 0) return { nodeIds, edgeIds }
+    for (const e of graph.edges) {
+      const s = selectedIds.has(e.source), t = selectedIds.has(e.target)
+      if (s || t) edgeIds.add(e.id)
+      if (s && !t) nodeIds.add(e.target)
+      if (t && !s) nodeIds.add(e.source)
+    }
+    for (const n of graph.nodes) {
+      if (selectedIds.has(n.id)) {
+        for (const c of n.children) if (!selectedIds.has(c)) nodeIds.add(c)
+      } else if (n.children.some(c => selectedIds.has(c))) {
+        nodeIds.add(n.id)
+      }
+    }
+    return { nodeIds, edgeIds }
+  }, [selectedIds, graph.edges, graph.nodes])
+
   const flyToNode = useCallback((nodeId: string) => {
     const node = graph.nodes.find(n => n.id === nodeId)
     if (!node || !divRef.current) return
@@ -1368,6 +1389,7 @@ export function Canvas({
                   onAddFilenameToNode={onAddFilenameToNode}
                   isSearchMatch={searchSelectedId === null && searchMatchNodes.some(m => m.id === node.id)}
                   isActiveSearchMatch={node.id === searchSelectedId}
+                  isGenHighlight={genHighlight.nodeIds.has(node.id)}
                   onNodeDragActivate={setDraggingNodeId}
                   onNodeDragDeactivate={() => setDraggingNodeId(null)}
                 />
@@ -1381,6 +1403,7 @@ export function Canvas({
               wirePreview={wireDrawing}
               wireHoverTargetId={wireHoverTarget}
               selectedEdgeId={selectedEdgeId}
+              highlightEdgeIds={genHighlight.edgeIds}
               onSelectEdge={setSelectedEdgeId}
             />
           </div>

@@ -1,22 +1,281 @@
-"use strict";var J=Object.create;var H=Object.defineProperty;var Z=Object.getOwnPropertyDescriptor;var Q=Object.getOwnPropertyNames;var ee=Object.getPrototypeOf,te=Object.prototype.hasOwnProperty;var ne=(t,e)=>{for(var n in e)H(t,n,{get:e[n],enumerable:!0})},W=(t,e,n,r)=>{if(e&&typeof e=="object"||typeof e=="function")for(let a of Q(e))!te.call(t,a)&&a!==n&&H(t,a,{get:()=>e[a],enumerable:!(r=Z(e,a))||r.enumerable});return t};var N=(t,e,n)=>(n=t!=null?J(ee(t)):{},W(e||!t||!t.__esModule?H(n,"default",{value:t,enumerable:!0}):n,t)),oe=t=>W(H({},"__esModule",{value:!0}),t);var he={};ne(he,{activate:()=>pe,deactivate:()=>ue});module.exports=oe(he);var D=N(require("vscode"));var l=N(require("vscode")),q=N(require("path"));var w=N(require("vscode"));function _(t){let e=w.Uri.joinPath(t,".."),n=t.path.split("/").pop()?.replace(/\.nodegraph\.json$/,"")??"graph";return w.Uri.joinPath(e,`.${n}-imgs`)}function re(t,e,n){let r=w.Uri.joinPath(_(e),n);return t.asWebviewUri(r).toString()}var U=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;function P(t,e,n){let r={},a=s=>{s&&!r[s]&&(r[s]=re(t,e,s))};for(let s of n.nodes){U.lastIndex=0;let u;for(;(u=U.exec(s.content??""))!==null;)a(u[1])}for(let s of n.canvasImages??[])a(s.filename);return r}async function X(t,e,n,r="png"){let a=_(e);try{await w.workspace.fs.createDirectory(a)}catch{}let s=`img_${Date.now()}.${r}`,u=w.Uri.joinPath(a,s);return await w.workspace.fs.writeFile(u,Buffer.from(n,"base64")),{filename:s,webviewUri:t.asWebviewUri(u).toString()}}async function j(t,e){let n=w.Uri.joinPath(_(t),e);try{await w.workspace.fs.delete(n)}catch{}}function f(t){return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function B(t){return/^\s*\|/.test(t)&&t.indexOf("|",1)!==-1}function O(t){return/^\s*\|[\s\-:|]+\|\s*$/.test(t)&&!/[a-zA-Z0-9]/.test(t)}function z(t){return t.replace(/^\s*\|/,"").replace(/\|\s*$/,"").split("|").map(e=>e.trim())}function ie(t){if(!t)return[{type:"text",text:"",startChar:0,endChar:0}];let e=t.split(`
-`),n=[],r=0,a=0,s=u=>e[u].length+(u<e.length-1?1:0);for(;r<e.length;)if(B(e[r])&&r+1<e.length&&O(e[r+1])){let p=a,i=[];for(;r<e.length&&B(e[r]);)i.push(e[r]),a+=s(r),r++;i.length>=3?n.push({type:"table",headers:z(i[0]),rows:i.slice(2).map(z),startChar:p,endChar:a}):n.push({type:"text",text:i.join(`
-`),startChar:p,endChar:a})}else{let p=a,i=[];for(;r<e.length&&!(B(e[r])&&r+1<e.length&&O(e[r+1]));)i.push(e[r]),a+=s(r),r++;n.push({type:"text",text:i.join(`
-`),startChar:p,endChar:a})}return n}function L(t){let e=t.split(`
-`);for(let n=0;n+1<e.length;n++)if(B(e[n])&&O(e[n+1]))return!0;return!1}function F(t){return f(t).replace(/\*\*(.+?)\*\*/g,'<strong style="font-size:1.1em">$1</strong>')}function Y(t,e){let n=/\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g,r="",a=0,s;for(;(s=n.exec(t))!==null;){s.index>a&&(r+=F(t.slice(a,s.index)));let u=s[1],p=s[2],i=s[3],d=p&&i?` width="${p}" height="${i}"`:"",o=e[u];r+=o?`<img class="ng-img${d?" ng-img-sized":""}" src="${o}"${d} alt="${f(u)}" onclick="showLightbox(this.src)" title="Click to enlarge">`:`<span class="ng-img-missing">${f(u)}</span>`,a=s.index+s[0].length}return a<t.length&&(r+=F(t.slice(a))),r}function ae(t,e){let n=t.headers.map(a=>`<th>${Y(a,e)}</th>`).join(""),r=t.rows.map(a=>`<tr>${a.map(s=>`<td>${Y(s,e)}</td>`).join("")}</tr>`).join("");return`<div class="ng-table-wrap"><table class="ng-table"><thead><tr>${n}</tr></thead><tbody>${r}</tbody></table></div>`}function se(t,e,n,r,a){let s=e?.color??"#888",u=e?.shape==="rounded"?"22px":"2px",p=f(e?.label??t.template),i=Math.round(t.position.x+n),d=Math.round(t.position.y+r),o="",h=t.content??"";if(L(h)){let c=ie(h);o+='<div class="ng-content">';for(let v of c)v.type==="table"?o+=ae(v,a):v.text&&(o+=`<div class="ng-seg">${Y(v.text,a).replace(/\n/g,"<br>")}</div>`);o+="</div>"}else h&&(o+=`<div class="ng-content">${Y(h,a).replace(/\n/g,"<br>")}</div>`);if(t.original){let c=f(t.original.title??"Original"),v=t.originalExpanded?" open":"";o+=`<details class="ng-original"${v}><summary>${c}${t.original.location?` <span class="ng-loc">${f(t.original.location)}</span>`:""}</summary>
-<div class="ng-orig-text">${f(t.original.text).replace(/\n/g,"<br>")}</div></details>`}for(let c of t.toggleItems??[])o+=`<details class="ng-toggle"${c.expanded?" open":""}><summary>${f(c.title||"(untitled)")}</summary>
-<div class="ng-toggle-body">${f(c.content).replace(/\n/g,"<br>")}</div></details>`;t.links.length&&(o+=`<div class="ng-links">${t.links.map(c=>{let v=c.type==="url"?"\u{1F517}":c.type==="pdf"?"\u{1F4C4}":c.type==="obsidian"?"\u{1F7E3}":"\u2B21";return`<a class="ng-link"${c.type==="url"||c.type==="pdf"?` href="${f(c.target)}" target="_blank"`:""}>${v} ${f(c.label||c.target)}</a>`}).join("")}</div>`);let E=!!o,y=t.contentExpanded?"":' style="display:none"',S=t.children.length?` data-children="${t.children.join(",")}"`:"",A=L(h)?" ng-has-table":"",k=/\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g,b=0,I;for(;(I=k.exec(h))!==null;)b=Math.max(b,Number(I[1]));let m=b>0?L(h)?b+280:b+32:0,g=[t.nodeWidth?`min-width:${t.nodeWidth}px`:m>432?`min-width:${m}px`:"",t.nodeHeight&&t.contentExpanded?`min-height:${t.nodeHeight}px`:""].filter(Boolean).join(";"),$=t.nodeHeight?` data-min-h="${t.nodeHeight}"`:"";return`<div class="ng-node${A}" id="node-${f(t.id)}"${S}${$} style="--color:${s};border-radius:${u};left:${i}px;top:${d}px${g?";"+g:""}">
+"use strict";
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// src/extension/extension.ts
+var extension_exports = {};
+__export(extension_exports, {
+  activate: () => activate,
+  deactivate: () => deactivate
+});
+module.exports = __toCommonJS(extension_exports);
+var vscode4 = __toESM(require("vscode"));
+
+// src/extension/NodeGraphEditorProvider.ts
+var vscode2 = __toESM(require("vscode"));
+var path = __toESM(require("path"));
+
+// src/extension/imageManager.ts
+var vscode = __toESM(require("vscode"));
+function getImgsFolder(documentUri) {
+  const documentDir = vscode.Uri.joinPath(documentUri, "..");
+  const baseName = documentUri.path.split("/").pop()?.replace(/\.nodegraph\.json$/, "") ?? "graph";
+  return vscode.Uri.joinPath(documentDir, `.${baseName}-imgs`);
+}
+function getImageWebviewUri(webview, documentUri, filename) {
+  const imageUri = vscode.Uri.joinPath(getImgsFolder(documentUri), filename);
+  return webview.asWebviewUri(imageUri).toString();
+}
+var INLINE_IMG_RE = /\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;
+function computeImageUris(webview, documentUri, graph) {
+  const uris = {};
+  const add = (fn) => {
+    if (fn && !uris[fn])
+      uris[fn] = getImageWebviewUri(webview, documentUri, fn);
+  };
+  for (const node of graph.nodes) {
+    INLINE_IMG_RE.lastIndex = 0;
+    let m;
+    while ((m = INLINE_IMG_RE.exec(node.content ?? "")) !== null)
+      add(m[1]);
+  }
+  for (const ci of graph.canvasImages ?? [])
+    add(ci.filename);
+  return uris;
+}
+async function saveImageToAssetsFolder(webview, documentUri, base64Data, ext = "png") {
+  const imgsFolder = getImgsFolder(documentUri);
+  try {
+    await vscode.workspace.fs.createDirectory(imgsFolder);
+  } catch {
+  }
+  const filename = `img_${Date.now()}.${ext}`;
+  const imageUri = vscode.Uri.joinPath(imgsFolder, filename);
+  await vscode.workspace.fs.writeFile(imageUri, Buffer.from(base64Data, "base64"));
+  return { filename, webviewUri: webview.asWebviewUri(imageUri).toString() };
+}
+async function deleteImageFile(documentUri, filename) {
+  const imgUri = vscode.Uri.joinPath(getImgsFolder(documentUri), filename);
+  try {
+    await vscode.workspace.fs.delete(imgUri);
+  } catch {
+  }
+}
+
+// src/extension/htmlExporter.ts
+function escHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function isHtmlTableLine(line) {
+  return /^\s*\|/.test(line) && line.indexOf("|", 1) !== -1;
+}
+function isHtmlSepLine(line) {
+  return /^\s*\|[\s\-:|]+\|\s*$/.test(line) && !/[a-zA-Z0-9]/.test(line);
+}
+function parseHtmlCells(line) {
+  return line.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((s) => s.trim());
+}
+function parseHtmlTableBlocks(content) {
+  if (!content)
+    return [{ type: "text", text: "", startChar: 0, endChar: 0 }];
+  const lines = content.split("\n");
+  const blocks = [];
+  let i = 0;
+  let charPos = 0;
+  const lineLen = (idx) => lines[idx].length + (idx < lines.length - 1 ? 1 : 0);
+  while (i < lines.length) {
+    const isStart = isHtmlTableLine(lines[i]) && i + 1 < lines.length && isHtmlSepLine(lines[i + 1]);
+    if (isStart) {
+      const startChar = charPos;
+      const tLines = [];
+      while (i < lines.length && isHtmlTableLine(lines[i])) {
+        tLines.push(lines[i]);
+        charPos += lineLen(i);
+        i++;
+      }
+      if (tLines.length >= 3) {
+        blocks.push({ type: "table", headers: parseHtmlCells(tLines[0]), rows: tLines.slice(2).map(parseHtmlCells), startChar, endChar: charPos });
+      } else {
+        blocks.push({ type: "text", text: tLines.join("\n"), startChar, endChar: charPos });
+      }
+    } else {
+      const startChar = charPos;
+      const tLines = [];
+      while (i < lines.length) {
+        if (isHtmlTableLine(lines[i]) && i + 1 < lines.length && isHtmlSepLine(lines[i + 1]))
+          break;
+        tLines.push(lines[i]);
+        charPos += lineLen(i);
+        i++;
+      }
+      blocks.push({ type: "text", text: tLines.join("\n"), startChar, endChar: charPos });
+    }
+  }
+  return blocks;
+}
+function hasHtmlTable(content) {
+  const lines = content.split("\n");
+  for (let i = 0; i + 1 < lines.length; i++) {
+    if (isHtmlTableLine(lines[i]) && isHtmlSepLine(lines[i + 1]))
+      return true;
+  }
+  return false;
+}
+function renderTextSegment(text) {
+  return escHtml(text).replace(/\*\*(.+?)\*\*/g, '<strong style="font-size:1.1em">$1</strong>');
+}
+function renderCellHtml(cellText, imageData) {
+  const IMG_RE = /\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g;
+  let result = "";
+  let lastIdx = 0;
+  let match;
+  while ((match = IMG_RE.exec(cellText)) !== null) {
+    if (match.index > lastIdx)
+      result += renderTextSegment(cellText.slice(lastIdx, match.index));
+    const filename = match[1];
+    const imgW = match[2];
+    const imgH = match[3];
+    const sizeAttr = imgW && imgH ? ` width="${imgW}" height="${imgH}"` : "";
+    const src = imageData[filename];
+    result += src ? `<img class="ng-img${sizeAttr ? " ng-img-sized" : ""}" src="${src}"${sizeAttr} alt="${escHtml(filename)}" onclick="showLightbox(this.src)" title="Click to enlarge">` : `<span class="ng-img-missing">${escHtml(filename)}</span>`;
+    lastIdx = match.index + match[0].length;
+  }
+  if (lastIdx < cellText.length)
+    result += renderTextSegment(cellText.slice(lastIdx));
+  return result;
+}
+function renderTableBlockHtml(block, imageData) {
+  const th = block.headers.map((h) => `<th>${renderCellHtml(h, imageData)}</th>`).join("");
+  const rows = block.rows.map(
+    (row) => `<tr>${row.map((cell) => `<td>${renderCellHtml(cell, imageData)}</td>`).join("")}</tr>`
+  ).join("");
+  return `<div class="ng-table-wrap"><table class="ng-table"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function renderNodeCard(node, template, offsetX, offsetY, imageData) {
+  const color = template?.color ?? "#888";
+  const borderRadius = template?.shape === "rounded" ? "22px" : "2px";
+  const label = escHtml(template?.label ?? node.template);
+  const nx = Math.round(node.position.x + offsetX);
+  const ny = Math.round(node.position.y + offsetY);
+  let bodyHtml = "";
+  const content = node.content ?? "";
+  if (hasHtmlTable(content)) {
+    const blocks = parseHtmlTableBlocks(content);
+    bodyHtml += '<div class="ng-content">';
+    for (const block of blocks) {
+      if (block.type === "table") {
+        bodyHtml += renderTableBlockHtml(block, imageData);
+      } else if (block.text) {
+        bodyHtml += `<div class="ng-seg">${renderCellHtml(block.text, imageData).replace(/\n/g, "<br>")}</div>`;
+      }
+    }
+    bodyHtml += "</div>";
+  } else if (content) {
+    bodyHtml += `<div class="ng-content">${renderCellHtml(content, imageData).replace(/\n/g, "<br>")}</div>`;
+  }
+  if (node.original) {
+    const origTitle = escHtml(node.original.title ?? "Original");
+    const openAttr = node.originalExpanded ? " open" : "";
+    bodyHtml += `<details class="ng-original"${openAttr}><summary>${origTitle}${node.original.location ? ` <span class="ng-loc">${escHtml(node.original.location)}</span>` : ""}</summary>
+<div class="ng-orig-text">${escHtml(node.original.text).replace(/\n/g, "<br>")}</div></details>`;
+  }
+  for (const t of node.toggleItems ?? []) {
+    bodyHtml += `<details class="ng-toggle"${t.expanded ? " open" : ""}><summary>${escHtml(t.title || "(untitled)")}</summary>
+<div class="ng-toggle-body">${escHtml(t.content).replace(/\n/g, "<br>")}</div></details>`;
+  }
+  if (node.links.length) {
+    bodyHtml += `<div class="ng-links">${node.links.map((l) => {
+      const icon = l.type === "url" ? "\u{1F517}" : l.type === "pdf" ? "\u{1F4C4}" : l.type === "obsidian" ? "\u{1F7E3}" : "\u2B21";
+      const href = l.type === "url" || l.type === "pdf" ? ` href="${escHtml(l.target)}" target="_blank"` : "";
+      return `<a class="ng-link"${href}>${icon} ${escHtml(l.label || l.target)}</a>`;
+    }).join("")}</div>`;
+  }
+  const hasBody = !!bodyHtml;
+  const bodyDisplay = node.contentExpanded ? "" : ' style="display:none"';
+  const childrenAttr = node.children.length ? ` data-children="${node.children.join(",")}"` : "";
+  const hasTableClass = hasHtmlTable(content) ? " ng-has-table" : "";
+  const IMG_SIZE_RE = /\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g;
+  let maxImgW = 0;
+  let _m;
+  while ((_m = IMG_SIZE_RE.exec(content)) !== null)
+    maxImgW = Math.max(maxImgW, Number(_m[1]));
+  const autoMinWidth = maxImgW > 0 ? hasHtmlTable(content) ? maxImgW + 280 : maxImgW + 32 : 0;
+  const extraStyle = [
+    node.nodeWidth ? `min-width:${node.nodeWidth}px` : autoMinWidth > 432 ? `min-width:${autoMinWidth}px` : "",
+    node.nodeHeight && node.contentExpanded ? `min-height:${node.nodeHeight}px` : ""
+  ].filter(Boolean).join(";");
+  const minHAttr = node.nodeHeight ? ` data-min-h="${node.nodeHeight}"` : "";
+  return `<div class="ng-node${hasTableClass}" id="node-${escHtml(node.id)}"${childrenAttr}${minHAttr} style="--color:${color};border-radius:${borderRadius};left:${nx}px;top:${ny}px${extraStyle ? ";" + extraStyle : ""}">
   <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
-    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,${s} 22%,transparent);color:${s}">${p}</span>
-    ${E?`<span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">${f(t.title)}</span>`:`<span class="ng-title">${f(t.title)}</span>`}
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,${color} 22%,transparent);color:${color}">${label}</span>
+    ${hasBody ? `<span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">${escHtml(node.title)}</span>` : `<span class="ng-title">${escHtml(node.title)}</span>`}
   </div>
-  ${E?`<div class="ng-body"${y}${t.fontSize?` style="font-size:${t.fontSize}px"`:""}>${o}</div>`:""}
-</div>`}function G(t,e={}){let n=1/0,r=1/0;for(let o of t.nodes)n=Math.min(n,o.position.x),r=Math.min(r,o.position.y);isFinite(n)||(n=0,r=0);let a=-n+100,s=-r+100,u=t.nodes.map(o=>se(o,t.nodeTemplates[o.template],a,s,e)).join(`
-`),p=JSON.stringify(t.nodes.map(o=>({id:o.id,lx:Math.round(o.position.x+a),ly:Math.round(o.position.y+s),children:o.children??[],template:o.template,contentExpanded:o.contentExpanded,isMain:(t.nodeTemplates[o.template]?.shape??"sharp")==="sharp",nodeHeight:o.nodeHeight??null,naturalY:Math.round((o.nodeNaturalY??o.position.y)+s),searchText:[o.title,o.content??"",o.original?.text??""].join(" ").toLowerCase()}))),i=JSON.stringify(t.edges.map(o=>({source:o.source,target:o.target,type:o.type,label:o.label||""}))),d=t.source?`${f(t.source.authors)} \xB7 ${f(t.source.venue)}`:"";return`<!DOCTYPE html>
+  ${hasBody ? `<div class="ng-body"${bodyDisplay}${node.fontSize ? ` style="font-size:${node.fontSize}px"` : ""}>${bodyHtml}</div>` : ""}
+</div>`;
+}
+function generateHtml(graph, imageData = {}) {
+  let minX = Infinity, minY = Infinity;
+  for (const n of graph.nodes) {
+    minX = Math.min(minX, n.position.x);
+    minY = Math.min(minY, n.position.y);
+  }
+  if (!isFinite(minX)) {
+    minX = 0;
+    minY = 0;
+  }
+  const offsetX = -minX + 100;
+  const offsetY = -minY + 100;
+  const nodesHtml = graph.nodes.map((n) => renderNodeCard(n, graph.nodeTemplates[n.template], offsetX, offsetY, imageData)).join("\n");
+  const nodesData = JSON.stringify(graph.nodes.map((n) => ({
+    id: n.id,
+    lx: Math.round(n.position.x + offsetX),
+    ly: Math.round(n.position.y + offsetY),
+    children: n.children ?? [],
+    template: n.template,
+    contentExpanded: n.contentExpanded,
+    isMain: (graph.nodeTemplates[n.template]?.shape ?? "sharp") === "sharp",
+    nodeHeight: n.nodeHeight ?? null,
+    naturalY: Math.round((n.nodeNaturalY ?? n.position.y) + offsetY),
+    searchText: [n.title, n.content ?? "", n.original?.text ?? ""].join(" ").toLowerCase()
+  })));
+  const edgeData = JSON.stringify(graph.edges.map((e) => ({
+    source: e.source,
+    target: e.target,
+    type: e.type,
+    label: e.label || ""
+  })));
+  const source = graph.source ? `${escHtml(graph.source.authors)} \xB7 ${escHtml(graph.source.venue)}` : "";
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${f(t.title)}</title>
+<title>${escHtml(graph.title)}</title>
 <!-- KaTeX for LaTeX rendering -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.js"></script>
@@ -90,13 +349,15 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 .ng-drop-item:hover{background:#f3f4f6}
 .ng-node.ng-search-match{border:2px solid #fcd34d !important}
 .ng-node.ng-search-active{border:2px solid #f59e0b !important;box-shadow:0 0 0 3px rgba(245,158,11,0.35),0 2px 8px rgba(0,0,0,.18) !important}
+/* \uC120\uD0DD \uB178\uB4DC\uC758 \uD55C \uC138\uB300(\uBD80\uBAA8+\uC790\uC2DD) \uD558\uC774\uB77C\uC774\uD2B8 */
+.ng-node.ng-gen{border:2px solid #fcd34d !important;box-shadow:0 0 0 3px rgba(252,211,77,.28),0 1px 4px rgba(0,0,0,.08) !important}
 </style>
 </head>
 <body>
 <div id="toolbar">
   <div id="tb-row1">
-    <span id="tb-title">${f(t.title)}</span>
-    <span id="tb-source">${d}</span>
+    <span id="tb-title">${escHtml(graph.title)}</span>
+    <span id="tb-source">${source}</span>
   </div>
   <div id="tb-row2">
     <button onclick="fitView()">Fit View</button>
@@ -124,9 +385,12 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
         <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
           <polygon points="0 0,10 3.5,0 7" fill="#666"/>
         </marker>
+        <marker id="arrow-hl" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0,10 3.5,0 7" fill="#f59e0b"/>
+        </marker>
       </defs>
     </svg>
-    ${u}
+    ${nodesHtml}
   </div>
 </div>
 <div id="lightbox" onclick="closeLightbox()">
@@ -134,8 +398,8 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
   <span id="lightbox-close" onclick="closeLightbox()">\u2715</span>
 </div>
 <script>
-var NODES_DATA = ${p};
-var EDGES = ${i};
+var NODES_DATA = ${nodesData};
+var EDGES = ${edgeData};
 var HEADER_H = 36;
 
 var vp = document.getElementById('viewport');
@@ -199,6 +463,37 @@ function selectNode(nodeId) {
   } else {
     if (label) { label.textContent = 'Click a node to select'; label.style.opacity = '0.35'; }
   }
+  updateGenHighlight();
+  drawEdges();
+}
+
+// \uC120\uD0DD \uB178\uB4DC\uC758 \uD55C \uC138\uB300(\uBD80\uBAA8+\uC790\uC2DD) \uC774\uC6C3 ID \uC218\uC9D1 \u2014 edges \uC591\uBC29\uD5A5 + children \uBC30\uC5F4
+function getGenNeighbors(nodeId) {
+  var ids = [];
+  EDGES.forEach(function(e) {
+    if (e.source === nodeId && ids.indexOf(e.target) === -1) ids.push(e.target);
+    if (e.target === nodeId && ids.indexOf(e.source) === -1) ids.push(e.source);
+  });
+  NODES_DATA.forEach(function(n) {
+    if (n.id === nodeId) {
+      (n.children || []).forEach(function(c) { if (ids.indexOf(c) === -1) ids.push(c); });
+    } else if ((n.children || []).indexOf(nodeId) !== -1 && ids.indexOf(n.id) === -1) {
+      ids.push(n.id);
+    }
+  });
+  var self = ids.indexOf(nodeId);
+  if (self !== -1) ids.splice(self, 1);
+  return ids;
+}
+
+// \uC120\uD0DD \uB178\uB4DC\uC758 \uC774\uC6C3 \uB178\uB4DC\uB4E4\uC5D0 \uB178\uB780 \uD14C\uB450\uB9AC \uC801\uC6A9 (wire \uC0C9\uC740 drawEdges\uC5D0\uC11C \uCC98\uB9AC)
+function updateGenHighlight() {
+  document.querySelectorAll('.ng-gen').forEach(function(el) { el.classList.remove('ng-gen'); });
+  if (!selectedNodeId) return;
+  getGenNeighbors(selectedNodeId).forEach(function(id) {
+    var el = document.getElementById('node-' + id);
+    if (el) el.classList.add('ng-gen');
+  });
 }
 
 // Header click = select node
@@ -610,14 +905,21 @@ function drawEdges() {
     var busMinY=Math.min(srcAnchorY,minTY);
     var busMaxY=Math.max(srcAnchorY,maxTY);
 
+    // \uC138\uB300 \uD558\uC774\uB77C\uC774\uD2B8: source\uAC00 \uC120\uD0DD\uB410\uAC70\uB098 \uD0C0\uAC9F \uC911 \uD558\uB098\uAC00 \uC120\uD0DD\uB410\uC73C\uBA74 \uD2B8\uB801\uD06C(\uACF5\uC6A9 \uAD6C\uAC04)\uB3C4 \uB178\uB780\uC0C9
+    var srcSel=srcId===selectedNodeId;
+    var groupHl=srcSel||targets.some(function(t){return t.e.target===selectedNodeId;});
+    var trunkColor=groupHl?'#f59e0b':'#888', trunkW=groupHl?'2.5':'1.5';
+
     var g=document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('class','ng-eg');
-    g.appendChild(svgLine(sr.x+sr.w,srcAnchorY,busX,srcAnchorY,'#888','1.5'));
-    g.appendChild(svgLine(busX,busMinY,busX,busMaxY,'#888','1.5'));
-    g.appendChild(svgCirc(sr.x+sr.w,srcAnchorY,4,'#888'));
+    g.appendChild(svgLine(sr.x+sr.w,srcAnchorY,busX,srcAnchorY,trunkColor,trunkW));
+    g.appendChild(svgLine(busX,busMinY,busX,busMaxY,trunkColor,trunkW));
+    g.appendChild(svgCirc(sr.x+sr.w,srcAnchorY,4,trunkColor));
     targets.forEach(function(t){
-      g.appendChild(svgLine(busX,t.r.cy,t.r.x,t.r.cy,'#888','1.5'));
-      g.appendChild(svgCirc(t.r.x,t.r.cy,4,'#888'));
+      var tHl=srcSel||t.e.target===selectedNodeId;
+      var branchColor=tHl?'#f59e0b':'#888';
+      g.appendChild(svgLine(busX,t.r.cy,t.r.x,t.r.cy,branchColor,tHl?'2.5':'1.5'));
+      g.appendChild(svgCirc(t.r.x,t.r.cy,4,branchColor));
       busDrawn[t.e.source+'-'+t.e.target]=true;
     });
     svg.appendChild(g);
@@ -635,13 +937,16 @@ function drawEdges() {
     var bend=Math.min(dist*.45,150);
     var cx1=sp[0]+spD[0]*bend,cy1=sp[1]+spD[1]*bend,cx2=tp[0]+tpD[0]*bend,cy2=tp[1]+tpD[1]*bend;
     var d='M'+sp[0]+','+sp[1]+' C'+cx1+','+cy1+' '+cx2+','+cy2+' '+tp[0]+','+tp[1];
+    // \uC138\uB300 \uD558\uC774\uB77C\uC774\uD2B8: \uC120\uD0DD \uB178\uB4DC\uC640 \uC9C1\uC811 \uC5F0\uACB0\uB41C wire\uB294 \uB178\uB780\uC0C9
+    var hl=selectedNodeId&&(edge.source===selectedNodeId||edge.target===selectedNodeId);
+    var strokeColor=hl?'#f59e0b':'#666';
     var g=document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('class','ng-eg');
     var path=document.createElementNS('http://www.w3.org/2000/svg','path');
-    path.setAttribute('d',d);path.setAttribute('fill','none');path.setAttribute('stroke','#666');path.setAttribute('stroke-width','1.5');
-    if(edge.type==='arrow') path.setAttribute('marker-end','url(#arrow)');
+    path.setAttribute('d',d);path.setAttribute('fill','none');path.setAttribute('stroke',strokeColor);path.setAttribute('stroke-width',hl?'2.5':'1.5');
+    if(edge.type==='arrow') path.setAttribute('marker-end',hl?'url(#arrow-hl)':'url(#arrow)');
     g.appendChild(path);
-    if(edge.type==='line'){[sp,tp].forEach(function(pt){var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',pt[0]);c.setAttribute('cy',pt[1]);c.setAttribute('r','4');c.setAttribute('fill','#666');g.appendChild(c);});}
+    if(edge.type==='line'){[sp,tp].forEach(function(pt){var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',pt[0]);c.setAttribute('cy',pt[1]);c.setAttribute('r','4');c.setAttribute('fill',strokeColor);g.appendChild(c);});}
     svg.appendChild(g);
   });
 }
@@ -863,14 +1168,177 @@ window.addEventListener('load', function() {
 });
 </script>
 </body>
-</html>`}var C=class t{constructor(e){this.context=e;this._pendingSaves=new Set}static register(e){let n=new t(e);return l.window.registerCustomEditorProvider("nodegraph.editor",n,{webviewOptions:{retainContextWhenHidden:!0}})}static{this._activeWebview=null}static postToActive(e){t._activeWebview?.postMessage(e)}async resolveCustomTextEditor(e,n,r){let a=l.Uri.joinPath(e.uri,"..");n.webview.options={enableScripts:!0,localResourceRoots:[this.context.extensionUri,a]},n.webview.html=this._getHtmlForWebview(n.webview);let s=i=>{try{let d=JSON.parse(e.getText()),o=P(n.webview,e.uri,d);n.webview.postMessage({type:i,data:d,imageUris:o})}catch{}},u=n.webview.onDidReceiveMessage(async i=>{if(i.type==="ready")s("load");else if(i.type==="save"){let d=e.uri.toString();this._pendingSaves.add(d);try{let o=new l.WorkspaceEdit,h=new l.Range(e.positionAt(0),e.positionAt(e.getText().length));o.replace(e.uri,h,JSON.stringify(i.data,null,2)),await l.workspace.applyEdit(o),await e.save()}finally{this._pendingSaves.delete(d)}}else if(i.type==="openLink"){let d=i.link;if(d.type==="url")l.env.openExternal(l.Uri.parse(d.target));else if(d.type==="pdf"){let o=l.Uri.joinPath(l.Uri.joinPath(e.uri,".."),d.target);l.env.openExternal(o)}else d.type==="obsidian"&&l.env.openExternal(l.Uri.parse(d.target))}else if(i.type==="exportHtml")try{let d=i.data,o=l.Uri.joinPath(e.uri,".."),h=q.basename(e.uri.fsPath,".nodegraph.json"),E=l.Uri.joinPath(o,`.${h}-imgs`),y={},S=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g,A=async m=>{if(!(!m||y[m]))try{let g=l.Uri.joinPath(E,m),$=await l.workspace.fs.readFile(g),c=m.split(".").pop()?.toLowerCase()??"png",v=c==="jpg"||c==="jpeg"?"image/jpeg":c==="gif"?"image/gif":c==="webp"?"image/webp":"image/png";y[m]=`data:${v};base64,${Buffer.from($).toString("base64")}`}catch{}};for(let m of d.nodes){S.lastIndex=0;let g;for(;(g=S.exec(m.content??""))!==null;)await A(g[1])}let k=G(d,y),b=l.Uri.joinPath(o,`${h}.html`);await l.workspace.fs.writeFile(b,Buffer.from(k,"utf-8"));let I=await l.window.showInformationMessage(`HTML exported: ${h}.html`,"Open in Browser","Show in Explorer");I==="Open in Browser"?l.env.openExternal(b):I==="Show in Explorer"&&l.commands.executeCommand("revealFileInOS",b)}catch(d){l.window.showErrorMessage(`HTML export failed: ${d}`)}else if(i.type==="saveImage")try{let{filename:d,webviewUri:o}=await X(n.webview,e.uri,i.data,i.ext??"png");n.webview.postMessage({type:"imageSaved",nodeId:i.nodeId,filename:d,webviewUri:o})}catch(d){l.window.showErrorMessage(`Failed to save image: ${d}`)}else if(i.type==="deleteImageFile")await j(e.uri,i.filename);else if(i.type==="reload")try{let d=await l.workspace.fs.readFile(e.uri),o=Buffer.from(d).toString("utf-8"),h=JSON.parse(o),E=P(n.webview,e.uri,h);n.webview.postMessage({type:"load",data:h,imageUris:E})}catch{s("load")}}),p=l.workspace.onDidChangeTextDocument(i=>{i.document.uri.toString()===e.uri.toString()&&(this._pendingSaves.has(e.uri.toString())||s("externalChange"))});t._activeWebview=n.webview,n.onDidChangeViewState(i=>{i.webviewPanel.active&&(t._activeWebview=n.webview)}),n.onDidDispose(()=>{u.dispose(),p.dispose(),t._activeWebview===n.webview&&(t._activeWebview=null)})}_getHtmlForWebview(e){let n=e.asWebviewUri(l.Uri.joinPath(this.context.extensionUri,"dist","webview.js")),r=e.asWebviewUri(l.Uri.joinPath(this.context.extensionUri,"dist","katex","katex.min.css")),a=de();return`<!DOCTYPE html>
+</html>`;
+}
+
+// src/extension/NodeGraphEditorProvider.ts
+var NodeGraphEditorProvider = class _NodeGraphEditorProvider {
+  constructor(context) {
+    this.context = context;
+    this._pendingSaves = /* @__PURE__ */ new Set();
+  }
+  static register(context) {
+    const provider = new _NodeGraphEditorProvider(context);
+    return vscode2.window.registerCustomEditorProvider(
+      "nodegraph.editor",
+      provider,
+      { webviewOptions: { retainContextWhenHidden: true } }
+    );
+  }
+  static {
+    // Track the most recently active webview so extension commands can post messages to it
+    this._activeWebview = null;
+  }
+  static postToActive(message) {
+    _NodeGraphEditorProvider._activeWebview?.postMessage(message);
+  }
+  async resolveCustomTextEditor(document, webviewPanel, _token) {
+    const documentDir = vscode2.Uri.joinPath(document.uri, "..");
+    webviewPanel.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [this.context.extensionUri, documentDir]
+    };
+    webviewPanel.webview.html = this._getHtmlForWebview(webviewPanel.webview);
+    const sendGraph = (type) => {
+      try {
+        const data = JSON.parse(document.getText());
+        const imageUris = computeImageUris(webviewPanel.webview, document.uri, data);
+        webviewPanel.webview.postMessage({ type, data, imageUris });
+      } catch {
+      }
+    };
+    const msgDisposable = webviewPanel.webview.onDidReceiveMessage(async (msg) => {
+      if (msg.type === "ready") {
+        sendGraph("load");
+      } else if (msg.type === "save") {
+        const docKey = document.uri.toString();
+        this._pendingSaves.add(docKey);
+        try {
+          const edit = new vscode2.WorkspaceEdit();
+          const fullRange = new vscode2.Range(
+            document.positionAt(0),
+            document.positionAt(document.getText().length)
+          );
+          edit.replace(document.uri, fullRange, JSON.stringify(msg.data, null, 2));
+          await vscode2.workspace.applyEdit(edit);
+          await document.save();
+        } finally {
+          this._pendingSaves.delete(docKey);
+        }
+      } else if (msg.type === "openLink") {
+        const link = msg.link;
+        if (link.type === "url") {
+          vscode2.env.openExternal(vscode2.Uri.parse(link.target));
+        } else if (link.type === "pdf") {
+          const pdfUri = vscode2.Uri.joinPath(vscode2.Uri.joinPath(document.uri, ".."), link.target);
+          vscode2.env.openExternal(pdfUri);
+        } else if (link.type === "obsidian") {
+          vscode2.env.openExternal(vscode2.Uri.parse(link.target));
+        }
+      } else if (msg.type === "exportHtml") {
+        try {
+          const data = msg.data;
+          const docDir = vscode2.Uri.joinPath(document.uri, "..");
+          const baseName = path.basename(document.uri.fsPath, ".nodegraph.json");
+          const imgsFolder = vscode2.Uri.joinPath(docDir, `.${baseName}-imgs`);
+          const imageData = {};
+          const INLINE_IMG_RE2 = /\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;
+          const loadImg = async (filename) => {
+            if (!filename || imageData[filename])
+              return;
+            try {
+              const imgUri = vscode2.Uri.joinPath(imgsFolder, filename);
+              const bytes = await vscode2.workspace.fs.readFile(imgUri);
+              const ext = filename.split(".").pop()?.toLowerCase() ?? "png";
+              const mime = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "gif" ? "image/gif" : ext === "webp" ? "image/webp" : "image/png";
+              imageData[filename] = `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
+            } catch {
+            }
+          };
+          for (const node of data.nodes) {
+            INLINE_IMG_RE2.lastIndex = 0;
+            let m;
+            while ((m = INLINE_IMG_RE2.exec(node.content ?? "")) !== null)
+              await loadImg(m[1]);
+          }
+          const htmlContent = generateHtml(data, imageData);
+          const outUri = vscode2.Uri.joinPath(docDir, `${baseName}.html`);
+          await vscode2.workspace.fs.writeFile(outUri, Buffer.from(htmlContent, "utf-8"));
+          const choice = await vscode2.window.showInformationMessage(
+            `HTML exported: ${baseName}.html`,
+            "Open in Browser",
+            "Show in Explorer"
+          );
+          if (choice === "Open in Browser") {
+            vscode2.env.openExternal(outUri);
+          } else if (choice === "Show in Explorer") {
+            vscode2.commands.executeCommand("revealFileInOS", outUri);
+          }
+        } catch (err) {
+          vscode2.window.showErrorMessage(`HTML export failed: ${err}`);
+        }
+      } else if (msg.type === "saveImage") {
+        try {
+          const { filename, webviewUri } = await saveImageToAssetsFolder(
+            webviewPanel.webview,
+            document.uri,
+            msg.data,
+            msg.ext ?? "png"
+          );
+          webviewPanel.webview.postMessage({ type: "imageSaved", nodeId: msg.nodeId, filename, webviewUri });
+        } catch (err) {
+          vscode2.window.showErrorMessage(`Failed to save image: ${err}`);
+        }
+      } else if (msg.type === "deleteImageFile") {
+        await deleteImageFile(document.uri, msg.filename);
+      } else if (msg.type === "reload") {
+        try {
+          const bytes = await vscode2.workspace.fs.readFile(document.uri);
+          const text = Buffer.from(bytes).toString("utf-8");
+          const data = JSON.parse(text);
+          const imageUris = computeImageUris(webviewPanel.webview, document.uri, data);
+          webviewPanel.webview.postMessage({ type: "load", data, imageUris });
+        } catch {
+          sendGraph("load");
+        }
+      }
+    });
+    const changeDisposable = vscode2.workspace.onDidChangeTextDocument((e) => {
+      if (e.document.uri.toString() !== document.uri.toString())
+        return;
+      if (this._pendingSaves.has(document.uri.toString()))
+        return;
+      sendGraph("externalChange");
+    });
+    _NodeGraphEditorProvider._activeWebview = webviewPanel.webview;
+    webviewPanel.onDidChangeViewState((e) => {
+      if (e.webviewPanel.active)
+        _NodeGraphEditorProvider._activeWebview = webviewPanel.webview;
+    });
+    webviewPanel.onDidDispose(() => {
+      msgDisposable.dispose();
+      changeDisposable.dispose();
+      if (_NodeGraphEditorProvider._activeWebview === webviewPanel.webview) {
+        _NodeGraphEditorProvider._activeWebview = null;
+      }
+    });
+  }
+  _getHtmlForWebview(webview) {
+    const scriptUri = webview.asWebviewUri(
+      vscode2.Uri.joinPath(this.context.extensionUri, "dist", "webview.js")
+    );
+    const katexCssUri = webview.asWebviewUri(
+      vscode2.Uri.joinPath(this.context.extensionUri, "dist", "katex", "katex.min.css")
+    );
+    const nonce = getNonce();
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${e.cspSource} blob: data:; script-src 'nonce-${a}'; style-src 'unsafe-inline' ${e.cspSource}; font-src ${e.cspSource};">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} blob: data:; script-src 'nonce-${nonce}'; style-src 'unsafe-inline' ${webview.cspSource}; font-src ${webview.cspSource};">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NodeGraph</title>
-  <link rel="stylesheet" href="${r}">
+  <link rel="stylesheet" href="${katexCssUri}">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #root { height: 100%; overflow: hidden; }
@@ -886,7 +1354,193 @@ window.addEventListener('load', function() {
 </head>
 <body>
   <div id="root"></div>
-  <script nonce="${a}" src="${n}"></script>
+  <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
-</html>`}};function de(){let t="",e="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";for(let n=0;n<32;n++)t+=e.charAt(Math.floor(Math.random()*e.length));return t}var M=N(require("vscode")),K=N(require("child_process"));function T(t){try{return K.execSync(t,{timeout:5e3,stdio:["pipe","pipe","pipe"]}).toString().trim()}catch{return""}}function x(t){return T(t)!==""}async function V(t){if(!t||t.length===0)return;let e=[],n=new Date().toISOString(),r=process.platform,a=r==="win32"?"Windows":r==="darwin"?"macOS":"Linux",s=process.arch,u=T("python3 --version 2>&1")||T("python --version 2>&1"),p=x("python3 --version 2>&1")?"python3":x("python --version 2>&1")?"python":"",i=p!=="",d=i&&x(`${p} -c "import fitz" 2>&1 && echo ok`),o=d?T(`${p} -c "import fitz; print(fitz.__version__)"`):"",h=i&&x(`${p} -c "import pdfplumber" 2>&1 && echo ok`),E=i&&x(`${p} -c "import pdfminer" 2>&1 && echo ok`),y=i&&x(`${p} -c "from PIL import Image" 2>&1 && echo ok`),S=y?T(`${p} -c "from PIL import __version__; print(__version__)"`):"",A=i&&x(`${p} -c "import cv2" 2>&1 && echo ok`),k=x("pdftotext -v 2>&1 && echo ok")||x("pdftotext --help 2>&1 && echo ok"),b=x("convert --version 2>&1 && echo ok"),I=x("magick --version 2>&1 && echo ok"),m=x("gs --version 2>&1 && echo ok")||x("gswin64c --version 2>&1 && echo ok"),g=c=>c?"\u2705":"\u274C";e.push("# NodeGraph \u2014 Agent Environment Report"),e.push(""),e.push("> Auto-generated by the NodeGraph extension at activation."),e.push("> **AI agents: read this file to understand what tools are available on this machine.**"),e.push("> Re-generated each time a `.nodegraph.json` file is opened."),e.push(""),e.push(`Generated: \`${n}\``),e.push(""),e.push("---"),e.push(""),e.push("## System"),e.push(""),e.push("| | |"),e.push("|---|---|"),e.push(`| OS | ${a} (\`${r}\`) |`),e.push(`| Architecture | \`${s}\` |`),e.push(`| Python | ${i?`${g(!0)} \`${u}\``:`${g(!1)} not found`} |`),e.push(`| Python command | ${i?`\`${p}\``:"N/A"} |`),e.push(""),e.push("---"),e.push(""),e.push("## PDF Reading Capabilities"),e.push(""),e.push("| Tool | Available | Notes |"),e.push("|------|:---------:|-------|"),e.push(`| PyMuPDF (\`fitz\`) | ${g(d)} | ${d?`v${o} \u2014 recommended`:"Install: `pip install pymupdf`"} |`),e.push(`| pdfplumber | ${g(h)} | ${h?"available":"Install: `pip install pdfplumber`"} |`),e.push(`| pdfminer | ${g(E)} | ${E?"available":"Install: `pip install pdfminer.six`"} |`),e.push(`| poppler (\`pdftotext\`) | ${g(k)} | ${k?"CLI tool available":r==="win32"?"Install: download poppler for Windows":r==="darwin"?"Install: `brew install poppler`":"Install: `apt install poppler-utils`"} |`),e.push(`| Ghostscript (\`gs\`) | ${g(m)} | ${m?"available":"optional"} |`),e.push(""),e.push("---"),e.push(""),e.push("## Image Processing Capabilities"),e.push(""),e.push("| Tool | Available | Notes |"),e.push("|------|:---------:|-------|"),e.push(`| Pillow (\`PIL\`) | ${g(y)} | ${y?`v${S} \u2014 recommended`:"Install: `pip install Pillow`"} |`),e.push(`| OpenCV (\`cv2\`) | ${g(A)} | ${A?"available":"Install: `pip install opencv-python`"} |`),e.push(`| ImageMagick (\`convert\`) | ${g(b||I)} | ${b||I?"CLI tool available":r==="win32"?"Install: imagemagick.org":r==="darwin"?"Install: `brew install imagemagick`":"Install: `apt install imagemagick`"} |`),e.push(""),e.push("---"),e.push(""),e.push("## Agent Recommendations"),e.push(""),i||(e.push("> \u26A0\uFE0F **Python not found.** PDF reading and image processing via Python are not available."),e.push("> Install Python from https://python.org, then reopen a `.nodegraph.json` file to re-run this check."),e.push("")),e.push("### Reading a PDF"),d?(e.push("Use PyMuPDF (recommended \u2014 fastest and most accurate):"),e.push("```python"),e.push("import fitz"),e.push('doc = fitz.open("paper.pdf")'),e.push('text = "\\n".join(page.get_text() for page in doc)'),e.push("```")):h?(e.push("Use pdfplumber:"),e.push("```python"),e.push("import pdfplumber"),e.push('with pdfplumber.open("paper.pdf") as pdf:'),e.push('    text = "\\n".join(p.extract_text() or "" for p in pdf.pages)'),e.push("```")):k?(e.push("Use poppler CLI:"),e.push("```bash"),e.push("pdftotext paper.pdf -"),e.push("```")):e.push("\u274C No PDF reading tool available. Ask the user to install PyMuPDF: `pip install pymupdf`"),e.push(""),e.push("### Extracting images from a PDF"),d?(e.push("```python"),e.push("import fitz"),e.push('doc = fitz.open("paper.pdf")'),e.push("for i, page in enumerate(doc):"),e.push("    for img in page.get_images():"),e.push("        xref = img[0]"),e.push("        pix = fitz.Pixmap(doc, xref)"),e.push('        pix.save(f"fig_{i}_{xref}.png")'),e.push("```")):y?e.push("Pillow is available but cannot extract from PDF directly. Use PyMuPDF for extraction."):e.push("\u274C No image extraction tool available."),e.push(""),e.push("---"),e.push(""),e.push("*To refresh this report, reopen any `.nodegraph.json` file.*");let $=e.join(`
-`);for(let c of t){let v=M.Uri.joinPath(c.uri,".agent"),R=M.Uri.joinPath(v,"ENVIRONMENT.md");try{await M.workspace.fs.createDirectory(v),await M.workspace.fs.writeFile(R,Buffer.from($,"utf-8"))}catch{}}}var le=[{id:"tomoki1207.pdf",name:"vscode-pdf (PDF Viewer)"}];async function ce(){for(let t of le)if(!D.extensions.getExtension(t.id))try{await D.commands.executeCommand("workbench.extensions.installExtension",t.id)}catch{}}function pe(t){t.subscriptions.push(C.register(t)),t.subscriptions.push(D.commands.registerCommand("nodegraph.search",()=>{C.postToActive({type:"openSearch"})})),V(D.workspace.workspaceFolders??[]),ce()}function ue(){}0&&(module.exports={activate,deactivate});
+</html>`;
+  }
+};
+function getNonce() {
+  let text = "";
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  for (let i = 0; i < 32; i++) {
+    text += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return text;
+}
+
+// src/extension/environmentChecker.ts
+var vscode3 = __toESM(require("vscode"));
+var cp = __toESM(require("child_process"));
+function run(cmd) {
+  try {
+    return cp.execSync(cmd, { timeout: 5e3, stdio: ["pipe", "pipe", "pipe"] }).toString().trim();
+  } catch {
+    return "";
+  }
+}
+function check(cmd) {
+  return run(cmd) !== "";
+}
+async function writeEnvironmentReport(workspaceFolders) {
+  if (!workspaceFolders || workspaceFolders.length === 0)
+    return;
+  const lines = [];
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  const platform = process.platform;
+  const osName = platform === "win32" ? "Windows" : platform === "darwin" ? "macOS" : "Linux";
+  const arch = process.arch;
+  const py3 = run("python3 --version 2>&1") || run("python --version 2>&1");
+  const pyCmd = check("python3 --version 2>&1") ? "python3" : check("python --version 2>&1") ? "python" : "";
+  const hasPy = pyCmd !== "";
+  const hasFitz = hasPy && check(`${pyCmd} -c "import fitz" 2>&1 && echo ok`);
+  const fitzVer = hasFitz ? run(`${pyCmd} -c "import fitz; print(fitz.__version__)"`) : "";
+  const hasPlumber = hasPy && check(`${pyCmd} -c "import pdfplumber" 2>&1 && echo ok`);
+  const hasPdfminer = hasPy && check(`${pyCmd} -c "import pdfminer" 2>&1 && echo ok`);
+  const hasPillow = hasPy && check(`${pyCmd} -c "from PIL import Image" 2>&1 && echo ok`);
+  const pillowVer = hasPillow ? run(`${pyCmd} -c "from PIL import __version__; print(__version__)"`) : "";
+  const hasCV2 = hasPy && check(`${pyCmd} -c "import cv2" 2>&1 && echo ok`);
+  const hasPdftotext = check("pdftotext -v 2>&1 && echo ok") || check("pdftotext --help 2>&1 && echo ok");
+  const hasConvert = check("convert --version 2>&1 && echo ok");
+  const hasMagick = check("magick --version 2>&1 && echo ok");
+  const hasGhostscript = check("gs --version 2>&1 && echo ok") || check("gswin64c --version 2>&1 && echo ok");
+  const ok = (v) => v ? "\u2705" : "\u274C";
+  lines.push(`# NodeGraph \u2014 Agent Environment Report`);
+  lines.push(``);
+  lines.push(`> Auto-generated by the NodeGraph extension at activation.`);
+  lines.push(`> **AI agents: read this file to understand what tools are available on this machine.**`);
+  lines.push(`> Re-generated each time a \`.nodegraph.json\` file is opened.`);
+  lines.push(``);
+  lines.push(`Generated: \`${now}\``);
+  lines.push(``);
+  lines.push(`---`);
+  lines.push(``);
+  lines.push(`## System`);
+  lines.push(``);
+  lines.push(`| | |`);
+  lines.push(`|---|---|`);
+  lines.push(`| OS | ${osName} (\`${platform}\`) |`);
+  lines.push(`| Architecture | \`${arch}\` |`);
+  lines.push(`| Python | ${hasPy ? `${ok(true)} \`${py3}\`` : `${ok(false)} not found`} |`);
+  lines.push(`| Python command | ${hasPy ? `\`${pyCmd}\`` : "N/A"} |`);
+  lines.push(``);
+  lines.push(`---`);
+  lines.push(``);
+  lines.push(`## PDF Reading Capabilities`);
+  lines.push(``);
+  lines.push(`| Tool | Available | Notes |`);
+  lines.push(`|------|:---------:|-------|`);
+  lines.push(`| PyMuPDF (\`fitz\`) | ${ok(hasFitz)} | ${hasFitz ? `v${fitzVer} \u2014 recommended` : "Install: `pip install pymupdf`"} |`);
+  lines.push(`| pdfplumber | ${ok(hasPlumber)} | ${hasPlumber ? "available" : "Install: `pip install pdfplumber`"} |`);
+  lines.push(`| pdfminer | ${ok(hasPdfminer)} | ${hasPdfminer ? "available" : "Install: `pip install pdfminer.six`"} |`);
+  lines.push(`| poppler (\`pdftotext\`) | ${ok(hasPdftotext)} | ${hasPdftotext ? "CLI tool available" : platform === "win32" ? "Install: download poppler for Windows" : platform === "darwin" ? "Install: `brew install poppler`" : "Install: `apt install poppler-utils`"} |`);
+  lines.push(`| Ghostscript (\`gs\`) | ${ok(hasGhostscript)} | ${hasGhostscript ? "available" : "optional"} |`);
+  lines.push(``);
+  lines.push(`---`);
+  lines.push(``);
+  lines.push(`## Image Processing Capabilities`);
+  lines.push(``);
+  lines.push(`| Tool | Available | Notes |`);
+  lines.push(`|------|:---------:|-------|`);
+  lines.push(`| Pillow (\`PIL\`) | ${ok(hasPillow)} | ${hasPillow ? `v${pillowVer} \u2014 recommended` : "Install: `pip install Pillow`"} |`);
+  lines.push(`| OpenCV (\`cv2\`) | ${ok(hasCV2)} | ${hasCV2 ? "available" : "Install: `pip install opencv-python`"} |`);
+  lines.push(`| ImageMagick (\`convert\`) | ${ok(hasConvert || hasMagick)} | ${hasConvert || hasMagick ? "CLI tool available" : platform === "win32" ? "Install: imagemagick.org" : platform === "darwin" ? "Install: `brew install imagemagick`" : "Install: `apt install imagemagick`"} |`);
+  lines.push(``);
+  lines.push(`---`);
+  lines.push(``);
+  lines.push(`## Agent Recommendations`);
+  lines.push(``);
+  if (!hasPy) {
+    lines.push(`> \u26A0\uFE0F **Python not found.** PDF reading and image processing via Python are not available.`);
+    lines.push(`> Install Python from https://python.org, then reopen a \`.nodegraph.json\` file to re-run this check.`);
+    lines.push(``);
+  }
+  lines.push(`### Reading a PDF`);
+  if (hasFitz) {
+    lines.push(`Use PyMuPDF (recommended \u2014 fastest and most accurate):`);
+    lines.push(`\`\`\`python`);
+    lines.push(`import fitz`);
+    lines.push(`doc = fitz.open("paper.pdf")`);
+    lines.push(`text = "\\n".join(page.get_text() for page in doc)`);
+    lines.push(`\`\`\``);
+  } else if (hasPlumber) {
+    lines.push(`Use pdfplumber:`);
+    lines.push(`\`\`\`python`);
+    lines.push(`import pdfplumber`);
+    lines.push(`with pdfplumber.open("paper.pdf") as pdf:`);
+    lines.push(`    text = "\\n".join(p.extract_text() or "" for p in pdf.pages)`);
+    lines.push(`\`\`\``);
+  } else if (hasPdftotext) {
+    lines.push(`Use poppler CLI:`);
+    lines.push(`\`\`\`bash`);
+    lines.push(`pdftotext paper.pdf -`);
+    lines.push(`\`\`\``);
+  } else {
+    lines.push(`\u274C No PDF reading tool available. Ask the user to install PyMuPDF: \`pip install pymupdf\``);
+  }
+  lines.push(``);
+  lines.push(`### Extracting images from a PDF`);
+  if (hasFitz) {
+    lines.push(`\`\`\`python`);
+    lines.push(`import fitz`);
+    lines.push(`doc = fitz.open("paper.pdf")`);
+    lines.push(`for i, page in enumerate(doc):`);
+    lines.push(`    for img in page.get_images():`);
+    lines.push(`        xref = img[0]`);
+    lines.push(`        pix = fitz.Pixmap(doc, xref)`);
+    lines.push(`        pix.save(f"fig_{i}_{xref}.png")`);
+    lines.push(`\`\`\``);
+  } else if (hasPillow) {
+    lines.push(`Pillow is available but cannot extract from PDF directly. Use PyMuPDF for extraction.`);
+  } else {
+    lines.push(`\u274C No image extraction tool available.`);
+  }
+  lines.push(``);
+  lines.push(`---`);
+  lines.push(``);
+  lines.push(`*To refresh this report, reopen any \`.nodegraph.json\` file.*`);
+  const report = lines.join("\n");
+  for (const folder of workspaceFolders) {
+    const agentDir = vscode3.Uri.joinPath(folder.uri, ".agent");
+    const outFile = vscode3.Uri.joinPath(agentDir, "ENVIRONMENT.md");
+    try {
+      await vscode3.workspace.fs.createDirectory(agentDir);
+      await vscode3.workspace.fs.writeFile(outFile, Buffer.from(report, "utf-8"));
+    } catch {
+    }
+  }
+}
+
+// src/extension/extension.ts
+var RECOMMENDED_EXTENSIONS = [
+  { id: "tomoki1207.pdf", name: "vscode-pdf (PDF Viewer)" }
+];
+async function installRecommendedExtensions() {
+  for (const ext of RECOMMENDED_EXTENSIONS) {
+    if (!vscode4.extensions.getExtension(ext.id)) {
+      try {
+        await vscode4.commands.executeCommand("workbench.extensions.installExtension", ext.id);
+      } catch {
+      }
+    }
+  }
+}
+function activate(context) {
+  context.subscriptions.push(
+    NodeGraphEditorProvider.register(context)
+  );
+  context.subscriptions.push(
+    vscode4.commands.registerCommand("nodegraph.search", () => {
+      NodeGraphEditorProvider.postToActive({ type: "openSearch" });
+    })
+  );
+  writeEnvironmentReport(vscode4.workspace.workspaceFolders ?? []);
+  installRecommendedExtensions();
+}
+function deactivate() {
+}
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  activate,
+  deactivate
+});
+//# sourceMappingURL=extension.js.map

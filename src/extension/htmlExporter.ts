@@ -285,6 +285,8 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 .ng-drop-item:hover{background:#f3f4f6}
 .ng-node.ng-search-match{border:2px solid #fcd34d !important}
 .ng-node.ng-search-active{border:2px solid #f59e0b !important;box-shadow:0 0 0 3px rgba(245,158,11,0.35),0 2px 8px rgba(0,0,0,.18) !important}
+/* 선택 노드의 한 세대(부모+자식) 하이라이트 */
+.ng-node.ng-gen{border:2px solid #fcd34d !important;box-shadow:0 0 0 3px rgba(252,211,77,.28),0 1px 4px rgba(0,0,0,.08) !important}
 </style>
 </head>
 <body>
@@ -318,6 +320,9 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
       <defs>
         <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
           <polygon points="0 0,10 3.5,0 7" fill="#666"/>
+        </marker>
+        <marker id="arrow-hl" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0,10 3.5,0 7" fill="#f59e0b"/>
         </marker>
       </defs>
     </svg>
@@ -394,6 +399,37 @@ function selectNode(nodeId) {
   } else {
     if (label) { label.textContent = 'Click a node to select'; label.style.opacity = '0.35'; }
   }
+  updateGenHighlight();
+  drawEdges();
+}
+
+// 선택 노드의 한 세대(부모+자식) 이웃 ID 수집 — edges 양방향 + children 배열
+function getGenNeighbors(nodeId) {
+  var ids = [];
+  EDGES.forEach(function(e) {
+    if (e.source === nodeId && ids.indexOf(e.target) === -1) ids.push(e.target);
+    if (e.target === nodeId && ids.indexOf(e.source) === -1) ids.push(e.source);
+  });
+  NODES_DATA.forEach(function(n) {
+    if (n.id === nodeId) {
+      (n.children || []).forEach(function(c) { if (ids.indexOf(c) === -1) ids.push(c); });
+    } else if ((n.children || []).indexOf(nodeId) !== -1 && ids.indexOf(n.id) === -1) {
+      ids.push(n.id);
+    }
+  });
+  var self = ids.indexOf(nodeId);
+  if (self !== -1) ids.splice(self, 1);
+  return ids;
+}
+
+// 선택 노드의 이웃 노드들에 노란 테두리 적용 (wire 색은 drawEdges에서 처리)
+function updateGenHighlight() {
+  document.querySelectorAll('.ng-gen').forEach(function(el) { el.classList.remove('ng-gen'); });
+  if (!selectedNodeId) return;
+  getGenNeighbors(selectedNodeId).forEach(function(id) {
+    var el = document.getElementById('node-' + id);
+    if (el) el.classList.add('ng-gen');
+  });
 }
 
 // Header click = select node
@@ -805,14 +841,21 @@ function drawEdges() {
     var busMinY=Math.min(srcAnchorY,minTY);
     var busMaxY=Math.max(srcAnchorY,maxTY);
 
+    // 세대 하이라이트: source가 선택됐거나 타겟 중 하나가 선택됐으면 트렁크(공용 구간)도 노란색
+    var srcSel=srcId===selectedNodeId;
+    var groupHl=srcSel||targets.some(function(t){return t.e.target===selectedNodeId;});
+    var trunkColor=groupHl?'#f59e0b':'#888', trunkW=groupHl?'2.5':'1.5';
+
     var g=document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('class','ng-eg');
-    g.appendChild(svgLine(sr.x+sr.w,srcAnchorY,busX,srcAnchorY,'#888','1.5'));
-    g.appendChild(svgLine(busX,busMinY,busX,busMaxY,'#888','1.5'));
-    g.appendChild(svgCirc(sr.x+sr.w,srcAnchorY,4,'#888'));
+    g.appendChild(svgLine(sr.x+sr.w,srcAnchorY,busX,srcAnchorY,trunkColor,trunkW));
+    g.appendChild(svgLine(busX,busMinY,busX,busMaxY,trunkColor,trunkW));
+    g.appendChild(svgCirc(sr.x+sr.w,srcAnchorY,4,trunkColor));
     targets.forEach(function(t){
-      g.appendChild(svgLine(busX,t.r.cy,t.r.x,t.r.cy,'#888','1.5'));
-      g.appendChild(svgCirc(t.r.x,t.r.cy,4,'#888'));
+      var tHl=srcSel||t.e.target===selectedNodeId;
+      var branchColor=tHl?'#f59e0b':'#888';
+      g.appendChild(svgLine(busX,t.r.cy,t.r.x,t.r.cy,branchColor,tHl?'2.5':'1.5'));
+      g.appendChild(svgCirc(t.r.x,t.r.cy,4,branchColor));
       busDrawn[t.e.source+'-'+t.e.target]=true;
     });
     svg.appendChild(g);
@@ -830,13 +873,16 @@ function drawEdges() {
     var bend=Math.min(dist*.45,150);
     var cx1=sp[0]+spD[0]*bend,cy1=sp[1]+spD[1]*bend,cx2=tp[0]+tpD[0]*bend,cy2=tp[1]+tpD[1]*bend;
     var d='M'+sp[0]+','+sp[1]+' C'+cx1+','+cy1+' '+cx2+','+cy2+' '+tp[0]+','+tp[1];
+    // 세대 하이라이트: 선택 노드와 직접 연결된 wire는 노란색
+    var hl=selectedNodeId&&(edge.source===selectedNodeId||edge.target===selectedNodeId);
+    var strokeColor=hl?'#f59e0b':'#666';
     var g=document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('class','ng-eg');
     var path=document.createElementNS('http://www.w3.org/2000/svg','path');
-    path.setAttribute('d',d);path.setAttribute('fill','none');path.setAttribute('stroke','#666');path.setAttribute('stroke-width','1.5');
-    if(edge.type==='arrow') path.setAttribute('marker-end','url(#arrow)');
+    path.setAttribute('d',d);path.setAttribute('fill','none');path.setAttribute('stroke',strokeColor);path.setAttribute('stroke-width',hl?'2.5':'1.5');
+    if(edge.type==='arrow') path.setAttribute('marker-end',hl?'url(#arrow-hl)':'url(#arrow)');
     g.appendChild(path);
-    if(edge.type==='line'){[sp,tp].forEach(function(pt){var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',pt[0]);c.setAttribute('cy',pt[1]);c.setAttribute('r','4');c.setAttribute('fill','#666');g.appendChild(c);});}
+    if(edge.type==='line'){[sp,tp].forEach(function(pt){var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',pt[0]);c.setAttribute('cy',pt[1]);c.setAttribute('r','4');c.setAttribute('fill',strokeColor);g.appendChild(c);});}
     svg.appendChild(g);
   });
 }

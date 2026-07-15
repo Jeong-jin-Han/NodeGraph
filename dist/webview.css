@@ -1,1 +1,29 @@
-*{box-sizing:border-box}body{margin:0;padding:0;overflow:hidden;background:var(--vscode-editor-background, #1e1e1e);color:var(--vscode-editor-foreground, #d4d4d4);font-family:var(--vscode-font-family, system-ui, sans-serif);font-size:var(--vscode-font-size, 13px)}button:focus-visible{outline:1px solid var(--vscode-focusBorder, #007fd4);outline-offset:1px}::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:var(--vscode-scrollbarSlider-background, rgba(128,128,128,.4));border-radius:3px}::-webkit-scrollbar-track{background:transparent}
+/* src/webview/styles/theme.css */
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--vscode-editor-background, #1e1e1e);
+  color: var(--vscode-editor-foreground, #d4d4d4);
+  font-family: var(--vscode-font-family, system-ui, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+}
+button:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, #007fd4);
+  outline-offset: 1px;
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background, rgba(128,128,128,0.4));
+  border-radius: 3px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+/*# sourceMappingURL=webview.css.map */

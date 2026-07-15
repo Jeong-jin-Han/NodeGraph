@@ -10,6 +10,7 @@ interface WireLayerProps {
   wirePreview: { srcId: string; srcPort: Port; curX: number; curY: number } | null
   wireHoverTargetId: string | null
   selectedEdgeId: string | null
+  highlightEdgeIds: Set<string>
   onSelectEdge: (id: string | null) => void
 }
 
@@ -40,7 +41,7 @@ function getRect(
   }
 }
 
-export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wireHoverTargetId, selectedEdgeId, onSelectEdge }: WireLayerProps) {
+export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wireHoverTargetId, selectedEdgeId, highlightEdgeIds, onSelectEdge }: WireLayerProps) {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]))
 
   // line 엣지를 source별로 grouping
@@ -93,6 +94,9 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
         <marker id="arrowhead-preview" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
           <polygon points="0 0,10 3.5,0 7" fill="#007acc" />
         </marker>
+        <marker id="arrowhead-gen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0,10 3.5,0 7" fill="#f59e0b" />
+        </marker>
       </defs>
 
       {/* 드래그 중 타겟 노드 하이라이트 */}
@@ -131,19 +135,25 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
         const busMinY = Math.min(...allCY)
         const busMaxY = Math.max(...allCY)
 
+        // 세대 하이라이트: 그룹 내 하이라이트 엣지가 있으면 트렁크(공용 구간)도 노란색
+        const groupGen = edgeGroup.some((e) => highlightEdgeIds.has(e.id))
+        const trunkColor = groupGen ? '#f59e0b' : '#888'
+        const trunkW = groupGen ? 2.5 : 1.5
         return (
           <g key={`bus-${srcId}`}>
             {/* source → bus 수평선 */}
             <line x1={srcAnchorX} y1={srcAnchorY} x2={busX} y2={srcAnchorY}
-              stroke="#888" strokeWidth={1.5} style={{ pointerEvents: 'none' }} />
+              stroke={trunkColor} strokeWidth={trunkW} style={{ pointerEvents: 'none' }} />
             {/* 수직 버스 */}
             <line x1={busX} y1={busMinY} x2={busX} y2={busMaxY}
-              stroke="#888" strokeWidth={1.5} style={{ pointerEvents: 'none' }} />
+              stroke={trunkColor} strokeWidth={trunkW} style={{ pointerEvents: 'none' }} />
             {/* source 끝점 circle */}
-            <circle cx={srcAnchorX} cy={srcAnchorY} r={4} fill="#888" />
+            <circle cx={srcAnchorX} cy={srcAnchorY} r={4} fill={trunkColor} />
             {/* 각 타겟으로 수평 분기 + 클릭 히트 영역 */}
             {targets.map(({ edge, r }) => {
               const isSel = selectedEdgeId === edge.id
+              const isGen = !isSel && highlightEdgeIds.has(edge.id)
+              const branchColor = isSel ? '#007acc' : isGen ? '#f59e0b' : '#888'
               return (
                 <g key={edge.id}>
                   <line x1={busX} y1={r.cy} x2={r.x} y2={r.cy}
@@ -151,9 +161,9 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
                     style={{ pointerEvents: 'stroke' as any, cursor: 'pointer' }}
                     onMouseDown={(e) => { e.stopPropagation(); onSelectEdge(edge.id) }} />
                   <line x1={busX} y1={r.cy} x2={r.x} y2={r.cy}
-                    stroke={isSel ? '#007acc' : '#888'} strokeWidth={isSel ? 2.5 : 1.5}
+                    stroke={branchColor} strokeWidth={isSel || isGen ? 2.5 : 1.5}
                     style={{ pointerEvents: 'none' }} />
-                  <circle cx={r.x} cy={r.cy} r={4} fill={isSel ? '#007acc' : '#888'} />
+                  <circle cx={r.x} cy={r.cy} r={4} fill={branchColor} />
                 </g>
               )
             })}
@@ -181,6 +191,8 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
         const tgtPt = getPortPosition(tgtRect, targetPort)
         const d = getSmartPath(srcPt, tgtPt, sourcePort, targetPort)
         const isSel = selectedEdgeId === edge.id
+        const isGen = !isSel && highlightEdgeIds.has(edge.id)
+        const strokeColor = isSel ? '#007acc' : isGen ? '#f59e0b' : '#666'
 
         return (
           <g key={edge.id}>
@@ -190,15 +202,15 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
             <path
               d={d}
               fill="none"
-              stroke={isSel ? '#007acc' : '#666'}
-              strokeWidth={isSel ? 2.5 : 1.5}
-              markerEnd={edge.type === 'arrow' ? (isSel ? 'url(#arrowhead-selected)' : 'url(#arrowhead)') : undefined}
+              stroke={strokeColor}
+              strokeWidth={isSel || isGen ? 2.5 : 1.5}
+              markerEnd={edge.type === 'arrow' ? (isSel ? 'url(#arrowhead-selected)' : isGen ? 'url(#arrowhead-gen)' : 'url(#arrowhead)') : undefined}
               style={{ pointerEvents: 'none' }}
             />
             {edge.type === 'line' && (
               <>
-                <circle cx={srcPt.x} cy={srcPt.y} r={4} fill={isSel ? '#007acc' : '#666'} />
-                <circle cx={tgtPt.x} cy={tgtPt.y} r={4} fill={isSel ? '#007acc' : '#666'} />
+                <circle cx={srcPt.x} cy={srcPt.y} r={4} fill={strokeColor} />
+                <circle cx={tgtPt.x} cy={tgtPt.y} r={4} fill={strokeColor} />
               </>
             )}
           </g>
