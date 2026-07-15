@@ -344,15 +344,33 @@ var vp = document.getElementById('viewport');
 var canvas = document.getElementById('canvas');
 
 // Set viewport top to match actual toolbar height
-(function() {
+function syncViewportTop() {
   var tb = document.getElementById('toolbar');
   vp.style.top = tb.offsetHeight + 'px';
-})();
+}
+syncViewportTop();
 var tx = 0, ty = 0, scale = 1;
 
 function applyTransform() {
   canvas.style.transform = 'translate('+tx+'px,'+ty+'px) scale('+scale+')';
 }
+
+// 창 크기 변경: 스케일은 유지하고, 화면 중앙에 보이던 지점이 계속 중앙에 오도록 이동
+var lastVW = 0, lastVH = 0;
+(function() {
+  var r = vp.getBoundingClientRect();
+  lastVW = r.width; lastVH = r.height;
+})();
+window.addEventListener('resize', function() {
+  syncViewportTop();
+  var r = vp.getBoundingClientRect();
+  if (lastVW) {
+    tx += (r.width - lastVW) / 2;
+    ty += (r.height - lastVH) / 2;
+    applyTransform();
+  }
+  lastVW = r.width; lastVH = r.height;
+});
 
 // Zoom
 vp.addEventListener('wheel', function(e) {

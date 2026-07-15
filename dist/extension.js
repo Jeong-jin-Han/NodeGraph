@@ -408,15 +408,33 @@ var vp = document.getElementById('viewport');
 var canvas = document.getElementById('canvas');
 
 // Set viewport top to match actual toolbar height
-(function() {
+function syncViewportTop() {
   var tb = document.getElementById('toolbar');
   vp.style.top = tb.offsetHeight + 'px';
-})();
+}
+syncViewportTop();
 var tx = 0, ty = 0, scale = 1;
 
 function applyTransform() {
   canvas.style.transform = 'translate('+tx+'px,'+ty+'px) scale('+scale+')';
 }
+
+// \uCC3D \uD06C\uAE30 \uBCC0\uACBD: \uC2A4\uCF00\uC77C\uC740 \uC720\uC9C0\uD558\uACE0, \uD654\uBA74 \uC911\uC559\uC5D0 \uBCF4\uC774\uB358 \uC9C0\uC810\uC774 \uACC4\uC18D \uC911\uC559\uC5D0 \uC624\uB3C4\uB85D \uC774\uB3D9
+var lastVW = 0, lastVH = 0;
+(function() {
+  var r = vp.getBoundingClientRect();
+  lastVW = r.width; lastVH = r.height;
+})();
+window.addEventListener('resize', function() {
+  syncViewportTop();
+  var r = vp.getBoundingClientRect();
+  if (lastVW) {
+    tx += (r.width - lastVW) / 2;
+    ty += (r.height - lastVH) / 2;
+    applyTransform();
+  }
+  lastVW = r.width; lastVH = r.height;
+});
 
 // Zoom
 vp.addEventListener('wheel', function(e) {
