@@ -1315,7 +1315,9 @@ export function Canvas({
           title="Export as HTML"
         >Export HTML</button>
 
-        <div style={{ flex: 1 }} />
+        {/* 고정 폭 간격 — flex:1 스페이서는 창 축소 시 먼저 수축해 버튼 위치가 움직이고
+            overflow(슬라이드)도 늦게 발생하므로 사용하지 않음 */}
+        <div style={{ width: 24 }} />
         <button
           style={{ ...toolbarBtnStyle, fontFamily: 'monospace' }}
           onClick={onReload}

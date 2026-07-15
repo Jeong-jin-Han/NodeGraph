@@ -42610,7 +42610,7 @@ function Canvas({
               children: "Export HTML"
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { flex: 1 } }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { width: 24 } }),
           /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
             "button",
             {
