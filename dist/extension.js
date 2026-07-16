@@ -1,302 +1,23 @@
-"use strict";
-var __create = Object.create;
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
-};
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
-};
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  // If the importer is in node compatibility mode or this is not an ESM
-  // file that has been converted to a CommonJS file using a Babel-
-  // compatible transform (i.e. "__esModule" has not been set), then set
-  // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
-));
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-
-// src/extension/extension.ts
-var extension_exports = {};
-__export(extension_exports, {
-  activate: () => activate,
-  deactivate: () => deactivate
-});
-module.exports = __toCommonJS(extension_exports);
-var vscode4 = __toESM(require("vscode"));
-
-// src/extension/NodeGraphEditorProvider.ts
-var vscode2 = __toESM(require("vscode"));
-var path = __toESM(require("path"));
-
-// src/extension/imageManager.ts
-var vscode = __toESM(require("vscode"));
-function getImgsFolder(documentUri) {
-  const documentDir = vscode.Uri.joinPath(documentUri, "..");
-  const baseName = documentUri.path.split("/").pop()?.replace(/\.nodegraph\.json$/, "") ?? "graph";
-  return vscode.Uri.joinPath(documentDir, `.${baseName}-imgs`);
-}
-function getImageWebviewUri(webview, documentUri, filename) {
-  const imageUri = vscode.Uri.joinPath(getImgsFolder(documentUri), filename);
-  return webview.asWebviewUri(imageUri).toString();
-}
-var INLINE_IMG_RE = /\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;
-function computeImageUris(webview, documentUri, graph) {
-  const uris = {};
-  const add = (fn) => {
-    if (fn && !uris[fn])
-      uris[fn] = getImageWebviewUri(webview, documentUri, fn);
-  };
-  for (const node of graph.nodes) {
-    INLINE_IMG_RE.lastIndex = 0;
-    let m;
-    while ((m = INLINE_IMG_RE.exec(node.content ?? "")) !== null)
-      add(m[1]);
-  }
-  for (const ci of graph.canvasImages ?? [])
-    add(ci.filename);
-  return uris;
-}
-async function saveImageToAssetsFolder(webview, documentUri, base64Data, ext = "png") {
-  const imgsFolder = getImgsFolder(documentUri);
-  try {
-    await vscode.workspace.fs.createDirectory(imgsFolder);
-  } catch {
-  }
-  const filename = `img_${Date.now()}.${ext}`;
-  const imageUri = vscode.Uri.joinPath(imgsFolder, filename);
-  await vscode.workspace.fs.writeFile(imageUri, Buffer.from(base64Data, "base64"));
-  return { filename, webviewUri: webview.asWebviewUri(imageUri).toString() };
-}
-async function deleteImageFile(documentUri, filename) {
-  const imgUri = vscode.Uri.joinPath(getImgsFolder(documentUri), filename);
-  try {
-    await vscode.workspace.fs.delete(imgUri);
-  } catch {
-  }
-}
-
-// src/extension/htmlExporter.ts
-function escHtml(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-function invertRgbHex(hex) {
-  const h = hex.trim().replace("#", "");
-  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
-  if (!/^[0-9a-fA-F]{6}$/.test(full))
-    return null;
-  return {
-    r: 255 - parseInt(full.slice(0, 2), 16),
-    g: 255 - parseInt(full.slice(2, 4), 16),
-    b: 255 - parseInt(full.slice(4, 6), 16)
-  };
-}
-var hitKeySafe = (k) => k.replace(/[^a-zA-Z0-9_-]/g, "_");
-function isHtmlTableLine(line) {
-  return /^\s*\|/.test(line) && line.indexOf("|", 1) !== -1;
-}
-function isHtmlSepLine(line) {
-  return /^\s*\|[\s\-:|]+\|\s*$/.test(line) && !/[a-zA-Z0-9]/.test(line);
-}
-function parseHtmlCells(line) {
-  return line.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((s) => s.trim());
-}
-function parseHtmlTableBlocks(content) {
-  if (!content)
-    return [{ type: "text", text: "", startChar: 0, endChar: 0 }];
-  const lines = content.split("\n");
-  const blocks = [];
-  let i = 0;
-  let charPos = 0;
-  const lineLen = (idx) => lines[idx].length + (idx < lines.length - 1 ? 1 : 0);
-  while (i < lines.length) {
-    const isStart = isHtmlTableLine(lines[i]) && i + 1 < lines.length && isHtmlSepLine(lines[i + 1]);
-    if (isStart) {
-      const startChar = charPos;
-      const tLines = [];
-      while (i < lines.length && isHtmlTableLine(lines[i])) {
-        tLines.push(lines[i]);
-        charPos += lineLen(i);
-        i++;
-      }
-      if (tLines.length >= 3) {
-        blocks.push({ type: "table", headers: parseHtmlCells(tLines[0]), rows: tLines.slice(2).map(parseHtmlCells), startChar, endChar: charPos });
-      } else {
-        blocks.push({ type: "text", text: tLines.join("\n"), startChar, endChar: charPos });
-      }
-    } else {
-      const startChar = charPos;
-      const tLines = [];
-      while (i < lines.length) {
-        if (isHtmlTableLine(lines[i]) && i + 1 < lines.length && isHtmlSepLine(lines[i + 1]))
-          break;
-        tLines.push(lines[i]);
-        charPos += lineLen(i);
-        i++;
-      }
-      blocks.push({ type: "text", text: tLines.join("\n"), startChar, endChar: charPos });
-    }
-  }
-  return blocks;
-}
-function hasHtmlTable(content) {
-  const lines = content.split("\n");
-  for (let i = 0; i + 1 < lines.length; i++) {
-    if (isHtmlTableLine(lines[i]) && isHtmlSepLine(lines[i + 1]))
-      return true;
-  }
-  return false;
-}
-function escDollar(s) {
-  return escHtml(s).replace(/\\\$/g, () => '<span class="ng-cur">$</span>');
-}
-function renderTextSegment(text) {
-  return escDollar(text).replace(/\*\*(.+?)\*\*/g, '<strong style="font-size:1.1em">$1</strong>');
-}
-function renderCellHtml(cellText, imageData) {
-  const IMG_RE = /\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g;
-  let result = "";
-  let lastIdx = 0;
-  let match;
-  while ((match = IMG_RE.exec(cellText)) !== null) {
-    if (match.index > lastIdx)
-      result += renderTextSegment(cellText.slice(lastIdx, match.index));
-    const filename = match[1];
-    const imgW = match[2];
-    const imgH = match[3];
-    const sizeAttr = imgW && imgH ? ` width="${imgW}" height="${imgH}"` : "";
-    const src = imageData[filename];
-    result += src ? `<img class="ng-img${sizeAttr ? " ng-img-sized" : ""}" src="${src}"${sizeAttr} alt="${escHtml(filename)}" onclick="showLightbox(this.src)" title="Click to enlarge">` : `<span class="ng-img-missing">${escHtml(filename)}</span>`;
-    lastIdx = match.index + match[0].length;
-  }
-  if (lastIdx < cellText.length)
-    result += renderTextSegment(cellText.slice(lastIdx));
-  return result;
-}
-function renderTableBlockHtml(block, imageData) {
-  const th = block.headers.map((h) => `<th>${renderCellHtml(h, imageData)}</th>`).join("");
-  const rows = block.rows.map(
-    (row) => `<tr>${row.map((cell) => `<td>${renderCellHtml(cell, imageData)}</td>`).join("")}</tr>`
-  ).join("");
-  return `<div class="ng-table-wrap"><table class="ng-table"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>`;
-}
-function renderNodeCard(node, template, offsetX, offsetY, imageData) {
-  const color = template?.color ?? "#888";
-  const borderRadius = template?.shape === "rounded" ? "22px" : "2px";
-  const label = escHtml(template?.label ?? node.template);
-  const nx = Math.round(node.position.x + offsetX);
-  const ny = Math.round(node.position.y + offsetY);
-  let bodyHtml = "";
-  const content = node.content ?? "";
-  if (hasHtmlTable(content)) {
-    const blocks = parseHtmlTableBlocks(content);
-    bodyHtml += '<div class="ng-content">';
-    for (const block of blocks) {
-      if (block.type === "table") {
-        bodyHtml += renderTableBlockHtml(block, imageData);
-      } else if (block.text) {
-        bodyHtml += `<div class="ng-seg">${renderCellHtml(block.text, imageData).replace(/\n/g, "<br>")}</div>`;
-      }
-    }
-    bodyHtml += "</div>";
-  } else if (content) {
-    bodyHtml += `<div class="ng-content">${renderCellHtml(content, imageData).replace(/\n/g, "<br>")}</div>`;
-  }
-  if (node.original) {
-    const origTitle = escHtml(node.original.title ?? "Original");
-    const openAttr = node.originalExpanded ? " open" : "";
-    bodyHtml += `<details class="ng-original"${openAttr}><summary>${origTitle}${node.original.location ? ` <span class="ng-loc">${escHtml(node.original.location)}</span>` : ""}</summary>
-<div class="ng-orig-text">${renderTextSegment(node.original.text).replace(/\n/g, "<br>")}</div></details>`;
-  }
-  for (const t of node.toggleItems ?? []) {
-    bodyHtml += `<details class="ng-toggle"${t.expanded ? " open" : ""}><summary>${escHtml(t.title || "(untitled)")}</summary>
-<div class="ng-toggle-body">${renderTextSegment(t.content).replace(/\n/g, "<br>")}</div></details>`;
-  }
-  if (node.links.length) {
-    bodyHtml += `<div class="ng-links">${node.links.map((l) => {
-      const icon = l.type === "url" ? "\u{1F517}" : l.type === "pdf" ? "\u{1F4C4}" : l.type === "obsidian" ? "\u{1F7E3}" : "\u2B21";
-      const href = l.type === "url" || l.type === "pdf" ? ` href="${escHtml(l.target)}" target="_blank"` : "";
-      return `<a class="ng-link"${href}>${icon} ${escHtml(l.label || l.target)}</a>`;
-    }).join("")}</div>`;
-  }
-  const hasBody = !!bodyHtml;
-  const bodyDisplay = node.contentExpanded ? "" : ' style="display:none"';
-  const childrenAttr = node.children.length ? ` data-children="${node.children.join(",")}"` : "";
-  const hasTableClass = hasHtmlTable(content) ? " ng-has-table" : "";
-  const IMG_SIZE_RE = /\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g;
-  let maxImgW = 0;
-  let _m;
-  while ((_m = IMG_SIZE_RE.exec(content)) !== null)
-    maxImgW = Math.max(maxImgW, Number(_m[1]));
-  const autoMinWidth = maxImgW > 0 ? hasHtmlTable(content) ? maxImgW + 280 : maxImgW + 32 : 0;
-  const extraStyle = [
-    node.nodeWidth ? `min-width:${node.nodeWidth}px` : autoMinWidth > 432 ? `min-width:${autoMinWidth}px` : "",
-    node.nodeHeight && node.contentExpanded ? `min-height:${node.nodeHeight}px` : ""
-  ].filter(Boolean).join(";");
-  const minHAttr = node.nodeHeight ? ` data-min-h="${node.nodeHeight}"` : "";
-  return `<div class="ng-node${hasTableClass}" id="node-${escHtml(node.id)}"${childrenAttr}${minHAttr} style="--color:${color};border-radius:${borderRadius};left:${nx}px;top:${ny}px${extraStyle ? ";" + extraStyle : ""}">
+"use strict";var J=Object.create;var H=Object.defineProperty;var Q=Object.getOwnPropertyDescriptor;var Z=Object.getOwnPropertyNames;var ee=Object.getPrototypeOf,te=Object.prototype.hasOwnProperty;var re=(t,e)=>{for(var r in e)H(t,r,{get:e[r],enumerable:!0})},F=(t,e,r,n)=>{if(e&&typeof e=="object"||typeof e=="function")for(let a of Z(e))!te.call(t,a)&&a!==r&&H(t,a,{get:()=>e[a],enumerable:!(n=Q(e,a))||n.enumerable});return t};var M=(t,e,r)=>(r=t!=null?J(ee(t)):{},F(e||!t||!t.__esModule?H(r,"default",{value:t,enumerable:!0}):r,t)),ne=t=>F(H({},"__esModule",{value:!0}),t);var me={};re(me,{activate:()=>ge,deactivate:()=>fe});module.exports=ne(me);var A=M(require("vscode"));var l=M(require("vscode")),q=M(require("path"));var E=M(require("vscode"));function Y(t){let e=E.Uri.joinPath(t,".."),r=t.path.split("/").pop()?.replace(/\.nodegraph\.json$/,"")??"graph";return E.Uri.joinPath(e,`.${r}-imgs`)}function oe(t,e,r){let n=E.Uri.joinPath(Y(e),r);return t.asWebviewUri(n).toString()}var W=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;function L(t,e,r){let n={},a=s=>{s&&!n[s]&&(n[s]=oe(t,e,s))};for(let s of r.nodes){W.lastIndex=0;let h;for(;(h=W.exec(s.content??""))!==null;)a(h[1])}for(let s of r.canvasImages??[])a(s.filename);return n}async function j(t,e,r,n="png"){let a=Y(e);try{await E.workspace.fs.createDirectory(a)}catch{}let s=`img_${Date.now()}.${n}`,h=E.Uri.joinPath(a,s);return await E.workspace.fs.writeFile(h,Buffer.from(r,"base64")),{filename:s,webviewUri:t.asWebviewUri(h).toString()}}async function G(t,e){let r=E.Uri.joinPath(Y(t),e);try{await E.workspace.fs.delete(r)}catch{}}function m(t){return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function ie(t){let e=t.trim().replace("#",""),r=e.length===3?e.split("").map(n=>n+n).join(""):e;return/^[0-9a-fA-F]{6}$/.test(r)?{r:255-parseInt(r.slice(0,2),16),g:255-parseInt(r.slice(2,4),16),b:255-parseInt(r.slice(4,6),16)}:null}var ae=t=>t.replace(/[^a-zA-Z0-9_-]/g,"_");function P(t){return/^\s*\|/.test(t)&&t.indexOf("|",1)!==-1}function _(t){return/^\s*\|[\s\-:|]+\|\s*$/.test(t)&&!/[a-zA-Z0-9]/.test(t)}function U(t){return t.replace(/^\s*\|/,"").replace(/\|\s*$/,"").split("|").map(e=>e.trim())}function se(t){if(!t)return[{type:"text",text:"",startChar:0,endChar:0}];let e=t.split(`
+`),r=[],n=0,a=0,s=h=>e[h].length+(h<e.length-1?1:0);for(;n<e.length;)if(P(e[n])&&n+1<e.length&&_(e[n+1])){let u=a,i=[];for(;n<e.length&&P(e[n]);)i.push(e[n]),a+=s(n),n++;i.length>=3?r.push({type:"table",headers:U(i[0]),rows:i.slice(2).map(U),startChar:u,endChar:a}):r.push({type:"text",text:i.join(`
+`),startChar:u,endChar:a})}else{let u=a,i=[];for(;n<e.length&&!(P(e[n])&&n+1<e.length&&_(e[n+1]));)i.push(e[n]),a+=s(n),n++;r.push({type:"text",text:i.join(`
+`),startChar:u,endChar:a})}return r}function O(t){let e=t.split(`
+`);for(let r=0;r+1<e.length;r++)if(P(e[r])&&_(e[r+1]))return!0;return!1}function de(t){return m(t).replace(/\\\$/g,()=>'<span class="ng-cur">$</span>')}function R(t){return de(t).replace(/\*\*(.+?)\*\*/g,'<strong style="font-size:1.1em">$1</strong>')}function B(t,e){let r=/\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g,n="",a=0,s;for(;(s=r.exec(t))!==null;){s.index>a&&(n+=R(t.slice(a,s.index)));let h=s[1],u=s[2],i=s[3],d=u&&i?` width="${u}" height="${i}"`:"",c=e[h];n+=c?`<img class="ng-img${d?" ng-img-sized":""}" src="${c}"${d} alt="${m(h)}" onclick="showLightbox(this.src)" title="Click to enlarge">`:`<span class="ng-img-missing">${m(h)}</span>`,a=s.index+s[0].length}return a<t.length&&(n+=R(t.slice(a))),n}function le(t,e){let r=t.headers.map(a=>`<th>${B(a,e)}</th>`).join(""),n=t.rows.map(a=>`<tr>${a.map(s=>`<td>${B(s,e)}</td>`).join("")}</tr>`).join("");return`<div class="ng-table-wrap"><table class="ng-table"><thead><tr>${r}</tr></thead><tbody>${n}</tbody></table></div>`}function ce(t,e,r,n,a){let s=e?.color??"#888",h=e?.shape==="rounded"?"22px":"2px",u=m(e?.label??t.template),i=Math.round(t.position.x+r),d=Math.round(t.position.y+n),c="",o=t.content??"";if(O(o)){let p=se(o);c+='<div class="ng-content">';for(let v of p)v.type==="table"?c+=le(v,a):v.text&&(c+=`<div class="ng-seg">${B(v.text,a).replace(/\n/g,"<br>")}</div>`);c+="</div>"}else o&&(c+=`<div class="ng-content">${B(o,a).replace(/\n/g,"<br>")}</div>`);if(t.original){let p=m(t.original.title??"Original"),v=t.originalExpanded?" open":"";c+=`<details class="ng-original"${v}><summary>${p}${t.original.location?` <span class="ng-loc">${m(t.original.location)}</span>`:""}</summary>
+<div class="ng-orig-text">${R(t.original.text).replace(/\n/g,"<br>")}</div></details>`}for(let p of t.toggleItems??[])c+=`<details class="ng-toggle"${p.expanded?" open":""}><summary>${m(p.title||"(untitled)")}</summary>
+<div class="ng-toggle-body">${R(p.content).replace(/\n/g,"<br>")}</div></details>`;t.links.length&&(c+=`<div class="ng-links">${t.links.map(p=>{let v=p.type==="url"?"\u{1F517}":p.type==="pdf"?"\u{1F4C4}":p.type==="obsidian"?"\u{1F7E3}":"\u2B21";return`<a class="ng-link"${p.type==="url"||p.type==="pdf"?` href="${m(p.target)}" target="_blank"`:""}>${v} ${m(p.label||p.target)}</a>`}).join("")}</div>`);let w=!!c,g=t.contentExpanded?"":' style="display:none"',I=t.children.length?` data-children="${t.children.join(",")}"`:"",k=O(o)?" ng-has-table":"",D=/\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g,b=0,S;for(;(S=D.exec(o))!==null;)b=Math.max(b,Number(S[1]));let x=b>0?O(o)?b+280:b+32:0,f=[t.nodeWidth?`min-width:${t.nodeWidth}px`:x>432?`min-width:${x}px`:"",t.nodeHeight&&t.contentExpanded?`min-height:${t.nodeHeight}px`:""].filter(Boolean).join(";"),N=t.nodeHeight?` data-min-h="${t.nodeHeight}"`:"";return`<div class="ng-node${k}" id="node-${m(t.id)}"${I}${N} style="--color:${s};border-radius:${h};left:${i}px;top:${d}px${f?";"+f:""}">
   <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
-    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,${color} 22%,transparent);color:${color}">${label}</span>
-    ${hasBody ? `<span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">${escHtml(node.title)}</span>` : `<span class="ng-title">${escHtml(node.title)}</span>`}
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,${s} 22%,transparent);color:${s}">${u}</span>
+    ${w?`<span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">${m(t.title)}</span>`:`<span class="ng-title">${m(t.title)}</span>`}
   </div>
-  ${hasBody ? `<div class="ng-body"${bodyDisplay}${node.fontSize ? ` style="font-size:${node.fontSize}px"` : ""}>${bodyHtml}</div>` : ""}
-</div>`;
-}
-function generateHtml(graph, imageData = {}) {
-  let minX = Infinity, minY = Infinity;
-  for (const n of graph.nodes) {
-    minX = Math.min(minX, n.position.x);
-    minY = Math.min(minY, n.position.y);
-  }
-  if (!isFinite(minX)) {
-    minX = 0;
-    minY = 0;
-  }
-  const offsetX = -minX + 100;
-  const offsetY = -minY + 100;
-  const nodesHtml = graph.nodes.map((n) => renderNodeCard(n, graph.nodeTemplates[n.template], offsetX, offsetY, imageData)).join("\n");
-  const nodesData = JSON.stringify(graph.nodes.map((n) => ({
-    id: n.id,
-    lx: Math.round(n.position.x + offsetX),
-    ly: Math.round(n.position.y + offsetY),
-    children: n.children ?? [],
-    template: n.template,
-    contentExpanded: n.contentExpanded,
-    isMain: (graph.nodeTemplates[n.template]?.shape ?? "sharp") === "sharp",
-    nodeHeight: n.nodeHeight ?? null,
-    naturalY: Math.round((n.nodeNaturalY ?? n.position.y) + offsetY),
-    searchText: [n.title, n.content ?? "", n.original?.text ?? ""].join(" ").toLowerCase()
-  })));
-  const edgeData = JSON.stringify(graph.edges.map((e) => ({
-    source: e.source,
-    target: e.target,
-    type: e.type,
-    label: e.label || ""
-  })));
-  const source = graph.source ? `${escHtml(graph.source.authors)} \xB7 ${escHtml(graph.source.venue)}` : "";
-  const hitStyles = Object.entries(graph.nodeTemplates).map(([key, t]) => {
-    const inv = invertRgbHex(t.color);
-    const c = inv ? `rgb(${inv.r},${inv.g},${inv.b})` : "#ff3b30";
-    const bg = inv ? `rgba(${inv.r},${inv.g},${inv.b},0.18)` : "rgba(255,59,48,0.18)";
-    return `::highlight(ng-hit-${hitKeySafe(key)}){color:${c};background-color:${bg};text-decoration:underline}`;
-  }).join("\n");
-  return `<!DOCTYPE html>
+  ${w?`<div class="ng-body"${g}${t.fontSize?` style="font-size:${t.fontSize}px"`:""}>${c}</div>`:""}
+</div>`}function z(t,e={}){let r=1/0,n=1/0;for(let o of t.nodes)r=Math.min(r,o.position.x),n=Math.min(n,o.position.y);isFinite(r)||(r=0,n=0);let a=-r+100,s=-n+100,h=t.nodes.map(o=>ce(o,t.nodeTemplates[o.template],a,s,e)).join(`
+`),u=JSON.stringify(t.nodes.map(o=>({id:o.id,lx:Math.round(o.position.x+a),ly:Math.round(o.position.y+s),children:o.children??[],template:o.template,contentExpanded:o.contentExpanded,isMain:(t.nodeTemplates[o.template]?.shape??"sharp")==="sharp",nodeHeight:o.nodeHeight??null,naturalY:Math.round((o.nodeNaturalY??o.position.y)+s),searchText:[o.title,o.content??"",o.original?.text??""].join(" ").toLowerCase()}))),i=JSON.stringify(t.edges.map(o=>({source:o.source,target:o.target,type:o.type,label:o.label||""}))),d=t.source?`${m(t.source.authors)} \xB7 ${m(t.source.venue)}`:"",c=Object.entries(t.nodeTemplates).map(([o,w])=>{let g=ie(w.color),I=g?`rgb(${g.r},${g.g},${g.b})`:"#ff3b30",k=g?`rgba(${g.r},${g.g},${g.b},0.18)`:"rgba(255,59,48,0.18)";return`::highlight(ng-hit-${ae(o)}){color:${I};background-color:${k};text-decoration:underline}`}).join(`
+`);return`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escHtml(graph.title)}</title>
+<title>${m(t.title)}</title>
 <!-- KaTeX for LaTeX rendering -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.js"></script>
@@ -372,7 +93,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 .ng-drop-item:hover{background:#f3f4f6}
 .ng-node.ng-search-match{border:2px solid #fcd34d !important}
 .ng-node.ng-search-active{border:2px solid #f59e0b !important;box-shadow:0 0 0 3px rgba(245,158,11,0.35),0 2px 8px rgba(0,0,0,.18) !important}
-${hitStyles}
+${c}
 /* \uC120\uD0DD \uB178\uB4DC\uC758 \uD55C \uC138\uB300(\uBD80\uBAA8+\uC790\uC2DD) \uD558\uC774\uB77C\uC774\uD2B8 \u2014 Esc\uB85C\uB9CC \uD574\uC81C */
 .ng-node.ng-gen{border:2px solid #f87171 !important;box-shadow:0 0 0 3px rgba(248,113,113,.3),0 1px 4px rgba(0,0,0,.08) !important}
 </style>
@@ -380,8 +101,8 @@ ${hitStyles}
 <body>
 <div id="toolbar">
   <div id="tb-row1">
-    <span id="tb-title">${escHtml(graph.title)}</span>
-    <span id="tb-source">${source}</span>
+    <span id="tb-title">${m(t.title)}</span>
+    <span id="tb-source">${d}</span>
   </div>
   <div id="tb-row2">
     <button onclick="fitView()">Fit View</button>
@@ -414,7 +135,7 @@ ${hitStyles}
         </marker>
       </defs>
     </svg>
-    ${nodesHtml}
+    ${h}
   </div>
 </div>
 <div id="lightbox" onclick="closeLightbox()">
@@ -422,8 +143,8 @@ ${hitStyles}
   <span id="lightbox-close" onclick="closeLightbox()">\u2715</span>
 </div>
 <script>
-var NODES_DATA = ${nodesData};
-var EDGES = ${edgeData};
+var NODES_DATA = ${u};
+var EDGES = ${i};
 var HEADER_H = 36;
 
 var vp = document.getElementById('viewport');
@@ -1551,177 +1272,14 @@ window.addEventListener('load', function() {
 });
 </script>
 </body>
-</html>`;
-}
-
-// src/extension/NodeGraphEditorProvider.ts
-var NodeGraphEditorProvider = class _NodeGraphEditorProvider {
-  constructor(context) {
-    this.context = context;
-    this._pendingSaves = /* @__PURE__ */ new Set();
-  }
-  static register(context) {
-    const provider = new _NodeGraphEditorProvider(context);
-    return vscode2.window.registerCustomEditorProvider(
-      "nodegraph.editor",
-      provider,
-      { webviewOptions: { retainContextWhenHidden: true } }
-    );
-  }
-  static {
-    // Track the most recently active webview so extension commands can post messages to it
-    this._activeWebview = null;
-  }
-  static postToActive(message) {
-    _NodeGraphEditorProvider._activeWebview?.postMessage(message);
-  }
-  async resolveCustomTextEditor(document, webviewPanel, _token) {
-    const documentDir = vscode2.Uri.joinPath(document.uri, "..");
-    webviewPanel.webview.options = {
-      enableScripts: true,
-      localResourceRoots: [this.context.extensionUri, documentDir]
-    };
-    webviewPanel.webview.html = this._getHtmlForWebview(webviewPanel.webview);
-    const sendGraph = (type) => {
-      try {
-        const data = JSON.parse(document.getText());
-        const imageUris = computeImageUris(webviewPanel.webview, document.uri, data);
-        webviewPanel.webview.postMessage({ type, data, imageUris });
-      } catch {
-      }
-    };
-    const msgDisposable = webviewPanel.webview.onDidReceiveMessage(async (msg) => {
-      if (msg.type === "ready") {
-        sendGraph("load");
-      } else if (msg.type === "save") {
-        const docKey = document.uri.toString();
-        this._pendingSaves.add(docKey);
-        try {
-          const edit = new vscode2.WorkspaceEdit();
-          const fullRange = new vscode2.Range(
-            document.positionAt(0),
-            document.positionAt(document.getText().length)
-          );
-          edit.replace(document.uri, fullRange, JSON.stringify(msg.data, null, 2));
-          await vscode2.workspace.applyEdit(edit);
-          await document.save();
-        } finally {
-          this._pendingSaves.delete(docKey);
-        }
-      } else if (msg.type === "openLink") {
-        const link = msg.link;
-        if (link.type === "url") {
-          vscode2.env.openExternal(vscode2.Uri.parse(link.target));
-        } else if (link.type === "pdf") {
-          const pdfUri = vscode2.Uri.joinPath(vscode2.Uri.joinPath(document.uri, ".."), link.target);
-          vscode2.env.openExternal(pdfUri);
-        } else if (link.type === "obsidian") {
-          vscode2.env.openExternal(vscode2.Uri.parse(link.target));
-        }
-      } else if (msg.type === "exportHtml") {
-        try {
-          const data = msg.data;
-          const docDir = vscode2.Uri.joinPath(document.uri, "..");
-          const baseName = path.basename(document.uri.fsPath, ".nodegraph.json");
-          const imgsFolder = vscode2.Uri.joinPath(docDir, `.${baseName}-imgs`);
-          const imageData = {};
-          const INLINE_IMG_RE2 = /\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;
-          const loadImg = async (filename) => {
-            if (!filename || imageData[filename])
-              return;
-            try {
-              const imgUri = vscode2.Uri.joinPath(imgsFolder, filename);
-              const bytes = await vscode2.workspace.fs.readFile(imgUri);
-              const ext = filename.split(".").pop()?.toLowerCase() ?? "png";
-              const mime = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : ext === "gif" ? "image/gif" : ext === "webp" ? "image/webp" : "image/png";
-              imageData[filename] = `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
-            } catch {
-            }
-          };
-          for (const node of data.nodes) {
-            INLINE_IMG_RE2.lastIndex = 0;
-            let m;
-            while ((m = INLINE_IMG_RE2.exec(node.content ?? "")) !== null)
-              await loadImg(m[1]);
-          }
-          const htmlContent = generateHtml(data, imageData);
-          const outUri = vscode2.Uri.joinPath(docDir, `${baseName}.html`);
-          await vscode2.workspace.fs.writeFile(outUri, Buffer.from(htmlContent, "utf-8"));
-          const choice = await vscode2.window.showInformationMessage(
-            `HTML exported: ${baseName}.html`,
-            "Open in Browser",
-            "Show in Explorer"
-          );
-          if (choice === "Open in Browser") {
-            vscode2.env.openExternal(outUri);
-          } else if (choice === "Show in Explorer") {
-            vscode2.commands.executeCommand("revealFileInOS", outUri);
-          }
-        } catch (err) {
-          vscode2.window.showErrorMessage(`HTML export failed: ${err}`);
-        }
-      } else if (msg.type === "saveImage") {
-        try {
-          const { filename, webviewUri } = await saveImageToAssetsFolder(
-            webviewPanel.webview,
-            document.uri,
-            msg.data,
-            msg.ext ?? "png"
-          );
-          webviewPanel.webview.postMessage({ type: "imageSaved", nodeId: msg.nodeId, filename, webviewUri });
-        } catch (err) {
-          vscode2.window.showErrorMessage(`Failed to save image: ${err}`);
-        }
-      } else if (msg.type === "deleteImageFile") {
-        await deleteImageFile(document.uri, msg.filename);
-      } else if (msg.type === "reload") {
-        try {
-          const bytes = await vscode2.workspace.fs.readFile(document.uri);
-          const text = Buffer.from(bytes).toString("utf-8");
-          const data = JSON.parse(text);
-          const imageUris = computeImageUris(webviewPanel.webview, document.uri, data);
-          webviewPanel.webview.postMessage({ type: "load", data, imageUris });
-        } catch {
-          sendGraph("load");
-        }
-      }
-    });
-    const changeDisposable = vscode2.workspace.onDidChangeTextDocument((e) => {
-      if (e.document.uri.toString() !== document.uri.toString())
-        return;
-      if (this._pendingSaves.has(document.uri.toString()))
-        return;
-      sendGraph("externalChange");
-    });
-    _NodeGraphEditorProvider._activeWebview = webviewPanel.webview;
-    webviewPanel.onDidChangeViewState((e) => {
-      if (e.webviewPanel.active)
-        _NodeGraphEditorProvider._activeWebview = webviewPanel.webview;
-    });
-    webviewPanel.onDidDispose(() => {
-      msgDisposable.dispose();
-      changeDisposable.dispose();
-      if (_NodeGraphEditorProvider._activeWebview === webviewPanel.webview) {
-        _NodeGraphEditorProvider._activeWebview = null;
-      }
-    });
-  }
-  _getHtmlForWebview(webview) {
-    const scriptUri = webview.asWebviewUri(
-      vscode2.Uri.joinPath(this.context.extensionUri, "dist", "webview.js")
-    );
-    const katexCssUri = webview.asWebviewUri(
-      vscode2.Uri.joinPath(this.context.extensionUri, "dist", "katex", "katex.min.css")
-    );
-    const nonce = getNonce();
-    return `<!DOCTYPE html>
+</html>`}var C=class t{constructor(e){this.context=e;this._pendingSaves=new Set}static register(e){let r=new t(e);return l.window.registerCustomEditorProvider("nodegraph.editor",r,{webviewOptions:{retainContextWhenHidden:!0}})}static{this._activeWebview=null}static postToActive(e){t._activeWebview?.postMessage(e)}async resolveCustomTextEditor(e,r,n){let a=l.Uri.joinPath(e.uri,"..");r.webview.options={enableScripts:!0,localResourceRoots:[this.context.extensionUri,a]},r.webview.html=this._getHtmlForWebview(r.webview);let s=i=>{try{let d=JSON.parse(e.getText()),c=L(r.webview,e.uri,d);r.webview.postMessage({type:i,data:d,imageUris:c})}catch{}},h=r.webview.onDidReceiveMessage(async i=>{if(i.type==="ready")s("load");else if(i.type==="save"){let d=e.uri.toString();this._pendingSaves.add(d);try{let c=new l.WorkspaceEdit,o=new l.Range(e.positionAt(0),e.positionAt(e.getText().length));c.replace(e.uri,o,JSON.stringify(i.data,null,2)),await l.workspace.applyEdit(c),await e.save()}finally{this._pendingSaves.delete(d)}}else if(i.type==="openLink"){let d=i.link;if(d.type==="url")l.env.openExternal(l.Uri.parse(d.target));else if(d.type==="pdf"){let c=l.Uri.joinPath(l.Uri.joinPath(e.uri,".."),d.target);l.env.openExternal(c)}else d.type==="obsidian"&&l.env.openExternal(l.Uri.parse(d.target))}else if(i.type==="exportHtml")try{let d=i.data,c=l.Uri.joinPath(e.uri,".."),o=q.basename(e.uri.fsPath,".nodegraph.json"),w=l.Uri.joinPath(c,`.${o}-imgs`),g={},I=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g,k=async x=>{if(!(!x||g[x]))try{let f=l.Uri.joinPath(w,x),N=await l.workspace.fs.readFile(f),p=x.split(".").pop()?.toLowerCase()??"png",v=p==="jpg"||p==="jpeg"?"image/jpeg":p==="gif"?"image/gif":p==="webp"?"image/webp":"image/png";g[x]=`data:${v};base64,${Buffer.from(N).toString("base64")}`}catch{}};for(let x of d.nodes){I.lastIndex=0;let f;for(;(f=I.exec(x.content??""))!==null;)await k(f[1])}let D=z(d,g),b=l.Uri.joinPath(c,`${o}.html`);await l.workspace.fs.writeFile(b,Buffer.from(D,"utf-8"));let S=await l.window.showInformationMessage(`HTML exported: ${o}.html`,"Open in Browser","Show in Explorer");S==="Open in Browser"?l.env.openExternal(b):S==="Show in Explorer"&&l.commands.executeCommand("revealFileInOS",b)}catch(d){l.window.showErrorMessage(`HTML export failed: ${d}`)}else if(i.type==="saveImage")try{let{filename:d,webviewUri:c}=await j(r.webview,e.uri,i.data,i.ext??"png");r.webview.postMessage({type:"imageSaved",nodeId:i.nodeId,filename:d,webviewUri:c})}catch(d){l.window.showErrorMessage(`Failed to save image: ${d}`)}else if(i.type==="deleteImageFile")await G(e.uri,i.filename);else if(i.type==="reload")try{let d=await l.workspace.fs.readFile(e.uri),c=Buffer.from(d).toString("utf-8"),o=JSON.parse(c),w=L(r.webview,e.uri,o);r.webview.postMessage({type:"load",data:o,imageUris:w})}catch{s("load")}}),u=l.workspace.onDidChangeTextDocument(i=>{i.document.uri.toString()===e.uri.toString()&&(this._pendingSaves.has(e.uri.toString())||s("externalChange"))});t._activeWebview=r.webview,r.onDidChangeViewState(i=>{i.webviewPanel.active&&(t._activeWebview=r.webview)}),r.onDidDispose(()=>{h.dispose(),u.dispose(),t._activeWebview===r.webview&&(t._activeWebview=null)})}_getHtmlForWebview(e){let r=e.asWebviewUri(l.Uri.joinPath(this.context.extensionUri,"dist","webview.js")),n=e.asWebviewUri(l.Uri.joinPath(this.context.extensionUri,"dist","katex","katex.min.css")),a=pe();return`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} blob: data:; script-src 'nonce-${nonce}'; style-src 'unsafe-inline' ${webview.cspSource}; font-src ${webview.cspSource};">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${e.cspSource} blob: data:; script-src 'nonce-${a}'; style-src 'unsafe-inline' ${e.cspSource}; font-src ${e.cspSource};">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NodeGraph</title>
-  <link rel="stylesheet" href="${katexCssUri}">
+  <link rel="stylesheet" href="${n}">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #root { height: 100%; overflow: hidden; }
@@ -1737,193 +1295,7 @@ var NodeGraphEditorProvider = class _NodeGraphEditorProvider {
 </head>
 <body>
   <div id="root"></div>
-  <script nonce="${nonce}" src="${scriptUri}"></script>
+  <script nonce="${a}" src="${r}"></script>
 </body>
-</html>`;
-  }
-};
-function getNonce() {
-  let text = "";
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  for (let i = 0; i < 32; i++) {
-    text += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return text;
-}
-
-// src/extension/environmentChecker.ts
-var vscode3 = __toESM(require("vscode"));
-var cp = __toESM(require("child_process"));
-function run(cmd) {
-  try {
-    return cp.execSync(cmd, { timeout: 5e3, stdio: ["pipe", "pipe", "pipe"] }).toString().trim();
-  } catch {
-    return "";
-  }
-}
-function check(cmd) {
-  return run(cmd) !== "";
-}
-async function writeEnvironmentReport(workspaceFolders) {
-  if (!workspaceFolders || workspaceFolders.length === 0)
-    return;
-  const lines = [];
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  const platform = process.platform;
-  const osName = platform === "win32" ? "Windows" : platform === "darwin" ? "macOS" : "Linux";
-  const arch = process.arch;
-  const py3 = run("python3 --version 2>&1") || run("python --version 2>&1");
-  const pyCmd = check("python3 --version 2>&1") ? "python3" : check("python --version 2>&1") ? "python" : "";
-  const hasPy = pyCmd !== "";
-  const hasFitz = hasPy && check(`${pyCmd} -c "import fitz" 2>&1 && echo ok`);
-  const fitzVer = hasFitz ? run(`${pyCmd} -c "import fitz; print(fitz.__version__)"`) : "";
-  const hasPlumber = hasPy && check(`${pyCmd} -c "import pdfplumber" 2>&1 && echo ok`);
-  const hasPdfminer = hasPy && check(`${pyCmd} -c "import pdfminer" 2>&1 && echo ok`);
-  const hasPillow = hasPy && check(`${pyCmd} -c "from PIL import Image" 2>&1 && echo ok`);
-  const pillowVer = hasPillow ? run(`${pyCmd} -c "from PIL import __version__; print(__version__)"`) : "";
-  const hasCV2 = hasPy && check(`${pyCmd} -c "import cv2" 2>&1 && echo ok`);
-  const hasPdftotext = check("pdftotext -v 2>&1 && echo ok") || check("pdftotext --help 2>&1 && echo ok");
-  const hasConvert = check("convert --version 2>&1 && echo ok");
-  const hasMagick = check("magick --version 2>&1 && echo ok");
-  const hasGhostscript = check("gs --version 2>&1 && echo ok") || check("gswin64c --version 2>&1 && echo ok");
-  const ok = (v) => v ? "\u2705" : "\u274C";
-  lines.push(`# NodeGraph \u2014 Agent Environment Report`);
-  lines.push(``);
-  lines.push(`> Auto-generated by the NodeGraph extension at activation.`);
-  lines.push(`> **AI agents: read this file to understand what tools are available on this machine.**`);
-  lines.push(`> Re-generated each time a \`.nodegraph.json\` file is opened.`);
-  lines.push(``);
-  lines.push(`Generated: \`${now}\``);
-  lines.push(``);
-  lines.push(`---`);
-  lines.push(``);
-  lines.push(`## System`);
-  lines.push(``);
-  lines.push(`| | |`);
-  lines.push(`|---|---|`);
-  lines.push(`| OS | ${osName} (\`${platform}\`) |`);
-  lines.push(`| Architecture | \`${arch}\` |`);
-  lines.push(`| Python | ${hasPy ? `${ok(true)} \`${py3}\`` : `${ok(false)} not found`} |`);
-  lines.push(`| Python command | ${hasPy ? `\`${pyCmd}\`` : "N/A"} |`);
-  lines.push(``);
-  lines.push(`---`);
-  lines.push(``);
-  lines.push(`## PDF Reading Capabilities`);
-  lines.push(``);
-  lines.push(`| Tool | Available | Notes |`);
-  lines.push(`|------|:---------:|-------|`);
-  lines.push(`| PyMuPDF (\`fitz\`) | ${ok(hasFitz)} | ${hasFitz ? `v${fitzVer} \u2014 recommended` : "Install: `pip install pymupdf`"} |`);
-  lines.push(`| pdfplumber | ${ok(hasPlumber)} | ${hasPlumber ? "available" : "Install: `pip install pdfplumber`"} |`);
-  lines.push(`| pdfminer | ${ok(hasPdfminer)} | ${hasPdfminer ? "available" : "Install: `pip install pdfminer.six`"} |`);
-  lines.push(`| poppler (\`pdftotext\`) | ${ok(hasPdftotext)} | ${hasPdftotext ? "CLI tool available" : platform === "win32" ? "Install: download poppler for Windows" : platform === "darwin" ? "Install: `brew install poppler`" : "Install: `apt install poppler-utils`"} |`);
-  lines.push(`| Ghostscript (\`gs\`) | ${ok(hasGhostscript)} | ${hasGhostscript ? "available" : "optional"} |`);
-  lines.push(``);
-  lines.push(`---`);
-  lines.push(``);
-  lines.push(`## Image Processing Capabilities`);
-  lines.push(``);
-  lines.push(`| Tool | Available | Notes |`);
-  lines.push(`|------|:---------:|-------|`);
-  lines.push(`| Pillow (\`PIL\`) | ${ok(hasPillow)} | ${hasPillow ? `v${pillowVer} \u2014 recommended` : "Install: `pip install Pillow`"} |`);
-  lines.push(`| OpenCV (\`cv2\`) | ${ok(hasCV2)} | ${hasCV2 ? "available" : "Install: `pip install opencv-python`"} |`);
-  lines.push(`| ImageMagick (\`convert\`) | ${ok(hasConvert || hasMagick)} | ${hasConvert || hasMagick ? "CLI tool available" : platform === "win32" ? "Install: imagemagick.org" : platform === "darwin" ? "Install: `brew install imagemagick`" : "Install: `apt install imagemagick`"} |`);
-  lines.push(``);
-  lines.push(`---`);
-  lines.push(``);
-  lines.push(`## Agent Recommendations`);
-  lines.push(``);
-  if (!hasPy) {
-    lines.push(`> \u26A0\uFE0F **Python not found.** PDF reading and image processing via Python are not available.`);
-    lines.push(`> Install Python from https://python.org, then reopen a \`.nodegraph.json\` file to re-run this check.`);
-    lines.push(``);
-  }
-  lines.push(`### Reading a PDF`);
-  if (hasFitz) {
-    lines.push(`Use PyMuPDF (recommended \u2014 fastest and most accurate):`);
-    lines.push(`\`\`\`python`);
-    lines.push(`import fitz`);
-    lines.push(`doc = fitz.open("paper.pdf")`);
-    lines.push(`text = "\\n".join(page.get_text() for page in doc)`);
-    lines.push(`\`\`\``);
-  } else if (hasPlumber) {
-    lines.push(`Use pdfplumber:`);
-    lines.push(`\`\`\`python`);
-    lines.push(`import pdfplumber`);
-    lines.push(`with pdfplumber.open("paper.pdf") as pdf:`);
-    lines.push(`    text = "\\n".join(p.extract_text() or "" for p in pdf.pages)`);
-    lines.push(`\`\`\``);
-  } else if (hasPdftotext) {
-    lines.push(`Use poppler CLI:`);
-    lines.push(`\`\`\`bash`);
-    lines.push(`pdftotext paper.pdf -`);
-    lines.push(`\`\`\``);
-  } else {
-    lines.push(`\u274C No PDF reading tool available. Ask the user to install PyMuPDF: \`pip install pymupdf\``);
-  }
-  lines.push(``);
-  lines.push(`### Extracting images from a PDF`);
-  if (hasFitz) {
-    lines.push(`\`\`\`python`);
-    lines.push(`import fitz`);
-    lines.push(`doc = fitz.open("paper.pdf")`);
-    lines.push(`for i, page in enumerate(doc):`);
-    lines.push(`    for img in page.get_images():`);
-    lines.push(`        xref = img[0]`);
-    lines.push(`        pix = fitz.Pixmap(doc, xref)`);
-    lines.push(`        pix.save(f"fig_{i}_{xref}.png")`);
-    lines.push(`\`\`\``);
-  } else if (hasPillow) {
-    lines.push(`Pillow is available but cannot extract from PDF directly. Use PyMuPDF for extraction.`);
-  } else {
-    lines.push(`\u274C No image extraction tool available.`);
-  }
-  lines.push(``);
-  lines.push(`---`);
-  lines.push(``);
-  lines.push(`*To refresh this report, reopen any \`.nodegraph.json\` file.*`);
-  const report = lines.join("\n");
-  for (const folder of workspaceFolders) {
-    const agentDir = vscode3.Uri.joinPath(folder.uri, ".agent");
-    const outFile = vscode3.Uri.joinPath(agentDir, "ENVIRONMENT.md");
-    try {
-      await vscode3.workspace.fs.createDirectory(agentDir);
-      await vscode3.workspace.fs.writeFile(outFile, Buffer.from(report, "utf-8"));
-    } catch {
-    }
-  }
-}
-
-// src/extension/extension.ts
-var RECOMMENDED_EXTENSIONS = [
-  { id: "tomoki1207.pdf", name: "vscode-pdf (PDF Viewer)" }
-];
-async function installRecommendedExtensions() {
-  for (const ext of RECOMMENDED_EXTENSIONS) {
-    if (!vscode4.extensions.getExtension(ext.id)) {
-      try {
-        await vscode4.commands.executeCommand("workbench.extensions.installExtension", ext.id);
-      } catch {
-      }
-    }
-  }
-}
-function activate(context) {
-  context.subscriptions.push(
-    NodeGraphEditorProvider.register(context)
-  );
-  context.subscriptions.push(
-    vscode4.commands.registerCommand("nodegraph.search", () => {
-      NodeGraphEditorProvider.postToActive({ type: "openSearch" });
-    })
-  );
-  writeEnvironmentReport(vscode4.workspace.workspaceFolders ?? []);
-  installRecommendedExtensions();
-}
-function deactivate() {
-}
-// Annotate the CommonJS export names for ESM import in node:
-0 && (module.exports = {
-  activate,
-  deactivate
-});
-//# sourceMappingURL=extension.js.map
+</html>`}};function pe(){let t="",e="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";for(let r=0;r<32;r++)t+=e.charAt(Math.floor(Math.random()*e.length));return t}var T=M(require("vscode")),K=M(require("child_process"));function $(t){try{return K.execSync(t,{timeout:5e3,stdio:["pipe","pipe","pipe"]}).toString().trim()}catch{return""}}function y(t){return $(t)!==""}async function V(t){if(!t||t.length===0)return;let e=[],r=new Date().toISOString(),n=process.platform,a=n==="win32"?"Windows":n==="darwin"?"macOS":"Linux",s=process.arch,h=$("python3 --version 2>&1")||$("python --version 2>&1"),u=y("python3 --version 2>&1")?"python3":y("python --version 2>&1")?"python":"",i=u!=="",d=i&&y(`${u} -c "import fitz" 2>&1 && echo ok`),c=d?$(`${u} -c "import fitz; print(fitz.__version__)"`):"",o=i&&y(`${u} -c "import pdfplumber" 2>&1 && echo ok`),w=i&&y(`${u} -c "import pdfminer" 2>&1 && echo ok`),g=i&&y(`${u} -c "from PIL import Image" 2>&1 && echo ok`),I=g?$(`${u} -c "from PIL import __version__; print(__version__)"`):"",k=i&&y(`${u} -c "import cv2" 2>&1 && echo ok`),D=y("pdftotext -v 2>&1 && echo ok")||y("pdftotext --help 2>&1 && echo ok"),b=y("convert --version 2>&1 && echo ok"),S=y("magick --version 2>&1 && echo ok"),x=y("gs --version 2>&1 && echo ok")||y("gswin64c --version 2>&1 && echo ok"),f=p=>p?"\u2705":"\u274C";e.push("# NodeGraph \u2014 Agent Environment Report"),e.push(""),e.push("> Auto-generated by the NodeGraph extension at activation."),e.push("> **AI agents: read this file to understand what tools are available on this machine.**"),e.push("> Re-generated each time a `.nodegraph.json` file is opened."),e.push(""),e.push(`Generated: \`${r}\``),e.push(""),e.push("---"),e.push(""),e.push("## System"),e.push(""),e.push("| | |"),e.push("|---|---|"),e.push(`| OS | ${a} (\`${n}\`) |`),e.push(`| Architecture | \`${s}\` |`),e.push(`| Python | ${i?`${f(!0)} \`${h}\``:`${f(!1)} not found`} |`),e.push(`| Python command | ${i?`\`${u}\``:"N/A"} |`),e.push(""),e.push("---"),e.push(""),e.push("## PDF Reading Capabilities"),e.push(""),e.push("| Tool | Available | Notes |"),e.push("|------|:---------:|-------|"),e.push(`| PyMuPDF (\`fitz\`) | ${f(d)} | ${d?`v${c} \u2014 recommended`:"Install: `pip install pymupdf`"} |`),e.push(`| pdfplumber | ${f(o)} | ${o?"available":"Install: `pip install pdfplumber`"} |`),e.push(`| pdfminer | ${f(w)} | ${w?"available":"Install: `pip install pdfminer.six`"} |`),e.push(`| poppler (\`pdftotext\`) | ${f(D)} | ${D?"CLI tool available":n==="win32"?"Install: download poppler for Windows":n==="darwin"?"Install: `brew install poppler`":"Install: `apt install poppler-utils`"} |`),e.push(`| Ghostscript (\`gs\`) | ${f(x)} | ${x?"available":"optional"} |`),e.push(""),e.push("---"),e.push(""),e.push("## Image Processing Capabilities"),e.push(""),e.push("| Tool | Available | Notes |"),e.push("|------|:---------:|-------|"),e.push(`| Pillow (\`PIL\`) | ${f(g)} | ${g?`v${I} \u2014 recommended`:"Install: `pip install Pillow`"} |`),e.push(`| OpenCV (\`cv2\`) | ${f(k)} | ${k?"available":"Install: `pip install opencv-python`"} |`),e.push(`| ImageMagick (\`convert\`) | ${f(b||S)} | ${b||S?"CLI tool available":n==="win32"?"Install: imagemagick.org":n==="darwin"?"Install: `brew install imagemagick`":"Install: `apt install imagemagick`"} |`),e.push(""),e.push("---"),e.push(""),e.push("## Agent Recommendations"),e.push(""),i||(e.push("> \u26A0\uFE0F **Python not found.** PDF reading and image processing via Python are not available."),e.push("> Install Python from https://python.org, then reopen a `.nodegraph.json` file to re-run this check."),e.push("")),e.push("### Reading a PDF"),d?(e.push("Use PyMuPDF (recommended \u2014 fastest and most accurate):"),e.push("```python"),e.push("import fitz"),e.push('doc = fitz.open("paper.pdf")'),e.push('text = "\\n".join(page.get_text() for page in doc)'),e.push("```")):o?(e.push("Use pdfplumber:"),e.push("```python"),e.push("import pdfplumber"),e.push('with pdfplumber.open("paper.pdf") as pdf:'),e.push('    text = "\\n".join(p.extract_text() or "" for p in pdf.pages)'),e.push("```")):D?(e.push("Use poppler CLI:"),e.push("```bash"),e.push("pdftotext paper.pdf -"),e.push("```")):e.push("\u274C No PDF reading tool available. Ask the user to install PyMuPDF: `pip install pymupdf`"),e.push(""),e.push("### Extracting images from a PDF"),d?(e.push("```python"),e.push("import fitz"),e.push('doc = fitz.open("paper.pdf")'),e.push("for i, page in enumerate(doc):"),e.push("    for img in page.get_images():"),e.push("        xref = img[0]"),e.push("        pix = fitz.Pixmap(doc, xref)"),e.push('        pix.save(f"fig_{i}_{xref}.png")'),e.push("```")):g?e.push("Pillow is available but cannot extract from PDF directly. Use PyMuPDF for extraction."):e.push("\u274C No image extraction tool available."),e.push(""),e.push("---"),e.push(""),e.push("*To refresh this report, reopen any `.nodegraph.json` file.*");let N=e.join(`
+`);for(let p of t){let v=T.Uri.joinPath(p.uri,".agent"),X=T.Uri.joinPath(v,"ENVIRONMENT.md");try{await T.workspace.fs.createDirectory(v),await T.workspace.fs.writeFile(X,Buffer.from(N,"utf-8"))}catch{}}}var ue=[{id:"tomoki1207.pdf",name:"vscode-pdf (PDF Viewer)"}];async function he(){for(let t of ue)if(!A.extensions.getExtension(t.id))try{await A.commands.executeCommand("workbench.extensions.installExtension",t.id)}catch{}}function ge(t){t.subscriptions.push(C.register(t)),t.subscriptions.push(A.commands.registerCommand("nodegraph.search",()=>{C.postToActive({type:"openSearch"})})),V(A.workspace.workspaceFolders??[]),he()}function fe(){}0&&(module.exports={activate,deactivate});
