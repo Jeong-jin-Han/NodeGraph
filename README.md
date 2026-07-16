@@ -22,8 +22,12 @@ A VS Code extension for building node-based knowledge graphs from research paper
 - **Node types** — Main topic, Method, Result, Claim, Question, Gap/Idea, Reference, Memo
 - **Image support** — paste or drag images directly onto a node; stored as `[[IMG:filename:WxH]]` tokens
 - **Fold / Unfold** — click node title to toggle; right-click title to edit; drag via the tag badge
-- **Ctrl+F Search** — live dropdown search by title/content; arrow keys preview nodes; Enter expands selected and collapses others
-- **HTML export** — generate a self-contained HTML viewer with full search and navigation (toolbar → Export HTML)
+- **Generation highlight** — click a node's tag badge to outline the node, its parents/children, and the connecting wires in red; survives background clicks, `Esc` clears it
+- **Smart wire routing** — wires route around nodes on a cost grid (A*), keep clearance, and spread apart instead of stacking; falls back to a light heuristic while dragging
+- **Edge selection** — left-click a wire to select it (blue), `Delete` removes it; drag from a port dot onto any node body to create an edge
+- **Ctrl+F Search** — live dropdown search by title/content; arrow keys preview nodes; Enter expands selected and collapses others; matched text inside the node is marked in the inverse of the node's template color
+- **HTML export** — generate a self-contained HTML viewer with the same search, generation highlight, wire routing, and layout behaviour (toolbar → Export HTML); resizing the browser window keeps the view centered and rescales symmetrically
+- **Slidable toolbar** — on narrow windows the toolbar keeps its button positions and slides horizontally (`Shift`+wheel on desktop, swipe on touch)
 - **Toggle sections** — collapsible sub-sections inside each node
 - **Original text** — attach the verbatim source quote alongside your summary
 - **Edge types** — `arrow` (causal flow) or `line` (reference / association)
@@ -44,8 +48,12 @@ A VS Code extension for building node-based knowledge graphs from research paper
 | Box-select nodes | Right-drag on background |
 | Select node | Left-click node header |
 | **Drag node** | **Left-drag the tag badge** (e.g. "Gap / Idea") |
+| Pin generation highlight | Click the tag badge — node + parents + children + wires turn red |
+| Clear highlight / selection | `Escape` (background clicks keep the highlight) |
 | Delete selected nodes | `Delete` or `Backspace` |
-| Draw edge | Drag from port dot (appears on hover) |
+| Select wire | Left-click a wire (turns blue) |
+| Delete selected wire | `Delete` |
+| Draw edge | Drag from port dot (appears on hover) onto the target node body |
 
 ### Node
 
@@ -66,6 +74,8 @@ A VS Code extension for building node-based knowledge graphs from research paper
 | Select node | `Enter` — expands selected node, collapses other matches |
 | Reopen after select | Click search input — resumes from last selected position |
 
+Matched text inside each node is additionally marked (inverse template color + underline), so you can see *where* in the node the query appears — in the editor and in the exported HTML.
+
 ## Getting Started
 
 1. Install from the VS Code Marketplace (search **NodeGraph**).
@@ -82,6 +92,8 @@ A VS Code extension for building node-based knowledge graphs from research paper
 | Markdown table | `\| col \| col \|` (GFM style) |
 | Inline LaTeX | `$formula$` |
 | Block LaTeX | `$$formula$$` |
+| Bold | `**text**` (markers hidden when rendered) |
+| Literal dollar (currency) | `\$` — a bare `$` would open an inline-math region (in JSON strings write `\\$`) |
 | Image token | `[[IMG:filename.png:400x300]]` |
 
 Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
@@ -139,6 +151,7 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
 > Key rules from the spec:
 > - Backslashes in KaTeX **must be doubled** in JSON strings (`\\frac`, `\\sqrt`, `\\text`)
 > - Prefer `$$...$$` display blocks for formulas — inline `$...$` only for short in-sentence symbols
+> - Literal currency dollars must be escaped: `\$4.28/GB` (in JSON strings: `\\$4.28/GB`) — a bare `$` opens an inline-math region
 > - When writing in Korean, include the English term alongside key technical expressions — e.g. "주의 메커니즘(attention mechanism)"
 > - The Killer Application is not limited to one — capture every genuinely remarkable contribution
 > - `[[IMG:filename:WxH]]` tokens only work in `node.content`, not in `toggleItems[].content`

@@ -314,6 +314,8 @@ Different fields have different rendering capabilities:
 > A bare `$` opens an inline-math region and swallows the text up to the next `$`,
 > breaking both the math renderer (red error text) and `**bold**` pairing.
 > The renderer displays `\$` as a plain `$`.
+> In JSON strings the backslash must be doubled, like every other backslash:
+> `"content": "DDR5 DRAM **\\$4.28/GB**"`.
 
 | ❌ Unicode (do NOT use) | ✅ KaTeX (always use this) |
 |------------------------|--------------------------|
@@ -419,14 +421,17 @@ Wrap text in double asterisks to render it **bold** with a slightly larger size:
 
 | Interaction | Behaviour |
 |-------------|-----------|
-| Click **tag badge** (e.g. "Gap / Idea") | Drag node |
+| Click **tag badge** (e.g. "Gap / Idea") | Drag node + pin **generation highlight** — the node, its parents/children, and connecting wires turn red; background clicks keep it, `Esc` clears it |
 | Click **node title** | Toggle `contentExpanded` (fold / unfold) |
 | Right-click **node title** | Edit title inline |
-| `Ctrl+F` / `Cmd+F` | Open search dropdown (live filter by title + content) |
+| Click a **wire** | Select edge (blue); `Delete` removes it |
+| Drag from a **port dot** onto a node body | Create an edge |
+| `Ctrl+F` / `Cmd+F` | Open search dropdown (live filter by title + content); matched text inside nodes is marked in the inverse template color |
 | `↑` / `↓` in search | Preview node (viewport flies to it); dropdown stays open |
 | `Enter` in search | Confirm: expands selected node, collapses all other matches |
+| `Shift`+wheel on toolbar | Slide the toolbar horizontally when the window is narrow |
 
-**Overlap prevention**: When a node is unfolded (expanded), nodes below it in the same visual column are automatically pushed down. When it is folded again, they pull back up to their original positions. This works in both the editor and the exported HTML viewer.
+**Overlap prevention**: When a node is unfolded (expanded), nodes below it in the same visual column are automatically pushed down, and horizontally adjacent nodes keep a minimum gap. When it is folded again, they pull back to their original positions. Wires are routed around nodes automatically. This works in both the editor and the exported HTML viewer.
 
 When an agent sets `"contentExpanded": true` on nodes it wants to highlight, those nodes will open automatically when the file is loaded or reloaded.
 
@@ -443,6 +448,7 @@ After any edit, verify:
 - [ ] No duplicate edges between the same pair of nodes
 - [ ] KaTeX formulas: **every backslash doubled** (`\\frac`, `\\sqrt`, `\\text`, `\\left`, `\\right`)
 - [ ] KaTeX braces balanced
+- [ ] Literal currency dollars escaped: `\\$` in JSON strings (never a bare `$` outside math)
 - [ ] Important formulas written as `$$...$$` display blocks (inline `$...$` only for short in-sentence symbols)
 - [ ] Korean content includes English terms alongside key technical expressions
 - [ ] No bare Unicode math symbols outside `$...$` — α/β/×/→/≤/∑/√/ℝ etc. must be KaTeX
