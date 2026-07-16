@@ -30,7 +30,9 @@ export function App() {
 
   // openSearch is called by the extension command (Ctrl+F keybinding in package.json)
   // because VSCode intercepts Ctrl+F before the webview JS keydown handler sees it.
+  // fitView/collapseAll/expandAll come from the corresponding palette commands.
   const [openSearchSignal, setOpenSearchSignal] = React.useState(0)
+  const [fitViewSignal, setFitViewSignal] = React.useState(0)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -45,10 +47,13 @@ export function App() {
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       if (e.data?.type === 'openSearch') setOpenSearchSignal(n => n + 1)
+      else if (e.data?.type === 'fitView') setFitViewSignal(n => n + 1)
+      else if (e.data?.type === 'collapseAll') collapseAll()
+      else if (e.data?.type === 'expandAll') expandAll()
     }
     window.addEventListener('message', handler)
     return () => window.removeEventListener('message', handler)
-  }, [])
+  }, [collapseAll, expandAll])
 
   if (!graph) {
     return (
@@ -61,6 +66,7 @@ export function App() {
   return (
     <Canvas
       openSearchSignal={openSearchSignal}
+      fitViewSignal={fitViewSignal}
       viewport={viewport}
       cursor={cursor}
       nativeWheelHandler={nativeWheelHandler}

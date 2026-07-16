@@ -8,6 +8,7 @@ import { Port } from '../utils/wireGeometry'
 
 interface CanvasProps {
   openSearchSignal: number
+  fitViewSignal: number
   viewport: Viewport
   cursor: string
   nativeWheelHandler: (e: WheelEvent) => void
@@ -337,6 +338,7 @@ const hitKeySafe = (k: string) => k.replace(/[^a-zA-Z0-9_-]/g, '_')
 
 export function Canvas({
   openSearchSignal,
+  fitViewSignal,
   viewport, cursor, nativeWheelHandler,
   onMouseDown, onMouseMove, onMouseUp, onMouseLeave, onContextMenu,
   onSetViewport, graph, onUpdateNodePosition, onAutoSaveNodePosition, onUpdateNode, onAddNode, onDeleteNodes,
@@ -1123,6 +1125,13 @@ export function Canvas({
     const zoom = Math.min((W - pad * 2) / (maxX - minX), (H - pad * 2) / (maxY - minY), 1.5)
     onSetViewport({ zoom, x: (W - (maxX - minX) * zoom) / 2 - minX * zoom, y: (H - (maxY - minY) * zoom) / 2 - minY * zoom })
   }, [graph.nodes, nodeSizes, renderPositions, onSetViewport])
+
+  // 팔레트 커맨드(NodeGraph: Fit to View) → extension 메시지 → 여기서 실행
+  useEffect(() => {
+    if (fitViewSignal === 0) return
+    handleFitView()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitViewSignal])
 
   // canvas image를 노드 위에 드롭 → node로 이동 (table cell 감지 포함)
   const handleCanvasImageDrop = useCallback((imgId: string, clientX: number, clientY: number) => {
