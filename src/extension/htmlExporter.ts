@@ -149,11 +149,11 @@ function renderNodeCard(
     const origTitle = escHtml(node.original.title ?? 'Original')
     const openAttr = node.originalExpanded ? ' open' : ''
     bodyHtml += `<details class="ng-original"${openAttr}><summary>${origTitle}${node.original.location ? ` <span class="ng-loc">${escHtml(node.original.location)}</span>` : ''}</summary>
-<div class="ng-orig-text">${escDollar(node.original.text).replace(/\n/g, '<br>')}</div></details>`
+<div class="ng-orig-text">${renderTextSegment(node.original.text).replace(/\n/g, '<br>')}</div></details>`
   }
   for (const t of node.toggleItems ?? []) {
     bodyHtml += `<details class="ng-toggle"${t.expanded ? ' open' : ''}><summary>${escHtml(t.title || '(untitled)')}</summary>
-<div class="ng-toggle-body">${escDollar(t.content).replace(/\n/g, '<br>')}</div></details>`
+<div class="ng-toggle-body">${renderTextSegment(t.content).replace(/\n/g, '<br>')}</div></details>`
   }
   if (node.links.length) {
     bodyHtml += `<div class="ng-links">${node.links.map(l => {
