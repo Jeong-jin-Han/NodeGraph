@@ -33,7 +33,7 @@ A VS Code extension for building node-based knowledge graphs from research paper
 - **Edge types** — `arrow` (causal flow) or `line` (reference / association)
 - **Transitive reduction** — Reduce Edges button removes redundant A→C when A→B→C exists
 - **Undo / Redo** — full history with `Ctrl+Z` / `Ctrl+Y`
-- **Auto-save** — `Ctrl+S` writes to disk immediately
+- **Save** — `Ctrl+S` writes to disk immediately; image insertion saves automatically
 - **Reload from disk** — Reload button re-reads the JSON file; useful after an external agent edits it
 
 ## Mouse & Keyboard Controls
@@ -62,7 +62,9 @@ A VS Code extension for building node-based knowledge graphs from research paper
 | **Fold / Unfold content** | **Click node title** |
 | **Edit node title** | **Right-click node title** |
 | Edit content / original | Click text area |
-| Add image | 📎 button in node header |
+| Add image | Copy an image, then `Ctrl+V` with the node selected or hovered — inserted as an `[[IMG:...]]` token; pasting on the background creates a floating canvas image, which can be dragged onto a node or table cell |
+| Add toggle / original / link | `+ Toggle` · `+ Original` · `+ Link` buttons at the bottom of an expanded node |
+| Resize node | Drag the right / bottom edge handles of an expanded node |
 
 ### Search (Ctrl+F)
 
@@ -78,7 +80,7 @@ Matched text inside each node is additionally marked (inverse template color + u
 
 ## Getting Started
 
-1. Install from the VS Code Marketplace (search **NodeGraph**).
+1. Install from the packaged `.vsix`: `code --install-extension nodegraph-<version>.vsix` (not yet published to the Marketplace).
 2. Run **NodeGraph: New Graph** (`Ctrl+Shift+P`) to create a new `.nodegraph.json` file.
 3. The custom editor opens automatically for any `*.nodegraph.json` file.
 4. **Drag nodes** by grabbing the colored tag badge; **click the title** to fold/unfold content; **right-click the title** to edit it.
