@@ -228,6 +228,10 @@ Edge type guidelines:
 - `"arrow"`: backbone connections between main nodes (sequence / flow)
 - `"line"`: main→sub, sub→sub, or cross-references
 
+Edges drawn interactively in the editor (port-dot drag) are always `"arrow"`;
+`"line"` edges are set by editing the JSON. Duplicate edges with the same
+source and target are rejected by the editor.
+
 ---
 
 ## NodeLink schema
@@ -241,6 +245,9 @@ Nodes can have a `links` array for external references:
   "label": "arXiv paper"
 }
 ```
+
+Click behaviour: `url` and `obsidian` open externally; `pdf` targets are resolved
+relative to the JSON file's directory. `internal` is reserved and currently a no-op.
 
 ---
 
@@ -260,6 +267,10 @@ Floating images placed on the canvas background (not inside a node):
 
 Canvas image files also live in `.<basename>-imgs/` next to the JSON file.
 
+> ⚠️ Canvas images are editor-only: the HTML export does not render them.
+> If an image must appear in the exported HTML, embed it in a node's `content`
+> as an `[[IMG:...]]` token instead.
+
 ---
 
 ## ID format rules
@@ -272,6 +283,11 @@ Canvas image files also live in `.<basename>-imgs/` next to the JSON file.
 | CanvasImage | `cimg_` + any unique suffix | `cimg_001` |
 
 Always use the **next available number**. IDs must be unique within the entire file.
+
+> Note: IDs created interactively in the editor use timestamp suffixes instead
+> (`edge_1752650000000`, `toggle_1752650000000`, `cimg_1752650000000`). Agents should
+> keep writing zero-padded IDs, but must tolerate both forms when reading a file.
+> Uniqueness is the only hard requirement.
 
 ---
 

@@ -17,24 +17,37 @@ A VS Code extension for building node-based knowledge graphs from research paper
 
 ## Features
 
-- **Custom editor** for `.nodegraph.json` files — pan, zoom, drag nodes
-- **Rich node content** — Markdown tables, LaTeX (KaTeX), inline images
-- **Node types** — Main topic, Method, Result, Claim, Question, Gap/Idea, Reference, Memo
-- **Image support** — paste or drag images directly onto a node; stored as `[[IMG:filename:WxH]]` tokens
-- **Fold / Unfold** — click node title to toggle; right-click title to edit; drag via the tag badge
-- **Generation highlight** — click a node's tag badge to outline the node, its parents/children, and the connecting wires in red; survives background clicks, `Esc` clears it
-- **Smart wire routing** — wires route around nodes on a cost grid (A*), keep clearance, and spread apart instead of stacking; falls back to a light heuristic while dragging
-- **Edge selection** — left-click a wire to select it (blue), `Delete` removes it; drag from a port dot onto any node body to create an edge
-- **Ctrl+F Search** — live dropdown search by title/content; arrow keys preview nodes; Enter expands selected and collapses others; matched text inside the node is marked in the inverse of the node's template color
-- **HTML export** — generate a self-contained HTML viewer with the same search, generation highlight, wire routing, and layout behaviour (toolbar → Export HTML); resizing the browser window keeps the view centered and rescales symmetrically
+### Editing
+- **Custom editor** for `.nodegraph.json` files — pan (left-drag), zoom (scroll wheel, 0.05×–8×, centered on the cursor), box-select (right-drag)
+- **Rich node content** — Markdown (GFM) tables, LaTeX via KaTeX, `**bold**`, inline images; click any text to edit it in place (`Esc` cancels, clicking elsewhere commits)
+- **Node types** — 8 templates: Main topic, Method, Result, Claim (sharp = from the paper) and Question, Gap/Idea, Reference, Memo (rounded = your own notes); change a selected node's type from the toolbar dropdown
+- **Fold / Unfold** — click the node title; toolbar `Expand↓` / `Collapse↑` act on the selected node's whole subtree (expand stops at other main-topic nodes), or on every node when nothing is selected
+- **Toggle sections** — collapsible sub-sections inside a node (`+ Toggle` button)
+- **Original text** — verbatim source quote with an editable label and `§, p.` location (`+ Original` button); rendered in italics below the content
+- **Links** — attach `url` / `pdf` / `obsidian` links to a node (`+ Link` button); click to open — PDFs are resolved relative to the JSON file
+- **Edges** — drag from a port dot (appears on hover) onto any node body to create an `arrow` edge; duplicates are ignored; click a wire to select it (blue) and press `Delete` to remove it; `Reduce Edges` deletes transitively redundant A→C edges
+- **Resize & typography** — drag an expanded node's right/bottom/corner handles (min 160×60); nodes widen automatically to fit tables and sized images; per-node font size 8–72px via the toolbar combo (with multiple nodes selected, sizes shift together preserving differences)
+- **Undo / Redo** — full history with `Ctrl+Z` / `Ctrl+Y` (or `Ctrl+Shift+Z`)
+
+### Layout & wires
+- **Overlap-free layout** — saved positions are never rewritten by the layout; at render time an expanded node pushes overlapping neighbors down (adaptive 20/30/48px gaps) and sideways (60px minimum), and everything returns to place when folded — identical in the editor and the exported HTML
+- **Smart wire routing** — wires are planned on a 24px cost grid (A*): node interiors are heavily penalized (crossed only when a node is fully enclosed), wires keep clearance from node borders and spread into free space instead of stacking; while dragging a node a light heuristic keeps rendering smooth and the precise routes return 150ms after the layout settles
+- **Bus routing** — one source with 2+ `line` targets clearly to its right renders as a single trunk with per-target branches
+
+### Find & focus
+- **Ctrl+F search** — live dropdown over title, content, and original text; `↑`/`↓` flies the viewport to each match, `Enter` expands the chosen node and collapses the other matches; the matched text itself is marked inside the node in the inverse of its template color
+- **Generation highlight** — click a node's tag badge to outline the node, its parents/children, and the connecting wires in red; background clicks keep it pinned, `Esc` clears it
+
+### Images
+- **Paste into a node** — copy any image and press `Ctrl+V` with a node selected or hovered (or inside the content editor, at the cursor); the file is saved as `img_<timestamp>.<ext>` in `.<name>-imgs/` and referenced as an `[[IMG:filename:WxH]]` token
+- **Canvas images** — paste on the background to get a floating, draggable, aspect-preserving-resizable image; drop it onto a node (or a specific table cell) to move it into that content; `Ctrl+C`/`X`/`V` copies, cuts, and clones canvas images
+- **Lightbox** — click any image to zoom it full-screen; `Esc` or a click closes
+
+### Files & export
+- **HTML export** — writes a self-contained `<name>.html` next to the JSON with all referenced images inlined as base64 and offers *Open in Browser / Show in Explorer*; the viewer reproduces search with inline marks, generation highlight, wire routing, the fold layout, node dragging, and window-resize recentering (KaTeX loads from a CDN, so formulas need internet; floating canvas images are not exported)
+- **Save** — `Ctrl+S` writes pretty-printed JSON to disk immediately; image insertion saves automatically
+- **External edits** — when the file changes outside the webview the graph reloads automatically; `↺ Reload` force-re-reads from disk (useful after an AI agent edits the JSON)
 - **Slidable toolbar** — on narrow windows the toolbar keeps its button positions and slides horizontally (`Shift`+wheel on desktop, swipe on touch)
-- **Toggle sections** — collapsible sub-sections inside each node
-- **Original text** — attach the verbatim source quote alongside your summary
-- **Edge types** — `arrow` (causal flow) or `line` (reference / association)
-- **Transitive reduction** — Reduce Edges button removes redundant A→C when A→B→C exists
-- **Undo / Redo** — full history with `Ctrl+Z` / `Ctrl+Y`
-- **Save** — `Ctrl+S` writes to disk immediately; image insertion saves automatically
-- **Reload from disk** — Reload button re-reads the JSON file; useful after an external agent edits it
 
 ## Mouse & Keyboard Controls
 
@@ -44,16 +57,16 @@ A VS Code extension for building node-based knowledge graphs from research paper
 |--------|---------|
 | Pan canvas | Left-drag on background |
 | Deselect / close search | Left-click on background |
-| Zoom | Scroll wheel |
-| Box-select nodes | Right-drag on background |
-| Select node | Left-click node header |
-| **Drag node** | **Left-drag the tag badge** (e.g. "Gap / Idea") |
+| Zoom (0.05×–8×) | Scroll wheel — centered on the cursor |
+| Box-select nodes & images | Right-drag on background |
+| Select node | Left-click anywhere on the node |
+| Add to selection | `Shift`/`Ctrl`+click |
+| **Drag node** | **Left-drag the tag badge** (e.g. "Gap / Idea"); with a multi-selection, all selected nodes move together |
 | Pin generation highlight | Click the tag badge — node + parents + children + wires turn red |
 | Clear highlight / selection | `Escape` (background clicks keep the highlight) |
-| Delete selected nodes | `Delete` or `Backspace` |
+| Delete selection | `Delete` or `Backspace` — canvas images first, then a selected wire, then nodes |
 | Select wire | Left-click a wire (turns blue) |
-| Delete selected wire | `Delete` |
-| Draw edge | Drag from port dot (appears on hover) onto the target node body |
+| Draw edge | Drag from a port dot (appears on hover) onto the target node body — creates an `arrow` edge |
 
 ### Node
 
@@ -64,7 +77,23 @@ A VS Code extension for building node-based knowledge graphs from research paper
 | Edit content / original | Click text area |
 | Add image | Copy an image, then `Ctrl+V` with the node selected or hovered — inserted as an `[[IMG:...]]` token; pasting on the background creates a floating canvas image, which can be dragged onto a node or table cell |
 | Add toggle / original / link | `+ Toggle` · `+ Original` · `+ Link` buttons at the bottom of an expanded node |
-| Resize node | Drag the right / bottom edge handles of an expanded node |
+| Resize node | Drag the right / bottom / corner handles of an expanded node (min 160×60) |
+
+### Toolbar
+
+| Control | Description |
+|---------|-------------|
+| ↩ Undo / Redo ↪ | History (also `Ctrl+Z` / `Ctrl+Y` / `Ctrl+Shift+Z`) |
+| Template dropdown + `+ Add Node` | Creates a node of the chosen type in the nearest free spot around the view center |
+| Delete | Deletes all selected nodes |
+| Type & font controls | Shown while nodes are selected — switch the node's template; set font size by typing a number or picking a preset (8–72) |
+| Collapse↑ / Expand↓ | Fold/unfold the selected subtree, or everything when nothing is selected |
+| Fit View | Zoom to fit all nodes |
+| Reduce Edges | Remove A→C when a path A→B→C already exists |
+| Export HTML | Write `<name>.html` next to the JSON |
+| ↺ Reload | Re-read the JSON from disk |
+
+When the window is narrower than the toolbar content, the toolbar slides horizontally (`Shift`+wheel or touch swipe) — button positions never change.
 
 ### Search (Ctrl+F)
 
