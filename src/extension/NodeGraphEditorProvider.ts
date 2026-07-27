@@ -33,7 +33,7 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
     webviewPanel: vscode.WebviewPanel,
     _token: vscode.CancellationToken
   ): Promise<void> {
-    webviewPanel.iconPath = vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'icon.png')
+    webviewPanel.iconPath = vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'icon-hires.png')
 
     const documentDir = vscode.Uri.joinPath(document.uri, '..')
     webviewPanel.webview.options = {

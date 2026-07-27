@@ -60,7 +60,7 @@ export class PdfViewerPanel {
 
     // Opened from NodeGraph (quote-jump), so brand its tab with the same icon
     // as the .nodegraph.json editor rather than the default PDF file icon.
-    panel.iconPath = vscode.Uri.joinPath(context.extensionUri, 'resources', 'icon.png')
+    panel.iconPath = vscode.Uri.joinPath(context.extensionUri, 'resources', 'icon-hires.png')
 
     panel.webview.html = PdfViewerPanel._getHtml(context, panel.webview)
     const base64 = Buffer.from(bytes).toString('base64')

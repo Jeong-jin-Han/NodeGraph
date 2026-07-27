@@ -9,7 +9,7 @@ tmp/
 test/
 test-demo/
 
-# Old packages
+# Packaged .vsix builds (kept in packages/, one per released version)
 *.vsix
 
 # Dev-only build output (sourcemaps — only emitted by non-production builds)

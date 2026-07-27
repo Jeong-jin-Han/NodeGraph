@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="resources/banner.png" width="100%" alt="NodeGraph — Structure the paper. Don't just read it." />
+  <img src="resources/banner-hires.png" width="100%" alt="NodeGraph — Structure the paper. Don't just read it." />
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-0.4.1-orange" alt="Version 0.4.1" />
+  <img src="https://img.shields.io/badge/version-0.4.2-orange" alt="Version 0.4.2" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="MIT License" />
 </p>
 
@@ -167,7 +167,7 @@ Matched text inside each node is additionally marked (inverse template color + u
 
 > **VS Code Marketplace** — not yet published; install from the packaged `.vsix` for now.
 
-1. Grab `nodegraph-<version>.vsix` from the repo, then `code --install-extension nodegraph-<version>.vsix`
+1. Grab the latest `packages/nodegraph-<version>.vsix` from the repo, then `code --install-extension packages/nodegraph-<version>.vsix`
 2. Run **NodeGraph: New Graph** (`Ctrl+Shift+P`) to create a `.nodegraph.json` file — or open an existing one, the custom editor opens automatically
 3. **Drag nodes** by the colored tag badge; **click the title** to fold/unfold; **right-click the title** to rename it
 4. Use the toolbar — **Expand / Collapse / Fit View / Export HTML / Reload / Help** — and **Ctrl+F** to search
@@ -177,7 +177,7 @@ To build the `.vsix` yourself:
 ```bash
 npm install
 node esbuild.js --production
-npx vsce package
+npx vsce package -o packages/nodegraph-<version>.vsix
 ```
 
 ---
