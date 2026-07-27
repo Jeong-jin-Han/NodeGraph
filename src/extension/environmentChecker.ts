@@ -161,3 +161,33 @@ export async function writeEnvironmentReport(workspaceFolders: readonly vscode.W
     }
   }
 }
+
+// NODEGRAPH_SPEC.md ships inside the extension bundle, not the user's workspace,
+// so an AI agent operating on the workspace has no way to find it without being
+// told the extension's install path. Unlike ENVIRONMENT.md (small, genuinely
+// per-machine, fine to regenerate silently every activation), this is a large
+// static doc identical across every install — copying it into every workspace
+// folder automatically would mean it can land in repos the user never chose to
+// touch. So this only runs when the user explicitly invokes the "NodeGraph:
+// Copy Agent Spec to Workspace" command, targeting exactly one folder — the one
+// resolved by resolveTargetFolder() in extension.ts (Explorer right-click target,
+// or a folder picker in a multi-root workspace).
+export async function syncAgentSpec(extensionUri: vscode.Uri, targetFolder: vscode.Uri): Promise<boolean> {
+  const bundledSpec = vscode.Uri.joinPath(extensionUri, '.agent', 'NODEGRAPH_SPEC.md')
+  let content: Uint8Array
+  try {
+    content = await vscode.workspace.fs.readFile(bundledSpec)
+  } catch {
+    return false
+  }
+
+  const agentDir = vscode.Uri.joinPath(targetFolder, '.agent')
+  const outFile = vscode.Uri.joinPath(agentDir, 'NODEGRAPH_SPEC.md')
+  try {
+    await vscode.workspace.fs.createDirectory(agentDir)
+    await vscode.workspace.fs.writeFile(outFile, content)
+    return true
+  } catch {
+    return false
+  }
+}

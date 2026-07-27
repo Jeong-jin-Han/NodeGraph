@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-0.4.2-orange" alt="Version 0.4.2" />
+  <img src="https://img.shields.io/badge/version-0.4.3-orange" alt="Version 0.4.3" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="MIT License" />
 </p>
 
@@ -245,8 +245,10 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
 
 ## Agent / AI Editing
 
+> **Before pointing an AI agent at a project, run `NodeGraph: Copy Agent Spec to Workspace` once** — it copies the spec into `.agent/NODEGRAPH_SPEC.md` so the agent can read it like any other file, without needing to know the extension's install path. Right-click the target folder in the Explorer and pick it from the context menu (this is the reliable way in a multi-root workspace — it copies into exactly the folder you clicked, not every open folder); running it from the Command Palette instead works the same way when only one folder is open, and prompts you to pick one if several are. It's opt-in rather than automatic on purpose: unlike `.agent/ENVIRONMENT.md` (small, genuinely per-machine, regenerated silently at activation), the spec is a large static doc, and copying it into a workspace automatically would mean it could land in your own repo without you choosing that.
+>
 > **AI agents: read these two files before doing anything:**
-> 1. `.agent/NODEGRAPH_SPEC.md` — full JSON schema, syntax rules, and constraints
+> 1. `.agent/NODEGRAPH_SPEC.md` — full JSON schema, syntax rules, and constraints (only present after the command above has been run)
 > 2. `.agent/ENVIRONMENT.md` — auto-generated at extension activation; lists which Python libraries and CLI tools are installed on this machine (PDF reading, image processing, etc.)
 >
 > Key rules from the spec:
@@ -263,10 +265,11 @@ The file `.agent/NODEGRAPH_SPEC.md` (included in the extension) is a machine-rea
 A worked example is included at `demo/ex1/attention-is-all-you-need.nodegraph.json` — the full "Attention Is All You Need" paper rendered as a nodegraph with KaTeX formulas, Markdown tables, toggle sections, and deep question nodes.
 
 **Typical agent workflow:**
-1. Read `.agent/NODEGRAPH_SPEC.md`
-2. Read or create the target `.nodegraph.json`
-3. Edit the JSON directly
-4. Click **Reload** in the toolbar to see the updated graph without closing/reopening the file
+1. Right-click the project folder in the Explorer and run `NodeGraph: Copy Agent Spec to Workspace` (one-time per folder)
+2. Tell your agent to read `.agent/NODEGRAPH_SPEC.md`
+3. Read or create the target `.nodegraph.json`
+4. Edit the JSON directly
+5. Click **Reload** in the toolbar to see the updated graph without closing/reopening the file
 
 ---
 
@@ -274,11 +277,10 @@ A worked example is included at `demo/ex1/attention-is-all-you-need.nodegraph.js
 
 | Command | Shortcut | Description |
 |---------|----------|-------------|
-| `NodeGraph: New Graph` | — | Create a new empty graph |
-| `NodeGraph: Fit to View` | — | Fit all nodes in the viewport |
-| `NodeGraph: Expand All` | — | Expand all node bodies |
-| `NodeGraph: Collapse All` | — | Collapse all node bodies |
+| `NodeGraph: New Graph` | — | Create a new empty graph. Right-click a folder in the Explorer to target it directly; from the Command Palette it targets the workspace's only folder, or prompts you to pick one if there are several |
 | `NodeGraph: Search Nodes` | `Ctrl+F` / `Cmd+F` | Open search dropdown |
+| `NodeGraph: Copy Agent Spec to Workspace` | — | Copy `.agent/NODEGRAPH_SPEC.md` into a folder so an AI agent can read it. Same folder-targeting as New Graph above |
+| `NodeGraph: Copy Agent Spec to Workspace` | — | Copy `.agent/NODEGRAPH_SPEC.md` into the workspace so an AI agent can read it |
 
 ---
 

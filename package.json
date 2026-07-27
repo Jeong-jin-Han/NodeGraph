@@ -2,7 +2,7 @@
   "name": "nodegraph",
   "displayName": "NodeGraph",
   "description": "Node-based knowledge graph for research paper analysis",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "publisher": "JeongjinHan",
   "icon": "resources/icon-hires.png",
   "repository": {
@@ -39,22 +39,28 @@
         "title": "NodeGraph: New Graph"
       },
       {
-        "command": "nodegraph.fitView",
-        "title": "NodeGraph: Fit to View"
-      },
-      {
-        "command": "nodegraph.collapseAll",
-        "title": "NodeGraph: Collapse All"
-      },
-      {
-        "command": "nodegraph.expandAll",
-        "title": "NodeGraph: Expand All"
-      },
-      {
         "command": "nodegraph.search",
         "title": "NodeGraph: Search Nodes"
+      },
+      {
+        "command": "nodegraph.copyAgentSpec",
+        "title": "NodeGraph: Copy Agent Spec to Workspace"
       }
     ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "nodegraph.new",
+          "when": "explorerResourceIsFolder",
+          "group": "nodegraph"
+        },
+        {
+          "command": "nodegraph.copyAgentSpec",
+          "when": "explorerResourceIsFolder",
+          "group": "nodegraph"
+        }
+      ]
+    },
     "keybindings": [
       {
         "key": "ctrl+f",
