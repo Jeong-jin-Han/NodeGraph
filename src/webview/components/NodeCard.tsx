@@ -177,6 +177,17 @@ export function NodeCard({
   // 본문 높이 상한 계산: 표/이미지가 있으면 그게 전부 보일 만큼(마지막 표/이미지 하단까지)
   // 상한을 넓히고, 없으면 DEFAULT_CONTENT_MAX로 폴백. overflow:auto라 실제 measure는
   // clip과 무관하게 항상 자연 크기로 나온다.
+  //
+  // getBoundingClientRect()는 캔버스에 걸린 CSS transform(줌)까지 반영된 화면 픽셀을
+  // 반환하는데, max-height/scrollHeight는 그 transform과 무관한 로컬(캔버스 기준) px
+  // 단위다 — 그래서 zoom!=1인 상태(그래프를 저장했던 시점의 viewport.zoom을 그대로
+  // 불러오므로 흔한 상황)에서 이 둘을 그냥 비교하면 안 맞는다. 예를 들어 zoom=0.3일 때
+  // 실제 로컬 거리 1000px가 화면상으로는 300px로 측정되어 max가 500(기본값)으로
+  // 폴백해버리고, 그 결과 실제로는 이미지가 다 안 보이는데도(캡이 실제 필요보다 작음)
+  // scrollHeight(로컬, 변환 무관)만 그 작은 max보다 커서 불필요한 More 버튼이 뜨는
+  // 버그가 있었음(사용자가 export와 대조해보다가 발견 — export는 fitView 전에,
+  // 즉 scale=1일 때 측정해서 이 문제가 없었는데 에디터 쪽만 남아있었음). 드래그
+  // 핸들러들이 이미 쓰는 것과 동일하게 viewportZoom으로 나눠서 로컬 px로 환산한다.
   useEffect(() => {
     if (!node.contentExpanded) return
     const el = tableBodyRef.current
@@ -185,7 +196,7 @@ export function NodeCard({
       const elTop = el.getBoundingClientRect().top
       let requiredBottom = 0
       for (const media of Array.from(el.querySelectorAll('table, img'))) {
-        const bottom = media.getBoundingClientRect().bottom - elTop
+        const bottom = (media.getBoundingClientRect().bottom - elTop) / viewportZoom
         if (bottom > requiredBottom) requiredBottom = bottom
       }
       const max = Math.max(DEFAULT_CONTENT_MAX, Math.ceil(requiredBottom) + 8)
@@ -197,7 +208,7 @@ export function NodeCard({
     const pending = imgs.filter(img => !img.complete)
     pending.forEach(img => img.addEventListener('load', measure))
     return () => pending.forEach(img => img.removeEventListener('load', measure))
-  }, [node.content, node.contentExpanded, imageUris])
+  }, [node.content, node.contentExpanded, imageUris, viewportZoom])
 
   const setEditRef = useCallback((el: HTMLInputElement | HTMLTextAreaElement | null) => {
     if (!el) return
@@ -576,7 +587,7 @@ export function NodeCard({
                   fontSize: 10, cursor: 'pointer', textAlign: 'center', userSelect: 'none',
                 }}
               >
-                {contentMoreExpanded ? '▲ 접기' : '▼ 더보기'}
+                {contentMoreExpanded ? '▲ Less' : '▼ More'}
               </button>
             )}
 
