@@ -91,13 +91,13 @@ Connect each sub-node to its parent backbone node with a `line` edge.
 
 **Tables (Markdown)**
 - Use GFM table syntax with a separator row (`|---|---|`).
-- Only in `node.content`, not in `toggleItems[].content`.
-- Benchmark tables, ablation results, and hyperparameter tables all deserve their own node.
+- Works in both `node.content` and `toggleItems[].content`.
+- Benchmark tables, ablation results, and hyperparameter tables all deserve their own node — put secondary/supporting tables inside a toggle to keep the main node compact.
 
 **Images (figures and diagrams)**
 - For any figure, chart, or architecture diagram: extract from the PDF and save to `.<basename>-imgs/`.
 - Even diagrams (not just graphs) should be saved as images — a good diagram is worth a thousand words.
-- Embed with `[[IMG:filename.png:WxH]]` in `node.content`.
+- Embed with `[[IMG:filename.png:WxH]]` — works in both `node.content` and `toggleItems[].content`.
 - Use Pillow or ImageMagick to crop/save (see ENVIRONMENT.md).
 
 **Bold text**
@@ -113,6 +113,8 @@ For every backbone node, add the verbatim quote from the PDF that best supports 
   "location": "§3.2, p.7"
 }
 ```
+
+**The page number in `location` must be correct** — right-clicking `original.text` in the editor jumps the built-in PDF viewer to that page (parsed from `p.N`) and highlights the matching sentence. A wrong page number sends the user to the wrong place. This feature requires the graph's top-level `source.pdf` to be set (see Top-level schema below).
 
 ### Step 7 — Finalize
 - Update `"modified"` to the current ISO 8601 timestamp.
@@ -232,6 +234,12 @@ Edges drawn interactively in the editor (port-dot drag) are always `"arrow"`;
 `"line"` edges are set by editing the JSON. Duplicate edges with the same
 source and target are rejected by the editor.
 
+**Avoid transitively redundant edges yourself** — if A→B and B→C already exist, do not
+also add a direct A→C edge; the reader can already follow A→B→C. The editor no longer has
+a "Reduce Edges" button (removed — this used to be a manual cleanup step), so agents must
+keep `edges` clean when writing them: after adding nodes/edges, check whether any edge's
+target is already reachable from its source through other edges/`children`, and drop it if so.
+
 ---
 
 ## NodeLink schema
@@ -303,11 +311,11 @@ Different fields have different rendering capabilities:
 |---------|:--------------:|:------------------------:|
 | KaTeX inline `$...$` | ✅ | ✅ |
 | KaTeX block `$$...$$` | ✅ | ✅ |
-| Markdown table | ✅ | ❌ plain text only |
-| `[[IMG:filename:WxH]]` | ✅ | ❌ not rendered |
+| Markdown table | ✅ | ✅ |
+| `[[IMG:filename:WxH]]` | ✅ | ✅ |
 | `**bold**` | ✅ | ✅ |
 
-**Rule**: Put tables and images in `node.content` only. `toggleItems[].content` is for KaTeX math, bold text, and plain text.
+`node.content` and `toggleItems[].content` render identically — use toggles freely to keep secondary tables/images/detail out of the main node body.
 
 ---
 
@@ -371,14 +379,15 @@ Surround block math with a blank line on each side for clean rendering.
 ```
 
 - The separator row (`|---|---|`) is **required** — tables without it will not render.
+- **At least one data row is required** — a header + separator with no rows below it renders as raw text, not a table.
 - Use `\n` for newlines inside JSON strings.
-- Only works in `node.content`, **not** in `toggleItems[].content`.
+- Works in both `node.content` and `toggleItems[].content`.
 
 ---
 
-### Inline images in `node.content`
+### Inline images
 
-To embed an image inside a node's content area:
+To embed an image inside a node's content area, or inside a toggle's content:
 
 ```
 [[IMG:filename.png:600x400]]
@@ -390,7 +399,7 @@ To embed an image inside a node's content area:
 
 **Image folder naming**: if the JSON file is `paper.nodegraph.json`, the image folder is `.paper-imgs/`. The folder is hidden (starts with `.`).
 
-**Only works in `node.content`**, not in `toggleItems[].content`.
+Works in both `node.content` and `toggleItems[].content`.
 
 Example full token: `[[IMG:fig_01_architecture.png:800x500]]`
 
@@ -462,13 +471,14 @@ After any edit, verify:
 - [ ] All `edges.source` and `edges.target` reference existing nodes
 - [ ] `modified` timestamp updated (ISO 8601)
 - [ ] No duplicate edges between the same pair of nodes
+- [ ] No transitively redundant edges (A→C when A→B→C already exists) — see Edge schema above
 - [ ] KaTeX formulas: **every backslash doubled** (`\\frac`, `\\sqrt`, `\\text`, `\\left`, `\\right`)
 - [ ] KaTeX braces balanced
 - [ ] Literal currency dollars escaped: `\\$` in JSON strings (never a bare `$` outside math)
 - [ ] Important formulas written as `$$...$$` display blocks (inline `$...$` only for short in-sentence symbols)
 - [ ] Korean content includes English terms alongside key technical expressions
 - [ ] No bare Unicode math symbols outside `$...$` — α/β/×/→/≤/∑/√/ℝ etc. must be KaTeX
-- [ ] Markdown tables have a separator row (`|---|---|`) — only in `node.content`, not toggleItems
-- [ ] `[[IMG:...]]` tokens only in `node.content`, image files exist in `.<basename>-imgs/`
+- [ ] Markdown tables have a separator row (`|---|---|`) — works in `node.content` or `toggleItems[].content`
+- [ ] `[[IMG:...]]` tokens reference files that exist in `.<basename>-imgs/` (works in `node.content` or `toggleItems[].content`)
 - [ ] `toggleItems[].id` values are unique within the file
 - [ ] `links` field present on every node (use `[]` if empty)

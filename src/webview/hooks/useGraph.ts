@@ -54,7 +54,7 @@ export function useGraph() {
   const isDirtyRef = useRef(false)
   const historyRef = useRef<NodeGraph[]>([])
   const futureRef = useRef<NodeGraph[]>([])
-  const pendingImagePositionRef = useRef<Map<string, { position?: number }>>(new Map())
+  const pendingImagePositionRef = useRef<Map<string, { position?: number; toggleId?: string }>>(new Map())
   const pendingCanvasImageRef = useRef<{ x: number; y: number } | null>(null)
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
@@ -115,8 +115,17 @@ export function useGraph() {
         } else {
           const pending = pendingImagePositionRef.current.get(msg.nodeId)
           pendingImagePositionRef.current.delete(msg.nodeId)
-          const position = pending?.position
+          const { position, toggleId } = pending ?? {}
           const token = `[[IMG:${msg.filename}]]`
+          const insertToken = (text: string) => {
+            if (position === undefined) return text + (text.trim() ? '\n' : '') + token
+            const before = text.slice(0, position)
+            const after = text.slice(position)
+            // Pasting right after a markdown table row's closing `|` would otherwise splice
+            // the token in as a dangling extra cell — drop it as its own paragraph instead.
+            if (/\|\s*$/.test(before)) return `${before}\n\n${token}\n\n${after}`
+            return before + token + after
+          }
           setGraphState(prev => {
             if (!prev) return prev
             historyRef.current = [...historyRef.current.slice(-(MAX_HISTORY - 1)), prev]
@@ -124,12 +133,18 @@ export function useGraph() {
             isDirtyRef.current = true
             return {
               ...prev,
-              nodes: prev.nodes.map(n => n.id !== msg.nodeId ? n : {
-                ...n,
-                contentExpanded: true,
-                content: position !== undefined
-                  ? (n.content ?? '').slice(0, position) + token + (n.content ?? '').slice(position)
-                  : ((n.content ?? '') + ((n.content ?? '').trim() ? '\n' : '') + token),
+              nodes: prev.nodes.map(n => {
+                if (n.id !== msg.nodeId) return n
+                if (toggleId) {
+                  return {
+                    ...n,
+                    toggleItems: (n.toggleItems ?? []).map(t => t.id !== toggleId ? t : {
+                      ...t,
+                      content: insertToken(t.content ?? ''),
+                    }),
+                  }
+                }
+                return { ...n, contentExpanded: true, content: insertToken(n.content ?? '') }
               }),
             }
           })
@@ -267,11 +282,6 @@ export function useGraph() {
     setGraph(g => ({ ...g, edges: g.edges.filter(e => e.id !== id) }), true)
   }, [setGraph])
 
-  const deleteEdges = useCallback((ids: string[]) => {
-    const idSet = new Set(ids)
-    setGraph(g => ({ ...g, edges: g.edges.filter(e => !idSet.has(e.id)) }), true)
-  }, [setGraph])
-
   const addToggle = useCallback((nodeId: string) => {
     setGraph(g => ({
       ...g,
@@ -362,8 +372,8 @@ export function useGraph() {
   }, [setGraph])
 
 
-  const saveImage = useCallback((nodeId: string, base64: string, ext = 'png', position?: number) => {
-    pendingImagePositionRef.current.set(nodeId, { position })
+  const saveImage = useCallback((nodeId: string, base64: string, ext = 'png', position?: number, toggleId?: string) => {
+    pendingImagePositionRef.current.set(nodeId, { position, toggleId })
     vscode.postMessage({ type: 'saveImage', nodeId, data: base64, ext })
   }, [])
 
@@ -509,6 +519,16 @@ export function useGraph() {
     }, true)
   }, [setGraph])
 
+  // 라벨 필터: 선택된 template 노드만 펼치고 나머지는 강제로 접음 (부모/자식 관계 무시)
+  const expandByLabel = useCallback((template: string) => {
+    setGraph(g => ({
+      ...g,
+      nodes: g.nodes.map(n => n.template === template
+        ? { ...n, contentExpanded: true }
+        : { ...n, contentExpanded: false, originalExpanded: false }),
+    }), true)
+  }, [setGraph])
+
   const setNodeTemplate = useCallback((id: string, template: string) => {
     setGraph(g => ({
       ...g,
@@ -549,6 +569,15 @@ export function useGraph() {
     vscode.postMessage({ type: 'openLink', link })
   }, [])
 
+  const searchInPdf = useCallback((query: string, pageHint?: number) => {
+    setGraphState(current => {
+      if (current?.source?.pdf) {
+        vscode.postMessage({ type: 'searchInPdf', pdfTarget: current.source.pdf, query, pageHint })
+      }
+      return current
+    })
+  }, [])
+
   const exportHtml = useCallback(() => {
     setGraphState(current => {
       if (current) vscode.postMessage({ type: 'exportHtml', data: current })
@@ -567,16 +596,20 @@ export function useGraph() {
     vscode.postMessage({ type: 'reload' })
   }, [])
 
+  const openHelp = useCallback(() => {
+    vscode.postMessage({ type: 'openHelp' })
+  }, [])
+
   return {
     graph, imageUris,
     updateNodePosition, autoSaveNodePosition, toggleContent, toggleOriginal,
-    updateNodeField, addNode, deleteNodes, addEdge, deleteEdge, deleteEdges,
+    updateNodeField, addNode, deleteNodes, addEdge, deleteEdge,
     addToggle, updateToggle, deleteToggle, expandToggle, deleteOriginal,
     saveImage,
     setNodeWidth, setNodeHeight, setNodeFontSize, bumpFontSize, setFontSizeExact, pushHistory,
-    collapseAll, expandAll, expandNodes, collapseNodes, setNodeTemplate, addOriginal, addLink, deleteLink, openLink, exportHtml,
+    collapseAll, expandAll, expandNodes, collapseNodes, expandByLabel, setNodeTemplate, addOriginal, addLink, deleteLink, openLink, searchInPdf, exportHtml,
     undo, redo, canUndo, canRedo,
-    saveGraph, setGraph, reload,
+    saveGraph, setGraph, reload, openHelp,
     addCanvasImage, addFilenameToNode, saveCanvasImage, updateCanvasImage, removeCanvasImage, moveCanvasImageToNode,
     lastAddedCanvasImageId,
   }

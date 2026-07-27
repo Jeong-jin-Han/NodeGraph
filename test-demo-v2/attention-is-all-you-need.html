@@ -14,18 +14,23 @@
 body{background:#f4f4f5;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden;height:100vh}
 #toolbar{position:fixed;top:0;left:0;right:0;background:#ffffff;border-bottom:1px solid #d4d4d4;z-index:200;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 #tb-row1{display:flex;align-items:baseline;gap:10px;padding:6px 12px 4px;border-bottom:1px solid #ececec;min-height:0}
-#tb-row2{display:flex;align-items:center;gap:6px;padding:3px 12px 4px}
+#tb-row2{display:flex;align-items:center;gap:6px;padding:3px 12px 4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-x}
+#tb-row2::-webkit-scrollbar{display:none}
+#tb-row2>*{flex-shrink:0}
 #tb-title{font-weight:700;color:#1a1a1a;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw}
 #tb-source{opacity:.5;font-size:11px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #tb-sel{opacity:.7;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#0066cc}
-button{background:#fff;color:#1a1a1a;border:1px solid #c0c0c0;border-radius:3px;padding:2px 10px;font-size:11px;cursor:pointer;flex-shrink:0}
-button:hover{background:#e8e8e8;border-color:#aaa}
+button{background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:500;cursor:pointer;flex-shrink:0;box-shadow:0 1px 2px rgba(15,23,42,.06);transition:background .1s,color .1s,border-color .1s}
+button:hover{background:#2563eb;color:#fff;border-color:#1d4ed8}
+button:active{background:#1d4ed8;border-color:#1e40af}
+select{background:#fff;color:#374151;border:1px solid #d1d5db;border-radius:6px;padding:4px 6px;font-size:11px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(15,23,42,.06)}
+select:hover{border-color:#93c5fd}
 .tb-sep{width:1px;height:14px;background:#d4d4d4;flex-shrink:0}
 #viewport{position:fixed;top:0;left:0;right:0;bottom:0;overflow:hidden;cursor:grab;}
 #viewport.pan-drag{cursor:grabbing}
 #canvas{position:absolute;transform-origin:0 0}
 #wire-svg{position:absolute;top:0;left:0;width:10000px;height:10000px;pointer-events:none;overflow:visible}
-.ng-node{position:absolute;min-width:220px;background:color-mix(in srgb,var(--color) 10%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.ng-node{position:absolute;min-width:432px;background:color-mix(in srgb,var(--color) 10%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .ng-node.ng-selected{box-shadow:0 0 0 2px color-mix(in srgb,var(--color) 80%,transparent),0 2px 8px rgba(0,0,0,.12)}
 .ng-node.ng-dragging{opacity:.88;transition:box-shadow .1s;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:100}
 .ng-header{display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:default;user-select:none}
@@ -77,6 +82,16 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 .ng-drop-item:hover{background:#f3f4f6}
 .ng-node.ng-search-match{border:2px solid #fcd34d !important}
 .ng-node.ng-search-active{border:2px solid #f59e0b !important;box-shadow:0 0 0 3px rgba(245,158,11,0.35),0 2px 8px rgba(0,0,0,.18) !important}
+::highlight(ng-hit-main_topic){color:rgb(180,116,65);background-color:rgba(180,116,65,0.18);text-decoration:underline}
+::highlight(ng-hit-method){color:rgb(209,121,84);background-color:rgba(209,121,84,0.18);text-decoration:underline}
+::highlight(ng-hit-result){color:rgb(228,102,116);background-color:rgba(228,102,116,0.18);text-decoration:underline}
+::highlight(ng-hit-claim){color:rgb(197,175,148);background-color:rgba(197,175,148,0.18);text-decoration:underline}
+::highlight(ng-hit-question){color:rgb(26,87,202);background-color:rgba(26,87,202,0.18);text-decoration:underline}
+::highlight(ng-hit-reference){color:rgb(99,149,33);background-color:rgba(99,149,33,0.18);text-decoration:underline}
+::highlight(ng-hit-gap){color:rgb(29,180,181);background-color:rgba(29,180,181,0.18);text-decoration:underline}
+::highlight(ng-hit-memo){color:rgb(148,141,127);background-color:rgba(148,141,127,0.18);text-decoration:underline}
+/* 선택 노드의 한 세대(부모+자식) 하이라이트 — Esc로만 해제 */
+.ng-node.ng-gen{border:2px solid #f87171 !important;box-shadow:0 0 0 3px rgba(248,113,113,.3),0 1px 4px rgba(0,0,0,.08) !important}
 </style>
 </head>
 <body>
@@ -86,10 +101,11 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <span id="tb-source">Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, Illia Polosukhin · NeurIPS 2017 (NIPS), Long Beach, CA, USA</span>
   </div>
   <div id="tb-row2">
-    <button onclick="fitView()">Fit View</button>
+    <button onclick="fitView()">🔍 Fit View</button>
     <div class="tb-sep"></div>
-    <button onclick="doExpand()" title="Expand selected node + children (all if none selected)">Expand↓</button>
-    <button onclick="doCollapse()" title="Collapse selected node + children (all if none selected)">Collapse↑</button>
+    <select id="tb-filter" title="Filter Collapse/Expand to one node type"></select>
+    <button onclick="doCollapse()" title="Collapse selected node + children (all if none selected; all if a type filter is set)">📁 Collapse</button>
+    <button onclick="doExpand()" title="Expand selected node + children (all if none selected; only the filtered type if a type filter is set)">📂 Expand</button>
     <div class="tb-sep"></div>
     <div class="tb-sep"></div>
     <span id="tb-sel" style="opacity:.35">Click a node to select</span>
@@ -111,6 +127,9 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
         <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
           <polygon points="0 0,10 3.5,0 7" fill="#666"/>
         </marker>
+        <marker id="arrow-hl" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0,10 3.5,0 7" fill="#ef4444"/>
+        </marker>
       </defs>
     </svg>
     <div class="ng-node" id="node-node_001" data-children="node_010,node_011" style="--color:#4B8BBE;border-radius:2px;left:100px;top:150px">
@@ -118,7 +137,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Background &amp; Motivation</span>
   </div>
-  <div class="ng-body"><div class="ng-content">Dominant sequence transduction models (LSTM, GRU) process tokens sequentially, generating hidden states $h_t = f(h_{t-1}, x_t)$. This recurrence **prevents parallelization during training** and forces gradient signals to traverse $O(n)$ steps for long-range dependencies.<br><br>Attention mechanisms had already existed, but were always used *alongside* RNNs as a soft alignment add-on (Bahdanau et al., 2014). The Transformer is the first architecture to rely **entirely on attention**, discarding recurrence and convolutions entirely — allowing full parallelization and $O(1)$ path length between any two positions.</div><details class="ng-original"><summary>Original <span class="ng-loc">§1, p.1</span></summary>
+  <div class="ng-body"><div class="ng-content">Dominant sequence transduction models (LSTM, GRU) process tokens sequentially, generating hidden states $h_t = f(h_{t-1}, x_t)$. This recurrence <strong style="font-size:1.1em">prevents parallelization during training</strong> and forces gradient signals to traverse $O(n)$ steps for long-range dependencies.<br><br>Attention mechanisms had already existed, but were always used *alongside* RNNs as a soft alignment add-on (Bahdanau et al., 2014). The Transformer is the first architecture to rely <strong style="font-size:1.1em">entirely on attention</strong>, discarding recurrence and convolutions entirely — allowing full parallelization and $O(1)$ path length between any two positions.</div><details class="ng-original"><summary>Original <span class="ng-loc">§1, p.1</span></summary>
 <div class="ng-orig-text">Recurrent models typically factor computation along the symbol positions of the input and output sequences... This inherently sequential nature precludes parallelization within training examples, which becomes critical at longer sequence lengths.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_002" data-children="node_012,node_013,node_014" style="--color:#4B8BBE;border-radius:2px;left:100px;top:450px">
@@ -126,7 +145,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Model Architecture: Encoder-Decoder Stacks</span>
   </div>
-  <div class="ng-body"><div class="ng-content">The Transformer uses an **encoder-decoder** structure (Fig. 1). Both encoder and decoder are stacks of $N=6$ identical layers.<br><br>**Encoder**: Each layer has two sublayers — (1) multi-head self-attention, (2) position-wise FFN. Each sublayer is wrapped with residual connection + layer norm:<br>$$\text{output} = \text{LayerNorm}(x + \text{Sublayer}(x))$$<br>All sublayers and embeddings produce dimension $d_{\text{model}} = 512$.<br><br>**Decoder**: Same 6-layer stack, but adds a **third sublayer** for cross-attention over encoder output. Self-attention in the decoder is **causally masked** (upper-triangle set to $-\infty$) to preserve the auto-regressive property.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.1, p.3</span></summary>
+  <div class="ng-body"><div class="ng-content">The Transformer uses an <strong style="font-size:1.1em">encoder-decoder</strong> structure (Fig. 1). Both encoder and decoder are stacks of $N=6$ identical layers.<br><br><strong style="font-size:1.1em">Encoder</strong>: Each layer has two sublayers — (1) multi-head self-attention, (2) position-wise FFN. Each sublayer is wrapped with residual connection + layer norm:<br>$$\text{output} = \text{LayerNorm}(x + \text{Sublayer}(x))$$<br>All sublayers and embeddings produce dimension $d_{\text{model}} = 512$.<br><br><strong style="font-size:1.1em">Decoder</strong>: Same 6-layer stack, but adds a <strong style="font-size:1.1em">third sublayer</strong> for cross-attention over encoder output. Self-attention in the decoder is <strong style="font-size:1.1em">causally masked</strong> (upper-triangle set to $-\infty$) to preserve the auto-regressive property.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.1, p.3</span></summary>
 <div class="ng-orig-text">The encoder is composed of a stack of N=6 identical layers. Each layer has two sub-layers... We employ a residual connection around each of the two sub-layers, followed by layer normalization.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_003" data-children="node_015,node_016,node_017" style="--color:#4B8BBE;border-radius:2px;left:100px;top:750px">
@@ -142,7 +161,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Multi-Head Attention</span>
   </div>
-  <div class="ng-body"><div class="ng-content">Instead of one attention function over $d_{\text{model}}$-dimensional vectors, the model **projects Q, K, V $h$ times** into smaller subspaces and runs attention in parallel:<br><br>$$\text{MultiHead}(Q,K,V) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h)\, W^O$$<br>$$\text{head}_i = \text{Attention}(QW_i^Q,\; KW_i^K,\; VW_i^V)$$<br><br>Projection matrices: $W_i^Q, W_i^K \in \mathbb{R}^{d_{\text{model}} \times d_k}$, $W_i^V \in \mathbb{R}^{d_{\text{model}} \times d_v}$, $W^O \in \mathbb{R}^{hd_v \times d_{\text{model}}}$.<br><br>In this work: $h=8$, $d_k = d_v = d_{\text{model}}/h = 512/8 = 64$. Total compute matches single-head full-dim attention (each head is cheaper; combined they are equivalent).</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2.2, p.4</span></summary>
+  <div class="ng-body"><div class="ng-content">Instead of one attention function over $d_{\text{model}}$-dimensional vectors, the model <strong style="font-size:1.1em">projects Q, K, V $h$ times</strong> into smaller subspaces and runs attention in parallel:<br><br>$$\text{MultiHead}(Q,K,V) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h)\, W^O$$<br>$$\text{head}_i = \text{Attention}(QW_i^Q,\; KW_i^K,\; VW_i^V)$$<br><br>Projection matrices: $W_i^Q, W_i^K \in \mathbb{R}^{d_{\text{model}} \times d_k}$, $W_i^V \in \mathbb{R}^{d_{\text{model}} \times d_v}$, $W^O \in \mathbb{R}^{hd_v \times d_{\text{model}}}$.<br><br>In this work: $h=8$, $d_k = d_v = d_{\text{model}}/h = 512/8 = 64$. Total compute matches single-head full-dim attention (each head is cheaper; combined they are equivalent).</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2.2, p.4</span></summary>
 <div class="ng-orig-text">Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions. With a single attention head, averaging inhibits this.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_005" data-children="node_021,node_022" style="--color:#4B8BBE;border-radius:2px;left:100px;top:1350px">
@@ -150,7 +169,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">FFN, Embeddings &amp; Positional Encoding</span>
   </div>
-  <div class="ng-body"><div class="ng-content">**Position-wise FFN** (applied identically and independently to each position):<br>$$\text{FFN}(x) = \max(0,\; xW_1 + b_1)\,W_2 + b_2$$<br>$d_{\text{model}} = 512 \to d_{ff} = 2048 \to 512$. Equivalent to two convolutions with kernel size 1.<br><br>**Positional Encoding** (sinusoidal, fixed — no learned parameters):<br>$$PE_{(pos,\,2i)} = \sin\!\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right), \qquad PE_{(pos,\,2i+1)} = \cos\!\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right)$$<br><br>Wavelengths form a geometric progression from $2\pi$ to $10000 \cdot 2\pi$. The key property: for any fixed offset $k$, $PE_{pos+k}$ is a linear function of $PE_{pos}$ (via angle-addition), allowing the model to attend by relative offset. Learned embeddings gave nearly identical results (Table 3, row E).</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.5, p.6</span></summary>
+  <div class="ng-body"><div class="ng-content"><strong style="font-size:1.1em">Position-wise FFN</strong> (applied identically and independently to each position):<br>$$\text{FFN}(x) = \max(0,\; xW_1 + b_1)\,W_2 + b_2$$<br>$d_{\text{model}} = 512 \to d_{ff} = 2048 \to 512$. Equivalent to two convolutions with kernel size 1.<br><br><strong style="font-size:1.1em">Positional Encoding</strong> (sinusoidal, fixed — no learned parameters):<br>$$PE_{(pos,\,2i)} = \sin\!\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right), \qquad PE_{(pos,\,2i+1)} = \cos\!\left(\frac{pos}{10000^{2i/d_{\text{model}}}}\right)$$<br><br>Wavelengths form a geometric progression from $2\pi$ to $10000 \cdot 2\pi$. The key property: for any fixed offset $k$, $PE_{pos+k}$ is a linear function of $PE_{pos}$ (via angle-addition), allowing the model to attend by relative offset. Learned embeddings gave nearly identical results (Table 3, row E).</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.5, p.6</span></summary>
 <div class="ng-orig-text">Since our model contains no recurrence and no convolution, in order for the model to make use of the order of the sequence, we must inject some information about the relative or absolute position of the tokens.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_006" data-children="node_023,node_024" style="--color:#4B8BBE;border-radius:2px;left:100px;top:1650px">
@@ -158,7 +177,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Why Self-Attention? Complexity Analysis</span>
   </div>
-  <div class="ng-body"><div class="ng-content">Three criteria motivate self-attention over recurrent/convolutional layers:<br>1. **Complexity per layer** — total compute<br>2. **Parallelizable operations** — minimum sequential steps (bottleneck for training speed)<br>3. **Maximum path length** — shorter paths = easier long-range dependency learning<br><br>Self-attention: $O(n^2 \cdot d)$ compute, $O(1)$ sequential, $O(1)$ path. Recurrent: $O(n \cdot d^2)$ compute, $O(n)$ sequential, $O(n)$ path. Self-attention is better when $n &lt; d$ — true for typical sentence-level NLP where $n \approx 50{-}200$ and $d_{\text{model}} = 512$. For very long sequences ($n \gg d$), self-attention becomes the bottleneck.</div><details class="ng-original"><summary>Original <span class="ng-loc">§4, p.6</span></summary>
+  <div class="ng-body"><div class="ng-content">Three criteria motivate self-attention over recurrent/convolutional layers:<br>1. <strong style="font-size:1.1em">Complexity per layer</strong> — total compute<br>2. <strong style="font-size:1.1em">Parallelizable operations</strong> — minimum sequential steps (bottleneck for training speed)<br>3. <strong style="font-size:1.1em">Maximum path length</strong> — shorter paths = easier long-range dependency learning<br><br>Self-attention: $O(n^2 \cdot d)$ compute, $O(1)$ sequential, $O(1)$ path. Recurrent: $O(n \cdot d^2)$ compute, $O(n)$ sequential, $O(n)$ path. Self-attention is better when $n &lt; d$ — true for typical sentence-level NLP where $n \approx 50{-}200$ and $d_{\text{model}} = 512$. For very long sequences ($n \gg d$), self-attention becomes the bottleneck.</div><details class="ng-original"><summary>Original <span class="ng-loc">§4, p.6</span></summary>
 <div class="ng-orig-text">In this section we compare various aspects of self-attention layers to the recurrent and convolutional layers commonly used for mapping one variable-length sequence of symbol representations... Motivating our use of self-attention we consider three desiderata.</div></details><details class="ng-toggle"><summary>Table 1: Layer-Type Complexity Comparison</summary>
 <div class="ng-toggle-body">| Layer Type | Complexity / Layer | Sequential Ops | Max Path Length |<br>|---|---|---|---|<br>| Self-Attention | $O(n^2 \cdot d)$ | $O(1)$ | $O(1)$ |<br>| Recurrent | $O(n \cdot d^2)$ | $O(n)$ | $O(n)$ |<br>| Convolutional | $O(k \cdot n \cdot d^2)$ | $O(1)$ | $O(\log_k n)$ |<br>| Self-Attn (restricted, nbhd $r$) | $O(r \cdot n \cdot d)$ | $O(1)$ | $O(n/r)$ |<br><br>*n = sequence length, d = representation dim, k = conv kernel size, r = neighborhood size*</div></details></div>
 </div>
@@ -167,7 +186,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Training Setup</span>
   </div>
-  <div class="ng-body"><div class="ng-content">**Data**: WMT 2014 EN→DE (~4.5M sentence pairs, BPE vocab 37K shared source-target); EN→FR (36M pairs, word-piece vocab 32K). Batched by approximate sequence length; each batch ~25K source + 25K target tokens.<br><br>**Hardware**: 8× NVIDIA P100 GPUs. Base model: 100K steps at ~0.4 s/step (~12 hrs). Big model: 300K steps at ~1.0 s/step (~3.5 days).<br><br>**Optimizer**: Adam ($\beta_1=0.9$, $\beta_2=0.98$, $\epsilon=10^{-9}$) with warmup schedule:<br>$$lrate = d_{\text{model}}^{-0.5} \cdot \min(step^{-0.5},\; step \cdot warmup^{-1.5}), \quad warmup = 4000 \text{ steps}$$<br><br>**Regularization**: Residual Dropout ($P_{drop}=0.1$) on each sublayer output before Add &amp; Norm + on embedding sums. Label Smoothing ($\epsilon_{ls}=0.1$).</div><details class="ng-original"><summary>Original <span class="ng-loc">§5.2–5.3, p.7</span></summary>
+  <div class="ng-body"><div class="ng-content"><strong style="font-size:1.1em">Data</strong>: WMT 2014 EN→DE (~4.5M sentence pairs, BPE vocab 37K shared source-target); EN→FR (36M pairs, word-piece vocab 32K). Batched by approximate sequence length; each batch ~25K source + 25K target tokens.<br><br><strong style="font-size:1.1em">Hardware</strong>: 8× NVIDIA P100 GPUs. Base model: 100K steps at ~0.4 s/step (~12 hrs). Big model: 300K steps at ~1.0 s/step (~3.5 days).<br><br><strong style="font-size:1.1em">Optimizer</strong>: Adam ($\beta_1=0.9$, $\beta_2=0.98$, $\epsilon=10^{-9}$) with warmup schedule:<br>$$lrate = d_{\text{model}}^{-0.5} \cdot \min(step^{-0.5},\; step \cdot warmup^{-1.5}), \quad warmup = 4000 \text{ steps}$$<br><br><strong style="font-size:1.1em">Regularization</strong>: Residual Dropout ($P_{drop}=0.1$) on each sublayer output before Add &amp; Norm + on embedding sums. Label Smoothing ($\epsilon_{ls}=0.1$).</div><details class="ng-original"><summary>Original <span class="ng-loc">§5.2–5.3, p.7</span></summary>
 <div class="ng-orig-text">We trained our models on one machine with 8 NVIDIA P100 GPUs... We used the Adam optimizer with β1=0.9, β2=0.98 and ε=10^{−9}. We varied the learning rate over the course of training, according to the formula lrate = d_model^{−0.5}·min(step_num^{−0.5}, step_num·warmup_steps^{−1.5}).</div></details></div>
 </div>
 <div class="ng-node" id="node-node_008" data-children="node_027,node_028,node_029" style="--color:#4B8BBE;border-radius:2px;left:100px;top:2250px">
@@ -175,17 +194,17 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Results: Machine Translation</span>
   </div>
-  <div class="ng-body"><div class="ng-content">**EN→DE (newstest2014)**: Transformer (big) achieves **28.4 BLEU**, surpassing all prior models including ensembles by **&gt;2.0 BLEU**. Prior best: ConvS2S Ensemble at 26.36. Training cost: $2.3 \times 10^{19}$ FLOPs vs. $7.7 \times 10^{19}$ for ConvS2S Ensemble.<br><br>**EN→FR (newstest2014)**: **41.8 BLEU**, surpassing all prior single models at **less than 1/4 the training cost** of GNMT+RL ($1.4 \times 10^{20}$ FLOPs).<br><br>**Constituency Parsing** (WSJ §23 F1): 4-layer Transformer achieves **92.7** (semi-supervised), outperforming all RNN seq2seq baselines and matching specialized parsers — demonstrating task generalization.</div><details class="ng-original"><summary>Original <span class="ng-loc">§6.1, p.8</span></summary>
+  <div class="ng-body"><div class="ng-content"><strong style="font-size:1.1em">EN→DE (newstest2014)</strong>: Transformer (big) achieves <strong style="font-size:1.1em">28.4 BLEU</strong>, surpassing all prior models including ensembles by <strong style="font-size:1.1em">&gt;2.0 BLEU</strong>. Prior best: ConvS2S Ensemble at 26.36. Training cost: $2.3 \times 10^{19}$ FLOPs vs. $7.7 \times 10^{19}$ for ConvS2S Ensemble.<br><br><strong style="font-size:1.1em">EN→FR (newstest2014)</strong>: <strong style="font-size:1.1em">41.8 BLEU</strong>, surpassing all prior single models at <strong style="font-size:1.1em">less than 1/4 the training cost</strong> of GNMT+RL ($1.4 \times 10^{20}$ FLOPs).<br><br><strong style="font-size:1.1em">Constituency Parsing</strong> (WSJ §23 F1): 4-layer Transformer achieves <strong style="font-size:1.1em">92.7</strong> (semi-supervised), outperforming all RNN seq2seq baselines and matching specialized parsers — demonstrating task generalization.</div><details class="ng-original"><summary>Original <span class="ng-loc">§6.1, p.8</span></summary>
 <div class="ng-orig-text">On the WMT 2014 English-to-German translation task, the big transformer model outperforms the best previously reported models, including ensembles, by more than 2.0 BLEU, establishing a new state-of-the-art BLEU score of 28.4.</div></details><details class="ng-toggle"><summary>Table 2: BLEU vs Training Cost (from paper)</summary>
-<div class="ng-toggle-body">| Model | EN-DE BLEU | EN-FR BLEU | FLOPs EN-DE | FLOPs EN-FR |<br>|---|---|---|---|---|<br>| ByteNet | 23.75 | — | — | — |<br>| GNMT + RL | 24.6 | 39.92 | $2.3\times10^{19}$ | $1.4\times10^{20}$ |<br>| ConvS2S | 25.16 | 40.46 | $9.6\times10^{18}$ | $1.5\times10^{20}$ |<br>| MoE | 26.03 | 40.56 | $2.0\times10^{19}$ | $1.2\times10^{20}$ |<br>| ConvS2S Ensemble | 26.36 | 41.29 | $7.7\times10^{19}$ | $1.2\times10^{21}$ |<br>| **Transformer (base)** | 27.3 | 38.1 | $\mathbf{3.3\times10^{18}}$ | — |<br>| **Transformer (big)** | **28.4** | **41.8** | $2.3\times10^{19}$ | — |</div></details><details class="ng-toggle"><summary>Table 3: Ablation Study (EN-DE dev set, newstest2013)</summary>
-<div class="ng-toggle-body">| Variant | N | $d_{\text{model}}$ | h | $d_k$ | PPL(dev) | BLEU(dev) | Params(M) |<br>|---|---|---|---|---|---|---|---|<br>| **base** | 6 | 512 | 8 | 64 | 4.92 | 25.8 | 65 |<br>| (A) h=1 | — | — | 1 | 512 | 5.29 | 24.9 | — |<br>| (A) h=4 | — | — | 4 | 128 | 5.00 | 25.5 | — |<br>| (A) h=32 | — | — | 32 | 16 | 5.01 | 25.4 | — |<br>| (B) $d_k$=16 | — | — | — | 16 | 5.16 | 25.1 | 58 |<br>| (C) N=2 | 2 | — | — | — | 6.11 | 23.7 | 36 |<br>| (C) $d_{\text{model}}$=1024 | — | 1024 | — | — | 4.66 | 26.0 | 168 |<br>| (D) no dropout | — | — | — | — | 5.77 | 24.6 | — |<br>| (E) learned PE | — | — | — | — | 4.92 | 25.7 | — |<br>| **big** | 6 | 1024 | 16 | — | **4.33** | **26.4** | 213 |</div></details></div>
+<div class="ng-toggle-body">| Model | EN-DE BLEU | EN-FR BLEU | FLOPs EN-DE | FLOPs EN-FR |<br>|---|---|---|---|---|<br>| ByteNet | 23.75 | — | — | — |<br>| GNMT + RL | 24.6 | 39.92 | $2.3\times10^{19}$ | $1.4\times10^{20}$ |<br>| ConvS2S | 25.16 | 40.46 | $9.6\times10^{18}$ | $1.5\times10^{20}$ |<br>| MoE | 26.03 | 40.56 | $2.0\times10^{19}$ | $1.2\times10^{20}$ |<br>| ConvS2S Ensemble | 26.36 | 41.29 | $7.7\times10^{19}$ | $1.2\times10^{21}$ |<br>| <strong style="font-size:1.1em">Transformer (base)</strong> | 27.3 | 38.1 | $\mathbf{3.3\times10^{18}}$ | — |<br>| <strong style="font-size:1.1em">Transformer (big)</strong> | <strong style="font-size:1.1em">28.4</strong> | <strong style="font-size:1.1em">41.8</strong> | $2.3\times10^{19}$ | — |</div></details><details class="ng-toggle"><summary>Table 3: Ablation Study (EN-DE dev set, newstest2013)</summary>
+<div class="ng-toggle-body">| Variant | N | $d_{\text{model}}$ | h | $d_k$ | PPL(dev) | BLEU(dev) | Params(M) |<br>|---|---|---|---|---|---|---|---|<br>| <strong style="font-size:1.1em">base</strong> | 6 | 512 | 8 | 64 | 4.92 | 25.8 | 65 |<br>| (A) h=1 | — | — | 1 | 512 | 5.29 | 24.9 | — |<br>| (A) h=4 | — | — | 4 | 128 | 5.00 | 25.5 | — |<br>| (A) h=32 | — | — | 32 | 16 | 5.01 | 25.4 | — |<br>| (B) $d_k$=16 | — | — | — | 16 | 5.16 | 25.1 | 58 |<br>| (C) N=2 | 2 | — | — | — | 6.11 | 23.7 | 36 |<br>| (C) $d_{\text{model}}$=1024 | — | 1024 | — | — | 4.66 | 26.0 | 168 |<br>| (D) no dropout | — | — | — | — | 5.77 | 24.6 | — |<br>| (E) learned PE | — | — | — | — | 4.92 | 25.7 | — |<br>| <strong style="font-size:1.1em">big</strong> | 6 | 1024 | 16 | — | <strong style="font-size:1.1em">4.33</strong> | <strong style="font-size:1.1em">26.4</strong> | 213 |</div></details></div>
 </div>
 <div class="ng-node" id="node-node_009" data-children="node_030,node_031" style="--color:#4B8BBE;border-radius:2px;left:100px;top:2550px">
   <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#4B8BBE 22%,transparent);color:#4B8BBE">Main topic</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Conclusion &amp; Outlook</span>
   </div>
-  <div class="ng-body"><div class="ng-content">The Transformer is the **first sequence transduction model based entirely on self-attention**, replacing recurrent layers in encoder-decoder architectures. It achieves state-of-the-art EN→DE (28.4 BLEU) and EN→FR (41.8 BLEU) while training significantly faster (3.5 days on 8 P100s).<br><br>Beyond translation, it generalizes to English constituency parsing with minimal task-specific tuning (WSJ F1: 92.7 semi-supervised).<br><br>**Future directions named by authors**: extend to images, audio, video; local/restricted attention for long inputs; making generation less sequential. These were all realized within 2–4 years (ViT, Speech Transformer, Video Transformer, Longformer).</div><details class="ng-original"><summary>Original <span class="ng-loc">§7, p.10</span></summary>
+  <div class="ng-body"><div class="ng-content">The Transformer is the <strong style="font-size:1.1em">first sequence transduction model based entirely on self-attention</strong>, replacing recurrent layers in encoder-decoder architectures. It achieves state-of-the-art EN→DE (28.4 BLEU) and EN→FR (41.8 BLEU) while training significantly faster (3.5 days on 8 P100s).<br><br>Beyond translation, it generalizes to English constituency parsing with minimal task-specific tuning (WSJ F1: 92.7 semi-supervised).<br><br><strong style="font-size:1.1em">Future directions named by authors</strong>: extend to images, audio, video; local/restricted attention for long inputs; making generation less sequential. These were all realized within 2–4 years (ViT, Speech Transformer, Video Transformer, Longformer).</div><details class="ng-original"><summary>Original <span class="ng-loc">§7, p.10</span></summary>
 <div class="ng-orig-text">In this work, we presented the Transformer, the first sequence transduction model based entirely on attention... We are excited about the future of attention-based models and plan to apply them to other tasks.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_010" style="--color:#E5A835;border-radius:22px;left:550px;top:100px">
@@ -232,7 +251,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#3A506B 22%,transparent);color:#3A506B">Claim</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Scaling by 1/√d_k prevents softmax saturation</span>
   </div>
-  <div class="ng-body" style="display:none"><div class="ng-content">If $q_i, k_i \overset{\text{i.i.d.}}{\sim} \mathcal{N}(0, 1)$, then the dot product $q \cdot k = \sum_{i=1}^{d_k} q_i k_i$ has mean 0 and **variance $d_k$** (standard deviation $\sqrt{d_k}$). For large $d_k$ (e.g., $d_k = 512$), dot products have typical magnitude $\sim 22$, pushing softmax outputs toward one-hot distributions with near-zero gradients almost everywhere. Dividing by $\sqrt{d_k}$ restores variance to 1, keeping the softmax input in its well-gradient regime. Without this scaling, training diverges for larger $d_k$.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2.1, footnote 4, p.4</span></summary>
+  <div class="ng-body" style="display:none"><div class="ng-content">If $q_i, k_i \overset{\text{i.i.d.}}{\sim} \mathcal{N}(0, 1)$, then the dot product $q \cdot k = \sum_{i=1}^{d_k} q_i k_i$ has mean 0 and <strong style="font-size:1.1em">variance $d_k$</strong> (standard deviation $\sqrt{d_k}$). For large $d_k$ (e.g., $d_k = 512$), dot products have typical magnitude $\sim 22$, pushing softmax outputs toward one-hot distributions with near-zero gradients almost everywhere. Dividing by $\sqrt{d_k}$ restores variance to 1, keeping the softmax input in its well-gradient regime. Without this scaling, training diverges for larger $d_k$.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2.1, footnote 4, p.4</span></summary>
 <div class="ng-orig-text">We suspect that for large values of d_k, the dot products grow large in magnitude, pushing the softmax function into regions where it has extremely small gradients.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_016" style="--color:#E5A835;border-radius:22px;left:550px;top:810px">
@@ -240,7 +259,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Q/K/V roles are the author's intent — does training actually enforce them?</span>
   </div>
-  <div class="ng-body" style="display:none"><div class="ng-content">The authors describe Q (what to look for), K (what is available), V (content to retrieve) as conceptually distinct roles. But Q, K, V are simply outputs of three learned linear projections $W^Q, W^K, W^V$ from the same input embedding. The loss function (cross-entropy over next tokens) places no explicit constraint on *how* these matrices should differ.<br><br>**Concern**: The network could learn to set $W^Q \approx W^K \approx W^V$ if that minimizes loss. Or it could learn completely entangled representations that happen to be expressive — the Q/K/V framing being a post-hoc interpretation. Appendix A shows attention heads that appear to track anaphora or syntax, but correlation is not causation.<br><br>**Partial answer**: The symmetry between Q and K is broken structurally — the softmax over $QK^T$ is not symmetric, so K appears in the exponent while Q selects the distribution. V is summed with attention weights, not used for matching. These structural asymmetries provide an inductive bias, but do not *guarantee* the intended role specialization.</div></div>
+  <div class="ng-body" style="display:none"><div class="ng-content">The authors describe Q (what to look for), K (what is available), V (content to retrieve) as conceptually distinct roles. But Q, K, V are simply outputs of three learned linear projections $W^Q, W^K, W^V$ from the same input embedding. The loss function (cross-entropy over next tokens) places no explicit constraint on *how* these matrices should differ.<br><br><strong style="font-size:1.1em">Concern</strong>: The network could learn to set $W^Q \approx W^K \approx W^V$ if that minimizes loss. Or it could learn completely entangled representations that happen to be expressive — the Q/K/V framing being a post-hoc interpretation. Appendix A shows attention heads that appear to track anaphora or syntax, but correlation is not causation.<br><br><strong style="font-size:1.1em">Partial answer</strong>: The symmetry between Q and K is broken structurally — the softmax over $QK^T$ is not symmetric, so K appears in the exponent while Q selects the distribution. V is summed with attention weights, not used for matching. These structural asymmetries provide an inductive bias, but do not *guarantee* the intended role specialization.</div></div>
 </div>
 <div class="ng-node" id="node-node_017" style="--color:#E24B4A;border-radius:22px;left:550px;top:920px">
   <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
@@ -255,7 +274,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#2E86AB 22%,transparent);color:#2E86AB">Method</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Three applications of attention in the Transformer</span>
   </div>
-  <div class="ng-body" style="display:none"><div class="ng-content">1. **Encoder self-attention**: Q, K, V all from the previous encoder layer. Each position attends to all positions in the previous layer → $O(1)$ max path, full context at every layer.<br>2. **Encoder-decoder cross-attention** (decoder layer 2): Q from previous decoder layer; K, V from encoder output. Allows each decoder position to attend over the full input sequence — the equivalent of soft alignment in seq2seq models.<br>3. **Decoder masked self-attention** (decoder layer 1): Q, K, V from previous decoder layer, with upper-triangular mask to $-\infty$. Maintains auto-regressive generation while still parallelizing training.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2.3, p.5</span></summary>
+  <div class="ng-body" style="display:none"><div class="ng-content">1. <strong style="font-size:1.1em">Encoder self-attention</strong>: Q, K, V all from the previous encoder layer. Each position attends to all positions in the previous layer → $O(1)$ max path, full context at every layer.<br>2. <strong style="font-size:1.1em">Encoder-decoder cross-attention</strong> (decoder layer 2): Q from previous decoder layer; K, V from encoder output. Allows each decoder position to attend over the full input sequence — the equivalent of soft alignment in seq2seq models.<br>3. <strong style="font-size:1.1em">Decoder masked self-attention</strong> (decoder layer 1): Q, K, V from previous decoder layer, with upper-triangular mask to $-\infty$. Maintains auto-regressive generation while still parallelizing training.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2.3, p.5</span></summary>
 <div class="ng-orig-text">The Transformer uses multi-head attention in three different ways...</div></details></div>
 </div>
 <div class="ng-node" id="node-node_019" style="--color:#E5A835;border-radius:22px;left:550px;top:1100px">
@@ -270,7 +289,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#3A506B 22%,transparent);color:#3A506B">Claim</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Multi-head compute is equivalent to single-head — benefit is diversity, not efficiency</span>
   </div>
-  <div class="ng-body" style="display:none"><div class="ng-content">With $h=8$ heads, each head operates on $d_k = d_v = 64$. Total multiply-add operations for attention score computation: $8 \times n^2 \times 64 = n^2 \times 512$ — identical to one-head attention at $d_k = 512$. So multi-head attention is **not** a free lunch computationally. The benefit is that projecting into $h$ subspaces allows the model to jointly attend to information from different representation subspaces — something single-head attention suppresses by averaging. The $W^O$ projection at the end recombines the $h$ outputs into $d_{\text{model}}$.</div></div>
+  <div class="ng-body" style="display:none"><div class="ng-content">With $h=8$ heads, each head operates on $d_k = d_v = 64$. Total multiply-add operations for attention score computation: $8 \times n^2 \times 64 = n^2 \times 512$ — identical to one-head attention at $d_k = 512$. So multi-head attention is <strong style="font-size:1.1em">not</strong> a free lunch computationally. The benefit is that projecting into $h$ subspaces allows the model to jointly attend to information from different representation subspaces — something single-head attention suppresses by averaging. The $W^O$ projection at the end recombines the $h$ outputs into $d_{\text{model}}$.</div></div>
 </div>
 <div class="ng-node" id="node-node_021" style="--color:#E5A835;border-radius:22px;left:550px;top:1300px">
   <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
@@ -284,7 +303,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E24B4A 22%,transparent);color:#E24B4A">Gap / Idea</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Absolute PE is a limitation → relative PE as successor</span>
   </div>
-  <div class="ng-body" style="display:none"><div class="ng-content">Absolute sinusoidal PE assigns a fixed vector to each absolute position index. This means: (1) model may not generalize to positions not seen during training; (2) the model must implicitly learn position-invariant operations despite receiving absolute signals. Shaw et al. (2018) introduced **Relative Position Representations** modifying attention to directly use offset $(i-j)$. Later: RoPE (Rotary Position Embedding, 2021) — applied as rotation to Q and K, making the dot product naturally encode relative distance; ALiBi (2022) — adds a linear bias to attention scores proportional to distance. These are now dominant in LLMs.</div></div>
+  <div class="ng-body" style="display:none"><div class="ng-content">Absolute sinusoidal PE assigns a fixed vector to each absolute position index. This means: (1) model may not generalize to positions not seen during training; (2) the model must implicitly learn position-invariant operations despite receiving absolute signals. Shaw et al. (2018) introduced <strong style="font-size:1.1em">Relative Position Representations</strong> modifying attention to directly use offset $(i-j)$. Later: RoPE (Rotary Position Embedding, 2021) — applied as rotation to Q and K, making the dot product naturally encode relative distance; ALiBi (2022) — adds a linear bias to attention scores proportional to distance. These are now dominant in LLMs.</div></div>
 </div>
 <div class="ng-node" id="node-node_023" style="--color:#E24B4A;border-radius:22px;left:550px;top:1600px">
   <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
@@ -313,7 +332,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#3A506B 22%,transparent);color:#3A506B">Claim</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Label smoothing: hurts perplexity but improves BLEU</span>
   </div>
-  <div class="ng-body" style="display:none"><div class="ng-content">Standard cross-entropy trains the model to assign all probability to the correct token (one-hot targets). Label smoothing ($\epsilon_{ls}=0.1$) replaces this with: $y_{smooth} = (1-\epsilon_{ls}) \cdot y_{\text{one-hot}} + \epsilon_{ls}/V$. The model is penalized for being overconfident, improving calibration. This **hurts perplexity** (cross-entropy on the true token increases because the model is forced to spread probability), but **improves BLEU** because calibrated uncertainty leads to better beam search diversity and more accurate translations. This counter-intuitive trade-off ($\uparrow$ perplexity, $\uparrow$ BLEU) is a recurring theme in generation models.</div><details class="ng-original"><summary>Original <span class="ng-loc">§5.4, p.8</span></summary>
+  <div class="ng-body" style="display:none"><div class="ng-content">Standard cross-entropy trains the model to assign all probability to the correct token (one-hot targets). Label smoothing ($\epsilon_{ls}=0.1$) replaces this with: $y_{smooth} = (1-\epsilon_{ls}) \cdot y_{\text{one-hot}} + \epsilon_{ls}/V$. The model is penalized for being overconfident, improving calibration. This <strong style="font-size:1.1em">hurts perplexity</strong> (cross-entropy on the true token increases because the model is forced to spread probability), but <strong style="font-size:1.1em">improves BLEU</strong> because calibrated uncertainty leads to better beam search diversity and more accurate translations. This counter-intuitive trade-off ($\uparrow$ perplexity, $\uparrow$ BLEU) is a recurring theme in generation models.</div><details class="ng-original"><summary>Original <span class="ng-loc">§5.4, p.8</span></summary>
 <div class="ng-orig-text">During training, we employed label smoothing of value ε_ls = 0.1. This hurts perplexity, as the model learns to be more unsure, but improves accuracy and BLEU score.</div></details></div>
 </div>
 <div class="ng-node" id="node-node_027" style="--color:#1B998B;border-radius:2px;left:550px;top:2200px">
@@ -321,14 +340,14 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#1B998B 22%,transparent);color:#1B998B">Result</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">EN→DE: +2 BLEU over all prior ensembles at 3× less compute</span>
   </div>
-  <div class="ng-body" style="display:none"><div class="ng-content">Transformer (big): **28.4 BLEU** vs. ConvS2S Ensemble best prior: 26.36. Delta: **+2.04 BLEU** — a very large improvement in MT. Training cost: $2.3 \times 10^{19}$ FLOPs vs. $7.7 \times 10^{19}$ for ConvS2S Ensemble (**3.3× cheaper**). Even Transformer (base): 27.3 BLEU at $3.3 \times 10^{18}$ FLOPs — **23× cheaper** than the ConvS2S Ensemble while still outperforming it. The efficiency-quality combination is arguably the paper's most important contribution.</div></div>
+  <div class="ng-body" style="display:none"><div class="ng-content">Transformer (big): <strong style="font-size:1.1em">28.4 BLEU</strong> vs. ConvS2S Ensemble best prior: 26.36. Delta: <strong style="font-size:1.1em">+2.04 BLEU</strong> — a very large improvement in MT. Training cost: $2.3 \times 10^{19}$ FLOPs vs. $7.7 \times 10^{19}$ for ConvS2S Ensemble (<strong style="font-size:1.1em">3.3× cheaper</strong>). Even Transformer (base): 27.3 BLEU at $3.3 \times 10^{18}$ FLOPs — <strong style="font-size:1.1em">23× cheaper</strong> than the ConvS2S Ensemble while still outperforming it. The efficiency-quality combination is arguably the paper's most important contribution.</div></div>
 </div>
 <div class="ng-node" id="node-node_028" style="--color:#1B998B;border-radius:2px;left:550px;top:2310px">
   <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#1B998B 22%,transparent);color:#1B998B">Result</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">EN→FR: 41.8 BLEU at 1/6 the cost of prior best single model</span>
   </div>
-  <div class="ng-body" style="display:none"><div class="ng-content">Transformer (big): **41.8 BLEU** on WMT 2014 EN→FR newstest2014, surpassing all prior single models. Training cost: $2.3 \times 10^{19}$ FLOPs vs. GNMT+RL (prior best single model) at $1.4 \times 10^{20}$ FLOPs — approximately **6× cheaper**. Note: the EN→FR big model used $P_{drop}=0.1$ (vs. 0.3 for EN→DE) — the dropout rate required task-specific tuning, suggesting regularization is not free of language-pair-specific hyperparameter search.</div></div>
+  <div class="ng-body" style="display:none"><div class="ng-content">Transformer (big): <strong style="font-size:1.1em">41.8 BLEU</strong> on WMT 2014 EN→FR newstest2014, surpassing all prior single models. Training cost: $2.3 \times 10^{19}$ FLOPs vs. GNMT+RL (prior best single model) at $1.4 \times 10^{20}$ FLOPs — approximately <strong style="font-size:1.1em">6× cheaper</strong>. Note: the EN→FR big model used $P_{drop}=0.1$ (vs. 0.3 for EN→DE) — the dropout rate required task-specific tuning, suggesting regularization is not free of language-pair-specific hyperparameter search.</div></div>
 </div>
 <div class="ng-node" id="node-node_029" style="--color:#E5A835;border-radius:22px;left:550px;top:2420px">
   <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
@@ -357,36 +376,44 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
     <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">KV Cache: why can K and V be reused but not Q?</span>
   </div>
-  <div class="ng-body" style="display:none"><div class="ng-content">Analogy: Q = 🔑 (key), K = 🔒 (lock), V = 💎 (treasure)<br><br>$$\text{Attention}(Q,K,V) = \text{softmax}\!\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$<br><br>During autoregressive decoding, one token is generated at a time. At step $t$:<br>- Tokens $1 \ldots t-1$ already have their $K$ and $V$ computed and **do not change**<br>- Only the new token $t$ needs its $Q$ computed<br><br>Since the attention score depends on $QK^T$, the score changes whenever $Q$ changes — but $K$ and $V$ from past tokens are fixed.<br><br>\&gt; **KV Cache**: cache all previous $K$ and $V$; at each new step, compute only the new token's $Q$, then attend over the cached $K$ and $V$.<br><br>Why $Q$ cannot be cached: each new token queries the entire context from its own perspective — the query is unique to the token being generated.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2, p.3</span></summary>
+  <div class="ng-body" style="display:none"><div class="ng-content">Analogy: Q = 🔑 (key), K = 🔒 (lock), V = 💎 (treasure)<br><br>$$\text{Attention}(Q,K,V) = \text{softmax}\!\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$<br><br>During autoregressive decoding, one token is generated at a time. At step $t$:<br>- Tokens $1 \ldots t-1$ already have their $K$ and $V$ computed and <strong style="font-size:1.1em">do not change</strong><br>- Only the new token $t$ needs its $Q$ computed<br><br>Since the attention score depends on $QK^T$, the score changes whenever $Q$ changes — but $K$ and $V$ from past tokens are fixed.<br><br>\&gt; <strong style="font-size:1.1em">KV Cache</strong>: cache all previous $K$ and $V$; at each new step, compute only the new token's $Q$, then attend over the cached $K$ and $V$.<br><br>Why $Q$ cannot be cached: each new token queries the entire context from its own perspective — the query is unique to the token being generated.</div><details class="ng-original"><summary>Original <span class="ng-loc">§3.2, p.3</span></summary>
 <div class="ng-orig-text">An attention function can be described as mapping a query and a set of key-value pairs to an output, where the query, keys, values, and output are all vectors.</div></details></div>
 </div>
 <div class="ng-node ng-has-table" id="node-node_036" style="--color:#E5A835;border-radius:22px;left:1000px;top:1200px">
   <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
-    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">d_model vs d_k/d_v: single-head와 multi-head의 차이</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">d_model vs d_k/d_v: the difference between single-head and multi-head</span>
   </div>
-  <div class="ng-body" style="display:none"><div class="ng-content"><div class="ng-seg">**차원 관계 정리**<br></div><div class="ng-table-wrap"><table class="ng-table"><thead><tr><th></th><th>Single-head (h=1)</th><th>Multi-head (h=8)</th></tr></thead><tbody><tr><td>Q, K 차원 $d_k$</td><td>$d_{\text{model}}$ (512)</td><td>$d_{\text{model}}/h$ = 64</td></tr><tr><td>V 차원 $d_v$</td><td>$d_{\text{model}}$ (512)</td><td>$d_{\text{model}}/h$ = 64</td></tr><tr><td>각 head 출력</td><td>$(n \times d_{\text{model}})$</td><td>$(n \times 64)$</td></tr><tr><td>concat 후</td><td>—</td><td>$(n \times 8 \cdot 64) = (n \times d_{\text{model}})$</td></tr></tbody></table></div><div class="ng-seg"><br>**d_k = d_v는 필수가 아니다**<br><br>$Q \cdot K^T$가 성립하려면 Q와 K의 차원이 같아야 하므로 $d_q = d_k$는 구조적 필수 조건. 반면 V는 attention weight $(n \times m)$과 곱해지므로 $d_v$는 아무 값이어도 됨:<br><br>$$\underbrace{(n \times m)}_{\text{attn weights}} \times \underbrace{(m \times d_v)}_{V} = (n \times d_v)$$<br><br>논문에서 $d_k = d_v = 64$로 맞춘 것은 수학적 필요가 아닌 **설계 단순화**. 일부 efficient attention 변형은 $d_k \neq d_v$를 사용.<br><br>**Multi-head의 핵심 직관**<br><br>&gt; Multi-head attention = **feature를 축소한 attention map을 여러 개** 병렬로 계산하는 것<br><br>- Single-head: $d_{\text{model}}$ 차원 전체를 하나의 attention map으로 처리 → 한 가지 관점<br>- Multi-head: $d_{\text{model}}$을 $h$등분한 **축소된 subspace** 각각에서 독립적인 attention map 계산 → $h$가지 관점 동시 포착<br>- 각 head의 attention map은 $(n \times n)$ 크기지만 보는 feature 공간이 다름<br><br>**연산량은 동일** (ablation Table 3A 근거):<br>$$h=1: n^2 \times 512, \quad h=8: 8 \times n^2 \times 64 = n^2 \times 512$$<br><br>Multi-head는 효율이 아닌 **표현 다양성**을 위한 선택.</div></div></div>
+  <div class="ng-body" style="display:none"><div class="ng-content"><div class="ng-seg"><strong style="font-size:1.1em">Dimension relationships, summarized</strong><br></div><div class="ng-table-wrap"><table class="ng-table"><thead><tr><th></th><th>Single-head (h=1)</th><th>Multi-head (h=8)</th></tr></thead><tbody><tr><td>Q, K dim $d_k$</td><td>$d_{\text{model}}$ (512)</td><td>$d_{\text{model}}/h$ = 64</td></tr><tr><td>V dim $d_v$</td><td>$d_{\text{model}}$ (512)</td><td>$d_{\text{model}}/h$ = 64</td></tr><tr><td>Each head's output</td><td>$(n \times d_{\text{model}})$</td><td>$(n \times 64)$</td></tr><tr><td>After concat</td><td>—</td><td>$(n \times 8 \cdot 64) = (n \times d_{\text{model}})$</td></tr></tbody></table></div><div class="ng-seg"><br><strong style="font-size:1.1em">d_k = d_v is not required</strong><br><br>For $Q \cdot K^T$ to be valid, Q and K must have the same dimension, so $d_q = d_k$ is a structural requirement. V, on the other hand, is multiplied by the attention weights $(n \times m)$, so $d_v$ can be any value:<br><br>$$\underbrace{(n \times m)}_{\text{attn weights}} \times \underbrace{(m \times d_v)}_{V} = (n \times d_v)$$<br><br>The paper's choice of $d_k = d_v = 64$ is <strong style="font-size:1.1em">a design simplification</strong>, not a mathematical necessity. Some efficient-attention variants use $d_k \neq d_v$.<br><br><strong style="font-size:1.1em">The core intuition of multi-head</strong><br><br>&gt; Multi-head attention = computing <strong style="font-size:1.1em">several reduced-feature attention maps</strong> in parallel<br><br>- Single-head: processes the entire $d_{\text{model}}$ dimension as one attention map → a single perspective<br>- Multi-head: computes an independent attention map in each of the <strong style="font-size:1.1em">reduced subspaces</strong> formed by splitting $d_{\text{model}}$ into $h$ parts → captures $h$ perspectives at once<br>- Each head's attention map is $(n \times n)$ in size, but each looks at a different feature subspace<br><br><strong style="font-size:1.1em">The compute cost is the same</strong> (as shown by ablation Table 3A):<br>$$h=1: n^2 \times 512, \quad h=8: 8 \times n^2 \times 64 = n^2 \times 512$$<br><br>Multi-head is a choice made for <strong style="font-size:1.1em">representational diversity</strong>, not efficiency.</div></div></div>
 </div>
 <div class="ng-node ng-has-table" id="node-node_033" style="--color:#E5A835;border-radius:22px;left:1050px;top:930px">
   <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
-    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Multi-layer: layer 간에 흐르는 것은 V가 아니라 hidden state</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Multi-layer: what flows between layers is the hidden state, not V</span>
   </div>
-  <div class="ng-body" style="display:none"><div class="ng-content"><div class="ng-seg">각 Transformer layer 간에 흐르는 것은 **V 벡터가 아니라 hidden state** $(1 \times d_{\text{model}})$입니다.<br><br>각 layer는 **독립적인 $W_Q, W_K, W_V$** 가중치를 가집니다. Layer $l$의 입력 $h^{(l-1)}$로부터:<br><br>$$Q^{(l)} = h^{(l-1)} W_Q^{(l)}, \quad K^{(l)} = h^{(l-1)} W_K^{(l)}, \quad V^{(l)} = h^{(l-1)} W_V^{(l)}$$<br><br>그리고 layer $l$의 출력:<br>$$h^{(l)} = \text{FFN}\!\left(\text{Attention}(Q^{(l)}, K^{(l)}, V^{(l)})\right)$$<br><br>이 $h^{(l)}$이 다음 layer의 **입력**이 됩니다. V는 해당 layer 내부에서만 사용되고 밖으로 흘러나가지 않습니다.<br></div><div class="ng-table-wrap"><table class="ng-table"><thead><tr><th>무엇이 흐르는가</th><th>설명</th></tr></thead><tbody><tr><td>hidden state $h^{(l)}$</td><td>✅ layer 간 전달</td></tr><tr><td>V 벡터</td><td>❌ 해당 layer 내부에서만 사용</td></tr></tbody></table></div></div></div>
+  <div class="ng-body" style="display:none"><div class="ng-content"><div class="ng-seg">What flows between each Transformer layer is <strong style="font-size:1.1em">the hidden state, not the V vector</strong> $(1 \times d_{\text{model}})$.<br><br>Each layer has <strong style="font-size:1.1em">its own independent $W_Q, W_K, W_V$</strong> weights. From layer $l$'s input $h^{(l-1)}$:<br><br>$$Q^{(l)} = h^{(l-1)} W_Q^{(l)}, \quad K^{(l)} = h^{(l-1)} W_K^{(l)}, \quad V^{(l)} = h^{(l-1)} W_V^{(l)}$$<br><br>And layer $l$'s output:<br>$$h^{(l)} = \text{FFN}\!\left(\text{Attention}(Q^{(l)}, K^{(l)}, V^{(l)})\right)$$<br><br>This $h^{(l)}$ becomes the <strong style="font-size:1.1em">input</strong> to the next layer. V is used only inside that layer and never flows out.<br></div><div class="ng-table-wrap"><table class="ng-table"><thead><tr><th>What flows</th><th>Description</th></tr></thead><tbody><tr><td>hidden state $h^{(l)}$</td><td>✅ passed between layers</td></tr><tr><td>V vector</td><td>❌ used only within that layer</td></tr></tbody></table></div></div></div>
 </div>
 <div class="ng-node ng-has-table" id="node-node_034" style="--color:#E5A835;border-radius:22px;left:1050px;top:1120px">
   <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
-    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">KV Cache = Causal masking(이유) + 캐싱(구현)의 합성</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">KV Cache = Causal masking (why) + caching (implementation) combined</span>
   </div>
-  <div class="ng-body" style="display:none"><div class="ng-content"><div class="ng-seg">KV Cache는 **두 가지 개념의 합성**입니다.<br><br>**① Causal Masking** → 이전 토큰 representation이 불변인 이유<br>- 토큰 $i$는 $1 \ldots i$만 봄 (미래 마스킹)<br>- 이후 토큰이 추가되어도 토큰 $i$의 K, V는 변하지 않음<br><br>**② KV Cache** → 이 불변성을 이용한 구현 최적화<br>- 이미 계산된 K, V를 메모리에 저장<br>- 새 토큰 생성 시 저장된 K, V 재사용 → 재계산 생략<br></div><div class="ng-table-wrap"><table class="ng-table"><thead><tr><th>개념</th><th>역할</th></tr></thead><tbody><tr><td>Causal masking</td><td>'재사용해도 되는 이유' — 구조적 성질</td></tr><tr><td>KV Cache</td><td>'실제로 재사용하는 방법' — 구현 최적화</td></tr></tbody></table></div><div class="ng-seg"><br>이전 $(n-1)$개 토큰의 full representation을 복붙하는 것과도 다릅니다 — Q는 버리고, K와 V projection만 저장합니다.</div></div></div>
+  <div class="ng-body" style="display:none"><div class="ng-content"><div class="ng-seg">KV Cache is <strong style="font-size:1.1em">a composition of two concepts</strong>.<br><br><strong style="font-size:1.1em">① Causal Masking</strong> → why earlier tokens' representations stay unchanged<br>- Token $i$ only attends to $1 \ldots i$ (future is masked)<br>- Even as later tokens are added, token $i$'s K, V never change<br><br><strong style="font-size:1.1em">② KV Cache</strong> → an implementation optimization that exploits this invariance<br>- Store the already-computed K, V in memory<br>- Reuse the stored K, V when generating a new token → skip recomputation<br></div><div class="ng-table-wrap"><table class="ng-table"><thead><tr><th>Concept</th><th>Role</th></tr></thead><tbody><tr><td>Causal masking</td><td>'why reuse is valid' — a structural property</td></tr><tr><td>KV Cache</td><td>'how reuse is actually done' — an implementation optimization</td></tr></tbody></table></div><div class="ng-seg"><br>It's also different from just copy-pasting the full representation of the previous $(n-1)$ tokens — Q is discarded, and only the K and V projections are stored.</div></div></div>
 </div>
 <div class="ng-node" id="node-node_035" style="--color:#E5A835;border-radius:22px;left:1050px;top:1310px">
   <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#E5A835 22%,transparent);color:#E5A835">Question</span>
-    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Prefill vs Decode: n개 입력 시 중간 토큰을 건너뛸 수 있나?</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">Prefill vs Decode: with n input tokens, can the intermediate tokens be skipped?</span>
   </div>
-  <div class="ng-body" style="display:none"><div class="ng-content">$n$개의 토큰이 input으로 주어졌을 때, $(n+1)$번째 토큰 예측을 위해 중간 토큰 $2 \ldots n-1$을 건너뛸 수 있는가?<br><br>**Single-layer: ✅ 가능**<br>- K, V는 embedding → linear projection이므로 모든 토큰에 대해 직접 계산 가능<br>- 토큰 $n$의 attention output만 구하면 됨; 중간 토큰의 full output 불필요<br><br>**Multi-layer: ❌ 불가능**<br>- Layer 2의 K, V = $W_K^{(2)} \cdot h^{(1)}$ → Layer 1 output이 필요<br>- 토큰 $n$이 layer 2에서 토큰 $1 \ldots n-1$의 $K_2, V_2$를 참조해야 함<br>- 따라서 모든 토큰의 Layer 1 output을 계산해야만 함<br><br>**Prefill** (최초 1회): 1...n을 **병렬로 동시에** 계산 — 건너뛰는 게 아니라 한꺼번에 처리<br>**Decode** (이후 반복): 새 토큰 1개만 각 layer 통과 → Prefill에서 캐싱된 K, V 재사용</div></div>
+  <div class="ng-body" style="display:none"><div class="ng-content">Given $n$ tokens as input, can the intermediate tokens $2 \ldots n-1$ be skipped when predicting the $(n+1)$-th token?<br><br><strong style="font-size:1.1em">Single-layer: ✅ possible</strong><br>- K, V are just embedding → linear projection, so they can be computed directly for every token<br>- Only token $n$'s attention output is needed; the intermediate tokens' full output is unnecessary<br><br><strong style="font-size:1.1em">Multi-layer: ❌ not possible</strong><br>- Layer 2's K, V = $W_K^{(2)} \cdot h^{(1)}$ → requires layer 1's output<br>- At layer 2, token $n$ needs to reference tokens $1 \ldots n-1$'s $K_2, V_2$<br>- So layer 1's output must be computed for every token<br><br><strong style="font-size:1.1em">Prefill</strong> (once, up front): computes 1...n <strong style="font-size:1.1em">all at once in parallel</strong> — not skipping, but processing everything together<br><strong style="font-size:1.1em">Decode</strong> (repeated afterward): only the 1 new token passes through each layer → reuses the K, V cached during prefill</div></div>
+</div>
+<div class="ng-node" id="node-node_099" style="--color:#6B7280;border-radius:22px;left:1500px;top:100px">
+  <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,#6B7280 22%,transparent);color:#6B7280">Memo</span>
+    <span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">[TEST] PDF search feature test</span>
+  </div>
+  <div class="ng-body"><div class="ng-content">Test node for the right-click → search-in-PDF feature. Right-clicking the original quote should jump to the Abstract (p.1) of 1706.03762v7.pdf and highlight the sentence below. Safe to delete once verified.</div><details class="ng-original" open><summary>Original <span class="ng-loc">Abstract, p.1</span></summary>
+<div class="ng-orig-text">The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder.</div></details><div class="ng-links"><a class="ng-link" href="https://www.google.com/search?q=Attention+Is+All+You+Need+paper" target="_blank">🔗 [TEST] Click link → browser search test</a></div></div>
 </div>
   </div>
 </div>
@@ -395,23 +422,59 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
   <span id="lightbox-close" onclick="closeLightbox()">✕</span>
 </div>
 <script>
-var NODES_DATA = [{"id":"node_001","lx":100,"ly":150,"children":["node_010","node_011"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":150,"searchText":"background & motivation dominant sequence transduction models (lstm, gru) process tokens sequentially, generating hidden states $h_t = f(h_{t-1}, x_t)$. this recurrence **prevents parallelization during training** and forces gradient signals to traverse $o(n)$ steps for long-range dependencies.\n\nattention mechanisms had already existed, but were always used *alongside* rnns as a soft alignment add-on (bahdanau et al., 2014). the transformer is the first architecture to rely **entirely on attention**, discarding recurrence and convolutions entirely — allowing full parallelization and $o(1)$ path length between any two positions. recurrent models typically factor computation along the symbol positions of the input and output sequences... this inherently sequential nature precludes parallelization within training examples, which becomes critical at longer sequence lengths."},{"id":"node_002","lx":100,"ly":450,"children":["node_012","node_013","node_014"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":450,"searchText":"model architecture: encoder-decoder stacks the transformer uses an **encoder-decoder** structure (fig. 1). both encoder and decoder are stacks of $n=6$ identical layers.\n\n**encoder**: each layer has two sublayers — (1) multi-head self-attention, (2) position-wise ffn. each sublayer is wrapped with residual connection + layer norm:\n$$\\text{output} = \\text{layernorm}(x + \\text{sublayer}(x))$$\nall sublayers and embeddings produce dimension $d_{\\text{model}} = 512$.\n\n**decoder**: same 6-layer stack, but adds a **third sublayer** for cross-attention over encoder output. self-attention in the decoder is **causally masked** (upper-triangle set to $-\\infty$) to preserve the auto-regressive property. the encoder is composed of a stack of n=6 identical layers. each layer has two sub-layers... we employ a residual connection around each of the two sub-layers, followed by layer normalization."},{"id":"node_003","lx":100,"ly":750,"children":["node_015","node_016","node_017"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":750,"searchText":"scaled dot-product attention the attention function maps a query and a set of key-value pairs to an output — a weighted sum of values where the weight is the compatibility of the query with each key:\n\n$$\\text{attention}(q,k,v) = \\text{softmax}\\!\\left(\\frac{qk^t}{\\sqrt{d_k}}\\right)v$$\n\n$q \\in \\mathbb{r}^{n \\times d_k}$, $k \\in \\mathbb{r}^{m \\times d_k}$, $v \\in \\mathbb{r}^{m \\times d_v}$. the scaling factor $\\tfrac{1}{\\sqrt{d_k}}$ prevents large dot-product magnitudes from saturating the softmax (see §3.2.1 footnote). compared to additive attention (which uses a feed-forward net for compatibility), dot-product attention is faster and more space-efficient via matrix multiplication, with identical quality after scaling. we call our particular attention 'scaled dot-product attention'. the input consists of queries and keys of dimension d_k, and values of dimension d_v."},{"id":"node_004","lx":100,"ly":1050,"children":["node_018","node_019","node_020","node_036"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":1050,"searchText":"multi-head attention instead of one attention function over $d_{\\text{model}}$-dimensional vectors, the model **projects q, k, v $h$ times** into smaller subspaces and runs attention in parallel:\n\n$$\\text{multihead}(q,k,v) = \\text{concat}(\\text{head}_1, \\ldots, \\text{head}_h)\\, w^o$$\n$$\\text{head}_i = \\text{attention}(qw_i^q,\\; kw_i^k,\\; vw_i^v)$$\n\nprojection matrices: $w_i^q, w_i^k \\in \\mathbb{r}^{d_{\\text{model}} \\times d_k}$, $w_i^v \\in \\mathbb{r}^{d_{\\text{model}} \\times d_v}$, $w^o \\in \\mathbb{r}^{hd_v \\times d_{\\text{model}}}$.\n\nin this work: $h=8$, $d_k = d_v = d_{\\text{model}}/h = 512/8 = 64$. total compute matches single-head full-dim attention (each head is cheaper; combined they are equivalent). multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions. with a single attention head, averaging inhibits this."},{"id":"node_005","lx":100,"ly":1350,"children":["node_021","node_022"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":1350,"searchText":"ffn, embeddings & positional encoding **position-wise ffn** (applied identically and independently to each position):\n$$\\text{ffn}(x) = \\max(0,\\; xw_1 + b_1)\\,w_2 + b_2$$\n$d_{\\text{model}} = 512 \\to d_{ff} = 2048 \\to 512$. equivalent to two convolutions with kernel size 1.\n\n**positional encoding** (sinusoidal, fixed — no learned parameters):\n$$pe_{(pos,\\,2i)} = \\sin\\!\\left(\\frac{pos}{10000^{2i/d_{\\text{model}}}}\\right), \\qquad pe_{(pos,\\,2i+1)} = \\cos\\!\\left(\\frac{pos}{10000^{2i/d_{\\text{model}}}}\\right)$$\n\nwavelengths form a geometric progression from $2\\pi$ to $10000 \\cdot 2\\pi$. the key property: for any fixed offset $k$, $pe_{pos+k}$ is a linear function of $pe_{pos}$ (via angle-addition), allowing the model to attend by relative offset. learned embeddings gave nearly identical results (table 3, row e). since our model contains no recurrence and no convolution, in order for the model to make use of the order of the sequence, we must inject some information about the relative or absolute position of the tokens."},{"id":"node_006","lx":100,"ly":1650,"children":["node_023","node_024"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":1650,"searchText":"why self-attention? complexity analysis three criteria motivate self-attention over recurrent/convolutional layers:\n1. **complexity per layer** — total compute\n2. **parallelizable operations** — minimum sequential steps (bottleneck for training speed)\n3. **maximum path length** — shorter paths = easier long-range dependency learning\n\nself-attention: $o(n^2 \\cdot d)$ compute, $o(1)$ sequential, $o(1)$ path. recurrent: $o(n \\cdot d^2)$ compute, $o(n)$ sequential, $o(n)$ path. self-attention is better when $n < d$ — true for typical sentence-level nlp where $n \\approx 50{-}200$ and $d_{\\text{model}} = 512$. for very long sequences ($n \\gg d$), self-attention becomes the bottleneck. in this section we compare various aspects of self-attention layers to the recurrent and convolutional layers commonly used for mapping one variable-length sequence of symbol representations... motivating our use of self-attention we consider three desiderata."},{"id":"node_007","lx":100,"ly":1950,"children":["node_025","node_026"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":1950,"searchText":"training setup **data**: wmt 2014 en→de (~4.5m sentence pairs, bpe vocab 37k shared source-target); en→fr (36m pairs, word-piece vocab 32k). batched by approximate sequence length; each batch ~25k source + 25k target tokens.\n\n**hardware**: 8× nvidia p100 gpus. base model: 100k steps at ~0.4 s/step (~12 hrs). big model: 300k steps at ~1.0 s/step (~3.5 days).\n\n**optimizer**: adam ($\\beta_1=0.9$, $\\beta_2=0.98$, $\\epsilon=10^{-9}$) with warmup schedule:\n$$lrate = d_{\\text{model}}^{-0.5} \\cdot \\min(step^{-0.5},\\; step \\cdot warmup^{-1.5}), \\quad warmup = 4000 \\text{ steps}$$\n\n**regularization**: residual dropout ($p_{drop}=0.1$) on each sublayer output before add & norm + on embedding sums. label smoothing ($\\epsilon_{ls}=0.1$). we trained our models on one machine with 8 nvidia p100 gpus... we used the adam optimizer with β1=0.9, β2=0.98 and ε=10^{−9}. we varied the learning rate over the course of training, according to the formula lrate = d_model^{−0.5}·min(step_num^{−0.5}, step_num·warmup_steps^{−1.5})."},{"id":"node_008","lx":100,"ly":2250,"children":["node_027","node_028","node_029"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":2250,"searchText":"results: machine translation **en→de (newstest2014)**: transformer (big) achieves **28.4 bleu**, surpassing all prior models including ensembles by **>2.0 bleu**. prior best: convs2s ensemble at 26.36. training cost: $2.3 \\times 10^{19}$ flops vs. $7.7 \\times 10^{19}$ for convs2s ensemble.\n\n**en→fr (newstest2014)**: **41.8 bleu**, surpassing all prior single models at **less than 1/4 the training cost** of gnmt+rl ($1.4 \\times 10^{20}$ flops).\n\n**constituency parsing** (wsj §23 f1): 4-layer transformer achieves **92.7** (semi-supervised), outperforming all rnn seq2seq baselines and matching specialized parsers — demonstrating task generalization. on the wmt 2014 english-to-german translation task, the big transformer model outperforms the best previously reported models, including ensembles, by more than 2.0 bleu, establishing a new state-of-the-art bleu score of 28.4."},{"id":"node_009","lx":100,"ly":2550,"children":["node_030","node_031"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":2550,"searchText":"conclusion & outlook the transformer is the **first sequence transduction model based entirely on self-attention**, replacing recurrent layers in encoder-decoder architectures. it achieves state-of-the-art en→de (28.4 bleu) and en→fr (41.8 bleu) while training significantly faster (3.5 days on 8 p100s).\n\nbeyond translation, it generalizes to english constituency parsing with minimal task-specific tuning (wsj f1: 92.7 semi-supervised).\n\n**future directions named by authors**: extend to images, audio, video; local/restricted attention for long inputs; making generation less sequential. these were all realized within 2–4 years (vit, speech transformer, video transformer, longformer). in this work, we presented the transformer, the first sequence transduction model based entirely on attention... we are excited about the future of attention-based models and plan to apply them to other tasks."},{"id":"node_010","lx":550,"ly":100,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":100,"searchText":"why is sequential computation fundamentally limiting? rnn hidden state $h_t = f(h_{t-1}, x_t)$ creates a strict dependency chain: step $t$ cannot start until step $t-1$ finishes. this means training time scales with sequence length even with unlimited hardware. more critically, for long-range dependencies, gradient must flow backward through $o(n)$ operations — leading to vanishing/exploding gradients. recent work (factorization tricks, conditional computation in [21, 32]) reduces per-step cost but does not break the sequential bottleneck. transformers reduce the path to $o(1)$ at the cost of $o(n^2)$ memory. this inherently sequential nature precludes parallelization within training examples, which becomes critical at longer sequence lengths, as memory constraints limit batching across examples."},{"id":"node_011","lx":550,"ly":220,"children":[],"template":"gap","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":220,"searchText":"key novelty: attention as the sole mechanism, not a supplement bahdanau et al. (2014) introduced attention for nmt, but used birnn encoder + rnn decoder. attention there was a soft alignment mechanism over rnn hidden states — it did not eliminate sequential computation. transformer's novelty is treating attention as the *primary* (and sole) representational mechanism. this allows every layer to be fully parallelized. the paper is not the first to use attention — it is the first to use *only* attention. in all but a few cases, however, such attention mechanisms are used in conjunction with a recurrent network. in this work we propose the transformer, a model architecture eschewing recurrence and instead relying entirely on an attention mechanism."},{"id":"node_012","lx":550,"ly":400,"children":[],"template":"method","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":400,"searchText":"residual + layernorm: why it matters each sublayer output: $\\text{layernorm}(x + \\text{sublayer}(x))$. the residual connection (he et al., 2016) ensures that gradients flow directly through the network without vanishing, allowing deep stacks (n=6) to train stably. layernorm (ba et al., 2016) normalizes over the *feature* dimension (unlike batchnorm which normalizes over the batch), making it more suitable for variable-length sequences and small batches. the residual constraint forces $d_{\\text{model}} = 512$ uniformly across all sublayers. we employ a residual connection around each of the two sub-layers, followed by layer normalization. that is, the output of each sub-layer is layernorm(x + sublayer(x))."},{"id":"node_013","lx":550,"ly":490,"children":[],"template":"method","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":490,"searchText":"causal masking in decoder: enforcing auto-regression at inference time, the decoder generates one token at a time: position $i$ sees only tokens $1, \\ldots, i-1$. during training (teacher forcing), all target positions are available simultaneously — without masking, the model could simply copy future tokens via self-attention. the fix: set all upper-triangular entries of the $n \\times n$ attention score matrix to $-\\infty$ before softmax, giving them zero weight. output embeddings are also shifted right by one position (prepend `<bos>`) so that target token at position $i$ predicts the $(i+1)$-th token. we also modify the self-attention sub-layer in the decoder stack to prevent positions from attending to subsequent positions. this masking, combined with fact that the output embeddings are offset by one position, ensures that the predictions for position i can depend only on the known outputs at positions less than i."},{"id":"node_014","lx":550,"ly":580,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":580,"searchText":"why n=6? is this a principled choice or trial-and-error? the paper provides no theoretical justification for n=6. table 3 (row c) shows: n=2 → 23.7 bleu, n=4 → 25.3, n=6 (base) → 25.8. the gains diminish, but there is no ablation for n=8 or n=12. the 'big' model keeps n=6 but increases width ($d_{\\text{model}}=1024$), suggesting the authors prioritized width over depth at this scale. this is consistent with the observation in many architectures that beyond a certain depth, additional layers provide diminishing returns without lr or regularization tuning. "},{"id":"node_015","lx":550,"ly":700,"children":[],"template":"claim","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":700,"searchText":"scaling by 1/√d_k prevents softmax saturation if $q_i, k_i \\overset{\\text{i.i.d.}}{\\sim} \\mathcal{n}(0, 1)$, then the dot product $q \\cdot k = \\sum_{i=1}^{d_k} q_i k_i$ has mean 0 and **variance $d_k$** (standard deviation $\\sqrt{d_k}$). for large $d_k$ (e.g., $d_k = 512$), dot products have typical magnitude $\\sim 22$, pushing softmax outputs toward one-hot distributions with near-zero gradients almost everywhere. dividing by $\\sqrt{d_k}$ restores variance to 1, keeping the softmax input in its well-gradient regime. without this scaling, training diverges for larger $d_k$. we suspect that for large values of d_k, the dot products grow large in magnitude, pushing the softmax function into regions where it has extremely small gradients."},{"id":"node_016","lx":550,"ly":810,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":810,"searchText":"q/k/v roles are the author's intent — does training actually enforce them? the authors describe q (what to look for), k (what is available), v (content to retrieve) as conceptually distinct roles. but q, k, v are simply outputs of three learned linear projections $w^q, w^k, w^v$ from the same input embedding. the loss function (cross-entropy over next tokens) places no explicit constraint on *how* these matrices should differ.\n\n**concern**: the network could learn to set $w^q \\approx w^k \\approx w^v$ if that minimizes loss. or it could learn completely entangled representations that happen to be expressive — the q/k/v framing being a post-hoc interpretation. appendix a shows attention heads that appear to track anaphora or syntax, but correlation is not causation.\n\n**partial answer**: the symmetry between q and k is broken structurally — the softmax over $qk^t$ is not symmetric, so k appears in the exponent while q selects the distribution. v is summed with attention weights, not used for matching. these structural asymmetries provide an inductive bias, but do not *guarantee* the intended role specialization. "},{"id":"node_017","lx":550,"ly":920,"children":[],"template":"gap","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":920,"searchText":"dot-product vs. additive attention: where does scaling fail? additive attention (bahdanau 2014): $\\text{score}(q, k) = v^t \\tanh(w_1 q + w_2 k)$ — uses a feed-forward net; output is bounded by $\\tanh$ so no saturation problem. dot-product attention without scaling underperforms additive attention for large $d_k$ (britz et al., 2017). with $1/\\sqrt{d_k}$ scaling it matches additive quality while being $\\sim 10\\times$ faster due to matrix multiply hardware. however, simple dot product may fail for highly non-linear compatibility functions — this is an open question for complex structured reasoning tasks where attention patterns are not simply low-dimensional. while the two are similar in theoretical complexity, dot-product attention is much faster and more space-efficient in practice, since it can be implemented using highly optimized matrix multiplication code."},{"id":"node_018","lx":550,"ly":1000,"children":[],"template":"method","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":1000,"searchText":"three applications of attention in the transformer 1. **encoder self-attention**: q, k, v all from the previous encoder layer. each position attends to all positions in the previous layer → $o(1)$ max path, full context at every layer.\n2. **encoder-decoder cross-attention** (decoder layer 2): q from previous decoder layer; k, v from encoder output. allows each decoder position to attend over the full input sequence — the equivalent of soft alignment in seq2seq models.\n3. **decoder masked self-attention** (decoder layer 1): q, k, v from previous decoder layer, with upper-triangular mask to $-\\infty$. maintains auto-regressive generation while still parallelizing training. the transformer uses multi-head attention in three different ways..."},{"id":"node_019","lx":550,"ly":1100,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1100,"searchText":"do the 8 heads actually learn different representations? the paper claims heads attend to \"different representation subspaces\" but provides only qualitative evidence (attention visualizations in appendix a). key counter-evidence: michel et al. (2019) showed that 70–80% of heads in a trained transformer can be pruned at test time with minimal bleu drop — suggesting many heads are redundant. voita et al. (2019) confirmed with head importance scoring. the ablation (table 3a) shows h=1 costs only 0.9 bleu and h=32 also hurts slightly, suggesting there is a sweet spot around h=8 but not that each of the 8 heads is qualitatively indispensable. "},{"id":"node_020","lx":550,"ly":1200,"children":[],"template":"claim","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":1200,"searchText":"multi-head compute is equivalent to single-head — benefit is diversity, not efficiency with $h=8$ heads, each head operates on $d_k = d_v = 64$. total multiply-add operations for attention score computation: $8 \\times n^2 \\times 64 = n^2 \\times 512$ — identical to one-head attention at $d_k = 512$. so multi-head attention is **not** a free lunch computationally. the benefit is that projecting into $h$ subspaces allows the model to jointly attend to information from different representation subspaces — something single-head attention suppresses by averaging. the $w^o$ projection at the end recombines the $h$ outputs into $d_{\\text{model}}$. "},{"id":"node_021","lx":550,"ly":1300,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1300,"searchText":"can sinusoidal pe actually encode relative position? the authors hypothesize that sinusoidal pe allows the model to attend by relative offsets. the mathematical basis: via angle-addition identities, $pe_{pos+k}$ is a *linear* function of $pe_{pos}$ for fixed $k$:\n$$\\sin(pos+k) = \\sin(pos)\\cos(k) + \\cos(pos)\\sin(k)$$\nso relative position $k$ can be represented as a linear projection. but this requires the model to learn to apply that specific linear transformation — not guaranteed. table 3 row e shows learned pe gives bleu 25.7 vs. sinusoidal 25.8: indistinguishable. this suggests the specific pe form is not critical as long as unique position signals exist. the sinusoidal choice was motivated by extrapolation to longer sequences, but this too was not rigorously validated in the paper. "},{"id":"node_022","lx":550,"ly":1410,"children":[],"template":"gap","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1410,"searchText":"absolute pe is a limitation → relative pe as successor absolute sinusoidal pe assigns a fixed vector to each absolute position index. this means: (1) model may not generalize to positions not seen during training; (2) the model must implicitly learn position-invariant operations despite receiving absolute signals. shaw et al. (2018) introduced **relative position representations** modifying attention to directly use offset $(i-j)$. later: rope (rotary position embedding, 2021) — applied as rotation to q and k, making the dot product naturally encode relative distance; alibi (2022) — adds a linear bias to attention scores proportional to distance. these are now dominant in llms. "},{"id":"node_023","lx":550,"ly":1600,"children":[],"template":"gap","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1600,"searchText":"o(n²) attention: quadratic bottleneck for long sequences self-attention computes all $n^2$ pairwise scores per layer. for long documents (n=8192 tokens), memory alone requires $8192^2 \\times \\text{precision} \\approx 256\\text{mb per layer per head}$ — prohibitive for 8 heads × 6 layers. the paper mentions \"restricted self-attention\" (neighborhood of size $r$, reducing to $o(r \\cdot n \\cdot d)$) but does not implement it. this limitation spawned: longformer (local + global attention), bigbird (random + local + global), linformer (low-rank approximation $o(n)$), flashattention (io-aware exact implementation, same o(n²) flops but memory-efficient via tiling). the quadratic wall remains the central challenge for long-context llms. "},{"id":"node_024","lx":550,"ly":1710,"children":[],"template":"claim","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":1710,"searchText":"attention weights as interpretability — and its limits unlike rnn hidden states, attention weights are directly observable $n \\times n$ distributions. appendix a shows heads that appear to track anaphora (head 5, layer 5) or syntactic distance. this interpretability is cited as a side benefit of self-attention. however, jain & wallace (2019) showed that high attention weight does not imply causal importance: one can often replace the top-attended token with another and the output barely changes. this sparked the \"attention is not explanation\" debate. gradient-based attribution methods (lime, shap, integrated gradients) are considered more reliable for causal importance. as side benefit, self-attention could yield more interpretable models... not only do individual attention heads clearly learn to perform different tasks, many appear to exhibit behavior related to the syntactic and semantic structure of the sentences."},{"id":"node_025","lx":550,"ly":1900,"children":[],"template":"method","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":1900,"searchText":"warmup lr schedule: why linear ramp is essential the warmup schedule linearly increases lr from 0 to peak over 4000 steps, then decays as $1/\\sqrt{step}$. early in training, weight matrices $w^q, w^k, w^v, w^o$ are randomly initialized — gradient magnitudes are large and noisy. starting with a high lr causes the loss to diverge before the optimizer can find a stable direction. the 4000-step linear ramp allows the model to establish a coherent loss landscape first. the $d_{\\text{model}}^{-0.5}$ normalization means larger models (bigger $d_{\\text{model}}$) automatically get a smaller peak lr, an implicit form of scale-adaptive learning rate. "},{"id":"node_026","lx":550,"ly":2010,"children":[],"template":"claim","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":2010,"searchText":"label smoothing: hurts perplexity but improves bleu standard cross-entropy trains the model to assign all probability to the correct token (one-hot targets). label smoothing ($\\epsilon_{ls}=0.1$) replaces this with: $y_{smooth} = (1-\\epsilon_{ls}) \\cdot y_{\\text{one-hot}} + \\epsilon_{ls}/v$. the model is penalized for being overconfident, improving calibration. this **hurts perplexity** (cross-entropy on the true token increases because the model is forced to spread probability), but **improves bleu** because calibrated uncertainty leads to better beam search diversity and more accurate translations. this counter-intuitive trade-off ($\\uparrow$ perplexity, $\\uparrow$ bleu) is a recurring theme in generation models. during training, we employed label smoothing of value ε_ls = 0.1. this hurts perplexity, as the model learns to be more unsure, but improves accuracy and bleu score."},{"id":"node_027","lx":550,"ly":2200,"children":[],"template":"result","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":2200,"searchText":"en→de: +2 bleu over all prior ensembles at 3× less compute transformer (big): **28.4 bleu** vs. convs2s ensemble best prior: 26.36. delta: **+2.04 bleu** — a very large improvement in mt. training cost: $2.3 \\times 10^{19}$ flops vs. $7.7 \\times 10^{19}$ for convs2s ensemble (**3.3× cheaper**). even transformer (base): 27.3 bleu at $3.3 \\times 10^{18}$ flops — **23× cheaper** than the convs2s ensemble while still outperforming it. the efficiency-quality combination is arguably the paper's most important contribution. "},{"id":"node_028","lx":550,"ly":2310,"children":[],"template":"result","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":2310,"searchText":"en→fr: 41.8 bleu at 1/6 the cost of prior best single model transformer (big): **41.8 bleu** on wmt 2014 en→fr newstest2014, surpassing all prior single models. training cost: $2.3 \\times 10^{19}$ flops vs. gnmt+rl (prior best single model) at $1.4 \\times 10^{20}$ flops — approximately **6× cheaper**. note: the en→fr big model used $p_{drop}=0.1$ (vs. 0.3 for en→de) — the dropout rate required task-specific tuning, suggesting regularization is not free of language-pair-specific hyperparameter search. "},{"id":"node_029","lx":550,"ly":2420,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":2420,"searchText":"bleu as a proxy: what does it miss? bleu (papineni et al., 2002) measures n-gram overlap (n=1..4) between hypothesis and references, penalizing short outputs. known weaknesses: (1) penalizes valid paraphrases that don't overlap n-grams with references; (2) insensitive to semantic equivalence across different surface forms; (3) corpus-level metric — high bleu can hide sentence-level failures. the paper uses bleu as the *sole* evaluation metric. later work (bertscore, comet, bleurt) showed embedding-based metrics correlate better with human judgment. meta-evaluation studies suggest transformer improvements are *even larger* under semantic metrics than bleu suggests. "},{"id":"node_030","lx":550,"ly":2500,"children":[],"template":"gap","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":2500,"searchText":"impact: transformer as the universal architecture as of 2024, virtually every state-of-the-art model in nlp, vision, audio, protein structure prediction, code generation, and multimodal ai is a transformer variant. key milestones this paper enabled: bert (2018, encoder-only), gpt series (decoder-only), t5 (encoder-decoder at scale), vit (vision), alphafold 2 (protein), whisper (speech), dall-e / stable diffusion (vision-language). the quadratic $o(n^2)$ attention cost is the main ongoing research bottleneck — efficient attention (flashattention, linear attention, mamba/ssm hybrids) remains an active area. "},{"id":"node_031","lx":550,"ly":2610,"children":[],"template":"reference","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":2610,"searchText":"code: tensorflow/tensor2tensor → hugging face original release: github.com/tensorflow/tensor2tensor (tensorflow). was the dominant research codebase 2017–2019. replaced by: mesh tensorflow → trax (google). the ecosystem shift to pytorch meant most practitioners now use hugging face transformers library (2019–present), which provides pretrained weights and training infrastructure. nvidia's megatron-lm and microsoft's deepspeed added model parallelism for billion-parameter scale. the original tensor2tensor code remains historically significant but is rarely used directly. the code we used to train and evaluate our models is available at https://github.com/tensorflow/tensor2tensor."},{"id":"node_032","lx":550,"ly":1070,"children":["node_033","node_034","node_035"],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1070,"searchText":"kv cache: why can k and v be reused but not q? analogy: q = 🔑 (key), k = 🔒 (lock), v = 💎 (treasure)\n\n$$\\text{attention}(q,k,v) = \\text{softmax}\\!\\left(\\frac{qk^t}{\\sqrt{d_k}}\\right)v$$\n\nduring autoregressive decoding, one token is generated at a time. at step $t$:\n- tokens $1 \\ldots t-1$ already have their $k$ and $v$ computed and **do not change**\n- only the new token $t$ needs its $q$ computed\n\nsince the attention score depends on $qk^t$, the score changes whenever $q$ changes — but $k$ and $v$ from past tokens are fixed.\n\n\\> **kv cache**: cache all previous $k$ and $v$; at each new step, compute only the new token's $q$, then attend over the cached $k$ and $v$.\n\nwhy $q$ cannot be cached: each new token queries the entire context from its own perspective — the query is unique to the token being generated. an attention function can be described as mapping a query and a set of key-value pairs to an output, where the query, keys, values, and output are all vectors."},{"id":"node_036","lx":1000,"ly":1200,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1200,"searchText":"d_model vs d_k/d_v: single-head와 multi-head의 차이 **차원 관계 정리**\n\n| | single-head (h=1) | multi-head (h=8) |\n|---|---|---|\n| q, k 차원 $d_k$ | $d_{\\text{model}}$ (512) | $d_{\\text{model}}/h$ = 64 |\n| v 차원 $d_v$ | $d_{\\text{model}}$ (512) | $d_{\\text{model}}/h$ = 64 |\n| 각 head 출력 | $(n \\times d_{\\text{model}})$ | $(n \\times 64)$ |\n| concat 후 | — | $(n \\times 8 \\cdot 64) = (n \\times d_{\\text{model}})$ |\n\n**d_k = d_v는 필수가 아니다**\n\n$q \\cdot k^t$가 성립하려면 q와 k의 차원이 같아야 하므로 $d_q = d_k$는 구조적 필수 조건. 반면 v는 attention weight $(n \\times m)$과 곱해지므로 $d_v$는 아무 값이어도 됨:\n\n$$\\underbrace{(n \\times m)}_{\\text{attn weights}} \\times \\underbrace{(m \\times d_v)}_{v} = (n \\times d_v)$$\n\n논문에서 $d_k = d_v = 64$로 맞춘 것은 수학적 필요가 아닌 **설계 단순화**. 일부 efficient attention 변형은 $d_k \\neq d_v$를 사용.\n\n**multi-head의 핵심 직관**\n\n> multi-head attention = **feature를 축소한 attention map을 여러 개** 병렬로 계산하는 것\n\n- single-head: $d_{\\text{model}}$ 차원 전체를 하나의 attention map으로 처리 → 한 가지 관점\n- multi-head: $d_{\\text{model}}$을 $h$등분한 **축소된 subspace** 각각에서 독립적인 attention map 계산 → $h$가지 관점 동시 포착\n- 각 head의 attention map은 $(n \\times n)$ 크기지만 보는 feature 공간이 다름\n\n**연산량은 동일** (ablation table 3a 근거):\n$$h=1: n^2 \\times 512, \\quad h=8: 8 \\times n^2 \\times 64 = n^2 \\times 512$$\n\nmulti-head는 효율이 아닌 **표현 다양성**을 위한 선택. "},{"id":"node_033","lx":1050,"ly":930,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":930,"searchText":"multi-layer: layer 간에 흐르는 것은 v가 아니라 hidden state 각 transformer layer 간에 흐르는 것은 **v 벡터가 아니라 hidden state** $(1 \\times d_{\\text{model}})$입니다.\n\n각 layer는 **독립적인 $w_q, w_k, w_v$** 가중치를 가집니다. layer $l$의 입력 $h^{(l-1)}$로부터:\n\n$$q^{(l)} = h^{(l-1)} w_q^{(l)}, \\quad k^{(l)} = h^{(l-1)} w_k^{(l)}, \\quad v^{(l)} = h^{(l-1)} w_v^{(l)}$$\n\n그리고 layer $l$의 출력:\n$$h^{(l)} = \\text{ffn}\\!\\left(\\text{attention}(q^{(l)}, k^{(l)}, v^{(l)})\\right)$$\n\n이 $h^{(l)}$이 다음 layer의 **입력**이 됩니다. v는 해당 layer 내부에서만 사용되고 밖으로 흘러나가지 않습니다.\n\n| 무엇이 흐르는가 | 설명 |\n|---|---|\n| hidden state $h^{(l)}$ | ✅ layer 간 전달 |\n| v 벡터 | ❌ 해당 layer 내부에서만 사용 | "},{"id":"node_034","lx":1050,"ly":1120,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1120,"searchText":"kv cache = causal masking(이유) + 캐싱(구현)의 합성 kv cache는 **두 가지 개념의 합성**입니다.\n\n**① causal masking** → 이전 토큰 representation이 불변인 이유\n- 토큰 $i$는 $1 \\ldots i$만 봄 (미래 마스킹)\n- 이후 토큰이 추가되어도 토큰 $i$의 k, v는 변하지 않음\n\n**② kv cache** → 이 불변성을 이용한 구현 최적화\n- 이미 계산된 k, v를 메모리에 저장\n- 새 토큰 생성 시 저장된 k, v 재사용 → 재계산 생략\n\n| 개념 | 역할 |\n|---|---|\n| causal masking | '재사용해도 되는 이유' — 구조적 성질 |\n| kv cache | '실제로 재사용하는 방법' — 구현 최적화 |\n\n이전 $(n-1)$개 토큰의 full representation을 복붙하는 것과도 다릅니다 — q는 버리고, k와 v projection만 저장합니다. "},{"id":"node_035","lx":1050,"ly":1310,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1310,"searchText":"prefill vs decode: n개 입력 시 중간 토큰을 건너뛸 수 있나? $n$개의 토큰이 input으로 주어졌을 때, $(n+1)$번째 토큰 예측을 위해 중간 토큰 $2 \\ldots n-1$을 건너뛸 수 있는가?\n\n**single-layer: ✅ 가능**\n- k, v는 embedding → linear projection이므로 모든 토큰에 대해 직접 계산 가능\n- 토큰 $n$의 attention output만 구하면 됨; 중간 토큰의 full output 불필요\n\n**multi-layer: ❌ 불가능**\n- layer 2의 k, v = $w_k^{(2)} \\cdot h^{(1)}$ → layer 1 output이 필요\n- 토큰 $n$이 layer 2에서 토큰 $1 \\ldots n-1$의 $k_2, v_2$를 참조해야 함\n- 따라서 모든 토큰의 layer 1 output을 계산해야만 함\n\n**prefill** (최초 1회): 1...n을 **병렬로 동시에** 계산 — 건너뛰는 게 아니라 한꺼번에 처리\n**decode** (이후 반복): 새 토큰 1개만 각 layer 통과 → prefill에서 캐싱된 k, v 재사용 "}];
+var NODES_DATA = [{"id":"node_001","lx":100,"ly":150,"children":["node_010","node_011"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":150,"searchText":"background & motivation dominant sequence transduction models (lstm, gru) process tokens sequentially, generating hidden states $h_t = f(h_{t-1}, x_t)$. this recurrence **prevents parallelization during training** and forces gradient signals to traverse $o(n)$ steps for long-range dependencies.\n\nattention mechanisms had already existed, but were always used *alongside* rnns as a soft alignment add-on (bahdanau et al., 2014). the transformer is the first architecture to rely **entirely on attention**, discarding recurrence and convolutions entirely — allowing full parallelization and $o(1)$ path length between any two positions. recurrent models typically factor computation along the symbol positions of the input and output sequences... this inherently sequential nature precludes parallelization within training examples, which becomes critical at longer sequence lengths."},{"id":"node_002","lx":100,"ly":450,"children":["node_012","node_013","node_014"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":450,"searchText":"model architecture: encoder-decoder stacks the transformer uses an **encoder-decoder** structure (fig. 1). both encoder and decoder are stacks of $n=6$ identical layers.\n\n**encoder**: each layer has two sublayers — (1) multi-head self-attention, (2) position-wise ffn. each sublayer is wrapped with residual connection + layer norm:\n$$\\text{output} = \\text{layernorm}(x + \\text{sublayer}(x))$$\nall sublayers and embeddings produce dimension $d_{\\text{model}} = 512$.\n\n**decoder**: same 6-layer stack, but adds a **third sublayer** for cross-attention over encoder output. self-attention in the decoder is **causally masked** (upper-triangle set to $-\\infty$) to preserve the auto-regressive property. the encoder is composed of a stack of n=6 identical layers. each layer has two sub-layers... we employ a residual connection around each of the two sub-layers, followed by layer normalization."},{"id":"node_003","lx":100,"ly":750,"children":["node_015","node_016","node_017"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":750,"searchText":"scaled dot-product attention the attention function maps a query and a set of key-value pairs to an output — a weighted sum of values where the weight is the compatibility of the query with each key:\n\n$$\\text{attention}(q,k,v) = \\text{softmax}\\!\\left(\\frac{qk^t}{\\sqrt{d_k}}\\right)v$$\n\n$q \\in \\mathbb{r}^{n \\times d_k}$, $k \\in \\mathbb{r}^{m \\times d_k}$, $v \\in \\mathbb{r}^{m \\times d_v}$. the scaling factor $\\tfrac{1}{\\sqrt{d_k}}$ prevents large dot-product magnitudes from saturating the softmax (see §3.2.1 footnote). compared to additive attention (which uses a feed-forward net for compatibility), dot-product attention is faster and more space-efficient via matrix multiplication, with identical quality after scaling. we call our particular attention 'scaled dot-product attention'. the input consists of queries and keys of dimension d_k, and values of dimension d_v."},{"id":"node_004","lx":100,"ly":1050,"children":["node_018","node_019","node_020","node_036"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":1050,"searchText":"multi-head attention instead of one attention function over $d_{\\text{model}}$-dimensional vectors, the model **projects q, k, v $h$ times** into smaller subspaces and runs attention in parallel:\n\n$$\\text{multihead}(q,k,v) = \\text{concat}(\\text{head}_1, \\ldots, \\text{head}_h)\\, w^o$$\n$$\\text{head}_i = \\text{attention}(qw_i^q,\\; kw_i^k,\\; vw_i^v)$$\n\nprojection matrices: $w_i^q, w_i^k \\in \\mathbb{r}^{d_{\\text{model}} \\times d_k}$, $w_i^v \\in \\mathbb{r}^{d_{\\text{model}} \\times d_v}$, $w^o \\in \\mathbb{r}^{hd_v \\times d_{\\text{model}}}$.\n\nin this work: $h=8$, $d_k = d_v = d_{\\text{model}}/h = 512/8 = 64$. total compute matches single-head full-dim attention (each head is cheaper; combined they are equivalent). multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions. with a single attention head, averaging inhibits this."},{"id":"node_005","lx":100,"ly":1350,"children":["node_021","node_022"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":1350,"searchText":"ffn, embeddings & positional encoding **position-wise ffn** (applied identically and independently to each position):\n$$\\text{ffn}(x) = \\max(0,\\; xw_1 + b_1)\\,w_2 + b_2$$\n$d_{\\text{model}} = 512 \\to d_{ff} = 2048 \\to 512$. equivalent to two convolutions with kernel size 1.\n\n**positional encoding** (sinusoidal, fixed — no learned parameters):\n$$pe_{(pos,\\,2i)} = \\sin\\!\\left(\\frac{pos}{10000^{2i/d_{\\text{model}}}}\\right), \\qquad pe_{(pos,\\,2i+1)} = \\cos\\!\\left(\\frac{pos}{10000^{2i/d_{\\text{model}}}}\\right)$$\n\nwavelengths form a geometric progression from $2\\pi$ to $10000 \\cdot 2\\pi$. the key property: for any fixed offset $k$, $pe_{pos+k}$ is a linear function of $pe_{pos}$ (via angle-addition), allowing the model to attend by relative offset. learned embeddings gave nearly identical results (table 3, row e). since our model contains no recurrence and no convolution, in order for the model to make use of the order of the sequence, we must inject some information about the relative or absolute position of the tokens."},{"id":"node_006","lx":100,"ly":1650,"children":["node_023","node_024"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":1650,"searchText":"why self-attention? complexity analysis three criteria motivate self-attention over recurrent/convolutional layers:\n1. **complexity per layer** — total compute\n2. **parallelizable operations** — minimum sequential steps (bottleneck for training speed)\n3. **maximum path length** — shorter paths = easier long-range dependency learning\n\nself-attention: $o(n^2 \\cdot d)$ compute, $o(1)$ sequential, $o(1)$ path. recurrent: $o(n \\cdot d^2)$ compute, $o(n)$ sequential, $o(n)$ path. self-attention is better when $n < d$ — true for typical sentence-level nlp where $n \\approx 50{-}200$ and $d_{\\text{model}} = 512$. for very long sequences ($n \\gg d$), self-attention becomes the bottleneck. in this section we compare various aspects of self-attention layers to the recurrent and convolutional layers commonly used for mapping one variable-length sequence of symbol representations... motivating our use of self-attention we consider three desiderata."},{"id":"node_007","lx":100,"ly":1950,"children":["node_025","node_026"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":1950,"searchText":"training setup **data**: wmt 2014 en→de (~4.5m sentence pairs, bpe vocab 37k shared source-target); en→fr (36m pairs, word-piece vocab 32k). batched by approximate sequence length; each batch ~25k source + 25k target tokens.\n\n**hardware**: 8× nvidia p100 gpus. base model: 100k steps at ~0.4 s/step (~12 hrs). big model: 300k steps at ~1.0 s/step (~3.5 days).\n\n**optimizer**: adam ($\\beta_1=0.9$, $\\beta_2=0.98$, $\\epsilon=10^{-9}$) with warmup schedule:\n$$lrate = d_{\\text{model}}^{-0.5} \\cdot \\min(step^{-0.5},\\; step \\cdot warmup^{-1.5}), \\quad warmup = 4000 \\text{ steps}$$\n\n**regularization**: residual dropout ($p_{drop}=0.1$) on each sublayer output before add & norm + on embedding sums. label smoothing ($\\epsilon_{ls}=0.1$). we trained our models on one machine with 8 nvidia p100 gpus... we used the adam optimizer with β1=0.9, β2=0.98 and ε=10^{−9}. we varied the learning rate over the course of training, according to the formula lrate = d_model^{−0.5}·min(step_num^{−0.5}, step_num·warmup_steps^{−1.5})."},{"id":"node_008","lx":100,"ly":2250,"children":["node_027","node_028","node_029"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":2250,"searchText":"results: machine translation **en→de (newstest2014)**: transformer (big) achieves **28.4 bleu**, surpassing all prior models including ensembles by **>2.0 bleu**. prior best: convs2s ensemble at 26.36. training cost: $2.3 \\times 10^{19}$ flops vs. $7.7 \\times 10^{19}$ for convs2s ensemble.\n\n**en→fr (newstest2014)**: **41.8 bleu**, surpassing all prior single models at **less than 1/4 the training cost** of gnmt+rl ($1.4 \\times 10^{20}$ flops).\n\n**constituency parsing** (wsj §23 f1): 4-layer transformer achieves **92.7** (semi-supervised), outperforming all rnn seq2seq baselines and matching specialized parsers — demonstrating task generalization. on the wmt 2014 english-to-german translation task, the big transformer model outperforms the best previously reported models, including ensembles, by more than 2.0 bleu, establishing a new state-of-the-art bleu score of 28.4."},{"id":"node_009","lx":100,"ly":2550,"children":["node_030","node_031"],"template":"main_topic","contentExpanded":true,"isMain":true,"nodeHeight":null,"naturalY":2550,"searchText":"conclusion & outlook the transformer is the **first sequence transduction model based entirely on self-attention**, replacing recurrent layers in encoder-decoder architectures. it achieves state-of-the-art en→de (28.4 bleu) and en→fr (41.8 bleu) while training significantly faster (3.5 days on 8 p100s).\n\nbeyond translation, it generalizes to english constituency parsing with minimal task-specific tuning (wsj f1: 92.7 semi-supervised).\n\n**future directions named by authors**: extend to images, audio, video; local/restricted attention for long inputs; making generation less sequential. these were all realized within 2–4 years (vit, speech transformer, video transformer, longformer). in this work, we presented the transformer, the first sequence transduction model based entirely on attention... we are excited about the future of attention-based models and plan to apply them to other tasks."},{"id":"node_010","lx":550,"ly":100,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":100,"searchText":"why is sequential computation fundamentally limiting? rnn hidden state $h_t = f(h_{t-1}, x_t)$ creates a strict dependency chain: step $t$ cannot start until step $t-1$ finishes. this means training time scales with sequence length even with unlimited hardware. more critically, for long-range dependencies, gradient must flow backward through $o(n)$ operations — leading to vanishing/exploding gradients. recent work (factorization tricks, conditional computation in [21, 32]) reduces per-step cost but does not break the sequential bottleneck. transformers reduce the path to $o(1)$ at the cost of $o(n^2)$ memory. this inherently sequential nature precludes parallelization within training examples, which becomes critical at longer sequence lengths, as memory constraints limit batching across examples."},{"id":"node_011","lx":550,"ly":220,"children":[],"template":"gap","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":220,"searchText":"key novelty: attention as the sole mechanism, not a supplement bahdanau et al. (2014) introduced attention for nmt, but used birnn encoder + rnn decoder. attention there was a soft alignment mechanism over rnn hidden states — it did not eliminate sequential computation. transformer's novelty is treating attention as the *primary* (and sole) representational mechanism. this allows every layer to be fully parallelized. the paper is not the first to use attention — it is the first to use *only* attention. in all but a few cases, however, such attention mechanisms are used in conjunction with a recurrent network. in this work we propose the transformer, a model architecture eschewing recurrence and instead relying entirely on an attention mechanism."},{"id":"node_012","lx":550,"ly":400,"children":[],"template":"method","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":400,"searchText":"residual + layernorm: why it matters each sublayer output: $\\text{layernorm}(x + \\text{sublayer}(x))$. the residual connection (he et al., 2016) ensures that gradients flow directly through the network without vanishing, allowing deep stacks (n=6) to train stably. layernorm (ba et al., 2016) normalizes over the *feature* dimension (unlike batchnorm which normalizes over the batch), making it more suitable for variable-length sequences and small batches. the residual constraint forces $d_{\\text{model}} = 512$ uniformly across all sublayers. we employ a residual connection around each of the two sub-layers, followed by layer normalization. that is, the output of each sub-layer is layernorm(x + sublayer(x))."},{"id":"node_013","lx":550,"ly":490,"children":[],"template":"method","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":490,"searchText":"causal masking in decoder: enforcing auto-regression at inference time, the decoder generates one token at a time: position $i$ sees only tokens $1, \\ldots, i-1$. during training (teacher forcing), all target positions are available simultaneously — without masking, the model could simply copy future tokens via self-attention. the fix: set all upper-triangular entries of the $n \\times n$ attention score matrix to $-\\infty$ before softmax, giving them zero weight. output embeddings are also shifted right by one position (prepend `<bos>`) so that target token at position $i$ predicts the $(i+1)$-th token. we also modify the self-attention sub-layer in the decoder stack to prevent positions from attending to subsequent positions. this masking, combined with fact that the output embeddings are offset by one position, ensures that the predictions for position i can depend only on the known outputs at positions less than i."},{"id":"node_014","lx":550,"ly":580,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":580,"searchText":"why n=6? is this a principled choice or trial-and-error? the paper provides no theoretical justification for n=6. table 3 (row c) shows: n=2 → 23.7 bleu, n=4 → 25.3, n=6 (base) → 25.8. the gains diminish, but there is no ablation for n=8 or n=12. the 'big' model keeps n=6 but increases width ($d_{\\text{model}}=1024$), suggesting the authors prioritized width over depth at this scale. this is consistent with the observation in many architectures that beyond a certain depth, additional layers provide diminishing returns without lr or regularization tuning. "},{"id":"node_015","lx":550,"ly":700,"children":[],"template":"claim","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":700,"searchText":"scaling by 1/√d_k prevents softmax saturation if $q_i, k_i \\overset{\\text{i.i.d.}}{\\sim} \\mathcal{n}(0, 1)$, then the dot product $q \\cdot k = \\sum_{i=1}^{d_k} q_i k_i$ has mean 0 and **variance $d_k$** (standard deviation $\\sqrt{d_k}$). for large $d_k$ (e.g., $d_k = 512$), dot products have typical magnitude $\\sim 22$, pushing softmax outputs toward one-hot distributions with near-zero gradients almost everywhere. dividing by $\\sqrt{d_k}$ restores variance to 1, keeping the softmax input in its well-gradient regime. without this scaling, training diverges for larger $d_k$. we suspect that for large values of d_k, the dot products grow large in magnitude, pushing the softmax function into regions where it has extremely small gradients."},{"id":"node_016","lx":550,"ly":810,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":810,"searchText":"q/k/v roles are the author's intent — does training actually enforce them? the authors describe q (what to look for), k (what is available), v (content to retrieve) as conceptually distinct roles. but q, k, v are simply outputs of three learned linear projections $w^q, w^k, w^v$ from the same input embedding. the loss function (cross-entropy over next tokens) places no explicit constraint on *how* these matrices should differ.\n\n**concern**: the network could learn to set $w^q \\approx w^k \\approx w^v$ if that minimizes loss. or it could learn completely entangled representations that happen to be expressive — the q/k/v framing being a post-hoc interpretation. appendix a shows attention heads that appear to track anaphora or syntax, but correlation is not causation.\n\n**partial answer**: the symmetry between q and k is broken structurally — the softmax over $qk^t$ is not symmetric, so k appears in the exponent while q selects the distribution. v is summed with attention weights, not used for matching. these structural asymmetries provide an inductive bias, but do not *guarantee* the intended role specialization. "},{"id":"node_017","lx":550,"ly":920,"children":[],"template":"gap","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":920,"searchText":"dot-product vs. additive attention: where does scaling fail? additive attention (bahdanau 2014): $\\text{score}(q, k) = v^t \\tanh(w_1 q + w_2 k)$ — uses a feed-forward net; output is bounded by $\\tanh$ so no saturation problem. dot-product attention without scaling underperforms additive attention for large $d_k$ (britz et al., 2017). with $1/\\sqrt{d_k}$ scaling it matches additive quality while being $\\sim 10\\times$ faster due to matrix multiply hardware. however, simple dot product may fail for highly non-linear compatibility functions — this is an open question for complex structured reasoning tasks where attention patterns are not simply low-dimensional. while the two are similar in theoretical complexity, dot-product attention is much faster and more space-efficient in practice, since it can be implemented using highly optimized matrix multiplication code."},{"id":"node_018","lx":550,"ly":1000,"children":[],"template":"method","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":1000,"searchText":"three applications of attention in the transformer 1. **encoder self-attention**: q, k, v all from the previous encoder layer. each position attends to all positions in the previous layer → $o(1)$ max path, full context at every layer.\n2. **encoder-decoder cross-attention** (decoder layer 2): q from previous decoder layer; k, v from encoder output. allows each decoder position to attend over the full input sequence — the equivalent of soft alignment in seq2seq models.\n3. **decoder masked self-attention** (decoder layer 1): q, k, v from previous decoder layer, with upper-triangular mask to $-\\infty$. maintains auto-regressive generation while still parallelizing training. the transformer uses multi-head attention in three different ways..."},{"id":"node_019","lx":550,"ly":1100,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1100,"searchText":"do the 8 heads actually learn different representations? the paper claims heads attend to \"different representation subspaces\" but provides only qualitative evidence (attention visualizations in appendix a). key counter-evidence: michel et al. (2019) showed that 70–80% of heads in a trained transformer can be pruned at test time with minimal bleu drop — suggesting many heads are redundant. voita et al. (2019) confirmed with head importance scoring. the ablation (table 3a) shows h=1 costs only 0.9 bleu and h=32 also hurts slightly, suggesting there is a sweet spot around h=8 but not that each of the 8 heads is qualitatively indispensable. "},{"id":"node_020","lx":550,"ly":1200,"children":[],"template":"claim","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":1200,"searchText":"multi-head compute is equivalent to single-head — benefit is diversity, not efficiency with $h=8$ heads, each head operates on $d_k = d_v = 64$. total multiply-add operations for attention score computation: $8 \\times n^2 \\times 64 = n^2 \\times 512$ — identical to one-head attention at $d_k = 512$. so multi-head attention is **not** a free lunch computationally. the benefit is that projecting into $h$ subspaces allows the model to jointly attend to information from different representation subspaces — something single-head attention suppresses by averaging. the $w^o$ projection at the end recombines the $h$ outputs into $d_{\\text{model}}$. "},{"id":"node_021","lx":550,"ly":1300,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1300,"searchText":"can sinusoidal pe actually encode relative position? the authors hypothesize that sinusoidal pe allows the model to attend by relative offsets. the mathematical basis: via angle-addition identities, $pe_{pos+k}$ is a *linear* function of $pe_{pos}$ for fixed $k$:\n$$\\sin(pos+k) = \\sin(pos)\\cos(k) + \\cos(pos)\\sin(k)$$\nso relative position $k$ can be represented as a linear projection. but this requires the model to learn to apply that specific linear transformation — not guaranteed. table 3 row e shows learned pe gives bleu 25.7 vs. sinusoidal 25.8: indistinguishable. this suggests the specific pe form is not critical as long as unique position signals exist. the sinusoidal choice was motivated by extrapolation to longer sequences, but this too was not rigorously validated in the paper. "},{"id":"node_022","lx":550,"ly":1410,"children":[],"template":"gap","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1410,"searchText":"absolute pe is a limitation → relative pe as successor absolute sinusoidal pe assigns a fixed vector to each absolute position index. this means: (1) model may not generalize to positions not seen during training; (2) the model must implicitly learn position-invariant operations despite receiving absolute signals. shaw et al. (2018) introduced **relative position representations** modifying attention to directly use offset $(i-j)$. later: rope (rotary position embedding, 2021) — applied as rotation to q and k, making the dot product naturally encode relative distance; alibi (2022) — adds a linear bias to attention scores proportional to distance. these are now dominant in llms. "},{"id":"node_023","lx":550,"ly":1600,"children":[],"template":"gap","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1600,"searchText":"o(n²) attention: quadratic bottleneck for long sequences self-attention computes all $n^2$ pairwise scores per layer. for long documents (n=8192 tokens), memory alone requires $8192^2 \\times \\text{precision} \\approx 256\\text{mb per layer per head}$ — prohibitive for 8 heads × 6 layers. the paper mentions \"restricted self-attention\" (neighborhood of size $r$, reducing to $o(r \\cdot n \\cdot d)$) but does not implement it. this limitation spawned: longformer (local + global attention), bigbird (random + local + global), linformer (low-rank approximation $o(n)$), flashattention (io-aware exact implementation, same o(n²) flops but memory-efficient via tiling). the quadratic wall remains the central challenge for long-context llms. "},{"id":"node_024","lx":550,"ly":1710,"children":[],"template":"claim","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":1710,"searchText":"attention weights as interpretability — and its limits unlike rnn hidden states, attention weights are directly observable $n \\times n$ distributions. appendix a shows heads that appear to track anaphora (head 5, layer 5) or syntactic distance. this interpretability is cited as a side benefit of self-attention. however, jain & wallace (2019) showed that high attention weight does not imply causal importance: one can often replace the top-attended token with another and the output barely changes. this sparked the \"attention is not explanation\" debate. gradient-based attribution methods (lime, shap, integrated gradients) are considered more reliable for causal importance. as side benefit, self-attention could yield more interpretable models... not only do individual attention heads clearly learn to perform different tasks, many appear to exhibit behavior related to the syntactic and semantic structure of the sentences."},{"id":"node_025","lx":550,"ly":1900,"children":[],"template":"method","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":1900,"searchText":"warmup lr schedule: why linear ramp is essential the warmup schedule linearly increases lr from 0 to peak over 4000 steps, then decays as $1/\\sqrt{step}$. early in training, weight matrices $w^q, w^k, w^v, w^o$ are randomly initialized — gradient magnitudes are large and noisy. starting with a high lr causes the loss to diverge before the optimizer can find a stable direction. the 4000-step linear ramp allows the model to establish a coherent loss landscape first. the $d_{\\text{model}}^{-0.5}$ normalization means larger models (bigger $d_{\\text{model}}$) automatically get a smaller peak lr, an implicit form of scale-adaptive learning rate. "},{"id":"node_026","lx":550,"ly":2010,"children":[],"template":"claim","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":2010,"searchText":"label smoothing: hurts perplexity but improves bleu standard cross-entropy trains the model to assign all probability to the correct token (one-hot targets). label smoothing ($\\epsilon_{ls}=0.1$) replaces this with: $y_{smooth} = (1-\\epsilon_{ls}) \\cdot y_{\\text{one-hot}} + \\epsilon_{ls}/v$. the model is penalized for being overconfident, improving calibration. this **hurts perplexity** (cross-entropy on the true token increases because the model is forced to spread probability), but **improves bleu** because calibrated uncertainty leads to better beam search diversity and more accurate translations. this counter-intuitive trade-off ($\\uparrow$ perplexity, $\\uparrow$ bleu) is a recurring theme in generation models. during training, we employed label smoothing of value ε_ls = 0.1. this hurts perplexity, as the model learns to be more unsure, but improves accuracy and bleu score."},{"id":"node_027","lx":550,"ly":2200,"children":[],"template":"result","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":2200,"searchText":"en→de: +2 bleu over all prior ensembles at 3× less compute transformer (big): **28.4 bleu** vs. convs2s ensemble best prior: 26.36. delta: **+2.04 bleu** — a very large improvement in mt. training cost: $2.3 \\times 10^{19}$ flops vs. $7.7 \\times 10^{19}$ for convs2s ensemble (**3.3× cheaper**). even transformer (base): 27.3 bleu at $3.3 \\times 10^{18}$ flops — **23× cheaper** than the convs2s ensemble while still outperforming it. the efficiency-quality combination is arguably the paper's most important contribution. "},{"id":"node_028","lx":550,"ly":2310,"children":[],"template":"result","contentExpanded":false,"isMain":true,"nodeHeight":null,"naturalY":2310,"searchText":"en→fr: 41.8 bleu at 1/6 the cost of prior best single model transformer (big): **41.8 bleu** on wmt 2014 en→fr newstest2014, surpassing all prior single models. training cost: $2.3 \\times 10^{19}$ flops vs. gnmt+rl (prior best single model) at $1.4 \\times 10^{20}$ flops — approximately **6× cheaper**. note: the en→fr big model used $p_{drop}=0.1$ (vs. 0.3 for en→de) — the dropout rate required task-specific tuning, suggesting regularization is not free of language-pair-specific hyperparameter search. "},{"id":"node_029","lx":550,"ly":2420,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":2420,"searchText":"bleu as a proxy: what does it miss? bleu (papineni et al., 2002) measures n-gram overlap (n=1..4) between hypothesis and references, penalizing short outputs. known weaknesses: (1) penalizes valid paraphrases that don't overlap n-grams with references; (2) insensitive to semantic equivalence across different surface forms; (3) corpus-level metric — high bleu can hide sentence-level failures. the paper uses bleu as the *sole* evaluation metric. later work (bertscore, comet, bleurt) showed embedding-based metrics correlate better with human judgment. meta-evaluation studies suggest transformer improvements are *even larger* under semantic metrics than bleu suggests. "},{"id":"node_030","lx":550,"ly":2500,"children":[],"template":"gap","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":2500,"searchText":"impact: transformer as the universal architecture as of 2024, virtually every state-of-the-art model in nlp, vision, audio, protein structure prediction, code generation, and multimodal ai is a transformer variant. key milestones this paper enabled: bert (2018, encoder-only), gpt series (decoder-only), t5 (encoder-decoder at scale), vit (vision), alphafold 2 (protein), whisper (speech), dall-e / stable diffusion (vision-language). the quadratic $o(n^2)$ attention cost is the main ongoing research bottleneck — efficient attention (flashattention, linear attention, mamba/ssm hybrids) remains an active area. "},{"id":"node_031","lx":550,"ly":2610,"children":[],"template":"reference","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":2610,"searchText":"code: tensorflow/tensor2tensor → hugging face original release: github.com/tensorflow/tensor2tensor (tensorflow). was the dominant research codebase 2017–2019. replaced by: mesh tensorflow → trax (google). the ecosystem shift to pytorch meant most practitioners now use hugging face transformers library (2019–present), which provides pretrained weights and training infrastructure. nvidia's megatron-lm and microsoft's deepspeed added model parallelism for billion-parameter scale. the original tensor2tensor code remains historically significant but is rarely used directly. the code we used to train and evaluate our models is available at https://github.com/tensorflow/tensor2tensor."},{"id":"node_032","lx":550,"ly":1070,"children":["node_033","node_034","node_035"],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1070,"searchText":"kv cache: why can k and v be reused but not q? analogy: q = 🔑 (key), k = 🔒 (lock), v = 💎 (treasure)\n\n$$\\text{attention}(q,k,v) = \\text{softmax}\\!\\left(\\frac{qk^t}{\\sqrt{d_k}}\\right)v$$\n\nduring autoregressive decoding, one token is generated at a time. at step $t$:\n- tokens $1 \\ldots t-1$ already have their $k$ and $v$ computed and **do not change**\n- only the new token $t$ needs its $q$ computed\n\nsince the attention score depends on $qk^t$, the score changes whenever $q$ changes — but $k$ and $v$ from past tokens are fixed.\n\n\\> **kv cache**: cache all previous $k$ and $v$; at each new step, compute only the new token's $q$, then attend over the cached $k$ and $v$.\n\nwhy $q$ cannot be cached: each new token queries the entire context from its own perspective — the query is unique to the token being generated. an attention function can be described as mapping a query and a set of key-value pairs to an output, where the query, keys, values, and output are all vectors."},{"id":"node_036","lx":1000,"ly":1200,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1200,"searchText":"d_model vs d_k/d_v: the difference between single-head and multi-head **dimension relationships, summarized**\n\n| | single-head (h=1) | multi-head (h=8) |\n|---|---|---|\n| q, k dim $d_k$ | $d_{\\text{model}}$ (512) | $d_{\\text{model}}/h$ = 64 |\n| v dim $d_v$ | $d_{\\text{model}}$ (512) | $d_{\\text{model}}/h$ = 64 |\n| each head's output | $(n \\times d_{\\text{model}})$ | $(n \\times 64)$ |\n| after concat | — | $(n \\times 8 \\cdot 64) = (n \\times d_{\\text{model}})$ |\n\n**d_k = d_v is not required**\n\nfor $q \\cdot k^t$ to be valid, q and k must have the same dimension, so $d_q = d_k$ is a structural requirement. v, on the other hand, is multiplied by the attention weights $(n \\times m)$, so $d_v$ can be any value:\n\n$$\\underbrace{(n \\times m)}_{\\text{attn weights}} \\times \\underbrace{(m \\times d_v)}_{v} = (n \\times d_v)$$\n\nthe paper's choice of $d_k = d_v = 64$ is **a design simplification**, not a mathematical necessity. some efficient-attention variants use $d_k \\neq d_v$.\n\n**the core intuition of multi-head**\n\n> multi-head attention = computing **several reduced-feature attention maps** in parallel\n\n- single-head: processes the entire $d_{\\text{model}}$ dimension as one attention map → a single perspective\n- multi-head: computes an independent attention map in each of the **reduced subspaces** formed by splitting $d_{\\text{model}}$ into $h$ parts → captures $h$ perspectives at once\n- each head's attention map is $(n \\times n)$ in size, but each looks at a different feature subspace\n\n**the compute cost is the same** (as shown by ablation table 3a):\n$$h=1: n^2 \\times 512, \\quad h=8: 8 \\times n^2 \\times 64 = n^2 \\times 512$$\n\nmulti-head is a choice made for **representational diversity**, not efficiency. "},{"id":"node_033","lx":1050,"ly":930,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":930,"searchText":"multi-layer: what flows between layers is the hidden state, not v what flows between each transformer layer is **the hidden state, not the v vector** $(1 \\times d_{\\text{model}})$.\n\neach layer has **its own independent $w_q, w_k, w_v$** weights. from layer $l$'s input $h^{(l-1)}$:\n\n$$q^{(l)} = h^{(l-1)} w_q^{(l)}, \\quad k^{(l)} = h^{(l-1)} w_k^{(l)}, \\quad v^{(l)} = h^{(l-1)} w_v^{(l)}$$\n\nand layer $l$'s output:\n$$h^{(l)} = \\text{ffn}\\!\\left(\\text{attention}(q^{(l)}, k^{(l)}, v^{(l)})\\right)$$\n\nthis $h^{(l)}$ becomes the **input** to the next layer. v is used only inside that layer and never flows out.\n\n| what flows | description |\n|---|---|\n| hidden state $h^{(l)}$ | ✅ passed between layers |\n| v vector | ❌ used only within that layer | "},{"id":"node_034","lx":1050,"ly":1120,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1120,"searchText":"kv cache = causal masking (why) + caching (implementation) combined kv cache is **a composition of two concepts**.\n\n**① causal masking** → why earlier tokens' representations stay unchanged\n- token $i$ only attends to $1 \\ldots i$ (future is masked)\n- even as later tokens are added, token $i$'s k, v never change\n\n**② kv cache** → an implementation optimization that exploits this invariance\n- store the already-computed k, v in memory\n- reuse the stored k, v when generating a new token → skip recomputation\n\n| concept | role |\n|---|---|\n| causal masking | 'why reuse is valid' — a structural property |\n| kv cache | 'how reuse is actually done' — an implementation optimization |\n\nit's also different from just copy-pasting the full representation of the previous $(n-1)$ tokens — q is discarded, and only the k and v projections are stored. "},{"id":"node_035","lx":1050,"ly":1310,"children":[],"template":"question","contentExpanded":false,"isMain":false,"nodeHeight":null,"naturalY":1310,"searchText":"prefill vs decode: with n input tokens, can the intermediate tokens be skipped? given $n$ tokens as input, can the intermediate tokens $2 \\ldots n-1$ be skipped when predicting the $(n+1)$-th token?\n\n**single-layer: ✅ possible**\n- k, v are just embedding → linear projection, so they can be computed directly for every token\n- only token $n$'s attention output is needed; the intermediate tokens' full output is unnecessary\n\n**multi-layer: ❌ not possible**\n- layer 2's k, v = $w_k^{(2)} \\cdot h^{(1)}$ → requires layer 1's output\n- at layer 2, token $n$ needs to reference tokens $1 \\ldots n-1$'s $k_2, v_2$\n- so layer 1's output must be computed for every token\n\n**prefill** (once, up front): computes 1...n **all at once in parallel** — not skipping, but processing everything together\n**decode** (repeated afterward): only the 1 new token passes through each layer → reuses the k, v cached during prefill "},{"id":"node_099","lx":1500,"ly":100,"children":[],"template":"memo","contentExpanded":true,"isMain":false,"nodeHeight":null,"naturalY":100,"searchText":"[test] pdf search feature test test node for the right-click → search-in-pdf feature. right-clicking the original quote should jump to the abstract (p.1) of 1706.03762v7.pdf and highlight the sentence below. safe to delete once verified. the dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder."}];
 var EDGES = [{"source":"node_001","target":"node_002","type":"arrow","label":""},{"source":"node_002","target":"node_003","type":"arrow","label":""},{"source":"node_003","target":"node_004","type":"arrow","label":""},{"source":"node_004","target":"node_005","type":"arrow","label":""},{"source":"node_005","target":"node_006","type":"arrow","label":""},{"source":"node_006","target":"node_007","type":"arrow","label":""},{"source":"node_007","target":"node_008","type":"arrow","label":""},{"source":"node_008","target":"node_009","type":"arrow","label":""},{"source":"node_001","target":"node_010","type":"line","label":""},{"source":"node_001","target":"node_011","type":"line","label":""},{"source":"node_002","target":"node_012","type":"line","label":""},{"source":"node_002","target":"node_013","type":"line","label":""},{"source":"node_002","target":"node_014","type":"line","label":""},{"source":"node_003","target":"node_015","type":"line","label":""},{"source":"node_003","target":"node_016","type":"line","label":""},{"source":"node_003","target":"node_017","type":"line","label":""},{"source":"node_004","target":"node_018","type":"line","label":""},{"source":"node_004","target":"node_019","type":"line","label":""},{"source":"node_004","target":"node_020","type":"line","label":""},{"source":"node_005","target":"node_021","type":"line","label":""},{"source":"node_005","target":"node_022","type":"line","label":""},{"source":"node_006","target":"node_023","type":"line","label":""},{"source":"node_006","target":"node_024","type":"line","label":""},{"source":"node_007","target":"node_025","type":"line","label":""},{"source":"node_007","target":"node_026","type":"line","label":""},{"source":"node_008","target":"node_027","type":"line","label":""},{"source":"node_008","target":"node_028","type":"line","label":""},{"source":"node_008","target":"node_029","type":"line","label":""},{"source":"node_009","target":"node_030","type":"line","label":""},{"source":"node_009","target":"node_031","type":"line","label":""},{"source":"node_003","target":"node_032","type":"line","label":""},{"source":"node_032","target":"node_033","type":"line","label":""},{"source":"node_032","target":"node_034","type":"line","label":""},{"source":"node_032","target":"node_035","type":"line","label":""},{"source":"node_004","target":"node_036","type":"line","label":""}];
+var NODE_TEMPLATES = {"main_topic":"Main topic","method":"Method","result":"Result","claim":"Claim","question":"Question","reference":"Ext. reference","gap":"Gap / Idea","memo":"Memo"};
 var HEADER_H = 36;
+
+// Collapse/Expand 라벨 필터 드롭다운 채우기 (에디터의 라벨 필터와 동일한 옵션/동작)
+(function populateFilterSelect() {
+  var sel = document.getElementById('tb-filter');
+  var noneOpt = document.createElement('option');
+  noneOpt.value = ''; noneOpt.textContent = 'None';
+  sel.appendChild(noneOpt);
+  Object.keys(NODE_TEMPLATES).forEach(function(key) {
+    var opt = document.createElement('option');
+    opt.value = key; opt.textContent = NODE_TEMPLATES[key];
+    sel.appendChild(opt);
+  });
+})();
 
 var vp = document.getElementById('viewport');
 var canvas = document.getElementById('canvas');
 
 // Set viewport top to match actual toolbar height
-(function() {
+function syncViewportTop() {
   var tb = document.getElementById('toolbar');
   vp.style.top = tb.offsetHeight + 'px';
-})();
+}
+syncViewportTop();
 var tx = 0, ty = 0, scale = 1;
 
 function applyTransform() {
   canvas.style.transform = 'translate('+tx+'px,'+ty+'px) scale('+scale+')';
 }
+
+// 창 크기 변경: 화면 중앙에 보이던 지점을 중앙에 유지하면서,
+// 창 너비 비율만큼 스케일도 함께 조정 (줄이면 축소, 다시 키우면 확대 — 대칭 동작)
+var lastVW = 0, lastVH = 0;
+(function() {
+  var r = vp.getBoundingClientRect();
+  lastVW = r.width; lastVH = r.height;
+})();
+window.addEventListener('resize', function() {
+  syncViewportTop();
+  var r = vp.getBoundingClientRect();
+  if (lastVW > 0 && r.width > 0) {
+    var cxw = (lastVW / 2 - tx) / scale;   // 기존 중앙의 월드 좌표
+    var cyw = (lastVH / 2 - ty) / scale;
+    scale = Math.max(0.1, Math.min(4, scale * (r.width / lastVW)));
+    tx = r.width / 2 - cxw * scale;
+    ty = r.height / 2 - cyw * scale;
+    applyTransform();
+  }
+  lastVW = r.width; lastVH = r.height;
+});
 
 // Zoom
 vp.addEventListener('wheel', function(e) {
@@ -445,6 +508,8 @@ window.addEventListener('mouseup', function() {
 
 // Node selection
 var selectedNodeId = null;
+// 세대 하이라이트의 루트(pin): 배경 클릭으로 선택이 풀려도 유지, Esc로만 해제
+var genRootId = null;
 function selectNode(nodeId) {
   if (selectedNodeId) {
     var prev = document.getElementById('node-' + selectedNodeId);
@@ -460,6 +525,41 @@ function selectNode(nodeId) {
   } else {
     if (label) { label.textContent = 'Click a node to select'; label.style.opacity = '0.35'; }
   }
+  // 하이라이트 루트는 tag 클릭(onNodeTagMousedown)에서만 갱신 — 일반 클릭/fold는
+  // 하이라이트를 바꾸지 않음. 선택 스타일 우선 규칙만 재적용 (wire 색은 불변)
+  updateGenHighlight();
+}
+
+// 선택 노드의 한 세대(부모+자식) 이웃 ID 수집 — edges 양방향 + children 배열
+function getGenNeighbors(nodeId) {
+  var ids = [];
+  EDGES.forEach(function(e) {
+    if (e.source === nodeId && ids.indexOf(e.target) === -1) ids.push(e.target);
+    if (e.target === nodeId && ids.indexOf(e.source) === -1) ids.push(e.source);
+  });
+  NODES_DATA.forEach(function(n) {
+    if (n.id === nodeId) {
+      (n.children || []).forEach(function(c) { if (ids.indexOf(c) === -1) ids.push(c); });
+    } else if ((n.children || []).indexOf(nodeId) !== -1 && ids.indexOf(n.id) === -1) {
+      ids.push(n.id);
+    }
+  });
+  var self = ids.indexOf(nodeId);
+  if (self !== -1) ids.splice(self, 1);
+  return ids;
+}
+
+// 고정된 루트와 그 이웃 노드들에 빨간 테두리 적용 (wire 색은 drawEdges에서 처리)
+// 루트 자신도 빨간색 — 선택 상태여도 하이라이트가 우선 (에디터와 동일)
+function updateGenHighlight() {
+  document.querySelectorAll('.ng-gen').forEach(function(el) { el.classList.remove('ng-gen'); });
+  if (!genRootId) return;
+  var ids = getGenNeighbors(genRootId);
+  ids.push(genRootId);
+  ids.forEach(function(id) {
+    var el = document.getElementById('node-' + id);
+    if (el) el.classList.add('ng-gen');
+  });
 }
 
 // Header click = select node
@@ -479,6 +579,7 @@ function onTitleClick(e, titleEl) {
   if (!body) return;
   var expanding = body.style.display === 'none';
   body.style.display = expanding ? '' : 'none';
+  syncMinHeight(nodeEl, expanding);
   var nodeId = nodeEl.id.replace('node-', '');
   for (var i = 0; i < NODES_DATA.length; i++) {
     if (NODES_DATA[i].id === nodeId) { NODES_DATA[i].contentExpanded = expanding; break; }
@@ -544,6 +645,12 @@ function getExpandDescendants(nodeId, isRoot, visited) {
 }
 
 // Apply expand/collapse to a list of node IDs
+// 접힘/펼침 시 min-height 동기화 — 접힌 노드가 수동 리사이즈 높이로 남는 버그 방지
+function syncMinHeight(el, expand) {
+  var minH = el.getAttribute('data-min-h');
+  el.style.minHeight = (expand && minH) ? minH + 'px' : '';
+}
+
 function applyFold(nodeIds, expand) {
   nodeIds.forEach(function(id) {
     var el = document.getElementById('node-' + id);
@@ -552,6 +659,7 @@ function applyFold(nodeIds, expand) {
     var chevron = el.querySelector('.ng-chevron');
     if (body) body.style.display = expand ? '' : 'none';
     if (chevron) chevron.textContent = expand ? '▲' : '▼';
+    syncMinHeight(el, expand);
     for (var i = 0; i < NODES_DATA.length; i++) {
       if (NODES_DATA[i].id === id) { NODES_DATA[i].contentExpanded = expand; break; }
     }
@@ -566,7 +674,17 @@ canvas.addEventListener('toggle', function() {
 }, true);
 
 // Toolbar: context-aware expand/collapse
+// 라벨 필터: None이면 기존 동작 그대로. 특정 타입이면 Collapse는 항상 전체 접음,
+// Expand는 그 타입 노드만 펼치고 나머지는 강제로 접음 (부모/자식 관계 무시, 에디터와 동일 규칙)
 function doExpand() {
+  var filter = document.getElementById('tb-filter').value;
+  if (filter) {
+    var matching = [], rest = [];
+    NODES_DATA.forEach(function(n) { (n.template === filter ? matching : rest).push(n.id); });
+    applyFold(rest, false);
+    applyFold(matching, true);
+    return;
+  }
   if (selectedNodeId) {
     applyFold(getExpandDescendants(selectedNodeId, true), true);
   } else {
@@ -580,6 +698,11 @@ function doExpand() {
   }
 }
 function doCollapse() {
+  var filter = document.getElementById('tb-filter').value;
+  if (filter) {
+    applyFold(NODES_DATA.map(function(n){return n.id;}), false);
+    return;
+  }
   if (selectedNodeId) {
     applyFold([selectedNodeId].concat(getAllDescendants(selectedNodeId)), false);
   } else {
@@ -600,150 +723,163 @@ function onNodeTagMousedown(e, nodeEl) {
   for (var i = 0; i < NODES_DATA.length; i++) {
     if (NODES_DATA[i].id === nodeId) { nodeDatum = NODES_DATA[i]; break; }
   }
+  // tag 클릭 = 세대 하이라이트 pin (배치 불변 → A* 캐시 재사용, 색만 즉시 갱신)
+  genRootId = nodeId;
+  updateGenHighlight();
+  drawEdges();
   function onMove(ev) {
     var rawDx = ev.clientX - x0, rawDy = ev.clientY - y0;
     if (!moved && (Math.abs(rawDx) > 5 || Math.abs(rawDy) > 5)) { moved = true; nodeEl.classList.add('ng-dragging'); }
     if (moved) {
       var dx = rawDx / scale, dy = rawDy / scale;
-      nodeEl.style.left=(left0+dx)+'px'; nodeEl.style.top=(top0+dy)+'px'; finalDX=dx; finalDY=dy; drawEdges();
+      nodeEl.style.left=(left0+dx)+'px'; nodeEl.style.top=(top0+dy)+'px'; finalDX=dx; finalDY=dy; drawEdges(true);
     }
   }
   function onUp() {
     window.removeEventListener('mousemove', onMove);
     window.removeEventListener('mouseup', onUp);
     nodeEl.classList.remove('ng-dragging');
-    if (moved) { lastWasDrag = true; if (nodeDatum) { nodeDatum.lx += finalDX; nodeDatum.ly += finalDY; nodeDatum.naturalY = nodeDatum.ly; } setTimeout(recomputePositions, 0); }
+    // 드롭된 렌더 좌표를 그대로 저장 — 밀려있던 노드에 delta를 더하면 드롭 위치와 어긋남
+    if (moved) { lastWasDrag = true; if (nodeDatum) { nodeDatum.lx = left0 + finalDX; nodeDatum.ly = top0 + finalDY; nodeDatum.naturalY = nodeDatum.ly; } setTimeout(recomputePositions, 0); }
   }
   window.addEventListener('mousemove', onMove);
   window.addEventListener('mouseup', onUp);
 }
 
 function recomputePositions() {
-  var childToParent = {};
-  NODES_DATA.forEach(function(n) {
-    (n.children || []).forEach(function(childId) { childToParent[childId] = n.id; });
-  });
-  function getRootId(id) {
-    var cur = id;
-    while (childToParent[cur]) cur = childToParent[cur];
-    return cur;
+  // Canvas.tsx의 computeRenderPositions와 동일한 알고리즘 (vanilla JS 버전)
+  // main/sub 구분 없이 X 컬럼 단위로 묶어 그리디 패킹 → unfold 시 push-down, fold 시 pull-up
+
+  var nodeMap = {};
+  NODES_DATA.forEach(function(n) { nodeMap[n.id] = n; });
+
+  function getH(n) {
+    var el = document.getElementById('node-' + n.id);
+    if (el) return el.offsetHeight;
+    // DOM 미존재 fallback: 접힌 노드는 항상 헤더 높이
+    return n.contentExpanded ? (n.nodeHeight || HEADER_H) : HEADER_H;
   }
-  function isDescendantOf(descendant, ancestor) {
-    var cur = descendant;
-    while (childToParent[cur]) { cur = childToParent[cur]; if (cur === ancestor) return true; }
-    return false;
+  function getW(n) {
+    var el = document.getElementById('node-' + n.id);
+    return el ? el.offsetWidth : (n.nodeWidth || 432);
   }
-  function isDirectedConnected(sourceId, targetId) {
-    return EDGES.some(function(e) { return e.source === sourceId && e.target === targetId; });
-  }
-
-  var sorted = NODES_DATA.slice().sort(function(a, b) {
-    if (a.ly !== b.ly) return a.ly - b.ly;
-    return a.lx - b.lx;
-  });
-  var renderY = {};
-  var MAX_ITER = 8;
-
-  for (var iter = 0; iter < MAX_ITER; iter++) {
-    var prevSnapshot = {};
-    NODES_DATA.forEach(function(n) { prevSnapshot[n.id] = renderY[n.id] !== undefined ? renderY[n.id] : n.ly; });
-
-    // Pass 1: Y-overlap push-down
-    sorted.forEach(function(node) {
-      var nEl = document.getElementById('node-' + node.id);
-      var nodeW = nEl ? nEl.offsetWidth : (node.nodeWidth || 300);
-      var y = node.ly;
-
-      sorted.forEach(function(other) {
-        if (other.id === node.id) return;
-        if (other.ly > node.ly) return;
-        if (other.ly === node.ly && other.lx >= node.lx) return;
-
-        var otherEl = document.getElementById('node-' + other.id);
-        var otherW = otherEl ? otherEl.offsetWidth : (other.nodeWidth || 300);
-        var otherY = renderY[other.id] !== undefined ? renderY[other.id] : other.ly;
-        var otherH = otherEl ? otherEl.offsetHeight : HEADER_H;
-        var otherBottom = otherY + otherH;
-        if (otherBottom <= y) return;
-
-        if (node.isMain && other.isMain) {
-          // Main→Main: X 범위가 겹칠 때만 밀어냄 (다른 컬럼 cascade 방지)
-          if (!(node.lx < other.lx + otherW && other.lx < node.lx + nodeW)) return;
-          var naturalBottom = other.ly + (other.nodeHeight || HEADER_H);
-          var delta = (otherY + otherH) - naturalBottom;
-          var nodeNaturalY = node.naturalY !== undefined ? node.naturalY : node.ly;
-          y = Math.max(y, nodeNaturalY + delta, otherBottom + 20);
-        } else {
-          // 방향 엣지 연결이면 X overlap 없어도 밀어냄
-          var connected = isDirectedConnected(other.id, node.id);
-          if (!connected && !(node.lx < other.lx + otherW && other.lx < node.lx + nodeW)) return;
-          if (node.isMain) {
-            if (isDescendantOf(other.id, node.id) && otherBottom <= node.ly) return;
-            y = Math.max(y, otherBottom + 48);
-          } else {
-            var isSameRoot = getRootId(other.id) === getRootId(node.id);
-            y = Math.max(y, otherBottom + (isSameRoot ? 30 : 48));
-          }
-        }
-      });
-      renderY[node.id] = y;
+  function isConn(aId, bId) {
+    var a = nodeMap[aId], b = nodeMap[bId];
+    if (!a || !b) return false;
+    if ((a.children && a.children.indexOf(bId) !== -1) || (b.children && b.children.indexOf(aId) !== -1)) return true;
+    return EDGES.some(function(e) {
+      return (e.source === aId && e.target === bId) || (e.source === bId && e.target === aId);
     });
+  }
 
-    // Pass 2: 서브노드가 부모 main의 push delta만큼 따라 내려감
-    NODES_DATA.forEach(function(node) {
-      if (node.isMain) return;
-      var parentMain = null;
-      var bestDist = Infinity;
-      NODES_DATA.forEach(function(m) {
-        if (!m.isMain) return;
-        var connected = (m.children && m.children.indexOf(node.id) !== -1) ||
-          EDGES.some(function(e) {
-            return (e.source === m.id && e.target === node.id) || (e.target === m.id && e.source === node.id);
-          });
-        if (connected) {
-          var dist = Math.abs(m.ly - node.ly);
-          if (dist < bestDist) { bestDist = dist; parentMain = m; }
-        }
-      });
-      if (parentMain) {
-        var parentPush = (renderY[parentMain.id] !== undefined ? renderY[parentMain.id] : parentMain.ly) - parentMain.ly;
-        if (parentPush > 0) {
-          var cur = renderY[node.id] !== undefined ? renderY[node.id] : node.ly;
-          renderY[node.id] = Math.max(cur, node.ly + parentPush);
-        }
+  // union-find: X 범위가 겹치는 노드끼리 같은 컬럼으로 묶기
+  var par = {};
+  NODES_DATA.forEach(function(n) { par[n.id] = n.id; });
+  function find(id) { if (par[id] !== id) par[id] = find(par[id]); return par[id]; }
+  for (var i = 0; i < NODES_DATA.length; i++) {
+    for (var j = i + 1; j < NODES_DATA.length; j++) {
+      var a = NODES_DATA[i], b = NODES_DATA[j];
+      if (a.lx < b.lx + getW(b) && b.lx < a.lx + getW(a)) {
+        var ra = find(a.id), rb = find(b.id);
+        if (ra !== rb) par[ra] = rb;
+      }
+    }
+  }
+  var colMap = {};
+  NODES_DATA.forEach(function(n) {
+    var root = find(n.id);
+    if (!colMap[root]) colMap[root] = [];
+    colMap[root].push(n);
+  });
+
+  // 컬럼을 min X 오름차순(왼→오)으로 정렬
+  var columns = Object.keys(colMap).map(function(k) { return colMap[k]; }).sort(function(a, b) {
+    var minXA = Math.min.apply(null, a.map(function(n) { return n.lx; }));
+    var minXB = Math.min.apply(null, b.map(function(n) { return n.lx; }));
+    return minXA - minXB;
+  });
+
+  var renderY = {};
+
+  // 이미 팩킹된 왼쪽 컬럼의 연결 노드 기준으로 effectiveOriginY 계산
+  function getEffY(node) {
+    var effY = node.ly;
+    NODES_DATA.forEach(function(other) {
+      if (renderY[other.id] === undefined) return;
+      if (!isConn(node.id, other.id)) return;
+      var otherRY = renderY[other.id];
+      var otherH = getH(other);
+      var otherBottom = otherRY + otherH;
+      var otherPush = Math.max(0, otherRY - other.ly);
+      if (otherH > HEADER_H && otherBottom > node.ly) {
+        // 확장된 노드가 이 노드 위치를 덮음 → bottom 아래로 (펼침 여백 48px)
+        effY = Math.max(effY, otherBottom + 48);
+      } else {
+        // 접힌 상태: Y 이동 delta만 전파
+        effY = Math.max(effY, node.ly + otherPush);
       }
     });
-
-    // 수렴 확인
-    var converged = NODES_DATA.every(function(n) {
-      var cur = renderY[n.id] !== undefined ? renderY[n.id] : n.ly;
-      var prev = prevSnapshot[n.id] !== undefined ? prevSnapshot[n.id] : n.ly;
-      return cur === prev;
-    });
-    if (converged) break;
+    return effY;
   }
 
-  // Pass 3: line 엣지 버스 그룹 Y 정규화 (gap 30px, 에디터와 동일)
+  // 컬럼별 그리디 패킹 (왼→오)
+  columns.forEach(function(col) {
+    // effectiveOriginY를 팩킹 전에 모두 계산 (팩킹 중 renderY 변경 영향 차단)
+    var effYMap = {};
+    col.forEach(function(n) { effYMap[n.id] = getEffY(n); });
+
+    // effectiveOriginY 오름차순 정렬, 동률이면 originalY 기준
+    col.sort(function(a, b) {
+      var ea = effYMap[a.id], eb = effYMap[b.id];
+      return ea !== eb ? ea - eb : a.ly - b.ly;
+    });
+
+    // gap 규칙은 실제 X범위가 겹치는(pairwise) 노드끼리만 적용
+    // — 체인으로만 같은 컬럼에 묶인 먼 노드가 밀어내지 않도록
+    // 적응형 gap: 둘 다 접힘 → 촘촘(20/30), 한쪽이라도 펼침 → 48px (가독성)
+    var placed = [];
+    col.forEach(function(node) {
+      var h = getH(node);
+      var baseGap = node.isMain ? 20 : 30;
+      var y = effYMap[node.id];
+      var moved = true;
+      while (moved) {
+        moved = false;
+        for (var pi = 0; pi < placed.length; pi++) {
+          var p = placed[pi];
+          var overlapX = node.lx < p.node.lx + getW(p.node) && p.node.lx < node.lx + getW(node);
+          if (!overlapX) continue;
+          var gap = (h > HEADER_H || p.h > HEADER_H) ? 48 : baseGap;
+          if (y < p.y + p.h + gap && y + h + gap > p.y) {
+            y = p.y + p.h + gap;
+            moved = true;
+          }
+        }
+      }
+      renderY[node.id] = y;
+      placed.push({ node: node, y: y, h: h });
+    });
+  });
+
+  // Pass 3: line 엣지 버스 그룹 Y 정규화 (gap 30px)
   var lineBySource = {};
   EDGES.forEach(function(e) {
     if (e.type !== 'line') return;
     if (!lineBySource[e.source]) lineBySource[e.source] = [];
     lineBySource[e.source].push(e.target);
   });
-  var ndMap = {};
-  NODES_DATA.forEach(function(n) { ndMap[n.id] = n; });
   Object.keys(lineBySource).forEach(function(srcId) {
-    var targetIds = lineBySource[srcId].filter(function(id) { return ndMap[id]; });
+    var targetIds = lineBySource[srcId].filter(function(id) { return nodeMap[id]; });
     if (targetIds.length < 2) return;
     var xGroups = [];
     targetIds.forEach(function(id) {
       var el = document.getElementById('node-' + id);
-      var nx = ndMap[id].lx; var nw = el ? el.offsetWidth : 300;
+      var nx = nodeMap[id].lx; var nw = el ? el.offsetWidth : 300;
       var placed = false;
       for (var gi = 0; gi < xGroups.length; gi++) {
         var firstId = xGroups[gi][0];
         var fEl = document.getElementById('node-' + firstId);
-        var fx = ndMap[firstId].lx; var fw = fEl ? fEl.offsetWidth : 300;
+        var fx = nodeMap[firstId].lx; var fw = fEl ? fEl.offsetWidth : 300;
         if (nx < fx + fw && fx < nx + nw) { xGroups[gi].push(id); placed = true; break; }
       }
       if (!placed) xGroups.push([id]);
@@ -752,7 +888,7 @@ function recomputePositions() {
       if (grp.length < 2) return;
       var grpSorted = grp.map(function(id) {
         var el = document.getElementById('node-' + id);
-        return { id: id, y: renderY[id] !== undefined ? renderY[id] : ndMap[id].ly, h: el ? el.offsetHeight : HEADER_H };
+        return { id: id, y: renderY[id] !== undefined ? renderY[id] : nodeMap[id].ly, h: el ? el.offsetHeight : HEADER_H };
       }).sort(function(a, b) { return a.y - b.y; });
       for (var i = 1; i < grpSorted.length; i++) {
         var minY = grpSorted[i-1].y + grpSorted[i-1].h + 30;
@@ -763,16 +899,55 @@ function recomputePositions() {
     });
   });
 
+  // Pass 4: 가로 간격 확보 — 노드 단위 X-패킹 (Y-패킹을 90° 회전한 그리디)
+  // 세로로 겹치는 두 노드가 가로로 H_GAP 이내로 붙으면 오른쪽 노드를 밀어냄
+  var H_GAP = 60;
+  var renderX = {};
+  var byX = NODES_DATA.slice().sort(function(a, b) { return a.lx - b.lx; });
+  byX.forEach(function(node) {
+    var ny = renderY[node.id] !== undefined ? renderY[node.id] : node.ly;
+    var nH = getH(node);
+    var nW = getW(node);
+    var x = node.lx;
+    var moved = true;
+    while (moved) {
+      moved = false;
+      for (var oi = 0; oi < byX.length; oi++) {
+        var other = byX[oi];
+        var ox = renderX[other.id];  // 이미 배치된(왼쪽부터 처리) 노드만 존재
+        if (ox === undefined || other.id === node.id) continue;
+        var oy = renderY[other.id] !== undefined ? renderY[other.id] : other.ly;
+        if (!(ny < oy + getH(other) && oy < ny + nH)) continue;
+        if (x < ox + getW(other) + H_GAP && ox < x + nW + H_GAP) {
+          x = ox + getW(other) + H_GAP;
+          moved = true;
+        }
+      }
+    }
+    renderX[node.id] = x;
+  });
+
   NODES_DATA.forEach(function(n) {
     var el = document.getElementById('node-' + n.id);
     if (!el) return;
-    el.style.left = n.lx + 'px';
+    el.style.left = (renderX[n.id] !== undefined ? renderX[n.id] : n.lx) + 'px';
     el.style.top = (renderY[n.id] !== undefined ? renderY[n.id] : n.ly) + 'px';
   });
-  drawEdges();
+  // 배치가 바뀌었으므로 A* 캐시 무효화 — 즉시 경량으로 그리고 잠잠해지면 정밀화
+  routesDirty=true;
+  drawEdges(true);
+  scheduleEdgeRefine();
 }
 
 // Edge drawing
+// A* 라우팅 캐시: 노드 배치가 바뀔 때만(routesDirty) 재계산 — 색상 변경 등은 재사용
+var cachedRoutes=null, routesDirty=true;
+var edgeRefineTimer=null;
+// fold/드롭 직후: 경량 휴리스틱으로 즉시 그린 뒤 150ms 후 A* 정밀 경로로 교체
+function scheduleEdgeRefine(){
+  if(edgeRefineTimer) clearTimeout(edgeRefineTimer);
+  edgeRefineTimer=setTimeout(function(){edgeRefineTimer=null;drawEdges();},150);
+}
 function getNodeRect(el) {
   var x = parseFloat(el.style.left)||0, y = parseFloat(el.style.top)||0;
   return { x:x, y:y, w:el.offsetWidth, h:el.offsetHeight, cx:x+el.offsetWidth*.5, cy:y+el.offsetHeight*.5 };
@@ -785,9 +960,196 @@ function getBestPorts(sr, tr) {
   return best;
 }
 var DIR={right:[1,0],left:[-1,0],bottom:[0,1],top:[0,-1]};
+
+// ── 장애물 회피 라우팅 (에디터 wireGeometry.getRoutedPath와 동일 알고리즘) ──
+// 선분이 (pad만큼 부풀린) 사각형과 교차하면 진입 t(0~1), 아니면 null (Liang-Barsky)
+function segRectT(x1,y1,x2,y2,r,pad){
+  var rx=r.x-pad,ry=r.y-pad,rw=r.w+pad*2,rh=r.h+pad*2;
+  var dx=x2-x1,dy=y2-y1,t0=0,t1=1;
+  var p=[-dx,dx,-dy,dy],q=[x1-rx,rx+rw-x1,y1-ry,ry+rh-y1];
+  for(var i=0;i<4;i++){
+    if(p[i]===0){if(q[i]<0)return null;}
+    else{var t=q[i]/p[i];
+      if(p[i]<0){if(t>t1)return null;if(t>t0)t0=t;}
+      else{if(t<t0)return null;if(t<t1)t1=t;}}
+  }
+  return t0;
+}
+function dlen(a,b){return Math.hypot(b.x-a.x,b.y-a.y);}
+// src→tgt 직선이 노드를 관통하면 위/아래(또는 좌/우) 짧은 쪽으로 우회 경유점 삽입
+function routeAround(src,tgt,obstacles){
+  var PAD=10,CLEAR=34;
+  var pts=[src,tgt],guard=0,i=0;
+  while(i<pts.length-1&&guard<16&&pts.length<8){
+    guard++;
+    var a=pts[i],b=pts[i+1],hit=null,hitT=Infinity;
+    for(var oi=0;oi<obstacles.length;oi++){
+      var t=segRectT(a.x,a.y,b.x,b.y,obstacles[oi],PAD);
+      if(t!==null&&t<hitT){hitT=t;hit=obstacles[oi];}
+    }
+    if(!hit){i++;continue;}
+    var horiz=Math.abs(b.x-a.x)>=Math.abs(b.y-a.y),w;
+    if(horiz){
+      var top={x:hit.x+hit.w/2,y:hit.y-CLEAR},bot={x:hit.x+hit.w/2,y:hit.y+hit.h+CLEAR};
+      w=dlen(a,top)+dlen(top,b)<=dlen(a,bot)+dlen(bot,b)?top:bot;
+    }else{
+      var lft={x:hit.x-CLEAR,y:hit.y+hit.h/2},rgt={x:hit.x+hit.w+CLEAR,y:hit.y+hit.h/2};
+      w=dlen(a,lft)+dlen(lft,b)<=dlen(a,rgt)+dlen(rgt,b)?lft:rgt;
+    }
+    var dup=pts.some(function(p){return Math.abs(p.x-w.x)<1&&Math.abs(p.y-w.y)<1;});
+    if(dup){i++;continue;}
+    pts.splice(i+1,0,w);
+    // i 유지 → a→w 세그먼트 재검사
+  }
+  return pts;
+}
+// 경유점 폴리라인 → 부드러운 path (경유점 = Q 제어점, 다음 경유점과의 중점 연결)
+function ptsToPath(P){
+  if(P.length<2) return '';
+  if(P.length===2) return 'M'+P[0].x+','+P[0].y+' L'+P[1].x+','+P[1].y;
+  var d='M'+P[0].x+','+P[0].y;
+  for(var k=1;k<P.length-1;k++){
+    var ex,ey;
+    if(k<P.length-2){ex=(P[k].x+P[k+1].x)/2;ey=(P[k].y+P[k+1].y)/2;}
+    else{ex=P[P.length-1].x;ey=P[P.length-1].y;}
+    d+=' Q'+P[k].x+','+P[k].y+' '+ex+','+ey;
+  }
+  return d;
+}
+// 폴리라인 중간 경유점들을 법선 방향으로 spread만큼 이동 (평행 엣지 분산)
+function spreadPts(pts,spread){
+  if(!spread||pts.length<3) return pts;
+  var s=pts[0],t=pts[pts.length-1];
+  var dl=dlen(s,t)||1;
+  var nx=-(t.y-s.y)/dl,ny=(t.x-s.x)/dl;
+  var mid=pts.slice(1,-1).map(function(p){return{x:p.x+nx*spread,y:p.y+ny*spread};});
+  return [s].concat(mid,[t]);
+}
+// ── 그리드 A* 전역 라우팅 (에디터 wireGeometry.routeEdgesOnGrid와 동일 알고리즘) ──
+// 셀 비용: 노드 내부 200(불가피하면 통과 가능), 노드 주변 밴드 3(거리 유지),
+// 이미 확정된 선이 지나간 셀 +4(선끼리 분산 — 빈 공간이 있으면 그쪽으로 우회)
+function routeEdgesGrid(reqs,rects){
+  var out={};
+  if(!reqs.length) return out;
+  var NEAR=3,INSIDE=200,USE=4,TURN=0.2;
+  var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  rects.forEach(function(o){var r=o.rect;
+    minX=Math.min(minX,r.x);minY=Math.min(minY,r.y);
+    maxX=Math.max(maxX,r.x+r.w);maxY=Math.max(maxY,r.y+r.h);});
+  reqs.forEach(function(r){
+    minX=Math.min(minX,r.src.x,r.tgt.x);minY=Math.min(minY,r.src.y,r.tgt.y);
+    maxX=Math.max(maxX,r.src.x,r.tgt.x);maxY=Math.max(maxY,r.src.y,r.tgt.y);});
+  minX-=80;minY-=80;maxX+=80;maxY+=80;
+  var cell=24;
+  while(((maxX-minX)/cell)*((maxY-minY)/cell)>150000) cell*=2;
+  var gw=Math.max(2,Math.ceil((maxX-minX)/cell));
+  var gh=Math.max(2,Math.ceil((maxY-minY)/cell));
+  var N=gw*gh;
+  function cellX(x){return Math.min(gw-1,Math.max(0,Math.floor((x-minX)/cell)));}
+  function cellY(y){return Math.min(gh-1,Math.max(0,Math.floor((y-minY)/cell)));}
+  var baseCost=new Float64Array(N);
+  rects.forEach(function(o){var r=o.rect;
+    var ox0=cellX(r.x-cell),ox1=cellX(r.x+r.w+cell);
+    var oy0=cellY(r.y-cell),oy1=cellY(r.y+r.h+cell);
+    var ix0=cellX(r.x),ix1=cellX(r.x+r.w),iy0=cellY(r.y),iy1=cellY(r.y+r.h);
+    for(var gy=oy0;gy<=oy1;gy++)for(var gx=ox0;gx<=ox1;gx++){
+      var inside=gx>=ix0&&gx<=ix1&&gy>=iy0&&gy<=iy1;
+      baseCost[gy*gw+gx]+=inside?INSIDE:NEAR;
+    }});
+  var useCost=new Float64Array(N),gScore=new Float64Array(N);
+  var stampArr=new Int32Array(N),fromArr=new Int32Array(N),dirArr=new Int8Array(N);
+  var stamp=0;
+  var DIRS8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+  var STEP8=[1,1,1,1,Math.SQRT2,Math.SQRT2,Math.SQRT2,Math.SQRT2];
+  // 짧은 엣지부터 (동률이면 srcId/tgtId 사전순 — 에디터와 결과 일치 보장)
+  var order=reqs.slice().sort(function(a,b){
+    return (dlen(a.src,a.tgt)-dlen(b.src,b.tgt))||
+      (a.srcId<b.srcId?-1:a.srcId>b.srcId?1:0)||
+      (a.tgtId<b.tgtId?-1:a.tgtId>b.tgtId?1:0);});
+  order.forEach(function(req){
+    var sIdx=cellY(req.src.y)*gw+cellX(req.src.x);
+    var tIdx=cellY(req.tgt.y)*gw+cellX(req.tgt.x);
+    if(sIdx===tIdx){out[req.key]=[req.src,req.tgt];return;}
+    stamp++;
+    var heapF=[],heapI=[];
+    function hpush(f,idx){
+      var i=heapF.length;heapF.push(f);heapI.push(idx);
+      while(i>0){var p=(i-1)>>1;
+        if(heapF[p]<=heapF[i])break;
+        var tf=heapF[p];heapF[p]=heapF[i];heapF[i]=tf;
+        var ti=heapI[p];heapI[p]=heapI[i];heapI[i]=ti;i=p;}
+    }
+    function hpop(){
+      var top=heapI[0];var lf=heapF.pop(),li=heapI.pop();
+      if(heapF.length){heapF[0]=lf;heapI[0]=li;var i=0;
+        for(;;){var l=i*2+1,r=l+1,m=i;
+          if(l<heapF.length&&heapF[l]<heapF[m])m=l;
+          if(r<heapF.length&&heapF[r]<heapF[m])m=r;
+          if(m===i)break;
+          var tf=heapF[m];heapF[m]=heapF[i];heapF[i]=tf;
+          var ti=heapI[m];heapI[m]=heapI[i];heapI[i]=ti;i=m;}}
+      return top;
+    }
+    var tgx=tIdx%gw,tgy=(tIdx/gw)|0;
+    function hDist(idx){return Math.hypot((idx%gw)-tgx,((idx/gw)|0)-tgy);}
+    gScore[sIdx]=0;stampArr[sIdx]=stamp;fromArr[sIdx]=-1;dirArr[sIdx]=-1;
+    hpush(hDist(sIdx),sIdx);
+    var found=false,iter=0;
+    while(heapF.length&&iter<60000){
+      iter++;
+      var cur=hpop();
+      if(cur===tIdx){found=true;break;}
+      var cgx=cur%gw,cgy=(cur/gw)|0,cg=gScore[cur],cd=dirArr[cur];
+      for(var di=0;di<8;di++){
+        var ngx=cgx+DIRS8[di][0],ngy=cgy+DIRS8[di][1];
+        if(ngx<0||ngy<0||ngx>=gw||ngy>=gh)continue;
+        var nIdx=ngy*gw+ngx;
+        var ng=cg+STEP8[di]+baseCost[nIdx]+useCost[nIdx]+(cd!==-1&&cd!==di?TURN:0);
+        if(stampArr[nIdx]===stamp&&gScore[nIdx]<=ng)continue;
+        stampArr[nIdx]=stamp;gScore[nIdx]=ng;fromArr[nIdx]=cur;dirArr[nIdx]=di;
+        hpush(ng+hDist(nIdx),nIdx);
+      }
+    }
+    if(!found){out[req.key]=null;return;}
+    // 경로 복원 (셀 중심) — 양 끝은 실제 포트 좌표로 대체
+    var cellsRev=[];
+    for(var c=tIdx;c!==-1;c=fromArr[c])cellsRev.push(c);
+    cellsRev.reverse();
+    var raw=cellsRev.map(function(c2){return{x:minX+(c2%gw)*cell+cell/2,y:minY+((c2/gw)|0)*cell+cell/2};});
+    raw[0]={x:req.src.x,y:req.src.y};
+    raw[raw.length-1]={x:req.tgt.x,y:req.tgt.y};
+    // string pulling: 자기 양끝 노드를 제외한 노드 내부를 지나지 않는 한 직선화
+    var blockers=[];
+    rects.forEach(function(o){if(o.id!==req.srcId&&o.id!==req.tgtId)blockers.push(o.rect);});
+    function clearSeg(a,b){
+      for(var bi=0;bi<blockers.length;bi++)
+        if(segRectT(a.x,a.y,b.x,b.y,blockers[bi],12)!==null)return false;
+      return true;
+    }
+    var pts=[raw[0]];
+    var i2=0;
+    while(i2<raw.length-1){
+      var j=raw.length-1;
+      while(j>i2+1&&!clearSeg(raw[i2],raw[j]))j--;
+      pts.push(raw[j]);i2=j;
+    }
+    out[req.key]=pts;
+    // 이후 엣지의 congestion 비용: 확정 경로가 지나는 셀에 가산
+    for(var k=0;k<pts.length-1;k++){
+      var a2=pts[k],b2=pts[k+1];
+      var steps=Math.max(1,Math.ceil(dlen(a2,b2)/cell));
+      for(var s2=0;s2<=steps;s2++){
+        var px=a2.x+(b2.x-a2.x)*(s2/steps);
+        var py=a2.y+(b2.y-a2.y)*(s2/steps);
+        useCost[cellY(py)*gw+cellX(px)]+=USE;
+      }
+    }
+  });
+  return out;
+}
 function svgLine(x1,y1,x2,y2,stroke,sw){var l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('stroke',stroke);l.setAttribute('stroke-width',sw);return l;}
 function svgCirc(cx,cy,r,fill){var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',r);c.setAttribute('fill',fill);return c;}
-function drawEdges() {
+function drawEdges(fast) {
   var svg=document.getElementById('wire-svg');
   svg.querySelectorAll('.ng-eg').forEach(function(el){el.remove();});
 
@@ -815,8 +1177,8 @@ function drawEdges() {
       targets.push({e:e,r:getNodeRect(tEl)});
     });
     if(targets.length<2) return;
-    // Check all targets are to the right
-    var allRight=targets.every(function(t){return t.r.x>=sr.x+sr.w-5;});
+    // 모든 타겟의 왼쪽 끝이 source 오른쪽 끝 + 40px 이상일 때만 bus (에디터와 조건 통일)
+    var allRight=targets.every(function(t){return t.r.x>sr.x+sr.w+40;});
     if(!allRight) return;
 
     var busX=sr.x+sr.w+Math.min.apply(null,targets.map(function(t){return t.r.x-(sr.x+sr.w);})) * 0.5;
@@ -826,38 +1188,128 @@ function drawEdges() {
     var busMinY=Math.min(srcAnchorY,minTY);
     var busMaxY=Math.max(srcAnchorY,maxTY);
 
+    // 세대 하이라이트: 루트가 source거나 타겟 중 하나면 트렁크(공용 구간)도 빨간색
+    var srcSel=srcId===genRootId;
+    var groupHl=srcSel||targets.some(function(t){return t.e.target===genRootId;});
+    var trunkColor=groupHl?'#ef4444':'#888', trunkW=groupHl?'2.5':'1.5';
+
     var g=document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('class','ng-eg');
-    g.appendChild(svgLine(sr.x+sr.w,srcAnchorY,busX,srcAnchorY,'#888','1.5'));
-    g.appendChild(svgLine(busX,busMinY,busX,busMaxY,'#888','1.5'));
-    g.appendChild(svgCirc(sr.x+sr.w,srcAnchorY,4,'#888'));
+    g.appendChild(svgLine(sr.x+sr.w,srcAnchorY,busX,srcAnchorY,trunkColor,trunkW));
+    g.appendChild(svgLine(busX,busMinY,busX,busMaxY,trunkColor,trunkW));
+    g.appendChild(svgCirc(sr.x+sr.w,srcAnchorY,4,trunkColor));
     targets.forEach(function(t){
-      g.appendChild(svgLine(busX,t.r.cy,t.r.x,t.r.cy,'#888','1.5'));
-      g.appendChild(svgCirc(t.r.x,t.r.cy,4,'#888'));
+      var tHl=srcSel||t.e.target===genRootId;
+      var branchColor=tHl?'#ef4444':'#888';
+      g.appendChild(svgLine(busX,t.r.cy,t.r.x,t.r.cy,branchColor,tHl?'2.5':'1.5'));
+      g.appendChild(svgCirc(t.r.x,t.r.cy,4,branchColor));
       busDrawn[t.e.source+'-'+t.e.target]=true;
     });
     svg.appendChild(g);
   });
 
-  // Remaining edges: Bezier curves
-  EDGES.forEach(function(edge){
+  // 노드 rect 캐시 (엣지 라우팅 장애물 검사용 — drawEdges 1회당 1회만 DOM 조회)
+  var rectById={};
+  NODES_DATA.forEach(function(n){
+    var el=document.getElementById('node-'+n.id);
+    if(el) rectById[n.id]=getNodeRect(el);
+  });
+
+  // 같은 source에서 나가거나 같은 target으로 모이는 비-버스 엣지 분산 오프셋 (합산)
+  var spreadByIdx={};
+  (function(){
+    var bySrc={},byTgt={};
+    EDGES.forEach(function(e,idx){
+      if(busDrawn[e.source+'-'+e.target]) return;
+      if(!rectById[e.source]||!rectById[e.target]) return;
+      (bySrc[e.source]=bySrc[e.source]||[]).push(idx);
+      (byTgt[e.target]=byTgt[e.target]||[]).push(idx);
+    });
+    function add(groups,cyOf){
+      Object.keys(groups).forEach(function(gk){
+        var idxs=groups[gk];
+        if(idxs.length<2) return;
+        idxs.sort(function(ia,ib){return cyOf(ia)-cyOf(ib);});
+        idxs.forEach(function(ei,k){spreadByIdx[ei]=(spreadByIdx[ei]||0)+(k-(idxs.length-1)/2)*16;});
+      });
+    }
+    add(bySrc,function(i){return rectById[EDGES[i].target].cy;});
+    add(byTgt,function(i){return rectById[EDGES[i].source].cy;});
+  })();
+
+  // 그리드 A* 전역 라우팅 — 드래그 중(fast)에는 스킵하고 경량 휴리스틱 사용.
+  // 레이아웃이 바뀌지 않은 재호출(하이라이트 색만 변경 등)은 캐시를 재사용해 즉시 처리
+  var gridRoutes=null;
+  if(!fast){
+    if(routesDirty||!cachedRoutes){
+      var reqs=[];
+      EDGES.forEach(function(e,idx){
+        if(busDrawn[e.source+'-'+e.target]) return;
+        var sr3=rectById[e.source],tr3=rectById[e.target];
+        if(!sr3||!tr3) return;
+        var ports3=getBestPorts(sr3,tr3);
+        if(!ports3) return;
+        reqs.push({key:String(idx),
+          src:{x:ports3.sp.p[0],y:ports3.sp.p[1]},
+          tgt:{x:ports3.tp.p[0],y:ports3.tp.p[1]},
+          srcId:e.source,tgtId:e.target});
+      });
+      var rectList=Object.keys(rectById).map(function(nid){return{id:nid,rect:rectById[nid]};});
+      cachedRoutes=routeEdgesGrid(reqs,rectList);
+      routesDirty=false;
+    }
+    gridRoutes=cachedRoutes;
+  }
+
+  // Remaining edges: obstacle-avoiding curves
+  EDGES.forEach(function(edge,edgeIdx){
     if(busDrawn[edge.source+'-'+edge.target]) return;
-    var srcEl=document.getElementById('node-'+edge.source), tgtEl=document.getElementById('node-'+edge.target);
-    if(!srcEl||!tgtEl) return;
-    var ports=getBestPorts(getNodeRect(srcEl),getNodeRect(tgtEl));
+    var sr2=rectById[edge.source], tr2=rectById[edge.target];
+    if(!sr2||!tr2) return;
+    var ports=getBestPorts(sr2,tr2);
     if(!ports) return;
     var sp=ports.sp.p,spD=DIR[ports.sp.name],tp=ports.tp.p,tpD=DIR[ports.tp.name];
-    var dist=Math.sqrt(Math.pow(tp[0]-sp[0],2)+Math.pow(tp[1]-sp[1],2));
-    var bend=Math.min(dist*.45,150);
-    var cx1=sp[0]+spD[0]*bend,cy1=sp[1]+spD[1]*bend,cx2=tp[0]+tpD[0]*bend,cy2=tp[1]+tpD[1]*bend;
-    var d='M'+sp[0]+','+sp[1]+' C'+cx1+','+cy1+' '+cx2+','+cy2+' '+tp[0]+','+tp[1];
+    var srcP={x:sp[0],y:sp[1]},tgtP={x:tp[0],y:tp[1]};
+    var ddl=dlen(srcP,tgtP)||1;
+    var nx=-(tgtP.y-srcP.y)/ddl, nyv=(tgtP.x-srcP.x)/ddl;
+    var spread=spreadByIdx[edgeIdx]||0;
+    var gridPts=gridRoutes?gridRoutes[String(edgeIdx)]:null;
+    var d;
+    if(gridPts&&gridPts.length>2){
+      // 그리드 A* 경로 (노드 회피 + congestion 분산) + 같은 소스/타겟 묶음 분산
+      d=ptsToPath(spreadPts(gridPts,spread));
+    } else if(gridPts){
+      // 직선 경로: 기존 bezier 모양 유지 (spread만큼 제어점을 법선 방향 이동)
+      var bend=Math.min(ddl*.45,150);
+      var cx1=sp[0]+spD[0]*bend+nx*spread,cy1=sp[1]+spD[1]*bend+nyv*spread;
+      var cx2=tp[0]+tpD[0]*bend+nx*spread,cy2=tp[1]+tpD[1]*bend+nyv*spread;
+      d='M'+sp[0]+','+sp[1]+' C'+cx1+','+cy1+' '+cx2+','+cy2+' '+tp[0]+','+tp[1];
+    } else {
+      // 드래그 중(fast) 또는 A* 실패: 경량 우회 휴리스틱
+      var obstacles=[];
+      Object.keys(rectById).forEach(function(nid){
+        if(nid!==edge.source&&nid!==edge.target) obstacles.push(rectById[nid]);
+      });
+      var pts=routeAround(srcP,tgtP,obstacles);
+      if(pts.length===2){
+        var bend2=Math.min(ddl*.45,150);
+        var bx1=sp[0]+spD[0]*bend2+nx*spread,by1=sp[1]+spD[1]*bend2+nyv*spread;
+        var bx2=tp[0]+tpD[0]*bend2+nx*spread,by2=tp[1]+tpD[1]*bend2+nyv*spread;
+        d='M'+sp[0]+','+sp[1]+' C'+bx1+','+by1+' '+bx2+','+by2+' '+tp[0]+','+tp[1];
+      } else {
+        d=ptsToPath(spreadPts(pts,spread));
+      }
+    }
+    // 세대 하이라이트: 루트 노드와 직접 연결된 wire는 빨간색
+    var hl=genRootId&&(edge.source===genRootId||edge.target===genRootId);
+    var strokeColor=hl?'#ef4444':'#666';
     var g=document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('class','ng-eg');
     var path=document.createElementNS('http://www.w3.org/2000/svg','path');
-    path.setAttribute('d',d);path.setAttribute('fill','none');path.setAttribute('stroke','#666');path.setAttribute('stroke-width','1.5');
-    if(edge.type==='arrow') path.setAttribute('marker-end','url(#arrow)');
+    path.setAttribute('d',d);path.setAttribute('fill','none');path.setAttribute('stroke',strokeColor);path.setAttribute('stroke-width',hl?'2.5':'1.5');
+    if(edge.type==='arrow') path.setAttribute('marker-end',hl?'url(#arrow-hl)':'url(#arrow)');
     g.appendChild(path);
-    if(edge.type==='line'){[sp,tp].forEach(function(pt){var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',pt[0]);c.setAttribute('cy',pt[1]);c.setAttribute('r','4');c.setAttribute('fill','#666');g.appendChild(c);});}
+    if(edge.type==='line'){[sp,tp].forEach(function(pt){var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',pt[0]);c.setAttribute('cy',pt[1]);c.setAttribute('r','4');c.setAttribute('fill',strokeColor);g.appendChild(c);});}
     svg.appendChild(g);
   });
 }
@@ -884,10 +1336,19 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){
     if(document.getElementById('search-wrap').classList.contains('open')){closeSearch();return;}
     closeLightbox();
+    // Esc = 세대 하이라이트 해제 (배경 클릭으로는 해제되지 않음)
+    if(genRootId){genRootId=null;updateGenHighlight();drawEdges();}
   }
 });
 // Middle click: prevent X11 primary selection paste
 vp.addEventListener('mousedown',function(e){if(e.button===1) e.preventDefault();});
+// 좁은 화면: 툴바 버튼 행 가로 슬라이드 (Shift+휠 / 가로휠 / 터치 스와이프는 native)
+var tbRow2=document.getElementById('tb-row2');
+tbRow2.addEventListener('wheel',function(e){
+  if(tbRow2.scrollWidth<=tbRow2.clientWidth) return;
+  var d=e.shiftKey?(e.deltaY||e.deltaX):e.deltaX;
+  if(d){e.preventDefault();tbRow2.scrollLeft+=d;}
+},{passive:false});
 // Background click: close search if open
 vp.addEventListener('mouseup',function(e){
   if(e.button!==0) return;
@@ -910,6 +1371,7 @@ function openSearch(){
 }
 function closeSearch(){
   clearSearchHighlights();
+  clearTextHits();
   searchSelectedId=null;searchMatchNodes=[];kbIdx=-1;
   document.getElementById('search-wrap').classList.remove('open');
   document.getElementById('search-input').value='';
@@ -918,6 +1380,43 @@ function closeSearch(){
 }
 function clearSearchHighlights(){
   document.querySelectorAll('.ng-search-match,.ng-search-active').forEach(function(el){el.classList.remove('ng-search-match','ng-search-active');});
+}
+// 검색어 인라인 하이라이트 (CSS Custom Highlight API — 미지원 브라우저는 조용히 무시)
+// 매치 노드의 텍스트에서 검색어 부분만 Range로 수집, 템플릿별 반전색 스타일 적용
+function hitKey(t){return 'ng-hit-'+String(t).replace(/[^a-zA-Z0-9_-]/g,'_');}
+var HIT_KEYS=[];
+function clearTextHits(){
+  if(!window.CSS||!CSS.highlights) return;
+  HIT_KEYS.forEach(function(k){CSS.highlights.delete(k);});
+  HIT_KEYS=[];
+}
+function updateTextHits(){
+  if(!window.CSS||!CSS.highlights||typeof Highlight==='undefined') return;
+  clearTextHits();
+  var q=document.getElementById('search-input').value.trim().toLowerCase();
+  if(!q||!document.getElementById('search-wrap').classList.contains('open')) return;
+  var byTmpl={};
+  searchMatchNodes.forEach(function(n){
+    var el=document.getElementById('node-'+n.id);
+    if(!el) return;
+    var walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+    var tn;
+    while((tn=walker.nextNode())){
+      var par=tn.parentElement;
+      if(!par||par.closest('.katex')) continue;
+      var lower=(tn.textContent||'').toLowerCase();
+      var idx=lower.indexOf(q);
+      while(idx!==-1){
+        var r=new Range();
+        r.setStart(tn,idx);r.setEnd(tn,idx+q.length);
+        var k=hitKey(n.template);
+        if(!byTmpl[k]) byTmpl[k]=new Highlight();
+        byTmpl[k].add(r);
+        idx=lower.indexOf(q,idx+q.length);
+      }
+    }
+  });
+  Object.keys(byTmpl).forEach(function(k){CSS.highlights.set(k,byTmpl[k]);HIT_KEYS.push(k);});
 }
 function closeDropdown(){
   document.getElementById('search-drop').classList.remove('open');
@@ -933,6 +1432,7 @@ function doSearch(q){
   searchMatchNodes.forEach(function(n){var el=document.getElementById('node-'+n.id);if(el) el.classList.add('ng-search-match');});
   updateSearchCount();
   renderDropdown();
+  updateTextHits();
 }
 function renderDropdown(){
   var drop=document.getElementById('search-drop');
@@ -992,6 +1492,7 @@ function selectSearchNode(id){
   setTimeout(function(){recomputePositions();flyToNode(id);},0);
   closeDropdown();
   updateSearchCount();
+  updateTextHits();
 }
 function onSearchInputClick(){
   if(searchSelectedId!==null){

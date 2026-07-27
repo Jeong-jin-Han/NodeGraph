@@ -2,20 +2,21 @@ import React, { useEffect } from 'react'
 import { useGraph } from './hooks/useGraph'
 import { useViewport } from './hooks/useViewport'
 import { Canvas } from './components/Canvas'
+import { THEME } from './utils/themeSnapshot'
 
 export function App() {
   const {
     graph, imageUris,
     updateNodePosition, autoSaveNodePosition, toggleContent, toggleOriginal,
-    updateNodeField, addNode, deleteNodes, addEdge, deleteEdge, deleteEdges,
+    updateNodeField, addNode, deleteNodes, addEdge, deleteEdge,
     addToggle, updateToggle, deleteToggle, expandToggle, deleteOriginal,
     saveImage,
     addCanvasImage, addFilenameToNode, saveCanvasImage, updateCanvasImage, removeCanvasImage, moveCanvasImageToNode,
     lastAddedCanvasImageId,
     setNodeWidth, setNodeHeight, setNodeFontSize, bumpFontSize, setFontSizeExact, pushHistory,
-    collapseAll, expandAll, expandNodes, collapseNodes, setNodeTemplate, addOriginal, addLink, deleteLink, openLink, exportHtml,
+    collapseAll, expandAll, expandNodes, collapseNodes, expandByLabel, setNodeTemplate, addOriginal, addLink, deleteLink, openLink, searchInPdf, exportHtml,
     undo, redo, canUndo, canRedo,
-    saveGraph, reload,
+    saveGraph, reload, openHelp,
   } = useGraph()
 
   const {
@@ -57,7 +58,7 @@ export function App() {
 
   if (!graph) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--vscode-editor-foreground)', opacity: 0.5 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: THEME.canvasBg, color: THEME.fg, opacity: 0.5 }}>
         Loading…
       </div>
     )
@@ -97,7 +98,6 @@ export function App() {
       onToggleOriginal={toggleOriginal}
       onAddEdge={addEdge}
       onDeleteEdge={deleteEdge}
-      onDeleteEdges={deleteEdges}
       onAddToggle={addToggle}
       onUpdateToggle={updateToggle}
       onDeleteToggle={deleteToggle}
@@ -107,13 +107,16 @@ export function App() {
       onAddLink={addLink}
       onDeleteLink={deleteLink}
       onOpenLink={openLink}
+      onSearchInPdf={searchInPdf}
       onSetNodeTemplate={setNodeTemplate}
       onCollapseAll={collapseAll}
       onExpandAll={expandAll}
       onExpandNodes={expandNodes}
       onCollapseNodes={collapseNodes}
+      onExpandByLabel={expandByLabel}
       onExportHtml={exportHtml}
       onReload={reload}
+      onOpenHelp={openHelp}
       imageUris={imageUris}
       onSaveImage={saveImage}
       onAddCanvasImage={addCanvasImage}

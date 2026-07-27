@@ -92,6 +92,8 @@ export type WebviewToExtMessage =
   | { type: 'save'; data: NodeGraph }
   | { type: 'ready' }
   | { type: 'reload' }
+  | { type: 'openHelp' }
   | { type: 'openLink'; link: NodeLink }
+  | { type: 'searchInPdf'; pdfTarget: string; query: string; pageHint?: number }
   | { type: 'saveImage'; nodeId: string; data: string; ext: string }
   | { type: 'exportHtml'; data: NodeGraph }

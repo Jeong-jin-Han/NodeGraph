@@ -4,7 +4,15 @@ import { GraphNode, NodeTemplate, NodeLink } from '../types/graph'
 import { useDrag } from '../hooks/useDrag'
 import { Port } from '../utils/wireGeometry'
 import { MathText } from './MathText'
-import { parseTableBlocks, hasTable, TableBlock } from '../utils/tableParser'
+import { parseTableBlocks, hasTable } from '../utils/tableParser'
+import { THEME } from '../utils/themeSnapshot'
+
+const NODE_BG_BASE = THEME.nodeBg
+const NODE_FG = THEME.fg
+const NODE_LINK_FG = THEME.linkFg
+const NODE_INPUT_BG = THEME.inputBg
+const NODE_INPUT_FG = THEME.inputFg
+const NODE_INPUT_BORDER = THEME.inputBorder
 
 interface NodeCardProps {
   node: GraphNode
@@ -37,9 +45,10 @@ interface NodeCardProps {
   onAddLink: (nodeId: string, link: NodeLink) => void
   onDeleteLink: (nodeId: string, idx: number) => void
   onOpenLink: (link: NodeLink) => void
+  onSearchInPdf: (query: string, pageHint?: number) => void
   onSetNodeTemplate: (nodeId: string, template: string) => void
   imageUris: Record<string, string>
-  onSaveImage: (nodeId: string, base64: string, ext: string, position?: number) => void
+  onSaveImage: (nodeId: string, base64: string, ext: string, position?: number, toggleId?: string) => void
   canvasClipboardRef?: React.RefObject<{ filename: string; width: number; height: number } | null>
   onAddFilenameToNode?: (nodeId: string, filename: string) => void
   isSearchMatch?: boolean
@@ -55,7 +64,7 @@ type EditingField = 'title' | 'content' | 'originalText' | 'originalLoc' | 'orig
 const btnStyle: CSSProperties = {
   background: 'transparent',
   border: 'none',
-  color: 'var(--vscode-editor-foreground)',
+  color: NODE_FG,
   cursor: 'pointer',
   fontSize: 11,
   padding: '2px 4px',
@@ -75,7 +84,7 @@ export function NodeCard({
   onUpdatePosition, onUpdateNode, onSetNodeWidth, onSetNodeHeight, onSetFontSize, onPushHistory,
   selected, isMultiSelected, extraDragNodes, onSelect, onHoverStart, onHoverEnd, onToggleContent, onToggleOriginal, onResize,
   onPortDragStart, onAddToggle, onUpdateToggle, onDeleteToggle, onExpandToggle, onDeleteOriginal,
-  onAddOriginal, onAddLink, onDeleteLink, onOpenLink, onSetNodeTemplate,
+  onAddOriginal, onAddLink, onDeleteLink, onOpenLink, onSearchInPdf, onSetNodeTemplate,
   imageUris, onSaveImage,
   canvasClipboardRef, onAddFilenameToNode,
   isSearchMatch, isActiveSearchMatch, isGenHighlight, onPinHighlight,
@@ -194,6 +203,77 @@ export function NodeCard({
     e.target.style.height = e.target.scrollHeight + 'px'
   }
 
+  // Shared read-view renderer for any markdown-ish text field (main content, toggles):
+  // GFM tables (via tableParser) + `[[IMG:filename:WxH]]` tokens + LaTeX, all in one place
+  // so table/image support doesn't have to be reimplemented per field.
+  const renderRichContent = (
+    text: string,
+    onClickToEdit: (e: React.MouseEvent) => void,
+    placeholder = 'Click to add content…'
+  ): React.ReactNode => {
+    const IMG_RE = /\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g
+    const renderCellContent = (cellText: string): React.ReactNode => {
+      const parts: React.ReactNode[] = []
+      let lastIdx = 0
+      let match: RegExpExecArray | null
+      let key = 0
+      IMG_RE.lastIndex = 0
+      while ((match = IMG_RE.exec(cellText)) !== null) {
+        if (match.index > lastIdx) parts.push(<MathText key={key++} text={cellText.slice(lastIdx, match.index)} />)
+        const filename = match[1]
+        const imgW = match[2] ? Number(match[2]) : undefined
+        const imgH = match[3] ? Number(match[3]) : undefined
+        const uri = imageUris[filename]
+        parts.push(uri
+          ? <img key={key++} src={uri} alt={filename}
+              onClick={() => setLightboxSrc(uri)}
+              style={{ display: 'block', maxWidth: imgW ? undefined : '100%', marginTop: 2, cursor: 'zoom-in',
+                ...(imgW ? { width: imgW } : {}), ...(imgH ? { height: imgH } : {}) }} />
+          : <span key={key++} style={{ opacity: 0.5, fontSize: 10 }}>[IMG:{filename}]</span>
+        )
+        lastIdx = match.index + match[0].length
+      }
+      if (lastIdx < cellText.length) parts.push(<MathText key={key++} text={cellText.slice(lastIdx)} />)
+      return parts.length === 0 ? null : parts.length === 1 ? parts[0] : <>{parts}</>
+    }
+
+    if (!text) {
+      return (
+        <div onClick={onClickToEdit} style={{ cursor: 'text', minHeight: 20 }}>
+          <span style={{ opacity: 0.35, fontStyle: 'italic' }}>{placeholder}</span>
+        </div>
+      )
+    }
+
+    if (!hasTable(text)) {
+      return <div onClick={onClickToEdit} style={{ cursor: 'text', minHeight: 20 }}>{renderCellContent(text)}</div>
+    }
+
+    const thSt: CSSProperties = { padding: '5px 10px', border: '1px solid #ddd', background: '#f8f9fa', fontWeight: 600, textAlign: 'left', verticalAlign: 'top', whiteSpace: 'pre-wrap', wordBreak: 'normal', cursor: 'text' }
+    const tdSt: CSSProperties = { padding: '5px 10px', border: '1px solid #ddd', verticalAlign: 'top', whiteSpace: 'pre-wrap', wordBreak: 'normal', cursor: 'text' }
+    const blocks = parseTableBlocks(text)
+    return (
+      <>
+        {blocks.map((block, bi) => block.type === 'table' ? (
+          <div key={`tbl-wrap-${bi}`} style={{ overflowX: 'auto', margin: '6px 0' }}>
+            <table onClick={onClickToEdit} style={{ borderCollapse: 'collapse', background: '#ffffff', fontSize: 'inherit', tableLayout: 'auto' }}>
+              <thead><tr>{block.headers.map((h, ci) => <th key={ci} style={thSt}>{renderCellContent(h)}</th>)}</tr></thead>
+              <tbody>
+                {block.rows.map((row, ri) => <tr key={ri}>{row.map((cell, ci) => <td key={ci} style={tdSt}>{renderCellContent(cell)}</td>)}</tr>)}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div key={bi} onClick={onClickToEdit} style={{ cursor: 'text', minHeight: bi === blocks.length - 1 ? 20 : undefined }}>
+            {block.text
+              ? renderCellContent(block.text)
+              : bi === blocks.length - 1 ? <span style={{ opacity: 0.35, fontStyle: 'italic' }}>{placeholder}</span> : null}
+          </div>
+        ))}
+      </>
+    )
+  }
+
   const color = template?.color ?? '#888888'
   const borderRadius = template?.shape === 'rounded' ? 22 : 2
   const fs = node.fontSize ?? 14
@@ -228,7 +308,7 @@ export function NodeCard({
     background: 'transparent',
     border: 'none',
     outline: 'none',
-    color: 'var(--vscode-editor-foreground)',
+    color: NODE_FG,
     fontFamily: 'inherit',
     padding: 0,
     margin: 0,
@@ -258,7 +338,7 @@ export function NodeCard({
           top: renderPosition.y,
           minWidth: Math.max(node.nodeWidth ?? 0, 432, autoMinWidth),
           minHeight: node.contentExpanded ? (node.nodeHeight ?? undefined) : undefined,
-          background: `color-mix(in srgb, ${color} 15%, var(--vscode-editor-background, #1e1e1e))`,
+          background: `color-mix(in srgb, ${color} 15%, ${NODE_BG_BASE})`,
           border: isGenHighlight
             ? '2px solid #f87171'
             : selected
@@ -271,7 +351,7 @@ export function NodeCard({
           borderRadius,
           fontFamily: 'var(--vscode-font-family)',
           fontSize: 'var(--vscode-font-size)',
-          color: 'var(--vscode-editor-foreground)',
+          color: NODE_FG,
           boxShadow: isGenHighlight
             ? '0 0 0 3px rgba(248,113,113,0.3), 0 2px 8px rgba(0,0,0,0.25)'
             : isActiveSearchMatch
@@ -294,7 +374,7 @@ export function NodeCard({
           return (
             <div key={port} onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); onPortDragStart(node.id, port, e.clientX, e.clientY) }}
               style={{ position: 'absolute', ...portStyle, width: 10, height: 10, borderRadius: '50%',
-                background: color, border: '2px solid var(--vscode-editor-background)', cursor: 'crosshair', zIndex: 25, boxSizing: 'border-box' as const }} />
+                background: color, border: `2px solid ${NODE_BG_BASE}`, cursor: 'crosshair', zIndex: 25, boxSizing: 'border-box' as const }} />
           )
         })}
 
@@ -389,185 +469,57 @@ export function NodeCard({
         {/* Content body */}
         {node.contentExpanded && (
           <div style={{ padding: '8px 10px' }}>
-            {(() => {
-              // --- 셀 내 콘텐츠 렌더러 (LaTeX + [[IMG:filename:WxH]] 토큰 지원) ---
-              const renderCellContent = (cellText: string): React.ReactNode => {
-                const IMG_RE = /\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g
-                const parts: React.ReactNode[] = []
-                let lastIdx = 0
-                let match: RegExpExecArray | null
-                let key = 0
-                IMG_RE.lastIndex = 0
-                while ((match = IMG_RE.exec(cellText)) !== null) {
-                  if (match.index > lastIdx) {
-                    parts.push(<MathText key={key++} text={cellText.slice(lastIdx, match.index)} />)
+            {editingField === 'content' ? (
+              <textarea
+                ref={setEditRef as React.RefCallback<HTMLTextAreaElement>}
+                value={editValue}
+                onChange={handleTextareaChange}
+                onBlur={commitEdit}
+                onKeyDown={(e) => {
+                  e.stopPropagation()
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'v' && canvasClipboardRef?.current) {
+                    e.preventDefault()
+                    const { filename, width: cw, height: ch } = canvasClipboardRef.current
+                    const ta = e.target as HTMLTextAreaElement
+                    const pos = ta.selectionStart ?? 0
+                    const token = `[[IMG:${filename}:${Math.round(cw)}x${Math.round(ch)}]]`
+                    const before = editValue.slice(0, pos)
+                    const after = editValue.slice(pos)
+                    // Pasting right after a markdown table row's closing `|` would otherwise splice
+                    // the token in as a dangling extra cell — drop it as its own paragraph instead.
+                    const insertion = /\|\s*$/.test(before) ? `\n\n${token}\n\n` : token
+                    setEditValue(before + insertion + after)
+                    setTimeout(() => { ta.selectionStart = ta.selectionEnd = pos + insertion.length }, 0)
+                    return
                   }
-                  const filename = match[1]
-                  const imgW = match[2] ? Number(match[2]) : undefined
-                  const imgH = match[3] ? Number(match[3]) : undefined
-                  const uri = imageUris[filename]
-                  parts.push(uri
-                    ? <img key={key++} src={uri} alt={filename}
-                        onClick={() => setLightboxSrc(uri)}
-                        style={{ display: 'block', maxWidth: imgW ? undefined : '100%', marginTop: 2, cursor: 'zoom-in',
-                          ...(imgW ? { width: imgW } : {}), ...(imgH ? { height: imgH } : {}) }} />
-                    : <span key={key++} style={{ opacity: 0.5, fontSize: 10 }}>[IMG:{filename}]</span>
-                  )
-                  lastIdx = match.index + match[0].length
-                }
-                if (lastIdx < cellText.length) parts.push(<MathText key={key++} text={cellText.slice(lastIdx)} />)
-                return parts.length === 0 ? null : parts.length === 1 ? parts[0] : <>{parts}</>
-              }
-
-              // --- 테이블 블록 렌더러 ---
-              const renderTableBlock = (block: TableBlock, blockIdx: number) => {
-                const thSt: CSSProperties = { padding: '5px 10px', border: '1px solid #ddd', background: '#f8f9fa', fontWeight: 600, textAlign: 'left', verticalAlign: 'top', whiteSpace: 'pre-wrap', wordBreak: 'normal', cursor: 'text' }
-                const tdSt: CSSProperties = { padding: '5px 10px', border: '1px solid #ddd', verticalAlign: 'top', whiteSpace: 'pre-wrap', wordBreak: 'normal', cursor: 'text' }
-                return (
-                  <div key={`tbl-wrap-${blockIdx}`} style={{ overflowX: 'auto', margin: '6px 0' }}>
-                    <table
-                      onClick={(e) => startEdit('content', node.content, e)}
-                      style={{ borderCollapse: 'collapse', background: '#ffffff', fontSize: 'inherit', tableLayout: 'auto' }}
-                    >
-                      <thead>
-                        <tr>{block.headers.map((h, ci) => <th key={ci} style={thSt}>{renderCellContent(h)}</th>)}</tr>
-                      </thead>
-                      <tbody>
-                        {block.rows.map((row, ri) => (
-                          <tr key={ri}>{row.map((cell, ci) => <td key={ci} style={tdSt}>{renderCellContent(cell)}</td>)}</tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )
-              }
-
-              // --- TABLE MODE ---
-              const hasTbl = hasTable(node.content ?? '')
-              if (hasTbl) {
-                if (editingField === 'content') {
-                  return (
-                    <textarea
-                      ref={setEditRef as React.RefCallback<HTMLTextAreaElement>}
-                      value={editValue}
-                      onChange={handleTextareaChange}
-                      onBlur={commitEdit}
-                      onKeyDown={(e) => {
-                        e.stopPropagation()
-                        if ((e.ctrlKey || e.metaKey) && e.key === 'v' && canvasClipboardRef?.current) {
-                          e.preventDefault()
-                          const { filename, width: cw, height: ch } = canvasClipboardRef.current
-                          const ta = e.target as HTMLTextAreaElement
-                          const pos = ta.selectionStart ?? 0
-                          const token = `[[IMG:${filename}:${Math.round(cw)}x${Math.round(ch)}]]`
-                          const newVal = editValue.slice(0, pos) + token + editValue.slice(pos)
-                          setEditValue(newVal)
-                          setTimeout(() => { ta.selectionStart = ta.selectionEnd = pos + token.length }, 0)
-                          return
-                        }
-                        if (e.key === 'Escape') cancelEdit()
-                      }}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onPaste={(e) => {
-                        const items = Array.from(e.clipboardData?.items ?? [])
-                        const imageItem = items.find(it => it.type.startsWith('image/'))
-                        if (!imageItem) return
-                        e.preventDefault()
-                        e.stopPropagation()
-                        const blob = imageItem.getAsFile()
-                        if (!blob) return
-                        const pos = (e.target as HTMLTextAreaElement).selectionStart
-                        const ext = imageItem.type.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
-                        commitEdit()
-                        const reader = new FileReader()
-                        reader.onload = () => {
-                          const base64 = (reader.result as string).split(',')[1]
-                          onSaveImage(node.id, base64, ext, pos)
-                        }
-                        reader.readAsDataURL(blob)
-                      }}
-                      style={{ ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: 'none', overflow: 'hidden', minHeight: 20, display: 'block' }}
-                    />
-                  )
-                }
-                const blocks = parseTableBlocks(node.content ?? '')
-                return (
-                  <div ref={tableBodyRef} style={{ fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word' }}>
-                    {blocks.map((block, bi) => {
-                      if (block.type === 'table') return renderTableBlock(block, bi)
-                      return (
-                        <div key={bi} onClick={(e) => startEdit('content', node.content, e)}
-                          style={{ cursor: 'text', minHeight: bi === blocks.length - 1 ? 20 : undefined }}
-                        >
-                          {block.text
-                            ? renderCellContent(block.text)
-                            : bi === blocks.length - 1 ? <span style={{ opacity: 0.35, fontStyle: 'italic' }}>Click to add content…</span> : null
-                          }
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              }
-
-              // PLAIN MODE — single textarea / view
-              if (editingField === 'content') {
-                return (
-                  <textarea
-                    ref={setEditRef as React.RefCallback<HTMLTextAreaElement>}
-                    value={editValue}
-                    onChange={handleTextareaChange}
-                    onBlur={commitEdit}
-                    onKeyDown={(e) => {
-                      e.stopPropagation()
-                      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && canvasClipboardRef?.current) {
-                        e.preventDefault()
-                        const { filename, width: cw, height: ch } = canvasClipboardRef.current
-                        const ta = e.target as HTMLTextAreaElement
-                        const pos = ta.selectionStart ?? 0
-                        const token = `[[IMG:${filename}:${Math.round(cw)}x${Math.round(ch)}]]`
-                        const newVal = editValue.slice(0, pos) + token + editValue.slice(pos)
-                        setEditValue(newVal)
-                        setTimeout(() => { ta.selectionStart = ta.selectionEnd = pos + token.length }, 0)
-                        return
-                      }
-                      if (e.key === 'Escape') cancelEdit()
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onPaste={(e) => {
-                      const items = Array.from(e.clipboardData?.items ?? [])
-                      const imageItem = items.find(it => it.type.startsWith('image/'))
-                      if (!imageItem) return
-                      e.preventDefault()
-                      e.stopPropagation()
-                      const blob = imageItem.getAsFile()
-                      if (!blob) return
-                      const pos = (e.target as HTMLTextAreaElement).selectionStart
-                      const ext = imageItem.type.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
-                      commitEdit()
-                      const reader = new FileReader()
-                      reader.onload = () => {
-                        const base64 = (reader.result as string).split(',')[1]
-                        onSaveImage(node.id, base64, ext, pos)
-                      }
-                      reader.readAsDataURL(blob)
-                    }}
-                    style={{ ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: 'none', overflow: 'hidden', minHeight: 20, display: 'block' }}
-                  />
-                )
-              }
-              return (
-                <div
-                  onClick={(e) => startEdit('content', node.content, e)}
-                  style={{ fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word', cursor: 'text', minHeight: 20 }}
-                >
-                  {node.content
-                    ? renderCellContent(node.content)
-                    : <span style={{ opacity: 0.35, fontStyle: 'italic' }}>Click to add content…</span>
+                  if (e.key === 'Escape') cancelEdit()
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onPaste={(e) => {
+                  const items = Array.from(e.clipboardData?.items ?? [])
+                  const imageItem = items.find(it => it.type.startsWith('image/'))
+                  if (!imageItem) return
+                  e.preventDefault()
+                  e.stopPropagation()
+                  const blob = imageItem.getAsFile()
+                  if (!blob) return
+                  const pos = (e.target as HTMLTextAreaElement).selectionStart
+                  const ext = imageItem.type.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
+                  commitEdit()
+                  const reader = new FileReader()
+                  reader.onload = () => {
+                    const base64 = (reader.result as string).split(',')[1]
+                    onSaveImage(node.id, base64, ext, pos)
                   }
-                </div>
-              )
-            })()}
+                  reader.readAsDataURL(blob)
+                }}
+                style={{ ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: 'none', overflow: 'hidden', minHeight: 20, display: 'block' }}
+              />
+            ) : (
+              <div ref={tableBodyRef} style={{ fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word' }}>
+                {renderRichContent(node.content ?? '', (e) => startEdit('content', node.content, e))}
+              </div>
+            )}
 
             {/* Original */}
             {node.original && (
@@ -644,6 +596,13 @@ export function NodeCard({
                       />
                     ) : (
                       <div onClick={(e) => startEdit('originalText', node.original!.text, e)}
+                        onContextMenu={(e) => {
+                          if (!node.original?.text) return
+                          e.preventDefault(); e.stopPropagation()
+                          const pageHint = node.original.location?.match(/p\.\s*(\d+)/)?.[1]
+                          onSearchInPdf(node.original.text, pageHint ? parseInt(pageHint, 10) : undefined)
+                        }}
+                        title="Right-click: search this quote in the source PDF"
                         style={{ fontSize: Math.max(8, fs - 1), lineHeight: 1.55, fontStyle: 'italic', wordBreak: 'break-word', cursor: 'text' }}>
                         {node.original.text
                           ? <MathText text={node.original.text} style={{ fontSize: Math.max(8, fs - 1), fontStyle: 'italic' }} />
@@ -722,16 +681,34 @@ export function NodeCard({
                         onBlur={(e) => { onUpdateToggle(node.id, toggle.id, 'content', e.target.value); setEditingToggle(null) }}
                         onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Escape') { onUpdateToggle(node.id, toggle.id, 'content', e.currentTarget.value); setEditingToggle(null) } }}
                         onMouseDown={(e) => e.stopPropagation()}
+                        onPaste={(e) => {
+                          const items = Array.from(e.clipboardData?.items ?? [])
+                          const imageItem = items.find(it => it.type.startsWith('image/'))
+                          if (!imageItem) return
+                          e.preventDefault()
+                          e.stopPropagation()
+                          const blob = imageItem.getAsFile()
+                          if (!blob) return
+                          const pos = (e.target as HTMLTextAreaElement).selectionStart
+                          const ext = imageItem.type.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
+                          const toggleId = toggle.id
+                          onUpdateToggle(node.id, toggleId, 'content', e.currentTarget.value)
+                          setEditingToggle(null)
+                          const reader = new FileReader()
+                          reader.onload = () => {
+                            const base64 = (reader.result as string).split(',')[1]
+                            onSaveImage(node.id, base64, ext, pos, toggleId)
+                          }
+                          reader.readAsDataURL(blob)
+                        }}
                         style={{ ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: 'none', overflow: 'hidden', minHeight: 20, display: 'block' }}
                       />
                     ) : (
-                      <div
-                        onClick={(e) => { e.stopPropagation(); setEditingToggle({ id: toggle.id, field: 'content', initVal: toggle.content }) }}
-                        style={{ fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word', cursor: 'text', minHeight: 20 }}
-                      >
-                        {toggle.content
-                          ? <MathText text={toggle.content} style={{ fontSize: fs, lineHeight: 1.6 }} />
-                          : <span style={{ fontStyle: 'italic', opacity: 0.35 }}>내용 입력…</span>}
+                      <div style={{ fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word' }}>
+                        {renderRichContent(toggle.content ?? '', (e) => {
+                          e.stopPropagation()
+                          setEditingToggle({ id: toggle.id, field: 'content', initVal: toggle.content })
+                        })}
                       </div>
                     )}
                   </div>
@@ -753,7 +730,7 @@ export function NodeCard({
                     </span>
                     <span
                       onClick={() => onOpenLink(link)}
-                      style={{ fontSize: Math.max(9, fs - 2), color: 'var(--vscode-textLink-foreground, #4fc1ff)', cursor: 'pointer',
+                      style={{ fontSize: Math.max(9, fs - 2), color: NODE_LINK_FG, cursor: 'pointer',
                         flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       title={link.target}
                     >
@@ -775,8 +752,8 @@ export function NodeCard({
                       <select
                         value={linkForm.type}
                         onChange={(e) => setLinkForm(f => ({ ...f, type: e.target.value as NodeLink['type'] }))}
-                        style={{ fontSize: 10, background: 'var(--vscode-input-background)', color: 'var(--vscode-input-foreground)',
-                          border: '1px solid var(--vscode-input-border)', borderRadius: 2, padding: '1px 2px' }}
+                        style={{ fontSize: 10, background: NODE_INPUT_BG, color: NODE_INPUT_FG,
+                          border: `1px solid ${NODE_INPUT_BORDER}`, borderRadius: 2, padding: '1px 2px' }}
                       >
                         <option value="url">URL</option>
                         <option value="pdf">PDF</option>
@@ -797,8 +774,8 @@ export function NodeCard({
                           }
                           if (e.key === 'Escape') setAddingLink(false)
                         }}
-                        style={{ flex: 1, fontSize: 10, background: 'var(--vscode-input-background)', color: 'var(--vscode-input-foreground)',
-                          border: '1px solid var(--vscode-input-border)', borderRadius: 2, padding: '1px 4px', outline: 'none' }}
+                        style={{ flex: 1, fontSize: 10, background: NODE_INPUT_BG, color: NODE_INPUT_FG,
+                          border: `1px solid ${NODE_INPUT_BORDER}`, borderRadius: 2, padding: '1px 4px', outline: 'none' }}
                       />
                     </div>
                     <input
@@ -814,8 +791,8 @@ export function NodeCard({
                         }
                         if (e.key === 'Escape') setAddingLink(false)
                       }}
-                      style={{ fontSize: 10, background: 'var(--vscode-input-background)', color: 'var(--vscode-input-foreground)',
-                        border: '1px solid var(--vscode-input-border)', borderRadius: 2, padding: '1px 4px', outline: 'none' }}
+                      style={{ fontSize: 10, background: NODE_INPUT_BG, color: NODE_INPUT_FG,
+                        border: `1px solid ${NODE_INPUT_BORDER}`, borderRadius: 2, padding: '1px 4px', outline: 'none' }}
                     />
                     <div style={{ display: 'flex', gap: 4 }}>
                       <button

@@ -2,7 +2,7 @@
   "version": "1.0.0",
   "title": "Attention Is All You Need",
   "created": "2026-07-04T00:00:00Z",
-  "modified": "2026-07-06T15:45:00.000Z",
+  "modified": "2026-07-27T00:00:00.000Z",
   "source": {
     "pdf": "1706.03762v7.pdf",
     "authors": "Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, Illia Polosukhin",
@@ -703,14 +703,18 @@
         "x": 450,
         "y": 920
       },
-      "children": ["node_033", "node_034", "node_035"],
+      "children": [
+        "node_033",
+        "node_034",
+        "node_035"
+      ],
       "links": []
     },
     {
       "id": "node_036",
       "template": "question",
-      "title": "d_model vs d_k/d_v: single-head와 multi-head의 차이",
-      "content": "**차원 관계 정리**\n\n| | Single-head (h=1) | Multi-head (h=8) |\n|---|---|---|\n| Q, K 차원 $d_k$ | $d_{\\text{model}}$ (512) | $d_{\\text{model}}/h$ = 64 |\n| V 차원 $d_v$ | $d_{\\text{model}}$ (512) | $d_{\\text{model}}/h$ = 64 |\n| 각 head 출력 | $(n \\times d_{\\text{model}})$ | $(n \\times 64)$ |\n| concat 후 | — | $(n \\times 8 \\cdot 64) = (n \\times d_{\\text{model}})$ |\n\n**d_k = d_v는 필수가 아니다**\n\n$Q \\cdot K^T$가 성립하려면 Q와 K의 차원이 같아야 하므로 $d_q = d_k$는 구조적 필수 조건. 반면 V는 attention weight $(n \\times m)$과 곱해지므로 $d_v$는 아무 값이어도 됨:\n\n$$\\underbrace{(n \\times m)}_{\\text{attn weights}} \\times \\underbrace{(m \\times d_v)}_{V} = (n \\times d_v)$$\n\n논문에서 $d_k = d_v = 64$로 맞춘 것은 수학적 필요가 아닌 **설계 단순화**. 일부 efficient attention 변형은 $d_k \\neq d_v$를 사용.\n\n**Multi-head의 핵심 직관**\n\n> Multi-head attention = **feature를 축소한 attention map을 여러 개** 병렬로 계산하는 것\n\n- Single-head: $d_{\\text{model}}$ 차원 전체를 하나의 attention map으로 처리 → 한 가지 관점\n- Multi-head: $d_{\\text{model}}$을 $h$등분한 **축소된 subspace** 각각에서 독립적인 attention map 계산 → $h$가지 관점 동시 포착\n- 각 head의 attention map은 $(n \\times n)$ 크기지만 보는 feature 공간이 다름\n\n**연산량은 동일** (ablation Table 3A 근거):\n$$h=1: n^2 \\times 512, \\quad h=8: 8 \\times n^2 \\times 64 = n^2 \\times 512$$\n\nMulti-head는 효율이 아닌 **표현 다양성**을 위한 선택.",
+      "title": "d_model vs d_k/d_v: the difference between single-head and multi-head",
+      "content": "**Dimension relationships, summarized**\n\n| | Single-head (h=1) | Multi-head (h=8) |\n|---|---|---|\n| Q, K dim $d_k$ | $d_{\\text{model}}$ (512) | $d_{\\text{model}}/h$ = 64 |\n| V dim $d_v$ | $d_{\\text{model}}$ (512) | $d_{\\text{model}}/h$ = 64 |\n| Each head's output | $(n \\times d_{\\text{model}})$ | $(n \\times 64)$ |\n| After concat | — | $(n \\times 8 \\cdot 64) = (n \\times d_{\\text{model}})$ |\n\n**d_k = d_v is not required**\n\nFor $Q \\cdot K^T$ to be valid, Q and K must have the same dimension, so $d_q = d_k$ is a structural requirement. V, on the other hand, is multiplied by the attention weights $(n \\times m)$, so $d_v$ can be any value:\n\n$$\\underbrace{(n \\times m)}_{\\text{attn weights}} \\times \\underbrace{(m \\times d_v)}_{V} = (n \\times d_v)$$\n\nThe paper's choice of $d_k = d_v = 64$ is **a design simplification**, not a mathematical necessity. Some efficient-attention variants use $d_k \\neq d_v$.\n\n**The core intuition of multi-head**\n\n> Multi-head attention = computing **several reduced-feature attention maps** in parallel\n\n- Single-head: processes the entire $d_{\\text{model}}$ dimension as one attention map → a single perspective\n- Multi-head: computes an independent attention map in each of the **reduced subspaces** formed by splitting $d_{\\text{model}}$ into $h$ parts → captures $h$ perspectives at once\n- Each head's attention map is $(n \\times n)$ in size, but each looks at a different feature subspace\n\n**The compute cost is the same** (as shown by ablation Table 3A):\n$$h=1: n^2 \\times 512, \\quad h=8: 8 \\times n^2 \\times 64 = n^2 \\times 512$$\n\nMulti-head is a choice made for **representational diversity**, not efficiency.",
       "contentExpanded": false,
       "originalExpanded": false,
       "childrenExpanded": false,
@@ -724,8 +728,8 @@
     {
       "id": "node_033",
       "template": "question",
-      "title": "Multi-layer: layer 간에 흐르는 것은 V가 아니라 hidden state",
-      "content": "각 Transformer layer 간에 흐르는 것은 **V 벡터가 아니라 hidden state** $(1 \\times d_{\\text{model}})$입니다.\n\n각 layer는 **독립적인 $W_Q, W_K, W_V$** 가중치를 가집니다. Layer $l$의 입력 $h^{(l-1)}$로부터:\n\n$$Q^{(l)} = h^{(l-1)} W_Q^{(l)}, \\quad K^{(l)} = h^{(l-1)} W_K^{(l)}, \\quad V^{(l)} = h^{(l-1)} W_V^{(l)}$$\n\n그리고 layer $l$의 출력:\n$$h^{(l)} = \\text{FFN}\\!\\left(\\text{Attention}(Q^{(l)}, K^{(l)}, V^{(l)})\\right)$$\n\n이 $h^{(l)}$이 다음 layer의 **입력**이 됩니다. V는 해당 layer 내부에서만 사용되고 밖으로 흘러나가지 않습니다.\n\n| 무엇이 흐르는가 | 설명 |\n|---|---|\n| hidden state $h^{(l)}$ | ✅ layer 간 전달 |\n| V 벡터 | ❌ 해당 layer 내부에서만 사용 |",
+      "title": "Multi-layer: what flows between layers is the hidden state, not V",
+      "content": "What flows between each Transformer layer is **the hidden state, not the V vector** $(1 \\times d_{\\text{model}})$.\n\nEach layer has **its own independent $W_Q, W_K, W_V$** weights. From layer $l$'s input $h^{(l-1)}$:\n\n$$Q^{(l)} = h^{(l-1)} W_Q^{(l)}, \\quad K^{(l)} = h^{(l-1)} W_K^{(l)}, \\quad V^{(l)} = h^{(l-1)} W_V^{(l)}$$\n\nAnd layer $l$'s output:\n$$h^{(l)} = \\text{FFN}\\!\\left(\\text{Attention}(Q^{(l)}, K^{(l)}, V^{(l)})\\right)$$\n\nThis $h^{(l)}$ becomes the **input** to the next layer. V is used only inside that layer and never flows out.\n\n| What flows | Description |\n|---|---|\n| hidden state $h^{(l)}$ | ✅ passed between layers |\n| V vector | ❌ used only within that layer |",
       "contentExpanded": false,
       "originalExpanded": false,
       "childrenExpanded": false,
@@ -739,8 +743,8 @@
     {
       "id": "node_034",
       "template": "question",
-      "title": "KV Cache = Causal masking(이유) + 캐싱(구현)의 합성",
-      "content": "KV Cache는 **두 가지 개념의 합성**입니다.\n\n**① Causal Masking** → 이전 토큰 representation이 불변인 이유\n- 토큰 $i$는 $1 \\ldots i$만 봄 (미래 마스킹)\n- 이후 토큰이 추가되어도 토큰 $i$의 K, V는 변하지 않음\n\n**② KV Cache** → 이 불변성을 이용한 구현 최적화\n- 이미 계산된 K, V를 메모리에 저장\n- 새 토큰 생성 시 저장된 K, V 재사용 → 재계산 생략\n\n| 개념 | 역할 |\n|---|---|\n| Causal masking | '재사용해도 되는 이유' — 구조적 성질 |\n| KV Cache | '실제로 재사용하는 방법' — 구현 최적화 |\n\n이전 $(n-1)$개 토큰의 full representation을 복붙하는 것과도 다릅니다 — Q는 버리고, K와 V projection만 저장합니다.",
+      "title": "KV Cache = Causal masking (why) + caching (implementation) combined",
+      "content": "KV Cache is **a composition of two concepts**.\n\n**① Causal Masking** → why earlier tokens' representations stay unchanged\n- Token $i$ only attends to $1 \\ldots i$ (future is masked)\n- Even as later tokens are added, token $i$'s K, V never change\n\n**② KV Cache** → an implementation optimization that exploits this invariance\n- Store the already-computed K, V in memory\n- Reuse the stored K, V when generating a new token → skip recomputation\n\n| Concept | Role |\n|---|---|\n| Causal masking | 'why reuse is valid' — a structural property |\n| KV Cache | 'how reuse is actually done' — an implementation optimization |\n\nIt's also different from just copy-pasting the full representation of the previous $(n-1)$ tokens — Q is discarded, and only the K and V projections are stored.",
       "contentExpanded": false,
       "originalExpanded": false,
       "childrenExpanded": false,
@@ -754,8 +758,8 @@
     {
       "id": "node_035",
       "template": "question",
-      "title": "Prefill vs Decode: n개 입력 시 중간 토큰을 건너뛸 수 있나?",
-      "content": "$n$개의 토큰이 input으로 주어졌을 때, $(n+1)$번째 토큰 예측을 위해 중간 토큰 $2 \\ldots n-1$을 건너뛸 수 있는가?\n\n**Single-layer: ✅ 가능**\n- K, V는 embedding → linear projection이므로 모든 토큰에 대해 직접 계산 가능\n- 토큰 $n$의 attention output만 구하면 됨; 중간 토큰의 full output 불필요\n\n**Multi-layer: ❌ 불가능**\n- Layer 2의 K, V = $W_K^{(2)} \\cdot h^{(1)}$ → Layer 1 output이 필요\n- 토큰 $n$이 layer 2에서 토큰 $1 \\ldots n-1$의 $K_2, V_2$를 참조해야 함\n- 따라서 모든 토큰의 Layer 1 output을 계산해야만 함\n\n**Prefill** (최초 1회): 1...n을 **병렬로 동시에** 계산 — 건너뛰는 게 아니라 한꺼번에 처리\n**Decode** (이후 반복): 새 토큰 1개만 각 layer 통과 → Prefill에서 캐싱된 K, V 재사용",
+      "title": "Prefill vs Decode: with n input tokens, can the intermediate tokens be skipped?",
+      "content": "Given $n$ tokens as input, can the intermediate tokens $2 \\ldots n-1$ be skipped when predicting the $(n+1)$-th token?\n\n**Single-layer: ✅ possible**\n- K, V are just embedding → linear projection, so they can be computed directly for every token\n- Only token $n$'s attention output is needed; the intermediate tokens' full output is unnecessary\n\n**Multi-layer: ❌ not possible**\n- Layer 2's K, V = $W_K^{(2)} \\cdot h^{(1)}$ → requires layer 1's output\n- At layer 2, token $n$ needs to reference tokens $1 \\ldots n-1$'s $K_2, V_2$\n- So layer 1's output must be computed for every token\n\n**Prefill** (once, up front): computes 1...n **all at once in parallel** — not skipping, but processing everything together\n**Decode** (repeated afterward): only the 1 new token passes through each layer → reuses the K, V cached during prefill",
       "contentExpanded": false,
       "originalExpanded": false,
       "childrenExpanded": false,
@@ -765,6 +769,31 @@
       },
       "children": [],
       "links": []
+    },
+    {
+      "id": "node_099",
+      "template": "memo",
+      "title": "[TEST] PDF search feature test",
+      "content": "Test node for the right-click → search-in-PDF feature. Right-clicking the original quote should jump to the Abstract (p.1) of 1706.03762v7.pdf and highlight the sentence below. Safe to delete once verified.",
+      "original": {
+        "text": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder.",
+        "location": "Abstract, p.1"
+      },
+      "contentExpanded": true,
+      "originalExpanded": true,
+      "childrenExpanded": false,
+      "position": {
+        "x": 1400,
+        "y": -50
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://www.google.com/search?q=Attention+Is+All+You+Need+paper",
+          "label": "[TEST] Click link → browser search test"
+        }
+      ]
     }
   ],
   "edges": [

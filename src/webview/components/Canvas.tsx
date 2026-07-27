@@ -5,6 +5,7 @@ import { WireLayer } from './WireLayer'
 import { CanvasImageLayer } from './CanvasImageLayer'
 import { SearchBar } from './SearchBar'
 import { Port } from '../utils/wireGeometry'
+import { THEME } from '../utils/themeSnapshot'
 
 interface CanvasProps {
   openSearchSignal: number
@@ -38,7 +39,6 @@ interface CanvasProps {
   onToggleOriginal: (id: string) => void
   onAddEdge: (sourceId: string, targetId: string) => void
   onDeleteEdge: (id: string) => void
-  onDeleteEdges: (ids: string[]) => void
   onAddToggle: (nodeId: string) => void
   onUpdateToggle: (nodeId: string, toggleId: string, field: 'title' | 'content', value: string) => void
   onDeleteToggle: (nodeId: string, toggleId: string) => void
@@ -48,15 +48,18 @@ interface CanvasProps {
   onAddLink: (nodeId: string, link: NodeLink) => void
   onDeleteLink: (nodeId: string, idx: number) => void
   onOpenLink: (link: NodeLink) => void
+  onSearchInPdf: (query: string, pageHint?: number) => void
   onSetNodeTemplate: (nodeId: string, template: string) => void
   onCollapseAll: () => void
   onExpandAll: () => void
   onExpandNodes: (ids: string[]) => void
   onCollapseNodes: (ids: string[]) => void
+  onExpandByLabel: (template: string) => void
   onExportHtml: () => void
   onReload: () => void
+  onOpenHelp: () => void
   imageUris: Record<string, string>
-  onSaveImage: (nodeId: string, base64: string, ext?: string, position?: number) => void
+  onSaveImage: (nodeId: string, base64: string, ext?: string, position?: number, toggleId?: string) => void
   onAddCanvasImage: (ci: CanvasImage) => void
   onAddFilenameToNode: (nodeId: string, filename: string, width?: number, height?: number) => void
   onSaveCanvasImage: (base64: string, ext: string, x: number, y: number) => void
@@ -67,35 +70,6 @@ interface CanvasProps {
 }
 
 const HEADER_H = 36
-
-function findRedundantEdges(edges: { id: string; source: string; target: string }[]): string[] {
-  const adj = new Map<string, string[]>()
-  for (const e of edges) {
-    if (!adj.has(e.source)) adj.set(e.source, [])
-    adj.get(e.source)!.push(e.target)
-  }
-  const redundant: string[] = []
-  for (const edge of edges) {
-    const { source: u, target: v, id } = edge
-    // BFS from u's neighbors (skip direct u→v hop), check if v is reachable
-    const visited = new Set<string>([u])
-    const queue: string[] = []
-    for (const n of (adj.get(u) ?? [])) {
-      if (n === v) continue
-      if (!visited.has(n)) { visited.add(n); queue.push(n) }
-    }
-    let found = false
-    while (queue.length > 0 && !found) {
-      const curr = queue.shift()!
-      if (curr === v) { found = true; break }
-      for (const n of (adj.get(curr) ?? [])) {
-        if (!visited.has(n)) { visited.add(n); queue.push(n) }
-      }
-    }
-    if (found) redundant.push(id)
-  }
-  return redundant
-}
 
 function computeRenderPositions(
   nodes: GraphNode[],
@@ -309,12 +283,15 @@ const toolbarBtnStyle: React.CSSProperties = {
   background: '#ffffff',
   color: '#374151',
   border: '1px solid #d1d5db',
-  borderRadius: 3,
-  padding: '3px 9px',
+  borderRadius: 6,
+  padding: '4px 10px',
   fontSize: 11,
+  fontWeight: 500,
   cursor: 'pointer',
   whiteSpace: 'nowrap',
   lineHeight: '1.4',
+  boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
+  transition: 'filter 0.1s, transform 0.1s',
 }
 
 interface SelectionBox {
@@ -346,10 +323,10 @@ export function Canvas({
   onSetNodeWidth, onSetNodeHeight,
   onPushHistory, onUndo, onRedo, canUndo, canRedo,
   onToggleContent, onToggleOriginal,
-  onAddEdge, onDeleteEdge, onDeleteEdges,
+  onAddEdge, onDeleteEdge,
   onAddToggle, onUpdateToggle, onDeleteToggle, onExpandToggle, onDeleteOriginal,
-  onAddOriginal, onAddLink, onDeleteLink, onOpenLink, onSetNodeTemplate,
-  onCollapseAll, onExpandAll, onExpandNodes, onCollapseNodes, onExportHtml, onReload,
+  onAddOriginal, onAddLink, onDeleteLink, onOpenLink, onSearchInPdf, onSetNodeTemplate,
+  onCollapseAll, onExpandAll, onExpandNodes, onCollapseNodes, onExpandByLabel, onExportHtml, onReload, onOpenHelp,
   imageUris, onSaveImage,
   onAddCanvasImage, onAddFilenameToNode, onSaveCanvasImage, onUpdateCanvasImage, onRemoveCanvasImage, onMoveCanvasImageToNode,
   lastAddedCanvasImageId,
@@ -384,6 +361,8 @@ export function Canvas({
 
   const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
+  // Collapse/Expand 라벨 필터 — '' = None (기존 동작), 아니면 해당 template 노드만 대상
+  const [expandFilterLabel, setExpandFilterLabel] = useState<string>('')
   const selBoxRef = useRef<SelectionBox | null>(null)
   const panStartPosRef = useRef<{ x: number; y: number } | null>(null)
   const [wireDrawing, setWireDrawing] = useState<{ srcId: string; srcPort: Port; curX: number; curY: number } | null>(null)
@@ -607,7 +586,7 @@ export function Canvas({
               reader.onload = () => {
                 const base64 = (reader.result as string).split(',')[1]
                 if (nodeId) {
-                  onSaveImage(nodeId, base64, ext, undefined, true)  // [[IMG:filename]] 을 content 끝에 추가
+                  onSaveImage(nodeId, base64, ext)  // [[IMG:filename]] 을 content 끝에 추가
                 } else {
                   const vp = viewportRef.current
                   const cx = (mousePosRef.current.x - vp.x) / vp.zoom
@@ -1167,6 +1146,16 @@ export function Canvas({
         return `::highlight(ng-hit-${hitKeySafe(key)}){color:${c};background-color:${bg};text-decoration:underline}`
       }).join('\n')}</style>
 
+      {/* 툴바 버튼 hover/active — 버튼 자체 배경색과 무관하게 filter로 통일 적용 */}
+      <style>{`
+        /* !important: buttons set background/color/border via inline style (React), which
+           otherwise always beats a stylesheet :hover rule regardless of selector specificity */
+        .ng-toolbar button:not(:disabled):hover { background: #2563eb !important; color: #ffffff !important; border-color: #1d4ed8 !important; }
+        .ng-toolbar button:not(:disabled):active { background: #1d4ed8 !important; border-color: #1e40af !important; transform: translateY(0.5px); }
+        .ng-toolbar select:hover { border-color: #93c5fd; }
+        .ng-toolbar select:focus { border-color: #2563eb; }
+      `}</style>
+
       {/* 상단 툴바 — mouseDown을 캔버스로 전파하지 않음 (폰트 컨트롤 클릭 시 선택 해제 방지) */}
       <div
         ref={toolbarRef}
@@ -1175,10 +1164,11 @@ export function Canvas({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 4,
-          padding: '4px 10px',
+          gap: 5,
+          padding: '6px 12px',
           background: '#f0f2f5',
           borderBottom: '1px solid #d1d5db',
+          boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)',
           flexShrink: 0,
           zIndex: 200,
           overflowX: 'auto',
@@ -1202,11 +1192,13 @@ export function Canvas({
             background: '#fff',
             color: '#374151',
             border: '1px solid #d1d5db',
-            borderRadius: 3,
+            borderRadius: 6,
             fontSize: 11,
-            padding: '2px 4px',
+            fontWeight: 500,
+            padding: '4px 6px',
             cursor: 'pointer',
             outline: 'none',
+            boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
           }}
         >
           {Object.entries(graph.nodeTemplates).map(([key, tmpl]) => (
@@ -1214,23 +1206,20 @@ export function Canvas({
           ))}
         </select>
 
-        <button style={toolbarBtnStyle} onClick={handleAddNode}>+ Add Node</button>
+        <button style={toolbarBtnStyle} onClick={handleAddNode}>➕ Add Node</button>
 
         <div style={{ width: 1, height: 18, background: '#d1d5db', margin: '0 4px' }} />
 
         <button
           style={{
             ...toolbarBtnStyle,
-            background: selCount > 0 ? '#dc4a2e' : '#ffffff',
-            color: selCount > 0 ? '#ffffff' : '#9ca3af',
-            borderColor: selCount > 0 ? '#b73a20' : '#d1d5db',
-            opacity: selCount > 0 ? 1 : 0.5,
+            opacity: selCount > 0 ? 1 : 0.4,
             cursor: selCount > 0 ? 'pointer' : 'default',
           }}
           onClick={handleDeleteSelected}
           disabled={selCount === 0}
         >
-          Delete{selCount > 1 ? ` (${selCount})` : ''}
+          🗑️ Delete{selCount > 1 ? ` (${selCount})` : ''}
         </button>
 
         {selCount > 0 && (
@@ -1361,52 +1350,70 @@ export function Canvas({
         )}
 
         <div style={{ width: 1, height: 18, background: '#d1d5db', margin: '0 4px' }} />
+        <select
+          value={expandFilterLabel}
+          onChange={(e) => setExpandFilterLabel(e.target.value)}
+          title="Filter Collapse/Expand to one node type"
+          style={{
+            background: '#fff',
+            color: '#374151',
+            border: '1px solid #d1d5db',
+            borderRadius: 6,
+            fontSize: 11,
+            fontWeight: 500,
+            padding: '4px 6px',
+            cursor: 'pointer',
+            outline: 'none',
+            boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
+          }}
+        >
+          <option value="">None</option>
+          {Object.entries(graph.nodeTemplates).map(([key, tmpl]) => (
+            <option key={key} value={key}>{tmpl.label}</option>
+          ))}
+        </select>
         <button
           style={toolbarBtnStyle}
           onClick={() => {
+            if (expandFilterLabel) { onCollapseAll(); return }
             const ids = [...selectedIdsRef.current]
             if (ids.length > 0) onCollapseNodes(ids)
             else onCollapseAll()
           }}
-          title={selCount > 0 ? 'Collapse selected nodes' : 'Collapse all nodes'}
-        >Collapse↑</button>
+          title={expandFilterLabel ? 'Collapse all nodes' : selCount > 0 ? 'Collapse selected nodes' : 'Collapse all nodes'}
+        >📁 Collapse</button>
         <button
           style={toolbarBtnStyle}
           onClick={() => {
+            if (expandFilterLabel) { onExpandByLabel(expandFilterLabel); return }
             const ids = [...selectedIdsRef.current]
             if (ids.length > 0) onExpandNodes(ids)
             else onExpandAll()
           }}
-          title={selCount > 0 ? 'Expand selected nodes' : 'Expand all nodes'}
-        >Expand↓</button>
-        <button style={toolbarBtnStyle} onClick={handleFitView} title="Fit all nodes into view">Fit View</button>
+          title={expandFilterLabel ? `Expand only ${graph.nodeTemplates[expandFilterLabel]?.label ?? expandFilterLabel} nodes` : selCount > 0 ? 'Expand selected nodes' : 'Expand all nodes'}
+        >📂 Expand</button>
+        <button style={toolbarBtnStyle} onClick={handleFitView} title="Fit all nodes into view">🔍 Fit View</button>
 
         <div style={{ width: 1, height: 18, background: '#d1d5db', margin: '0 4px' }} />
         <button
           style={toolbarBtnStyle}
-          onClick={() => {
-            const redundant = findRedundantEdges(graph.edges)
-            if (redundant.length > 0) onDeleteEdges(redundant)
-          }}
-          title="Remove redundant edges (transitive reduction): if A→B→C exists, remove A→C"
-        >Reduce Edges</button>
-        <button
-          style={{ ...toolbarBtnStyle, background: '#15803d', color: '#ffffff', borderColor: '#166534' }}
           onClick={onExportHtml}
           title="Export as HTML"
-        >Export HTML</button>
+        >📄 Export HTML</button>
 
         {/* 고정 폭 간격 — flex:1 스페이서는 창 축소 시 먼저 수축해 버튼 위치가 움직이고
             overflow(슬라이드)도 늦게 발생하므로 사용하지 않음 */}
         <div style={{ width: 24 }} />
         <button
-          style={{ ...toolbarBtnStyle, fontFamily: 'monospace' }}
+          style={toolbarBtnStyle}
           onClick={onReload}
           title="Reload from disk (re-reads the JSON file — use after an external agent edits it)"
-        >↺ Reload</button>
-        <span style={{ fontSize: 10, color: '#aaa', whiteSpace: 'nowrap' }}>
-          Left-drag: pan · Click: deselect · Scroll: zoom · Right-drag: select
-        </span>
+        >🔄 Reload</button>
+        <button
+          style={toolbarBtnStyle}
+          onClick={onOpenHelp}
+          title="Help — open the Features section of the extension's README"
+        >❓ Help</button>
       </div>
 
       {/* 캔버스 */}
@@ -1417,7 +1424,7 @@ export function Canvas({
           style={{
             width: '100%', height: '100%',
             overflow: 'hidden', position: 'relative',
-            background: 'var(--vscode-editor-background)',
+            background: THEME.canvasBg,
             cursor: selectionBox ? 'crosshair' : cursor,
             userSelect: 'none',
             outline: 'none',
@@ -1492,6 +1499,7 @@ export function Canvas({
                   onAddLink={onAddLink}
                   onDeleteLink={onDeleteLink}
                   onOpenLink={onOpenLink}
+                  onSearchInPdf={onSearchInPdf}
                   onSetNodeTemplate={onSetNodeTemplate}
                   imageUris={imageUris}
                   onSaveImage={onSaveImage}

@@ -3,6 +3,9 @@ import * as path from 'path'
 import { NodeGraph } from '../webview/types/graph'
 import { computeImageUris, saveImageToAssetsFolder, deleteImageFile } from './imageManager'
 import { generateHtml } from './htmlExporter'
+import { createEmptyGraph } from './defaultGraph'
+import { getNonce } from './nonce'
+import { PdfViewerPanel } from './PdfViewerPanel'
 
 export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider {
   public static register(context: vscode.ExtensionContext): vscode.Disposable {
@@ -38,8 +41,9 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
     webviewPanel.webview.html = this._getHtmlForWebview(webviewPanel.webview)
 
     const sendGraph = (type: 'load' | 'externalChange') => {
+      const text = document.getText()
       try {
-        const data: NodeGraph = JSON.parse(document.getText())
+        const data: NodeGraph = text.trim() === '' ? createEmptyGraph() : JSON.parse(text)
         const imageUris = computeImageUris(webviewPanel.webview, document.uri, data)
         webviewPanel.webview.postMessage({ type, data, imageUris })
       } catch {
@@ -75,6 +79,9 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
         } else if (link.type === 'obsidian') {
           vscode.env.openExternal(vscode.Uri.parse(link.target))
         }
+      } else if (msg.type === 'searchInPdf') {
+        const pdfUri = vscode.Uri.joinPath(vscode.Uri.joinPath(document.uri, '..'), msg.pdfTarget)
+        PdfViewerPanel.openAndSearch(this.context, pdfUri, msg.query, msg.pageHint)
       } else if (msg.type === 'exportHtml') {
         try {
           const data: NodeGraph = msg.data
@@ -140,6 +147,9 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
         } catch {
           sendGraph('load')
         }
+      } else if (msg.type === 'openHelp') {
+        const readmeUri = vscode.Uri.joinPath(this.context.extensionUri, 'README.md')
+        vscode.commands.executeCommand('markdown.showPreviewToSide', readmeUri.with({ fragment: 'features' }))
       }
     })
 
@@ -199,13 +209,4 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
 </body>
 </html>`
   }
-}
-
-function getNonce(): string {
-  let text = ''
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  for (let i = 0; i < 32; i++) {
-    text += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return text
 }

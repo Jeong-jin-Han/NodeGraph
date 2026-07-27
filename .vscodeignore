@@ -12,6 +12,9 @@ test-demo/
 # Old packages
 *.vsix
 
+# Dev-only build output (sourcemaps — only emitted by non-production builds)
+dist/*.map
+
 # Dev dependencies
 node_modules/
 

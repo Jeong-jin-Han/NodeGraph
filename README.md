@@ -21,11 +21,11 @@ A VS Code extension for building node-based knowledge graphs from research paper
 - **Custom editor** for `.nodegraph.json` files — pan (left-drag), zoom (scroll wheel, 0.05×–8×, centered on the cursor), box-select (right-drag)
 - **Rich node content** — Markdown (GFM) tables, LaTeX via KaTeX, `**bold**`, inline images; click any text to edit it in place (`Esc` cancels, clicking elsewhere commits)
 - **Node types** — 8 templates: Main topic, Method, Result, Claim (sharp = from the paper) and Question, Gap/Idea, Reference, Memo (rounded = your own notes); change a selected node's type from the toolbar dropdown
-- **Fold / Unfold** — click the node title; toolbar `Expand↓` / `Collapse↑` act on the selected node's whole subtree (expand stops at other main-topic nodes), or on every node when nothing is selected
-- **Toggle sections** — collapsible sub-sections inside a node (`+ Toggle` button)
-- **Original text** — verbatim source quote with an editable label and `§, p.` location (`+ Original` button); rendered in italics below the content
+- **Fold / Unfold** — click the node title; toolbar `Expand↓` / `Collapse↑` act on the selected node's whole subtree (expand stops at other main-topic nodes), or on every node when nothing is selected; a node-type filter dropdown next to these buttons restricts them to one template — `Collapse↑` always closes everything, `Expand↓` opens only nodes of that type (ignoring parent/child relationships) and closes the rest
+- **Toggle sections** — collapsible sub-sections inside a node (`+ Toggle` button); same rich rendering as the main content (GFM tables, LaTeX, inline images)
+- **Original text** — verbatim source quote with an editable label and `§, p.` location (`+ Original` button); rendered in italics below the content; right-click the quote to jump to and highlight it in the source PDF (see **Find & focus**)
 - **Links** — attach `url` / `pdf` / `obsidian` links to a node (`+ Link` button); click to open — PDFs are resolved relative to the JSON file
-- **Edges** — drag from a port dot (appears on hover) onto any node body to create an `arrow` edge; duplicates are ignored; click a wire to select it (blue) and press `Delete` to remove it; `Reduce Edges` deletes transitively redundant A→C edges
+- **Edges** — drag from a port dot (appears on hover) onto any node body to create an `arrow` edge; duplicates are ignored; click a wire to select it (blue) and press `Delete` to remove it (transitively redundant A→C edges are expected to be avoided when the graph is written — see Agent / AI Editing)
 - **Resize & typography** — drag an expanded node's right/bottom/corner handles (min 160×60); nodes widen automatically to fit tables and sized images; per-node font size 8–72px via the toolbar combo (with multiple nodes selected, sizes shift together preserving differences)
 - **Undo / Redo** — full history with `Ctrl+Z` / `Ctrl+Y` (or `Ctrl+Shift+Z`)
 
@@ -37,17 +37,21 @@ A VS Code extension for building node-based knowledge graphs from research paper
 ### Find & focus
 - **Ctrl+F search** — live dropdown over title, content, and original text; `↑`/`↓` flies the viewport to each match, `Enter` expands the chosen node and collapses the other matches; the matched text itself is marked inside the node in the inverse of its template color
 - **Generation highlight** — click a node's tag badge to outline the node, its parents/children, and the connecting wires in red; background clicks keep it pinned, `Esc` clears it
+- **Search original text in the source PDF** — right-click an expanded node's original-text quote to open (or reuse) a built-in PDF viewer tab for the graph's `source.pdf`, jump to the page from the quote's `p.N` location, and highlight the matching sentence (exact match first, word-overlap fuzzy match as a fallback for OCR/hyphenation drift); if no text match is found nearby it still lands on the hinted page. Requires `source.pdf` to be set on the graph. `Esc` inside the PDF tab clears the highlight.
 
 ### Images
-- **Paste into a node** — copy any image and press `Ctrl+V` with a node selected or hovered (or inside the content editor, at the cursor); the file is saved as `img_<timestamp>.<ext>` in `.<name>-imgs/` and referenced as an `[[IMG:filename:WxH]]` token
+- **Paste into a node** — copy any image and press `Ctrl+V` with a node selected or hovered (or inside the content editor or a toggle's editor, at the cursor); the file is saved as `img_<timestamp>.<ext>` in `.<name>-imgs/` and referenced as an `[[IMG:filename:WxH]]` token; pasting right after a table row's closing `|` drops the image below the table instead of corrupting the row
 - **Canvas images** — paste on the background to get a floating, draggable, aspect-preserving-resizable image; drop it onto a node (or a specific table cell) to move it into that content; `Ctrl+C`/`X`/`V` copies, cuts, and clones canvas images
 - **Lightbox** — click any image to zoom it full-screen; `Esc` or a click closes
 
 ### Files & export
-- **HTML export** — writes a self-contained `<name>.html` next to the JSON with all referenced images inlined as base64 and offers *Open in Browser / Show in Explorer*; the viewer reproduces search with inline marks, generation highlight, wire routing, the fold layout, node dragging, and window-resize recentering (KaTeX loads from a CDN, so formulas need internet; floating canvas images are not exported)
+- **Empty file → empty graph** — opening a blank (0-byte) or otherwise unparsable `.nodegraph.json` shows an empty, editable graph instead of a blank screen; no need to pre-populate the JSON (via an agent or `NodeGraph: New Graph`) before the editor works
+- **HTML export** — writes a self-contained `<name>.html` next to the JSON with all referenced images inlined as base64 and offers *Open in Browser / Show in Explorer*; the viewer reproduces search with inline marks, generation highlight, wire routing, the fold layout, node dragging, window-resize recentering, and the same node-type Collapse/Expand filter as the editor toolbar (KaTeX loads from a CDN, so formulas need internet; floating canvas images are not exported)
 - **Save** — `Ctrl+S` writes pretty-printed JSON to disk immediately; image insertion saves automatically
 - **External edits** — when the file changes outside the webview the graph reloads automatically; `↺ Reload` force-re-reads from disk (useful after an AI agent edits the JSON)
 - **Slidable toolbar** — on narrow windows the toolbar keeps its button positions and slides horizontally (`Shift`+wheel on desktop, swipe on touch)
+- **Theme-independent nodes** — only the canvas background follows the active VSCode theme; node colors, text, links, and inputs render the same regardless of theme
+- **Help (`?`)** — opens the extension's bundled README, scrolled to the Features section
 
 ## Mouse & Keyboard Controls
 
@@ -75,6 +79,7 @@ A VS Code extension for building node-based knowledge graphs from research paper
 | **Fold / Unfold content** | **Click node title** |
 | **Edit node title** | **Right-click node title** |
 | Edit content / original | Click text area |
+| **Search original quote in PDF** | **Right-click the original-text quote** (requires `source.pdf`) |
 | Add image | Copy an image, then `Ctrl+V` with the node selected or hovered — inserted as an `[[IMG:...]]` token; pasting on the background creates a floating canvas image, which can be dragged onto a node or table cell |
 | Add toggle / original / link | `+ Toggle` · `+ Original` · `+ Link` buttons at the bottom of an expanded node |
 | Resize node | Drag the right / bottom / corner handles of an expanded node (min 160×60) |
@@ -88,10 +93,11 @@ A VS Code extension for building node-based knowledge graphs from research paper
 | Delete | Deletes all selected nodes |
 | Type & font controls | Shown while nodes are selected — switch the node's template; set font size by typing a number or picking a preset (8–72) |
 | Collapse↑ / Expand↓ | Fold/unfold the selected subtree, or everything when nothing is selected |
+| Node-type filter (next to Collapse↑/Expand↓) | When set to a type instead of `None`: `Collapse↑` closes everything, `Expand↓` opens only that type's nodes and closes the rest |
 | Fit View | Zoom to fit all nodes |
-| Reduce Edges | Remove A→C when a path A→B→C already exists |
 | Export HTML | Write `<name>.html` next to the JSON |
-| ↺ Reload | Re-read the JSON from disk |
+| Reload | Re-read the JSON from disk |
+| Help | Open the bundled README's Features section in a Markdown preview beside the editor |
 
 When the window is narrower than the toolbar content, the toolbar slides horizontally (`Shift`+wheel or touch swipe) — button positions never change.
 
@@ -113,7 +119,7 @@ Matched text inside each node is additionally marked (inverse template color + u
 2. Run **NodeGraph: New Graph** (`Ctrl+Shift+P`) to create a new `.nodegraph.json` file.
 3. The custom editor opens automatically for any `*.nodegraph.json` file.
 4. **Drag nodes** by grabbing the colored tag badge; **click the title** to fold/unfold content; **right-click the title** to edit it.
-5. Use the toolbar — **Expand↓ / Collapse↑ / Fit View / Reduce Edges / Export HTML / ↺ Reload**.
+5. Use the toolbar — **Expand / Collapse / Fit View / Export HTML / Reload / Help**.
 6. Press **Ctrl+F** to search nodes by title or content.
 
 ## Node Content Syntax

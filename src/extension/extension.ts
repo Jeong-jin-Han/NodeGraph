@@ -1,6 +1,7 @@
 import * as vscode from 'vscode'
 import { NodeGraphEditorProvider } from './NodeGraphEditorProvider'
 import { writeEnvironmentReport } from './environmentChecker'
+import { createEmptyGraph } from './defaultGraph'
 
 const RECOMMENDED_EXTENSIONS = [
   { id: 'tomoki1207.pdf', name: 'vscode-pdf (PDF Viewer)' },
@@ -18,18 +19,6 @@ async function installRecommendedExtensions(): Promise<void> {
   }
 }
 
-// nodegraph.new로 생성되는 빈 그래프의 기본 템플릿 (spec의 8종과 동일)
-const DEFAULT_TEMPLATES = {
-  main_topic: { label: 'Main topic', color: '#4B8BBE', icon: 'file-text', shape: 'sharp' },
-  method: { label: 'Method', color: '#5C9E6E', icon: 'cpu', shape: 'sharp' },
-  result: { label: 'Result', color: '#9B59B6', icon: 'bar-chart-2', shape: 'sharp' },
-  claim: { label: 'Claim', color: '#E74C3C', icon: 'alert-circle', shape: 'sharp' },
-  question: { label: 'Question', color: '#E5A835', icon: 'help-circle', shape: 'rounded' },
-  gap: { label: 'Gap / Idea', color: '#1ABC9C', icon: 'lightbulb', shape: 'rounded' },
-  reference: { label: 'Reference', color: '#95A5A6', icon: 'book-open', shape: 'rounded' },
-  memo: { label: 'Memo', color: '#BDC3C7', icon: 'edit-3', shape: 'rounded' },
-}
-
 async function createNewGraph(): Promise<void> {
   const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri
   const defaultUri = wsFolder
@@ -44,17 +33,7 @@ async function createNewGraph(): Promise<void> {
   const uri = picked.fsPath.endsWith('.nodegraph.json')
     ? picked
     : picked.with({ path: picked.path.replace(/(\.nodegraph)?(\.json)?$/, '') + '.nodegraph.json' })
-  const now = new Date().toISOString()
-  const starter = {
-    version: '1.0.0',
-    title: 'New Graph',
-    created: now,
-    modified: now,
-    nodeTemplates: DEFAULT_TEMPLATES,
-    nodes: [],
-    edges: [],
-    viewport: { x: 0, y: 0, zoom: 1 },
-  }
+  const starter = createEmptyGraph()
   await vscode.workspace.fs.writeFile(uri, Buffer.from(JSON.stringify(starter, null, 2), 'utf-8'))
   await vscode.commands.executeCommand('vscode.openWith', uri, 'nodegraph.editor')
 }
