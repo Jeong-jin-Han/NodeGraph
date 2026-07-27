@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect, CSSProperties } from 'react'
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { NodeGraph, GraphNode, Viewport, NodeLink, CanvasImage } from '../types/graph'
 import { NodeCard } from './NodeCard'
 import { WireLayer } from './WireLayer'
@@ -10,6 +10,7 @@ import { THEME } from '../utils/themeSnapshot'
 interface CanvasProps {
   openSearchSignal: number
   fitViewSignal: number
+  focusCanvasSignal: number
   viewport: Viewport
   cursor: string
   nativeWheelHandler: (e: WheelEvent) => void
@@ -464,20 +465,46 @@ function computeGridLines(
   return { hLines, vLines }
 }
 
+// 모든 툴바 컨트롤(버튼/드롭다운/입력)이 같은 높이를 공유해서 한 줄에서 삐뚤빼뚤
+// 정렬되지 않는 문제를 방지 — 사용자 피드백: "버튼을 동일한 높이를 가지게".
+const TOOLBAR_CTRL_H = 28
+
 const toolbarBtnStyle: React.CSSProperties = {
   background: '#ffffff',
   color: '#374151',
   border: '1px solid #d1d5db',
   borderRadius: 6,
-  padding: '4px 10px',
+  padding: '0 10px',
+  height: TOOLBAR_CTRL_H,
+  boxSizing: 'border-box',
   fontSize: 11,
   fontWeight: 500,
   cursor: 'pointer',
   whiteSpace: 'nowrap',
   lineHeight: '1.4',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
   boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
   transition: 'filter 0.1s, transform 0.1s',
 }
+
+const toolbarSelectStyle: React.CSSProperties = {
+  background: '#fff',
+  color: '#374151',
+  border: '1px solid #d1d5db',
+  borderRadius: 6,
+  height: TOOLBAR_CTRL_H,
+  boxSizing: 'border-box',
+  fontSize: 11,
+  fontWeight: 500,
+  padding: '0 6px',
+  cursor: 'pointer',
+  outline: 'none',
+  boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
+}
+
+const toolbarDividerStyle: React.CSSProperties = { width: 1, height: 18, background: '#d1d5db', margin: '0 4px' }
 
 interface SelectionBox {
   x1: number; y1: number; x2: number; y2: number
@@ -501,6 +528,7 @@ const hitKeySafe = (k: string) => k.replace(/[^a-zA-Z0-9_-]/g, '_')
 export function Canvas({
   openSearchSignal,
   fitViewSignal,
+  focusCanvasSignal,
   viewport, cursor, nativeWheelHandler,
   onMouseDown, onMouseMove, onMouseUp, onMouseLeave, onContextMenu,
   onSetViewport, graph, onUpdateNodePosition, onAutoSaveNodePosition, onUpdateNode, onAddNode, onDeleteNodes,
@@ -635,7 +663,6 @@ export function Canvas({
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const active = document.activeElement
-      console.log('[KB]', e.key, 'ctrl:', e.ctrlKey, 'meta:', e.metaKey, 'active:', active?.tagName, active?.id)
       if (active?.tagName === 'TEXTAREA' || active?.tagName === 'INPUT') {
         // Escape while editing a node field → blur + deselect
         if (e.key === 'Escape') {
@@ -699,15 +726,12 @@ export function Canvas({
       const imgId = selectedCanvasImgIdsRef.current.size === 1
         ? [...selectedCanvasImgIdsRef.current][0]
         : null
-      console.log('[KB] imgId:', imgId, 'clipboard:', canvasClipboardRef.current, 'selectedNodes:', selectedIdsRef.current.size)
       if ((e.ctrlKey || e.metaKey)) {
         if (imgId) {
           const img = canvasImagesRef.current?.find(ci => ci.id === imgId)
-          console.log('[KB] found img:', img)
           if (e.key === 'c' && img) {
             canvasClipboardRef.current = { filename: img.filename, width: img.width, height: img.height }
             pasteBlockedRef.current = false
-            console.log('[KB] Ctrl+C: clipboard set to', canvasClipboardRef.current)
             e.preventDefault()
             return
           } else if (e.key === 'x' && img) {
@@ -731,21 +755,18 @@ export function Canvas({
             return hoveredNodeIdRef.current
           }
           const targetNodeId = getTargetNodeId()
-          console.log('[KB] Ctrl+V: clipboard=', canvasClipboardRef.current, 'targetNode=', targetNodeId)
 
           // 1. 내부 canvas clipboard → 노드에 넣거나 캔버스에 클론
           if (canvasClipboardRef.current) {
             const clip = canvasClipboardRef.current
             if (targetNodeId) {
               // 노드가 선택/호버 중 → 파일명 직접 노드 이미지로 추가
-              console.log('[KB] Ctrl+V: adding canvas image to node', targetNodeId)
               onAddFilenameToNode(targetNodeId, clip.filename, clip.width, clip.height)
             } else {
               // 배경 → 마우스 커서 위치에 클론 배치
               const vp = viewportRef.current
               const cx = (mousePosRef.current.x - vp.x) / vp.zoom
               const cy = (mousePosRef.current.y - vp.y) / vp.zoom
-              console.log('[KB] Ctrl+V: placing clone at cursor', cx, cy)
               onAddCanvasImage({
                 id: `cimg_${Date.now()}`,
                 filename: clip.filename,
@@ -764,7 +785,6 @@ export function Canvas({
           }
           ;(async () => {
             const nodeId = targetNodeId
-            console.log('[KB] Ctrl+V system paste: nodeId=', nodeId)
 
             const handleBlob = (blob: Blob, mimeType: string) => {
               const ext = mimeType.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
@@ -777,7 +797,6 @@ export function Canvas({
                   const vp = viewportRef.current
                   const cx = (mousePosRef.current.x - vp.x) / vp.zoom
                   const cy = (mousePosRef.current.y - vp.y) / vp.zoom
-                  console.log('[KB] paste to canvas background at', cx, cy)
                   onSaveCanvasImage(base64, ext, cx, cy)
                 }
               }
@@ -794,9 +813,7 @@ export function Canvas({
                   return
                 }
               }
-              console.log('[KB] clipboard에 이미지 없음')
             } catch (err) {
-              console.warn('[KB] clipboard.read() 실패:', err)
             }
           })()
         }
@@ -818,25 +835,42 @@ export function Canvas({
     }
   }, [selectedIds])
 
+  // 다른 탭(예: Help로 연 README 마크다운 프리뷰 — 이 역시 webview라서 우리 웹뷰와
+  // 포커스를 주고받는 방식이 일반 텍스트 에디터 사이 전환과 다름)으로 갔다가 다시
+  // 이 탭을 클릭해서 돌아왔을 때, VSCode가 탭은 활성화해도 iframe 안쪽 DOM 포커스는
+  // 자동으로 넘겨주지 않는 경우가 있어 Escape 등 키보드 단축키가 씹히는 문제가 있었음
+  // (사용자 리포트: 빨간 생성 하이라이트를 pin한 채로 Help→README 확인→탭 복귀→Esc를
+  // 눌러도 하이라이트가 안 풀림). 처음엔 웹뷰의 `visibilitychange`로 감지하려 했는데
+  // 실제로 재현이 안 됨을 확인 — 그건 OS 레벨 창 가시성(예: VSCode 전체를 최소화)만
+  // 반영하고, "이 웹뷰 패널이 VSCode 안에서 활성 탭이 되었는가"는 반영하지 않기
+  // 때문. 대신 그 정확한 시점을 알려주는 진짜 API인 확장 쪽의
+  // `webviewPanel.onDidChangeViewState`(NodeGraphEditorProvider.ts)에서 패널이
+  // active가 될 때 `{type:'focusCanvas'}` 메시지를 보내주도록 하고, 여기서는 그
+  // 신호(App.tsx가 카운터로 변환한 `focusCanvasSignal`)를 받아서 캔버스에 focus.
+  useEffect(() => {
+    if (focusCanvasSignal === 0) return
+    const active = document.activeElement
+    if (active?.tagName !== 'TEXTAREA' && active?.tagName !== 'INPUT') {
+      divRef.current?.focus({ preventScroll: true })
+    }
+  }, [focusCanvasSignal])
+
   const handleNodeHoverStart = useCallback((id: string) => { hoveredNodeIdRef.current = id }, [])
   const handleNodeHoverEnd = useCallback((id: string) => { if (hoveredNodeIdRef.current === id) hoveredNodeIdRef.current = null }, [])
 
   const handleCanvasPaste = useCallback(async (e: React.ClipboardEvent<HTMLDivElement>) => {
     const ids = selectedIdsRef.current
     const nodeId = ids.size === 1 ? [...ids][0] : hoveredNodeIdRef.current
-    console.log('[PASTE] fired. nodeId=', nodeId, 'clipboard=', canvasClipboardRef.current)
 
     // 내부 클립보드 우선: 노드를 타겟하지 않을 때 canvas image 클론
     if (!nodeId && canvasClipboardRef.current) {
       const clip = canvasClipboardRef.current
       const el = divRef.current
-      console.log('[PASTE] internal clipboard hit, el=', !!el)
       if (el) {
         const { width: W, height: H } = el.getBoundingClientRect()
         const vp = viewportRef.current
         const cx = (W / 2 - vp.x) / vp.zoom
         const cy = (H / 2 - vp.y) / vp.zoom
-        console.log('[PASTE] placing clone at', cx, cy)
         onAddCanvasImage({
           id: `cimg_${Date.now()}`,
           filename: clip.filename,
@@ -938,18 +972,41 @@ export function Canvas({
     [showGrid, graph.nodes, graph.edges, graph.nodeTemplates, renderPositions, nodeSizes]
   )
 
-  // Search: matching nodes for dropdown
+  // Search: matching nodes for dropdown — ordered by main-topic BFS (사용자 요청): 백본
+  // 순서대로 main topic을 돌면서, 그 main topic에 속한 hop-1 전부 → hop-2 전부 → ...
+  // 다 훑은 뒤에야 다음 main topic으로 넘어감. 이전엔 graph.nodes 배열 순서(대략 작성
+  // 순서)라 hop 구조와 무관하게 뒤섞여 보였음. 트리 구조는 레이아웃과 동일하게
+  // buildHopTree로 계산해서 두 로직이 어긋나지 않게 함.
   const searchMatchNodes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
     if (!q) return [] as Array<{ id: string; title: string }>
+    const { depthOf, rootOf } = buildHopTree(graph.nodes, graph.edges, graph.nodeTemplates)
+    const roots = graph.nodes
+      .filter(n => depthOf.get(n.id) === 0)
+      .sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x)
+    const rootIndex = new Map(roots.map((r, i) => [r.id, i]))
+
     return graph.nodes
       .filter(n =>
         n.title.toLowerCase().includes(q) ||
         (n.content ?? '').toLowerCase().includes(q) ||
-        (n.original?.text ?? '').toLowerCase().includes(q)
+        (n.original?.text ?? '').toLowerCase().includes(q) ||
+        (n.original?.title ?? '').toLowerCase().includes(q) ||
+        (n.toggleItems ?? []).some(t =>
+          t.title.toLowerCase().includes(q) || t.content.toLowerCase().includes(q)
+        )
       )
+      .sort((a, b) => {
+        const ra = rootIndex.get(rootOf.get(a.id) ?? a.id) ?? 0
+        const rb = rootIndex.get(rootOf.get(b.id) ?? b.id) ?? 0
+        if (ra !== rb) return ra - rb
+        const da = depthOf.get(a.id) ?? 0, db = depthOf.get(b.id) ?? 0
+        if (da !== db) return da - db
+        // 같은 main topic, 같은 hop 레벨이면 원래 저장된 Y 순서로 안정적으로 정렬
+        return a.position.y - b.position.y || a.position.x - b.position.x
+      })
       .map(n => ({ id: n.id, title: n.title }))
-  }, [searchQuery, graph.nodes])
+  }, [searchQuery, graph.nodes, graph.edges, graph.nodeTemplates])
 
   const showSearchDropdown = searchOpen && searchQuery.trim() !== '' && searchSelectedId === null
 
@@ -1038,18 +1095,30 @@ export function Canvas({
 
   const handleSelectSearchNode = useCallback((id: string) => {
     setSearchSelectedId(id)
+    const q = searchQuery.trim().toLowerCase()
     // Enter 확정: 선택된 노드만 expand, 나머지 매치 노드는 collapse
     for (const match of searchMatchNodes) {
       const node = graph.nodes.find(n => n.id === match.id)
       if (!node) continue
       if (match.id === id) {
         if (!node.contentExpanded) onToggleContent(node.id)
+        // 매치가 toggle 제목/내용 안에 있을 수 있으므로, 접혀 있으면 펼쳐서 실제로 보이게 함
+        for (const t of node.toggleItems ?? []) {
+          if (!t.expanded && q && (t.title.toLowerCase().includes(q) || t.content.toLowerCase().includes(q))) {
+            onExpandToggle(node.id, t.id)
+          }
+        }
+        // 매치가 original 제목/텍스트 안에 있을 수 있으므로, 접혀 있으면 펼쳐서 보이게 함
+        if (!node.originalExpanded && q && node.original &&
+          ((node.original.title ?? '').toLowerCase().includes(q) || node.original.text.toLowerCase().includes(q))) {
+          onToggleOriginal(node.id)
+        }
       } else {
         if (node.contentExpanded) onToggleContent(node.id)
       }
     }
     requestAnimationFrame(() => flyToNode(id))
-  }, [flyToNode, searchMatchNodes, graph.nodes, onToggleContent])
+  }, [flyToNode, searchMatchNodes, graph.nodes, onToggleContent, onExpandToggle, onToggleOriginal, searchQuery])
 
   const handleSearchQueryChange = useCallback((q: string) => {
     setSearchQuery(q)
@@ -1374,16 +1443,21 @@ export function Canvas({
         .ng-toolbar select:focus { border-color: #2563eb; }
       `}</style>
 
-      {/* 상단 툴바 — mouseDown을 캔버스로 전파하지 않음 (폰트 컨트롤 클릭 시 선택 해제 방지) */}
+      {/* 상단 툴바 — mouseDown을 캔버스로 전파하지 않음 (폰트 컨트롤 클릭 시 선택 해제 방지).
+          사용자 피드백: 한 줄에 컨트롤이 너무 많이 몰려 보여서, edit 계열(undo/redo,
+          노드 생성/삭제, 선택 노드 편집)을 위쪽 줄로, view/그래프 탐색 계열(fold/expand,
+          fit view, grid, export, reload, help)을 아래쪽 줄로 분리 — 대신 툴바 전체
+          높이를 두 줄만큼 더 키움. 슬라이드(가로 스크롤)는 두 줄을 감싸는 바깥
+          컨테이너(toolbarRef) 기준으로 그대로 유지. */}
       <div
         ref={toolbarRef}
         className="ng-toolbar"
         onMouseDown={(e) => { e.stopPropagation(); lastToolbarInteractionRef.current = Date.now() }}
         style={{
           display: 'flex',
-          alignItems: 'center',
-          gap: 5,
-          padding: '6px 12px',
+          flexDirection: 'column',
+          gap: 6,
+          padding: '8px 12px',
           background: '#f0f2f5',
           borderBottom: '1px solid #d1d5db',
           boxShadow: '0 1px 3px rgba(15, 23, 42, 0.08)',
@@ -1391,42 +1465,44 @@ export function Canvas({
           zIndex: 200,
           overflowX: 'auto',
         }}>
-        {/* Undo / Redo */}
+        {/* Row 1 — editing: undo/redo, node creation, deletion, per-selection controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <button
           style={{ ...toolbarBtnStyle, opacity: canUndo ? 1 : 0.35, cursor: canUndo ? 'pointer' : 'default' }}
           onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)"
-        >↩ Undo</button>
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <polyline points="9 14 4 9 9 4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M20 20v-7a4 4 0 0 0-4-4H4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Undo
+        </button>
         <button
           style={{ ...toolbarBtnStyle, opacity: canRedo ? 1 : 0.35, cursor: canRedo ? 'pointer' : 'default' }}
           onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Shift+Z)"
-        >Redo ↪</button>
+        >
+          Redo
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <polyline points="15 14 20 9 15 4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M4 20v-7a4 4 0 0 1 4-4h12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
 
-        <div style={{ width: 1, height: 18, background: '#d1d5db', margin: '0 4px' }} />
+        <div style={toolbarDividerStyle} />
 
         <select
           value={selectedTemplate}
           onChange={(e) => setSelectedTemplate(e.target.value)}
-          style={{
-            background: '#fff',
-            color: '#374151',
-            border: '1px solid #d1d5db',
-            borderRadius: 6,
-            fontSize: 11,
-            fontWeight: 500,
-            padding: '4px 6px',
-            cursor: 'pointer',
-            outline: 'none',
-            boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
-          }}
+          style={toolbarSelectStyle}
         >
           {Object.entries(graph.nodeTemplates).map(([key, tmpl]) => (
             <option key={key} value={key}>{tmpl.label} ({tmpl.shape})</option>
           ))}
         </select>
 
-        <button style={toolbarBtnStyle} onClick={handleAddNode}>➕ Add Node</button>
+        <button style={toolbarBtnStyle} onClick={handleAddNode}>+ Add Node</button>
 
-        <div style={{ width: 1, height: 18, background: '#d1d5db', margin: '0 4px' }} />
+        <div style={toolbarDividerStyle} />
 
         <button
           style={{
@@ -1437,12 +1513,19 @@ export function Canvas({
           onClick={handleDeleteSelected}
           disabled={selCount === 0}
         >
-          🗑️ Delete{selCount > 1 ? ` (${selCount})` : ''}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 6h18" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M10 11v6" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
+            <path d="M14 11v6" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
+          </svg>
+          Delete{selCount > 1 ? ` (${selCount})` : ''}
         </button>
 
         {selCount > 0 && (
           <>
-            <div style={{ width: 1, height: 18, background: '#d1d5db', margin: '0 4px' }} />
+            <div style={toolbarDividerStyle} />
             <span style={{ fontSize: 10, color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 120 }}>
               {selCount === 1 ? graph.nodes.find(n => selectedIds.has(n.id))?.title : `${selCount}개 선택됨`}
             </span>
@@ -1453,12 +1536,7 @@ export function Canvas({
                 <select
                   value={selNode.template}
                   onChange={(e) => onSetNodeTemplate(selNode.id, e.target.value)}
-                  style={{
-                    background: '#fff',
-                    color: '#374151',
-                    border: '1px solid #d1d5db',
-                    borderRadius: 3, fontSize: 11, padding: '2px 4px', cursor: 'pointer', outline: 'none',
-                  }}
+                  style={{ ...toolbarSelectStyle, borderRadius: 3 }}
                   title="노드 타입 변경"
                 >
                   {Object.entries(graph.nodeTemplates).map(([key, t]) => (
@@ -1489,7 +1567,7 @@ export function Canvas({
               }
 
               return (
-                <div style={{ position: 'relative', display: 'inline-flex' }}>
+                <div style={{ position: 'relative', display: 'inline-flex', height: TOOLBAR_CTRL_H }}>
                   <input
                     ref={fontInputRef}
                     type="text"
@@ -1507,7 +1585,7 @@ export function Canvas({
                       if (e.key === 'Escape') { (e.target as HTMLInputElement).value = String(minFont); (e.target as HTMLInputElement).blur() }
                     }}
                     style={{
-                      width: 34, padding: '1px 4px', fontSize: 11, textAlign: 'center',
+                      width: 34, height: TOOLBAR_CTRL_H, boxSizing: 'border-box', padding: '1px 4px', fontSize: 11, textAlign: 'center',
                       background: '#fff', color: '#374151', outline: 'none',
                       border: '1px solid #d1d5db', borderRight: 'none', borderRadius: '3px 0 0 3px',
                     }}
@@ -1524,7 +1602,7 @@ export function Canvas({
                       setFontDropOpen(o => !o)
                     }}
                     style={{
-                      width: 16, padding: 0, fontSize: 9, cursor: 'pointer', lineHeight: 1,
+                      width: 16, height: TOOLBAR_CTRL_H, boxSizing: 'border-box', padding: 0, fontSize: 9, cursor: 'pointer', lineHeight: 1,
                       background: '#f0f0f0', color: '#333',
                       border: '1px solid #d1d5db', borderRadius: '0 3px 3px 0',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1566,24 +1644,15 @@ export function Canvas({
 
           </>
         )}
+        </div>
 
-        <div style={{ width: 1, height: 18, background: '#d1d5db', margin: '0 4px' }} />
+        {/* Row 2 — view / graph navigation: fold/expand, fit view, grid, export, reload, help */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <select
           value={expandFilterLabel}
           onChange={(e) => setExpandFilterLabel(e.target.value)}
           title="Filter Collapse/Expand to one node type"
-          style={{
-            background: '#fff',
-            color: '#374151',
-            border: '1px solid #d1d5db',
-            borderRadius: 6,
-            fontSize: 11,
-            fontWeight: 500,
-            padding: '4px 6px',
-            cursor: 'pointer',
-            outline: 'none',
-            boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
-          }}
+          style={toolbarSelectStyle}
         >
           <option value="">None</option>
           {Object.entries(graph.nodeTemplates).map(([key, tmpl]) => (
@@ -1615,19 +1684,27 @@ export function Canvas({
           }}
           title={expandFilterLabel ? `Expand only ${graph.nodeTemplates[expandFilterLabel]?.label ?? expandFilterLabel} nodes` : selCount > 0 ? 'Expand selected nodes' : 'Expand all nodes'}
         >📂 Expand</button>
-        <button style={toolbarBtnStyle} onClick={handleFitView} title="Fit all nodes into view">🔍 Fit View</button>
+        <button style={toolbarBtnStyle} onClick={handleFitView} title="Fit all nodes into view">Fit View</button>
         <button
           style={{ ...toolbarBtnStyle, background: showGrid ? '#2563eb' : toolbarBtnStyle.background, color: showGrid ? '#ffffff' : toolbarBtnStyle.color }}
           onClick={() => setShowGrid(v => !v)}
           title="Toggle debug grid — vertical lines mark hop-level boundaries, horizontal lines mark main-topic cluster boundaries"
-        >▦ Grid</button>
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2.2" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2.2" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2.2" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2.2" />
+          </svg>
+          Grid
+        </button>
 
-        <div style={{ width: 1, height: 18, background: '#d1d5db', margin: '0 4px' }} />
+        <div style={toolbarDividerStyle} />
         <button
           style={toolbarBtnStyle}
           onClick={onExportHtml}
           title="Export as HTML"
-        >📄 Export HTML</button>
+        >Export HTML</button>
 
         {/* 고정 폭 간격 — flex:1 스페이서는 창 축소 시 먼저 수축해 버튼 위치가 움직이고
             overflow(슬라이드)도 늦게 발생하므로 사용하지 않음 */}
@@ -1636,12 +1713,13 @@ export function Canvas({
           style={toolbarBtnStyle}
           onClick={onReload}
           title="Reload from disk (re-reads the JSON file — use after an external agent edits it)"
-        >🔄 Reload</button>
+        >Reload</button>
         <button
           style={toolbarBtnStyle}
           onClick={onOpenHelp}
           title="Help — open the Features section of the extension's README"
-        >❓ Help</button>
+        >Help</button>
+        </div>
       </div>
 
       {/* 캔버스 */}

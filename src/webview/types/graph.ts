@@ -87,6 +87,11 @@ export type ExtToWebviewMessage =
   | { type: 'externalChange'; data: NodeGraph; imageUris: Record<string, string> }
   | { type: 'themeChanged' }
   | { type: 'imageSaved'; nodeId: string; filename: string; webviewUri: string }
+  | { type: 'openSearch' }
+  | { type: 'fitView' }
+  | { type: 'collapseAll' }
+  | { type: 'expandAll' }
+  | { type: 'focusCanvas' }
 
 export type WebviewToExtMessage =
   | { type: 'save'; data: NodeGraph }

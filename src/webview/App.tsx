@@ -34,6 +34,7 @@ export function App() {
   // fitView/collapseAll/expandAll come from the corresponding palette commands.
   const [openSearchSignal, setOpenSearchSignal] = React.useState(0)
   const [fitViewSignal, setFitViewSignal] = React.useState(0)
+  const [focusCanvasSignal, setFocusCanvasSignal] = React.useState(0)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -51,6 +52,7 @@ export function App() {
       else if (e.data?.type === 'fitView') setFitViewSignal(n => n + 1)
       else if (e.data?.type === 'collapseAll') collapseAll()
       else if (e.data?.type === 'expandAll') expandAll()
+      else if (e.data?.type === 'focusCanvas') setFocusCanvasSignal(n => n + 1)
     }
     window.addEventListener('message', handler)
     return () => window.removeEventListener('message', handler)
@@ -68,6 +70,7 @@ export function App() {
     <Canvas
       openSearchSignal={openSearchSignal}
       fitViewSignal={fitViewSignal}
+      focusCanvasSignal={focusCanvasSignal}
       viewport={viewport}
       cursor={cursor}
       nativeWheelHandler={nativeWheelHandler}

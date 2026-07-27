@@ -23,6 +23,8 @@ When the user says **"apply NodeGraph"** (or the Korean equivalent, **"NodeGraph
 - **Bilingual glossing**: When writing content in Korean, include the English term alongside key technical expressions, so readers never have to guess what the original English term was (see **Language rules** below for the exact convention and example).
 - **Not limited to one Killer Application**: Papers often have more than one remarkable contribution. Capture all of them (see Step 2).
 - **Prefer display-block math**: Prefer `$$...$$` block math over `$...$` inline for formulas. Use inline only for short symbols inside a sentence (see Step 5).
+- **Intent-centered analysis**: Every paper has one. Every table, figure, and key data point you embed must be explained through that lens — not "what does this show" but "why does this matter for the problem this paper claims to solve" (see Step 5). A table or image with no such explanation is incomplete, the same way a formula with no explanation is.
+- **No hallucination**: Every claim traces back to the paper's own text. Never invent numbers, citations, comparisons, or "facts" from general knowledge to fill a gap. If a point genuinely needs something outside the PDF (a baseline's actual reported number, a follow-up result, prior work the paper doesn't quote), either attach a real `links` entry pointing to where it can be verified (see **NodeLink schema**), or leave that point unwritten rather than stating it as fact — an incomplete node is correct behavior; a fabricated one is not. This applies to every field, not just `original.text` (Step 6's verbatim-quote rule is the strictest case of this same principle).
 
 ---
 
@@ -75,7 +77,7 @@ For each backbone node, add **sub-nodes branching to the right**. Use the approp
 | Data table from the paper | `method` (sharp) | Put the markdown table directly in `content` |
 | Figure / diagram image | `method` (sharp) | Embed `[[IMG:filename:WxH]]` in `content` |
 | Deep question or gap | `gap` (rounded) | "Why did they choose X?", "What if Y instead?" |
-| Related prior work | `reference` (rounded) | Papers that are cited as baselines or inspirations |
+| Related prior work | `reference` (rounded) | Papers the PDF itself cites as baselines or inspirations — only what's actually in the paper's own citations/discussion, never a paper you recall from general knowledge that the PDF doesn't mention. Add a `links` entry (arXiv/DOI URL) when you have one; if you don't have a verifiable link, still only include it if the PDF names it, and say so in `content` instead of inventing a link |
 | Design decision memo | `memo` (rounded) | Choices that seem arbitrary but have a reason |
 
 Space sub-nodes at ~`y: 150` intervals around their parent's y-center, at `x: 500`.
@@ -93,12 +95,14 @@ Connect each sub-node to its parent backbone node with a `line` edge.
 - Use GFM table syntax with a separator row (`|---|---|`).
 - Works in both `node.content` and `toggleItems[].content`.
 - Benchmark tables, ablation results, and hyperparameter tables all deserve their own node — put secondary/supporting tables inside a toggle to keep the main node compact.
+- **Don't just paste the table.** Next to it, write 1–2 sentences on what the numbers show and how that connects back to the Killer Application — e.g. "removing the residual connection drops BLEU by 3.2, confirming the depth this architecture needs would otherwise be untrainable." A table with no interpretation is incomplete.
 
 **Images (figures and diagrams)**
 - For any figure, chart, or architecture diagram: extract from the PDF and save to `.<basename>-imgs/`.
 - Even diagrams (not just graphs) should be saved as images — a good diagram is worth a thousand words.
 - Embed with `[[IMG:filename.png:WxH]]` — works in both `node.content` and `toggleItems[].content`.
 - Use Pillow or ImageMagick to crop/save (see ENVIRONMENT.md).
+- **Don't just embed the image.** Explain what it depicts and why it matters for the Killer Application — e.g. "this diagram shows every position attending to every other position in one step, the mechanism that replaces the RNN's sequential dependency." The image is evidence; evidence needs an argument attached to it.
 
 **Bold text**
 - Use `**word or phrase**` inside any `content` or `original.text` to make text bold and slightly larger in the viewer.
@@ -118,7 +122,7 @@ For every backbone node, add the verbatim quote from the PDF that best supports 
 
 ### Step 7 — Finalize
 - Update `"modified"` to the current ISO 8601 timestamp.
-- Tell the user: **"Click ↺ Reload in the editor toolbar to see the updated graph."**
+- Tell the user: **"Click Reload in the editor toolbar to see the updated graph."**
 
 ---
 
@@ -191,13 +195,13 @@ A map of template key → template definition. Every node's `"template"` field m
     {
       "id": "toggle_001",       // unique string within the file; use "toggle_NNN"
       "title": "Section label",
-      "content": "Plain text or KaTeX math only. Tables and images NOT supported here.",
+      "content": "Renders exactly like node.content — Markdown tables, KaTeX, and [[IMG:...]] all work here too.",
       "expanded": false
     }
   ],
   "contentExpanded": false,     // whether the content panel is open (default false)
   "originalExpanded": false,    // whether the original-quote panel is open (default false)
-  "childrenExpanded": false,    // whether child nodes are shown (default false)
+  "childrenExpanded": false,    // required field, but currently has no effect on rendering — always set false
   "position": { "x": 400, "y": -60 },
   "children": [],               // list of child node IDs (for tree structure)
   "links": [],                  // NodeLink array — see below; use [] if empty
@@ -462,7 +466,7 @@ positions directly into JSON, so agent-authored and UI-authored graphs look cons
 | Right-click **node title** | Edit title inline |
 | Click a **wire** | Select edge (blue); `Delete` removes it |
 | Drag from a **port dot** onto a node body | Create an edge |
-| `Ctrl+F` / `Cmd+F` | Open search dropdown (live filter by title + content); matched text inside nodes is marked in the inverse template color |
+| `Ctrl+F` / `Cmd+F` | Open search dropdown (live filter by title + content + original text + toggle titles/content); matched text inside nodes is marked in the inverse template color |
 | `↑` / `↓` in search | Preview node (viewport flies to it); dropdown stays open |
 | `Enter` in search | Confirm: expands selected node, collapses all other matches |
 | `Shift`+wheel on toolbar | Slide the toolbar horizontally when the window is narrow |
@@ -493,3 +497,5 @@ After any edit, verify:
 - [ ] `[[IMG:...]]` tokens reference files that exist in `.<basename>-imgs/` (works in `node.content` or `toggleItems[].content`)
 - [ ] `toggleItems[].id` values are unique within the file
 - [ ] `links` field present on every node (use `[]` if empty)
+- [ ] Every table and figure node explains what it shows *and* why that matters for the Killer Application — not just embedded/pasted with no interpretation
+- [ ] No invented numbers, citations, or external claims — every claim traces to the PDF's own text, or has a real `links` entry, or was left unwritten

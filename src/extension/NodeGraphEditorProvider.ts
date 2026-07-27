@@ -33,6 +33,8 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
     webviewPanel: vscode.WebviewPanel,
     _token: vscode.CancellationToken
   ): Promise<void> {
+    webviewPanel.iconPath = vscode.Uri.joinPath(this.context.extensionUri, 'resources', 'icon.png')
+
     const documentDir = vscode.Uri.joinPath(document.uri, '..')
     webviewPanel.webview.options = {
       enableScripts: true,
@@ -162,7 +164,18 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
     // Track which webview is currently active so extension commands can reach it
     NodeGraphEditorProvider._activeWebview = webviewPanel.webview
     webviewPanel.onDidChangeViewState(e => {
-      if (e.webviewPanel.active) NodeGraphEditorProvider._activeWebview = webviewPanel.webview
+      if (e.webviewPanel.active) {
+        NodeGraphEditorProvider._activeWebview = webviewPanel.webview
+        // Switching back to this tab from another webview (e.g. the Help-opened
+        // README preview, itself a webview) doesn't reliably hand DOM keyboard
+        // focus back into our iframe the way switching to/from a plain text
+        // editor does — the webview's own `visibilitychange`/focus events aren't
+        // a reliable signal for this (they track OS-level window visibility, not
+        // per-panel active state within VSCode). `onDidChangeViewState` is the
+        // one API VSCode actually fires for "this panel just became active", so
+        // tell the webview to reclaim focus on its canvas explicitly here.
+        webviewPanel.webview.postMessage({ type: 'focusCanvas' })
+      }
     })
 
     webviewPanel.onDidDispose(() => {

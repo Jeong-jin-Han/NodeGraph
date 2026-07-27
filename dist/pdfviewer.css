@@ -2,6 +2,15 @@
 html, body, #root { height: 100%; }
 body {
   background: #525659;
+  overflow: hidden;
+}
+#root {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+#pagesScroll {
+  flex: 1;
   overflow: auto;
 }
 #pages {
@@ -11,12 +20,128 @@ body {
   gap: 12px;
   padding: 16px;
 }
+/* Errors only now — transient loading/rendering progress lives in #loadingLabel
+   inside the toolbar instead (사용자 피드백: 별도의 두꺼운 바 대신 탭에 통합). */
 #status {
   display: none;
   padding: 16px;
   color: #ddd;
   font-family: var(--vscode-editor-font-family, monospace);
   font-size: 13px;
+}
+
+/* Toolbar: zoom controls (left) + find toggle (right).
+   사용자 피드백(2회): 이 패널은 VSCode의 실제 탭 바로 감싸인 웹뷰 에디터라, 커스텀
+   툴바가 탭 바 바로 밑에 거의 여백 없이 붙으면 탭 바를 "먹어 들어가는" 것처럼
+   답답하고 잘리는 느낌을 줌 — 탭 바와 시각적으로 분리되도록 위쪽 padding을 넉넉히
+   확보(아래쪽보다 더 크게). */
+#toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 20px 14px 10px;
+  background: #3c3c3c;
+  border-bottom: 1px solid #222;
+  flex-shrink: 0;
+  position: relative;
+  font-family: var(--vscode-font-family, sans-serif);
+}
+#toolbar button {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #ddd;
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+#toolbar button svg {
+  display: block;
+  flex-shrink: 0;
+}
+#toolbar button:hover:not(:disabled) {
+  background: #2563eb;
+  color: #fff;
+}
+#toolbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+#zoomLabel {
+  color: #ddd;
+  font-size: 12px;
+  min-width: 42px;
+  text-align: center;
+  user-select: none;
+}
+#loadingLabel {
+  display: none;
+  color: #9aa0a6;
+  font-size: 11px;
+  white-space: nowrap;
+  margin-left: 8px;
+  user-select: none;
+}
+#toolbarSpacer { flex: 1; }
+
+/* Find bar: floating box under the toolbar, top-right — same interaction pattern
+   as the main editor's Ctrl+F (SearchBar.tsx) for consistency. Nested inside
+   #toolbar (which is `position: relative`) and anchored with `top: 100%` so it
+   always sits flush against the toolbar's actual bottom edge regardless of how
+   tall the toolbar ends up being — a fixed px offset here previously had to be
+   hand-adjusted every time the toolbar's padding changed. */
+#findBar {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 12px;
+  z-index: 20;
+  align-items: center;
+  gap: 4px;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.25);
+  padding: 4px 6px;
+}
+#findInput {
+  border: none;
+  outline: none;
+  font-size: 12px;
+  padding: 4px 6px;
+  width: 180px;
+  color: #1a1a1a;
+}
+#findCount {
+  font-size: 11px;
+  color: #6b7280;
+  white-space: nowrap;
+  min-width: 42px;
+}
+#findBar button {
+  background: transparent;
+  border: none;
+  color: #4b5563;
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+#findBar button:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+#findBar button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 /* Trimmed from pdfjs-dist/web/pdf_viewer.css — only the text-layer positioning
@@ -63,8 +188,23 @@ body {
   z-index: 0;
 }
 
+/* 인용구 점프(노드 원문 우클릭 → PDF) 하이라이트 — 노랑 */
 .match-highlight {
   color: transparent;
   background: rgba(255, 210, 0, 0.55);
+  border-radius: 2px;
+}
+/* Ctrl+F / 돋보기 검색 하이라이트 — 주황(인용구 점프와 색을 구분해달라는 요청).
+   처음엔 진하게(0.85) 했다가 사용자 피드백으로 낮춤 — 텍스트가 캔버스에 그려진 상태
+   위에 이 하이라이트가 덮이는 구조라, 너무 진하면 글자가 안 보이게 가려짐. */
+.find-highlight {
+  color: transparent;
+  background: rgba(255, 140, 0, 0.3);
+  border-radius: 2px;
+}
+.find-highlight-active {
+  color: transparent;
+  background: rgba(255, 140, 0, 0.45);
+  outline: 1.5px solid #ff8c00;
   border-radius: 2px;
 }

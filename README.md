@@ -1,28 +1,60 @@
-# NodeGraph
+<p align="center">
+  <img src="resources/banner.png" width="100%" alt="NodeGraph — Structure the paper. Don't just read it." />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white" alt="VS Code Extension" />
+  <img src="https://img.shields.io/badge/version-0.4.1-orange" alt="Version 0.4.1" />
+  <img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="MIT License" />
+</p>
+
+---
 
 A VS Code extension for building node-based knowledge graphs from research papers and documents. Open any `.nodegraph.json` file to get an interactive canvas with rich content nodes, wires, and an exportable HTML viewer.
 
+---
+
 ## Screenshots
 
-<table>
-<tr>
-<td><img src="demo/screenshot-overview.png" alt="Graph overview — collapsed nodes with bus-routed wires" width="520"></td>
-<td><img src="demo/screenshot-expanded.png" alt="Expanded nodes showing KaTeX formulas and original quotes" width="520"></td>
-</tr>
-<tr>
-<td align="center"><sub>Graph overview — collapsed nodes with bus-routed wires</sub></td>
-<td align="center"><sub>Expanded nodes — KaTeX math, original quotes, node types</sub></td>
-</tr>
-</table>
+<p align="center">
+  <img src="resources/screenshot-html-export.png" width="100%" alt="Editor on the left and the exported standalone HTML on the right, rendering the same node tree identically" />
+</p>
+<p align="center"><sub>Editor and exported HTML side by side — same layout, same content</sub></p>
+
+<p align="center">
+  <img src="resources/screenshot-debug-grid.png" width="100%" alt="Debug grid overlay in the editor and exported HTML, marking hop-level and main-topic-cluster boundaries" />
+</p>
+<p align="center"><sub>Debug grid — hop-level and main-topic-cluster boundaries, in both the editor and the export</sub></p>
+
+<p align="center">
+  <img src="resources/screenshot-pdf-jump.png" width="100%" alt="Right-clicking an original-text quote opens the source PDF and highlights the matching sentence" />
+</p>
+<p align="center"><sub>PDF quote-jump — right-click an original-text quote to open the source PDF and highlight the matching sentence</sub></p>
+
+---
 
 ## Features
+
+| | |
+|---|---|
+| **Rich node content** | Markdown (GFM) tables, LaTeX via KaTeX, inline images, and collapsible toggle sections — all with the same rich renderer |
+| **Overlap-free hop layout** | Bottom-up/top-down auto-layout keyed to each main-topic's hop tree — expanding a node only grows its own branch, never disturbs siblings |
+| **Smart wire routing** | A*-routed wires that keep clear of node borders and bundle into a single trunk when several targets share a source |
+| **PDF quote-jump** | Right-click an original-text quote to open the source PDF, jump to the page, and highlight the matching sentence |
+| **Ctrl+F search** | BFS-ordered dropdown over titles, content, original text, and toggle sections, with inline match highlighting |
+| **Debug grid** | One-click overlay of hop-level and main-topic-cluster boundaries for visually spotting layout issues |
+| **HTML export** | A self-contained, interactive standalone viewer — search, highlighting, and layout included |
+| **Agent-friendly** | A machine-readable spec (`.agent/NODEGRAPH_SPEC.md`) so AI agents can read and write graphs directly |
+
+<details>
+<summary><b>Full feature list</b></summary>
 
 ### Editing
 - **Custom editor** for `.nodegraph.json` files — pan (left-drag), zoom (scroll wheel, 0.05×–8×, centered on the cursor), box-select (right-drag)
 - **Rich node content** — Markdown (GFM) tables, LaTeX via KaTeX, `**bold**`, inline images; click any text to edit it in place (`Esc` cancels, clicking elsewhere commits)
 - **Content height cap** — a node's main content (not toggles) is capped at a default max-height with a vertical scrollbar past that; a table or image that needs more room raises the cap to fit it fully instead of clipping it. A `▼ More` / `▲ Less` button appears whenever there's more to see, to view the full content uncapped — this state is per-session (resets on reload)
 - **Node types** — 8 templates: Main topic, Method, Result, Claim (sharp = from the paper) and Question, Gap/Idea, Reference, Memo (rounded = your own notes); change a selected node's type from the toolbar dropdown
-- **Fold / Unfold** — click the node title; toolbar `Expand↓` / `Collapse↑` act on the selected node's whole subtree (expand stops at other main-topic nodes), or on every node when nothing is selected; a node-type filter dropdown next to these buttons restricts them to one template — `Collapse↑` always closes everything, `Expand↓` opens only nodes of that type (ignoring parent/child relationships) and closes the rest. Collapsing *everything* (nothing selected) also auto-runs Fit View, since the graph just got much smaller
+- **Fold / Unfold** — click the node title; toolbar `📁 Collapse` / `📂 Expand` act on the selected node's whole subtree (expand stops at other main-topic nodes), or on every node when nothing is selected; a node-type filter dropdown next to these buttons restricts them to one template — `Collapse` always closes everything, `Expand` opens only nodes of that type (ignoring parent/child relationships) and closes the rest. Collapsing *everything* (nothing selected) also auto-runs Fit View, since the graph just got much smaller
 - **Toggle sections** — collapsible sub-sections inside a node (`+ Toggle` button); same rich rendering as the main content (GFM tables, LaTeX, inline images)
 - **Original text** — verbatim source quote with an editable label and `§, p.` location (`+ Original` button); rendered in italics below the content; right-click the quote to jump to and highlight it in the source PDF (see **Find & focus**)
 - **Links** — attach `url` / `pdf` / `obsidian` links to a node (`+ Link` button); click to open — PDFs are resolved relative to the JSON file
@@ -31,16 +63,17 @@ A VS Code extension for building node-based knowledge graphs from research paper
 - **Undo / Redo** — full history with `Ctrl+Z` / `Ctrl+Y` (or `Ctrl+Shift+Z`)
 
 ### Layout & wires
-- **Overlap-free layout** — saved positions are never rewritten by the layout; at render time each main-topic node and its whole hop tree is treated as one group, laid out bottom-up (each subtree's needed space computed from its leaves first) then positioned top-down in one pass, so expanding a node only grows its own group's space — other main-topic groups shift down to make room instead of every node individually re-packing against its neighbors. Horizontally, every node at the same hop level (hop-1, hop-2, ...) stays aligned to the same X across the whole graph — if one branch needs a wider column (e.g. a table), the whole hop-level column shifts out together rather than drifting out of alignment with sibling branches. Nodes also push apart sideways (60px minimum) when widened by a table, and everything returns to place when folded. *(Editor only for now — the exported HTML still uses the previous per-node packing algorithm.)*
+- **Overlap-free layout** — saved positions are never rewritten by the layout; at render time each main-topic node and its whole hop tree is treated as one group, laid out bottom-up (each subtree's needed space computed from its leaves first) then positioned top-down in one pass, so expanding a node only grows its own group's space — other main-topic groups shift down to make room instead of every node individually re-packing against its neighbors. Horizontally, every node at the same hop level (hop-1, hop-2, ...) stays aligned to the same X across the whole graph — if one branch needs a wider column (e.g. a table), the whole hop-level column shifts out together rather than drifting out of alignment with sibling branches. Nodes also push apart sideways (60px minimum) when widened by a table, and everything returns to place when folded. The exported HTML viewer uses this same layout algorithm.
 - **Smart wire routing** — wires are planned on a 24px cost grid (A*): node interiors are heavily penalized (crossed only when a node is fully enclosed), wires keep clearance from node borders and spread into free space instead of stacking; while dragging a node a light heuristic keeps rendering smooth and the precise routes return 150ms after the layout settles
 - **Zoom-stable line weight** — wires, arrowheads, and the debug grid keep their base thickness once you're zoomed in (≥100%), but thicken as you zoom out below 100% so they stay readable instead of fading to hairlines
-- **Layout debug grid (`▦ Grid`)** — toggles an overlay of dashed boundary lines: vertical lines mark hop-level boundaries (main topic / hop-1 / hop-2 / ...), horizontal lines mark each main-topic cluster's extent. Useful for visually spotting layout/spacing issues
+- **Layout debug grid (`Grid`)** — toggles an overlay of dashed boundary lines: vertical lines mark hop-level boundaries (main topic / hop-1 / hop-2 / ...), horizontal lines mark each main-topic cluster's extent. Useful for visually spotting layout/spacing issues
 - **Bus routing** — one source with 2+ `line` targets clearly to its right renders as a single trunk with per-target branches
 
 ### Find & focus
-- **Ctrl+F search** — live dropdown over title, content, and original text; `↑`/`↓` flies the viewport to each match, `Enter` expands the chosen node and collapses the other matches; the matched text itself is marked inside the node in the inverse of its template color
+- **Ctrl+F search** — live dropdown over title, content, original text (including its custom label), and toggle-section titles/content, ordered by main-topic BFS (each main topic in backbone order, then all of its hop-1 matches, then all of its hop-2 matches, and so on, before moving to the next main topic); `↑`/`↓` flies the viewport to each match, `Enter` expands the chosen node (and its Original section / any toggle sections the match falls inside) and collapses the other matches; the matched text itself is marked inside the node in the inverse of its template color
 - **Generation highlight** — click a node's tag badge to outline the node, its parents/children, and the connecting wires in red; background clicks keep it pinned, `Esc` clears it
-- **Search original text in the source PDF** — right-click an expanded node's original-text quote to open (or reuse) a built-in PDF viewer tab for the graph's `source.pdf`, jump to the page from the quote's `p.N` location, and highlight the matching sentence (exact match first, word-overlap fuzzy match as a fallback for OCR/hyphenation drift); if no text match is found nearby it still lands on the hinted page. Requires `source.pdf` to be set on the graph. `Esc` inside the PDF tab clears the highlight.
+- **Search original text in the source PDF** — right-click an expanded node's original-text quote to open (or reuse) a built-in PDF viewer tab for the graph's `source.pdf`, jump to the page from the quote's `p.N` location, and highlight the matching sentence in **yellow** (exact match first, word-overlap fuzzy match as a fallback for OCR/hyphenation drift); if no text match is found nearby it still lands on the hinted page. Requires `source.pdf` to be set on the graph. `Esc` inside the PDF tab clears the highlight.
+- **Find and zoom inside the PDF viewer** — the built-in PDF tab has its own toolbar: `−`/`+` zoom (50%–400%, re-renders at the new scale without losing your scroll position), and a magnifying-glass find button (or `Ctrl+F`/`Cmd+F` inside the tab) that opens a find bar to search the whole document — `↑`/`↓` (or `Enter`/`Shift+Enter`) step through matches, a counter shows `N of M`, and matches highlight in **orange** so they're never confused with the yellow quote-jump highlight. `Esc` closes the find bar.
 
 ### Images
 - **Paste into a node** — copy any image and press `Ctrl+V` with a node selected or hovered (or inside the content editor or a toggle's editor, at the cursor); the file is saved as `img_<timestamp>.<ext>` in `.<name>-imgs/` and referenced as an `[[IMG:filename:WxH]]` token; pasting right after a table row's closing `|` drops the image below the table instead of corrupting the row
@@ -49,14 +82,21 @@ A VS Code extension for building node-based knowledge graphs from research paper
 
 ### Files & export
 - **Empty file → empty graph** — opening a blank (0-byte) or otherwise unparsable `.nodegraph.json` shows an empty, editable graph instead of a blank screen; no need to pre-populate the JSON (via an agent or `NodeGraph: New Graph`) before the editor works
-- **HTML export** — writes a self-contained `<name>.html` next to the JSON with all referenced images inlined as base64 and offers *Open in Browser / Show in Explorer*; the viewer reproduces search with inline marks, generation highlight, wire routing, the fold layout, node dragging, window-resize recentering, and the same node-type Collapse/Expand filter as the editor toolbar (KaTeX loads from a CDN, so formulas need internet; floating canvas images are not exported)
+- **HTML export** — writes a self-contained `<name>.html` next to the JSON with all referenced images inlined as base64 and offers *Open in Browser / Show in Explorer*; the viewer reproduces the same hop-tree layout algorithm as the editor (overlap-free, hop-level X alignment), the content height cap with its `▼ More` / `▲ Less` toggle, zoom-stable wire/grid line weight, Ctrl+F search (BFS-ordered, matching title/content/original/toggles, auto-expanding the Original section or toggle a match falls inside) with inline marks, generation highlight, wire routing, the debug grid, the fold layout (Collapse/Expand, with the same node-type filter and collapse-everything-auto-fits-view behavior as the editor toolbar), node dragging, and window-resize recentering (KaTeX loads from a CDN, so formulas need internet; floating canvas images are not exported)
 - **Save** — `Ctrl+S` writes pretty-printed JSON to disk immediately; image insertion saves automatically
-- **External edits** — when the file changes outside the webview the graph reloads automatically; `↺ Reload` force-re-reads from disk (useful after an AI agent edits the JSON)
+- **External edits** — when the file changes outside the webview the graph reloads automatically; `Reload` force-re-reads from disk (useful after an AI agent edits the JSON)
 - **Slidable toolbar** — on narrow windows the toolbar keeps its button positions and slides horizontally (`Shift`+wheel on desktop, swipe on touch)
 - **Theme-independent canvas** — canvas background, node colors, text, links, and inputs are all snapshotted from the active VSCode theme when the webview first loads, and stay fixed after that even if you switch themes
-- **Help (`?`)** — opens the extension's bundled README, scrolled to the Features section
+- **Help** — the `Help` toolbar button opens the extension's bundled README, scrolled to the Features section
+
+</details>
+
+---
 
 ## Mouse & Keyboard Controls
+
+<details>
+<summary><b>Full control reference</b> (canvas, node, toolbar, search)</summary>
 
 ### Canvas
 
@@ -89,21 +129,23 @@ A VS Code extension for building node-based knowledge graphs from research paper
 
 ### Toolbar
 
-| Control | Description |
-|---------|-------------|
-| ↩ Undo / Redo ↪ | History (also `Ctrl+Z` / `Ctrl+Y` / `Ctrl+Shift+Z`) |
-| Template dropdown + `+ Add Node` | Creates a node of the chosen type in the nearest free spot around the view center |
-| Delete | Deletes all selected nodes |
-| Type & font controls | Shown while nodes are selected — switch the node's template; set font size by typing a number or picking a preset (8–72) |
-| Collapse↑ / Expand↓ | Fold/unfold the selected subtree, or everything when nothing is selected |
-| Node-type filter (next to Collapse↑/Expand↓) | When set to a type instead of `None`: `Collapse↑` closes everything, `Expand↓` opens only that type's nodes and closes the rest |
-| Fit View | Zoom to fit all nodes |
-| ▦ Grid | Toggle the layout debug grid (hop-level vertical lines, main-topic-cluster horizontal lines) |
-| Export HTML | Write `<name>.html` next to the JSON |
-| Reload | Re-read the JSON from disk |
-| Help | Open the bundled README's Features section in a Markdown preview beside the editor |
+The toolbar is two rows — editing controls on top, view/graph-navigation controls below:
 
-When the window is narrower than the toolbar content, the toolbar slides horizontally (`Shift`+wheel or touch swipe) — button positions never change.
+| Row | Control | Description |
+|-----|---------|-------------|
+| Edit | Undo / Redo | History (also `Ctrl+Z` / `Ctrl+Y` / `Ctrl+Shift+Z`) |
+| Edit | Template dropdown + `+ Add Node` | Creates a node of the chosen type in the nearest free spot around the view center |
+| Edit | Delete | Deletes all selected nodes (shows a live count, e.g. `Delete (3)`, once more than one is selected) |
+| Edit | Type & font controls | Shown while nodes are selected — switch the node's template; set font size by typing a number or picking a preset (8–72) |
+| View | Collapse / Expand | Fold/unfold the selected subtree, or everything when nothing is selected — collapsing *everything* also auto-runs Fit View |
+| View | Node-type filter (next to Collapse/Expand) | When set to a type instead of `None`: `Collapse` closes everything, `Expand` opens only that type's nodes and closes the rest |
+| View | Fit View | Zoom to fit all nodes |
+| View | Grid | Toggle the layout debug grid (hop-level vertical lines, main-topic-cluster horizontal lines) |
+| View | Export HTML | Write `<name>.html` next to the JSON |
+| View | Reload | Re-read the JSON from disk |
+| View | Help | Open the bundled README's Features section in a Markdown preview beside the editor |
+
+When the window is narrower than the toolbar content, both rows slide horizontally together (`Shift`+wheel or touch swipe) — button positions never change.
 
 ### Search (Ctrl+F)
 
@@ -117,14 +159,28 @@ When the window is narrower than the toolbar content, the toolbar slides horizon
 
 Matched text inside each node is additionally marked (inverse template color + underline), so you can see *where* in the node the query appears — in the editor and in the exported HTML.
 
-## Getting Started
+</details>
 
-1. Install from the packaged `.vsix`: `code --install-extension nodegraph-<version>.vsix` (not yet published to the Marketplace).
-2. Run **NodeGraph: New Graph** (`Ctrl+Shift+P`) to create a new `.nodegraph.json` file.
-3. The custom editor opens automatically for any `*.nodegraph.json` file.
-4. **Drag nodes** by grabbing the colored tag badge; **click the title** to fold/unfold content; **right-click the title** to edit it.
-5. Use the toolbar — **Expand / Collapse / Fit View / Export HTML / Reload / Help**.
-6. Press **Ctrl+F** to search nodes by title or content.
+---
+
+## Installation
+
+> **VS Code Marketplace** — not yet published; install from the packaged `.vsix` for now.
+
+1. Grab `nodegraph-<version>.vsix` from the repo, then `code --install-extension nodegraph-<version>.vsix`
+2. Run **NodeGraph: New Graph** (`Ctrl+Shift+P`) to create a `.nodegraph.json` file — or open an existing one, the custom editor opens automatically
+3. **Drag nodes** by the colored tag badge; **click the title** to fold/unfold; **right-click the title** to rename it
+4. Use the toolbar — **Expand / Collapse / Fit View / Export HTML / Reload / Help** — and **Ctrl+F** to search
+
+To build the `.vsix` yourself:
+
+```bash
+npm install
+node esbuild.js --production
+npx vsce package
+```
+
+---
 
 ## Node Content Syntax
 
@@ -138,6 +194,8 @@ Matched text inside each node is additionally marked (inverse template color + u
 | Image token | `[[IMG:filename.png:400x300]]` |
 
 Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
+
+---
 
 ## File Format
 
@@ -183,6 +241,8 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
 }
 ```
 
+---
+
 ## Agent / AI Editing
 
 > **AI agents: read these two files before doing anything:**
@@ -195,19 +255,20 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
 > - Literal currency dollars must be escaped: `\$4.28/GB` (in JSON strings: `\\$4.28/GB`) — a bare `$` opens an inline-math region
 > - When writing content in a non-English language, pair each key technical term with its original English form (see `.agent/NODEGRAPH_SPEC.md` for the exact convention)
 > - The Killer Application is not limited to one — capture every genuinely remarkable contribution
-> - `[[IMG:filename:WxH]]` tokens only work in `node.content`, not in `toggleItems[].content`
-> - `toggleItems[].content` supports KaTeX math only — no Markdown tables, no images
+> - `toggleItems[].content` renders exactly like `node.content` — Markdown tables, KaTeX, and `[[IMG:filename:WxH]]` tokens all work inside toggles too
 > - Always update the `"modified"` timestamp after every edit
 
 The file `.agent/NODEGRAPH_SPEC.md` (included in the extension) is a machine-readable specification for AI agents. It documents the full JSON schema, ID conventions, KaTeX/Markdown syntax rules, rendering support per field, and a step-by-step workflow for generating a nodegraph from a PDF.
 
-A worked example is included at `test-demo-v2/attention-is-all-you-need.nodegraph.json` — the full "Attention Is All You Need" paper rendered as a nodegraph with KaTeX formulas, Markdown tables, toggle sections, and deep question nodes.
+A worked example is included at `demo/ex1/attention-is-all-you-need.nodegraph.json` — the full "Attention Is All You Need" paper rendered as a nodegraph with KaTeX formulas, Markdown tables, toggle sections, and deep question nodes.
 
 **Typical agent workflow:**
 1. Read `.agent/NODEGRAPH_SPEC.md`
 2. Read or create the target `.nodegraph.json`
 3. Edit the JSON directly
-4. Click **↺ Reload** in the toolbar to see the updated graph without closing/reopening the file
+4. Click **Reload** in the toolbar to see the updated graph without closing/reopening the file
+
+---
 
 ## Commands
 
@@ -218,6 +279,31 @@ A worked example is included at `test-demo-v2/attention-is-all-you-need.nodegrap
 | `NodeGraph: Expand All` | — | Expand all node bodies |
 | `NodeGraph: Collapse All` | — | Collapse all node bodies |
 | `NodeGraph: Search Nodes` | `Ctrl+F` / `Cmd+F` | Open search dropdown |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Platform | VS Code Extension (Custom Editor API) |
+| UI | React + TypeScript |
+| Math / rendering | KaTeX, custom Markdown-lite renderer, SVG wire routing (A*) |
+| PDF | `pdfjs-dist` (custom minimal renderer, not the prebuilt viewer toolkit) |
+| Build | esbuild |
+| Storage | Plain JSON on disk (`.nodegraph.json`) — no accounts, no external services |
+
+---
+
+## Privacy
+
+NodeGraph does **not** collect, store, or transmit any data to external servers.
+
+- Everything lives in the `.nodegraph.json` file and local image assets next to it — no accounts, no telemetry, no analytics
+- The editor loads KaTeX from the extension's own bundled assets (no CDN, no network)
+- The one exception: opening an **exported HTML file** in a browser loads KaTeX from a CDN, since that file is meant to be viewed outside VS Code — the editor itself never does this
+
+---
 
 ## License
 
