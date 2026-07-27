@@ -16,6 +16,7 @@ interface WireLayerProps {
   selectedEdgeId: string | null
   highlightEdgeIds: Set<string>
   fastRoute: boolean
+  zoom: number
   onSelectEdge: (id: string | null) => void
 }
 
@@ -46,7 +47,13 @@ function getRect(
   }
 }
 
-export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wireHoverTargetId, selectedEdgeId, highlightEdgeIds, fastRoute, onSelectEdge }: WireLayerProps) {
+export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePreview, wireHoverTargetId, selectedEdgeId, highlightEdgeIds, fastRoute, zoom, onSelectEdge }: WireLayerProps) {
+  // 화면상 선 두께가 항상 비슷하게 보이도록 보정: 확대(zoom>=1)할 땐 기본 두께 그대로,
+  // 축소(zoom<1)할 땐 캔버스가 scale(zoom)으로 줄어드는 만큼 두께를 반대로 키워서
+  // 화면 픽셀 기준 두께를 유지 — 안 그러면 축소했을 때 선/화살표가 너무 가늘어져 안 보임.
+  // 화살표 marker는 markerUnits 기본값이 strokeWidth라서 path의 strokeWidth만 보정하면
+  // 화살표 크기도 자동으로 같이 커진다(별도 처리 불필요).
+  const zc = zoom < 1 ? 1 / zoom : 1
   // 지오메트리 모델 — 선택/하이라이트와 무관하게 노드·엣지 배치가 바뀔 때만 재계산
   const { nodeMap, busGroups, busEdgeIds, allRects, spreadMap } = useMemo(() => {
     const nodeMap = new Map(nodes.map((n) => [n.id, n]))
@@ -186,8 +193,8 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
             width={sz.width + 8} height={sz.height + 8}
             fill="none"
             stroke="#007acc"
-            strokeWidth={2}
-            strokeDasharray="6 3"
+            strokeWidth={2 * zc}
+            strokeDasharray={`${6 * zc} ${3 * zc}`}
             rx={6}
             style={{ pointerEvents: 'none' }}
           />
@@ -213,7 +220,7 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
         // 세대 하이라이트: 그룹 내 하이라이트 엣지가 있으면 트렁크(공용 구간)도 빨간색
         const groupGen = edgeGroup.some((e) => highlightEdgeIds.has(e.id))
         const trunkColor = groupGen ? '#ef4444' : '#888'
-        const trunkW = groupGen ? 2.5 : 1.5
+        const trunkW = (groupGen ? 2.5 : 1.5) * zc
         return (
           <g key={`bus-${srcId}`}>
             {/* source → bus 수평선 */}
@@ -223,7 +230,7 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
             <line x1={busX} y1={busMinY} x2={busX} y2={busMaxY}
               stroke={trunkColor} strokeWidth={trunkW} style={{ pointerEvents: 'none' }} />
             {/* source 끝점 circle */}
-            <circle cx={srcAnchorX} cy={srcAnchorY} r={4} fill={trunkColor} />
+            <circle cx={srcAnchorX} cy={srcAnchorY} r={4 * zc} fill={trunkColor} />
             {/* 각 타겟으로 수평 분기 + 클릭 히트 영역 */}
             {targets.map(({ edge, r }) => {
               const isSel = selectedEdgeId === edge.id
@@ -232,13 +239,13 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
               return (
                 <g key={edge.id}>
                   <line x1={busX} y1={r.cy} x2={r.x} y2={r.cy}
-                    stroke="transparent" strokeWidth={12}
+                    stroke="transparent" strokeWidth={12 * zc}
                     style={{ pointerEvents: 'stroke' as any, cursor: 'pointer' }}
                     onMouseDown={(e) => { e.stopPropagation(); onSelectEdge(edge.id) }} />
                   <line x1={busX} y1={r.cy} x2={r.x} y2={r.cy}
-                    stroke={branchColor} strokeWidth={isSel || isGen ? 2.5 : 1.5}
+                    stroke={branchColor} strokeWidth={(isSel || isGen ? 2.5 : 1.5) * zc}
                     style={{ pointerEvents: 'none' }} />
-                  <circle cx={r.x} cy={r.cy} r={4} fill={branchColor} />
+                  <circle cx={r.x} cy={r.cy} r={4 * zc} fill={branchColor} />
                 </g>
               )
             })}
@@ -286,14 +293,14 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
 
         return (
           <g key={edge.id}>
-            <path d={d} fill="none" stroke="transparent" strokeWidth={12}
+            <path d={d} fill="none" stroke="transparent" strokeWidth={12 * zc}
               style={{ pointerEvents: 'stroke' as any, cursor: 'pointer' }}
               onMouseDown={(e) => { e.stopPropagation(); onSelectEdge(edge.id) }} />
             <path
               d={d}
               fill="none"
               stroke={strokeColor}
-              strokeWidth={isSel || isGen ? 2.5 : 1.5}
+              strokeWidth={(isSel || isGen ? 2.5 : 1.5) * zc}
               markerEnd={edge.type === 'arrow' ? (isSel ? 'url(#arrowhead-selected)' : isGen ? 'url(#arrowhead-gen)' : 'url(#arrowhead)') : undefined}
               style={{ pointerEvents: 'none' }}
               data-edge-id={edge.id}
@@ -302,8 +309,8 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
             />
             {edge.type === 'line' && (
               <>
-                <circle cx={srcPt.x} cy={srcPt.y} r={4} fill={strokeColor} />
-                <circle cx={tgtPt.x} cy={tgtPt.y} r={4} fill={strokeColor} />
+                <circle cx={srcPt.x} cy={srcPt.y} r={4 * zc} fill={strokeColor} />
+                <circle cx={tgtPt.x} cy={tgtPt.y} r={4 * zc} fill={strokeColor} />
               </>
             )}
           </g>
@@ -320,7 +327,7 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
         const srcPt = getPortPosition(srcRect, wirePreview.srcPort)
         return (
           <line x1={srcPt.x} y1={srcPt.y} x2={wirePreview.curX} y2={wirePreview.curY}
-            stroke="#007acc" strokeWidth={2} strokeDasharray="6 3"
+            stroke="#007acc" strokeWidth={2 * zc} strokeDasharray={`${6 * zc} ${3 * zc}`}
             markerEnd="url(#arrowhead-preview)" style={{ pointerEvents: 'none' }} />
         )
       })()}

@@ -1311,6 +1311,25 @@ export function Canvas({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitViewSignal])
 
+  // 전체 Collapse 후 자동 Fit View — onClick 시점에 requestAnimationFrame(handleFitView)를
+  // 바로 넘기면, 그 시점의 handleFitView 클로저가 collapse로 인한 nodeSizes 갱신 *이전*
+  // 값을 캡처해버려서(콜백 실행은 나중이라도 참조는 클릭 시점 것) 옛날(더 큰) 크기 기준으로
+  // fit되어 화면을 다 못 채우는 버그가 있었음(사용자가 실제로 발견 — 수동 Fit View와 결과가
+  // 다름). nodeSizes가 실제로 갱신된 뒤 실행되는 effect로 옮겼는데, 노드가 많으면
+  // 각 NodeCard의 ResizeObserver/useLayoutEffect가 여러 번에 걸쳐 nodeSizes를 부분적으로만
+  // 갱신하며 지나가서(전부 한 번에 batching 안 될 수 있음) 첫 변화에 바로 반응하면 여전히
+  // 일부만 줄어든 중간 상태로 fit 계산이 됨 — nodeSizes 변화가 멎을 때까지(짧게 debounce)
+  // 기다렸다가 마지막에 한 번만 fit하도록 수정.
+  const pendingAutoFitRef = useRef(false)
+  useEffect(() => {
+    if (!pendingAutoFitRef.current) return
+    const t = setTimeout(() => {
+      pendingAutoFitRef.current = false
+      handleFitView()
+    }, 150)
+    return () => clearTimeout(t)
+  }, [nodeSizes, handleFitView])
+
   // canvas image를 노드 위에 드롭 → node로 이동 (table cell 감지 포함)
   const handleCanvasImageDrop = useCallback((imgId: string, clientX: number, clientY: number) => {
     const elements = document.elementsFromPoint(clientX, clientY)
@@ -1574,10 +1593,15 @@ export function Canvas({
         <button
           style={toolbarBtnStyle}
           onClick={() => {
-            if (expandFilterLabel) { onCollapseAll(); return }
+            // 전체 collapse(선택 없이, 또는 필터가 걸려 있어도 결국 onCollapseAll)일 때만
+            // 자동으로 Fit View — 선택 서브트리만 접을 땐 사용자가 보던 영역을 유지해야
+            // 하므로 대상에서 제외. nodeSizes가 실제로 갱신된 뒤 실행되도록 플래그만 세움
+            // (위 useEffect 참고 — 클릭 시점에 바로 스케줄하면 스케일 클로저 문제 있음).
+            if (expandFilterLabel) { onCollapseAll(); pendingAutoFitRef.current = true; return }
             const ids = [...selectedIdsRef.current]
-            if (ids.length > 0) onCollapseNodes(ids)
-            else onCollapseAll()
+            if (ids.length > 0) { onCollapseNodes(ids); return }
+            onCollapseAll()
+            pendingAutoFitRef.current = true
           }}
           title={expandFilterLabel ? 'Collapse all nodes' : selCount > 0 ? 'Collapse selected nodes' : 'Collapse all nodes'}
         >📁 Collapse</button>
@@ -1718,19 +1742,23 @@ export function Canvas({
                 />
               )
             })}
-            {showGrid && (
-              <svg
-                style={{ position: 'absolute', left: -10000, top: -10000, width: 20000, height: 20000, pointerEvents: 'none', overflow: 'visible' }}
-                viewBox="-10000 -10000 20000 20000"
-              >
-                {gridLines.vLines.map((x, i) => (
-                  <line key={`gv${i}`} x1={x} y1={-10000} x2={x} y2={10000} stroke="#22c55e" strokeWidth={1.5} strokeDasharray="6 4" opacity={0.55} />
-                ))}
-                {gridLines.hLines.map((y, i) => (
-                  <line key={`gh${i}`} x1={-10000} y1={y} x2={10000} y2={y} stroke="#f97316" strokeWidth={1.5} strokeDasharray="6 4" opacity={0.55} />
-                ))}
-              </svg>
-            )}
+            {showGrid && (() => {
+              // wire와 동일한 줌 보정: 확대 시 기본 두께, 축소 시 화면상 두께 유지되게 키움
+              const gzc = viewport.zoom < 1 ? 1 / viewport.zoom : 1
+              return (
+                <svg
+                  style={{ position: 'absolute', left: -10000, top: -10000, width: 20000, height: 20000, pointerEvents: 'none', overflow: 'visible' }}
+                  viewBox="-10000 -10000 20000 20000"
+                >
+                  {gridLines.vLines.map((x, i) => (
+                    <line key={`gv${i}`} x1={x} y1={-10000} x2={x} y2={10000} stroke="#22c55e" strokeWidth={1.5 * gzc} strokeDasharray={`${6 * gzc} ${4 * gzc}`} opacity={0.55} />
+                  ))}
+                  {gridLines.hLines.map((y, i) => (
+                    <line key={`gh${i}`} x1={-10000} y1={y} x2={10000} y2={y} stroke="#f97316" strokeWidth={1.5 * gzc} strokeDasharray={`${6 * gzc} ${4 * gzc}`} opacity={0.55} />
+                  ))}
+                </svg>
+              )
+            })()}
             <WireLayer
               nodes={graph.nodes}
               edges={graph.edges}
@@ -1741,6 +1769,7 @@ export function Canvas({
               selectedEdgeId={selectedEdgeId}
               highlightEdgeIds={genHighlight.edgeIds}
               fastRoute={draggingNodeId !== null}
+              zoom={viewport.zoom}
               onSelectEdge={setSelectedEdgeId}
             />
           </div>

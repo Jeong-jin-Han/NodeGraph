@@ -13,16 +13,16 @@ should read and edit `.nodegraph.json` files used by the NodeGraph VSCode extens
 
 ---
 
-## Quick start: "NodeGraph 적용해"
+## Quick start
 
-When the user says **"NodeGraph 적용해"** (or "apply NodeGraph") and provides a PDF path, execute the full workflow below without asking for further clarification.
+When the user says **"apply NodeGraph"** (or the Korean equivalent, **"NodeGraph 적용해"**) and provides a PDF path, execute the full workflow below without asking for further clarification.
 
 **One-sentence goal**: Find what this paper does that no one did before, and structure it so a reader can grasp why it matters in under 5 minutes.
 
 **Writing principles** (apply throughout):
-- **영문 표현 병기**: When writing content in Korean, include the English term alongside key technical expressions — e.g. "주의 메커니즘(attention mechanism)", "잔차 연결(residual connection)". Readers should never have to guess what the original English term was.
-- **Killer Application은 1개로 제한하지 않음**: Papers often have more than one remarkable contribution. Capture all of them (see Step 2).
-- **수식은 display block 권장**: Prefer `$$...$$` block math over `$...$` inline for formulas. Use inline only for short symbols inside a sentence (see Step 5).
+- **Bilingual glossing**: When writing content in Korean, include the English term alongside key technical expressions, so readers never have to guess what the original English term was (see **Language rules** below for the exact convention and example).
+- **Not limited to one Killer Application**: Papers often have more than one remarkable contribution. Capture all of them (see Step 2).
+- **Prefer display-block math**: Prefer `$$...$$` block math over `$...$` inline for formulas. Use inline only for short symbols inside a sentence (see Step 5).
 
 ---
 
@@ -61,7 +61,7 @@ Create exactly **5 backbone `main_topic` nodes** at `x: 0`, spaced `y: 300` apar
 | 4 | **결과 (Results)** | **Results** | Quantitative evidence. Benchmark tables in Markdown. Embed performance charts as images. |
 | 5 | **결론 (Conclusion)** | **Conclusion** | What this enables. Future directions, limitations, broader impact. |
 
-**Graph language**: Write the whole graph in Korean or entirely in English — both are fully supported. Follow the user's request; if unspecified, default to Korean with English terms alongside (per Language rules). For an English-only graph, use the English column titles and skip the 병기 rule.
+**Graph language**: Write the whole graph in Korean or entirely in English — both are fully supported. Follow the user's request; if unspecified, default to Korean with English terms alongside (per **Language rules**). For an English-only graph, use the English column titles and skip the bilingual-glossing rule.
 
 Connect backbone nodes in sequence with `arrow` edges (1→2→3→4→5).
 
