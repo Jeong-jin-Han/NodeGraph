@@ -2,7 +2,7 @@
   "version": "1.0.0",
   "title": "Attention Is All You Need",
   "created": "2026-07-04T00:00:00Z",
-  "modified": "2026-07-27T00:00:00.000Z",
+  "modified": "2026-07-27T08:33:13.942Z",
   "source": {
     "pdf": "1706.03762v7.pdf",
     "authors": "Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, Illia Polosukhin",
@@ -308,8 +308,8 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 450,
-        "y": -50
+        "x": 750,
+        "y": 0
       },
       "children": [],
       "images": [],
@@ -328,8 +328,8 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 450,
-        "y": 70
+        "x": 750,
+        "y": 150
       },
       "children": [],
       "images": [],
@@ -384,8 +384,8 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 450,
-        "y": 430
+        "x": 750,
+        "y": 300
       },
       "children": [],
       "images": [],
@@ -420,8 +420,8 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 450,
-        "y": 660
+        "x": 750,
+        "y": 600
       },
       "children": [],
       "images": [],
@@ -440,8 +440,8 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 450,
-        "y": 770
+        "x": 750,
+        "y": 750
       },
       "children": [],
       "images": [],
@@ -476,8 +476,8 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 450,
-        "y": 950
+        "x": 750,
+        "y": 900
       },
       "children": [],
       "images": [],
@@ -508,8 +508,8 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 450,
-        "y": 1150
+        "x": 750,
+        "y": 1200
       },
       "children": [],
       "images": [],
@@ -524,8 +524,8 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 450,
-        "y": 1260
+        "x": 750,
+        "y": 1350
       },
       "children": [],
       "images": [],
@@ -540,8 +540,8 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 450,
-        "y": 1450
+        "x": 750,
+        "y": 1500
       },
       "children": [],
       "images": [],
@@ -644,8 +644,8 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 450,
-        "y": 2270
+        "x": 750,
+        "y": 2100
       },
       "children": [],
       "images": [],
@@ -660,8 +660,8 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 450,
-        "y": 2350
+        "x": 750,
+        "y": 2400
       },
       "children": [],
       "images": [],
@@ -680,8 +680,8 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 450,
-        "y": 2460
+        "x": 750,
+        "y": 2550
       },
       "children": [],
       "images": [],
@@ -700,8 +700,8 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 450,
-        "y": 920
+        "x": 750,
+        "y": 450
       },
       "children": [
         "node_033",
@@ -719,7 +719,7 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 900,
+        "x": 750,
         "y": 1050
       },
       "children": [],
@@ -734,8 +734,8 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 950,
-        "y": 780
+        "x": 1500,
+        "y": 450
       },
       "children": [],
       "links": []
@@ -749,8 +749,8 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 950,
-        "y": 970
+        "x": 1500,
+        "y": 540
       },
       "children": [],
       "links": []
@@ -764,8 +764,8 @@
       "originalExpanded": false,
       "childrenExpanded": false,
       "position": {
-        "x": 950,
-        "y": 1160
+        "x": 1500,
+        "y": 630
       },
       "children": [],
       "links": []

@@ -14,6 +14,11 @@ const NODE_INPUT_BG = THEME.inputBg
 const NODE_INPUT_FG = THEME.inputFg
 const NODE_INPUT_BORDER = THEME.inputBorder
 
+// Fallback cap for plain-text content with no table/image. When the content does contain a
+// table or image, the cap grows to fit them fully instead (see contentMaxHeight effect below) —
+// only the extra text beyond that still scrolls/hides behind the "more" button.
+const DEFAULT_CONTENT_MAX = 500
+
 interface NodeCardProps {
   node: GraphNode
   template: NodeTemplate
@@ -104,6 +109,9 @@ export function NodeCard({
   const [linkForm, setLinkForm] = useState<{ type: NodeLink['type']; target: string; label: string }>({ type: 'url', target: '', label: '' })
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [contentMoreExpanded, setContentMoreExpanded] = useState(false)
+  const [contentMaxHeight, setContentMaxHeight] = useState(DEFAULT_CONTENT_MAX)
+  const [contentNeedsMoreBtn, setContentNeedsMoreBtn] = useState(false)
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -145,7 +153,7 @@ export function NodeCard({
     if (!cardRef.current) return
     const el = cardRef.current
     onResize(node.id, el.offsetWidth, el.offsetHeight)
-  }, [node.contentExpanded, node.id, onResize])
+  }, [node.contentExpanded, contentMoreExpanded, contentMaxHeight, node.id, onResize])
 
   // Escape 키로 라이트박스 닫기
   useEffect(() => {
@@ -165,6 +173,31 @@ export function NodeCard({
     const current = node.nodeWidth ?? 0
     if (needed > current) onSetNodeWidth(node.id, needed)
   }, [node.content, node.contentExpanded, node.nodeWidth, node.id, onSetNodeWidth])
+
+  // 본문 높이 상한 계산: 표/이미지가 있으면 그게 전부 보일 만큼(마지막 표/이미지 하단까지)
+  // 상한을 넓히고, 없으면 DEFAULT_CONTENT_MAX로 폴백. overflow:auto라 실제 measure는
+  // clip과 무관하게 항상 자연 크기로 나온다.
+  useEffect(() => {
+    if (!node.contentExpanded) return
+    const el = tableBodyRef.current
+    if (!el) return
+    const measure = () => {
+      const elTop = el.getBoundingClientRect().top
+      let requiredBottom = 0
+      for (const media of Array.from(el.querySelectorAll('table, img'))) {
+        const bottom = media.getBoundingClientRect().bottom - elTop
+        if (bottom > requiredBottom) requiredBottom = bottom
+      }
+      const max = Math.max(DEFAULT_CONTENT_MAX, Math.ceil(requiredBottom) + 8)
+      setContentMaxHeight(max)
+      setContentNeedsMoreBtn(el.scrollHeight > max + 1)
+    }
+    measure()
+    const imgs = Array.from(el.querySelectorAll('img'))
+    const pending = imgs.filter(img => !img.complete)
+    pending.forEach(img => img.addEventListener('load', measure))
+    return () => pending.forEach(img => img.removeEventListener('load', measure))
+  }, [node.content, node.contentExpanded, imageUris])
 
   const setEditRef = useCallback((el: HTMLInputElement | HTMLTextAreaElement | null) => {
     if (!el) return
@@ -516,9 +549,35 @@ export function NodeCard({
                 style={{ ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: 'none', overflow: 'hidden', minHeight: 20, display: 'block' }}
               />
             ) : (
-              <div ref={tableBodyRef} style={{ fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word' }}>
+              <div
+                ref={tableBodyRef}
+                style={{
+                  fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word',
+                  maxHeight: contentMoreExpanded ? undefined : contentMaxHeight,
+                  // overflowX를 'hidden'으로 명시하지 않으면(visible로 남으면), overflowY만
+                  // non-visible일 때 브라우저가 overflow-x도 암묵적으로 auto로 취급하는
+                  // CSS 스펙 규칙 때문에 이 박스가 줄바꿈을 무시하고 max-content 너비로
+                  // 계산되어(표/수식 등 wrap 가능한 콘텐츠도 한 줄로 펼쳐짐) 노드가
+                  // 비정상적으로 넓어짐 — 반드시 overflowX도 같이 지정해야 함
+                  overflowY: contentMoreExpanded ? undefined : 'auto',
+                  overflowX: contentMoreExpanded ? undefined : 'hidden',
+                }}
+              >
                 {renderRichContent(node.content ?? '', (e) => startEdit('content', node.content, e))}
               </div>
+            )}
+            {editingField !== 'content' && contentNeedsMoreBtn && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setContentMoreExpanded(v => !v) }}
+                onMouseDown={(e) => e.stopPropagation()}
+                style={{
+                  display: 'block', width: '100%', marginTop: 4, padding: '3px 0',
+                  background: 'transparent', border: 'none', color: NODE_FG, opacity: 0.55,
+                  fontSize: 10, cursor: 'pointer', textAlign: 'center', userSelect: 'none',
+                }}
+              >
+                {contentMoreExpanded ? '▲ 접기' : '▼ 더보기'}
+              </button>
             )}
 
             {/* Original */}

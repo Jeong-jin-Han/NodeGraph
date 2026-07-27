@@ -134,15 +134,45 @@ export function routeAroundObstacles(
 }
 
 // 경유점 폴리라인 → 부드러운 SVG path (경유점 = Q 제어점, 다음 경유점과의 중점 연결)
-export function pointsToPath(P: Array<{ x: number; y: number }>): string {
+// 코너를 Q(2차 베지어)로 둥글리면 곡선이 control point(경유점) 쪽으로 부풀어 오른다.
+// A*가 만든 경유점은 장애물을 피하려고 모서리에 바짝 붙어 생성되므로, 그 지점에서
+// 둥글리면 곡선이 다시 그 장애물을 파고든다 — 후보 곡선을 직접 샘플링해서 실제로
+// 어느 blocker와 겹치는지 검사하고, 겹치면 그 코너만 둥글리지 않고 정확히 경유점을
+// 지나는 직선(L)으로 꺾는다. (근접도만 보는 휴리스틱은 안전 마진을 과소/과대평가하기
+// 쉬워서, string-pulling과 동일하게 실제 교차 여부를 직접 검사하는 방식으로 교체함)
+function quadIntersectsAny(
+  p0: { x: number; y: number }, p1: { x: number; y: number }, p2: { x: number; y: number },
+  blockers: Rect[], pad: number
+): boolean {
+  const STEPS = 8
+  let prev = p0
+  for (let s = 1; s <= STEPS; s++) {
+    const t = s / STEPS, mt = 1 - t
+    const cur = {
+      x: mt * mt * p0.x + 2 * mt * t * p1.x + t * t * p2.x,
+      y: mt * mt * p0.y + 2 * mt * t * p1.y + t * t * p2.y,
+    }
+    for (const r of blockers) if (segIntersectsRect(prev.x, prev.y, cur.x, cur.y, r, pad) !== null) return true
+    prev = cur
+  }
+  return false
+}
+
+export function pointsToPath(P: Array<{ x: number; y: number }>, blockers?: Rect[]): string {
   if (P.length < 2) return ''
   if (P.length === 2) return `M ${P[0].x} ${P[0].y} L ${P[1].x} ${P[1].y}`
   let d = `M ${P[0].x} ${P[0].y}`
+  let cursor = P[0]
   for (let k = 1; k < P.length - 1; k++) {
     const end = k < P.length - 2
       ? { x: (P[k].x + P[k + 1].x) / 2, y: (P[k].y + P[k + 1].y) / 2 }
       : P[P.length - 1]
-    d += ` Q ${P[k].x} ${P[k].y} ${end.x} ${end.y}`
+    if (blockers && blockers.length && quadIntersectsAny(cursor, P[k], end, blockers, 4)) {
+      d += ` L ${P[k].x} ${P[k].y} L ${end.x} ${end.y}`
+    } else {
+      d += ` Q ${P[k].x} ${P[k].y} ${end.x} ${end.y}`
+    }
+    cursor = end
   }
   return d
 }
@@ -272,7 +302,7 @@ export function routeEdgesOnGrid(
     hpush(hDist(sIdx), sIdx)
     let found = false
     let iter = 0
-    while (heapF.length && iter < 60000) {
+    while (heapF.length && iter < 200000) {
       iter++
       const cur = hpop()
       if (cur === tIdx) { found = true; break }

@@ -215,7 +215,7 @@ export function generateHtml(graph: NodeGraph, imageData: Record<string, string>
     children: n.children ?? [],
     template: n.template,
     contentExpanded: n.contentExpanded,
-    isMain: (graph.nodeTemplates[n.template]?.shape ?? 'sharp') === 'sharp',
+    isMain: n.template === 'main_topic',
     nodeHeight: n.nodeHeight ?? null,
     naturalY: Math.round((n.nodeNaturalY ?? n.position.y) + offsetY),
     searchText: [n.title, n.content ?? '', n.original?.text ?? ''].join(' ').toLowerCase(),

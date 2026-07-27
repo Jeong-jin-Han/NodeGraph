@@ -422,11 +422,22 @@ Wrap text in double asterisks to render it **bold** with a slightly larger size:
 
 ## Position guidelines
 
-- Backbone (main) nodes: arrange vertically, `y` spacing of ~300px, `x` = 0
-- Sub-nodes: arrange to the right of their parent, `x` offset of ~500–550px (default node width is 432px — keep sub-nodes clear of the backbone column)
-- Distribute sub-nodes vertically around their parent's y-center (~150px spacing)
-- Check all existing node positions before placing new ones — avoid overlapping
-- The overlap-prevention algorithm runs automatically in the editor and HTML viewer, but clean initial placement still helps
+This is the same hop-based rule the editor applies automatically when a wire is drawn
+interactively (`computeHopPosition` in `useGraph.ts`) — follow it by hand when writing
+positions directly into JSON, so agent-authored and UI-authored graphs look consistent.
+
+- **Backbone (main_topic) nodes**: arrange vertically, `y` spacing of ~300px, `x` = 0.
+- **Hop 1** (a node whose direct parent — via `children` or an edge — is a main_topic node):
+  place at `parent.x ± 750`, alternating around the parent's vertical center (`parent.y`,
+  `parent.y+150`, `parent.y-150`, `parent.y+300`, ...). Default to the **right** (`+750`); once
+  a main_topic parent already has 4 hop-1 children on the right, put further ones on the
+  **left** (`-750`) instead.
+- **Hop 2 and deeper**: do **not** re-split left/right. A node inherits whichever side its own
+  direct parent is already on (compare the parent's `x` to its nearest main_topic ancestor's
+  `x`) and continues **750px further in that same direction** per level — this is also what
+  keeps a long hop-2+ chain from overlapping the hop-1 cluster near the backbone.
+- Check all existing node positions before placing new ones — avoid overlapping.
+- The overlap-prevention algorithm runs automatically in the editor and HTML viewer, but clean initial placement still helps.
 
 ---
 

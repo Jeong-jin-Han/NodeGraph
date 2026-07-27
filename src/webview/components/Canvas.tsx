@@ -71,6 +71,72 @@ interface CanvasProps {
 
 const HEADER_H = 36
 
+// main_topic(+ 그 hop 자식 전체)을 하나의 "묶음"으로 취급하는 트리 기반 레이아웃.
+// 이전 버전(union-find 컬럼 + 전역 greedy 패킹)은 펼침이 반복될 때마다 무관한 노드까지
+// 서로 밀어내며 재계산되어 hop 정렬이 흐트러지고 선이 얽히는 문제가 있었음 — 사용자 피드백:
+// "one hop, two hop 형제끼리는 서로 밀리면 안 된다", "leaf부터 거꾸로(bottom-up) 계산해서
+// 얼마나 공간이 필요한지 먼저 알아야 한다". 그래서 각 서브트리가 필요로 하는 세로 공간을
+// bottom-up으로 한 번만 계산(Pass 1)한 뒤, 그 값을 그대로 써서 top-down으로 위치를
+// 확정(Pass 2)하는 방식으로 교체 — 반복적 재밀림이 없어 얽힘이 구조적으로 발생하지 않는다.
+// 레이아웃 트리 공통 구성: main_topic은 항상 루트(백본 간 arrow 엣지는 트리 엣지로
+// 취급하지 않음 — 순서만 가짐). 그 외 노드는 children[]/edge로 찾은 부모에 귀속되고,
+// 부모를 못 찾은 고아 노드는 자기 자신만의 독립 루트로 취급한다. computeRenderPositions
+// (Y 배치·X tier 정렬)와 computeGridLines(디버그 격자)가 이 구조를 동일하게 써야
+// 서로 어긋나지 않으므로(과거 gapFor 불일치 버그와 같은 클래스) 하나로 공유한다.
+interface HopTree {
+  isRoot: Set<string>
+  parentOf: Map<string, string>
+  childrenOf: Map<string, string[]>
+  depthOf: Map<string, number>
+  rootOf: Map<string, string>
+}
+function buildHopTree(
+  nodes: GraphNode[],
+  edges: { source: string; target: string; type?: string }[],
+  nodeTemplates: Record<string, { shape: 'sharp' | 'rounded' }>
+): HopTree {
+  // main_topic(백본) 여부는 template의 shape가 아니라 template 키 자체로 판별해야 함 —
+  // Method/Result/Claim도 "paper-derived fact"를 나타내려고 shape:'sharp'를 쓰지만
+  // 구조적으로는 main_topic의 평범한 hop 자식일 뿐, 별도 백본/루트가 아니다.
+  const isMainNode = (n: GraphNode) => n.template === 'main_topic'
+  const nodeById = new Map(nodes.map(n => [n.id, n]))
+  const parentIdOf = (nodeId: string): string | null => {
+    const byChildren = nodes.find(n => n.children?.includes(nodeId))
+    if (byChildren) return byChildren.id
+    const byEdge = edges.find(e => e.target === nodeId)
+    return byEdge ? byEdge.source : null
+  }
+
+  const isRoot = new Set<string>()
+  const parentOf = new Map<string, string>()
+  for (const n of nodes) {
+    if (isMainNode(n)) { isRoot.add(n.id); continue }
+    const p = parentIdOf(n.id)
+    if (p && nodeById.has(p)) parentOf.set(n.id, p)
+    else isRoot.add(n.id)
+  }
+  const childrenOf = new Map<string, string[]>()
+  for (const n of nodes) {
+    const p = parentOf.get(n.id)
+    if (!p) continue
+    if (!childrenOf.has(p)) childrenOf.set(p, [])
+    childrenOf.get(p)!.push(n.id)
+  }
+
+  const depthOf = new Map<string, number>()
+  const rootOf = new Map<string, string>()
+  const computeDepth = (id: string): { depth: number; root: string } => {
+    if (depthOf.has(id)) return { depth: depthOf.get(id)!, root: rootOf.get(id)! }
+    if (isRoot.has(id)) { depthOf.set(id, 0); rootOf.set(id, id); return { depth: 0, root: id } }
+    const p = computeDepth(parentOf.get(id)!)
+    depthOf.set(id, p.depth + 1); rootOf.set(id, p.root)
+    return { depth: p.depth + 1, root: p.root }
+  }
+  for (const n of nodes) computeDepth(n.id)
+
+  return { isRoot, parentOf, childrenOf, depthOf, rootOf }
+}
+
 function computeRenderPositions(
   nodes: GraphNode[],
   nodeSizes: Record<string, { width: number; height: number }>,
@@ -78,7 +144,7 @@ function computeRenderPositions(
   edges: { source: string; target: string; type?: string }[],
   draggingNodeId: string | null
 ): Record<string, { x: number; y: number }> {
-  const isMainNode = (node: GraphNode) => (nodeTemplates[node.template]?.shape ?? 'sharp') === 'sharp'
+  const isMainNode = (node: GraphNode) => node.template === 'main_topic'
   const nw = (n: GraphNode) => nodeSizes[n.id]?.width ?? (n.nodeWidth ?? 432)
   const nh = (n: GraphNode) => {
     const measured = nodeSizes[n.id]?.height
@@ -89,194 +155,313 @@ function computeRenderPositions(
   }
 
   const nodeById = new Map(nodes.map(n => [n.id, n]))
-
-  const isConnected = (aId: string, bId: string): boolean => {
-    const a = nodeById.get(aId)!, b = nodeById.get(bId)!
-    if (a.children.includes(bId) || b.children.includes(aId)) return true
-    return edges.some(e =>
-      (e.source === aId && e.target === bId) || (e.source === bId && e.target === aId)
-    )
+  const tree = buildHopTree(nodes, edges, nodeTemplates)
+  const { childrenOf } = tree
+  // 각 부모의 자식들을 저장된 상대 Y(디자인 의도상 순서) 기준으로 정렬
+  for (const [pid, kids] of childrenOf) {
+    const parent = nodeById.get(pid)!
+    kids.sort((a, b) =>
+      (nodeById.get(a)!.position.y - parent.position.y) - (nodeById.get(b)!.position.y - parent.position.y))
+  }
+  // 형제 그룹을 부모의 원래 Y 기준 위/아래로 분리 (hop-1의 "부모 중심으로 부채꼴" 배치,
+  // hop-2+의 "한 방향으로만 계속 뻗기" 배치를 그대로 재현 — 부호는 저장된 좌표가 결정)
+  const splitByOriginalSide = (parentId: string) => {
+    const parent = nodeById.get(parentId)!
+    const kids = childrenOf.get(parentId) ?? []
+    return {
+      below: kids.filter(k => nodeById.get(k)!.position.y >= parent.position.y),
+      above: kids.filter(k => nodeById.get(k)!.position.y < parent.position.y),
+    }
   }
 
-  // 모든 노드를 X 범위 겹침 기준으로 컬럼에 묶기 (union-find)
-  // main/sub 구분 없이 동일 X 컬럼에 있으면 함께 처리 — 이전 버전의 핵심 버그 수정
-  const par: Record<string, string> = {}
-  nodes.forEach(n => { par[n.id] = n.id })
-  const find = (id: string): string => {
-    if (par[id] !== id) par[id] = find(par[id])
-    return par[id]
+  // mainLevel은 "이 부모의 자식들이 main topic이냐"가 아니라 "비교하는 두 노드 자체가
+  // 둘 다 main topic이냐"로 판단 — main topic끼리(백본)만 20px 기준을 쓰고, hop 자식들은
+  // (부모가 main topic이든 아니든) 항상 30px 기준을 쓴다. 예전엔 부모 기준으로 판단해서
+  // main topic 바로 아래 hop-1 형제들이 (자기 자신은 main topic이 아닌데도) 잘못 20px로
+  // 계산되어 실제 필요한 간격보다 좁게 잡히는 버그가 있었음 — 자식 간격을 기준으로 다음
+  // main topic을 밀어야 하는데, 그 자식 간격 자체가 과소 계산됐던 것.
+  const gapFor = (a: GraphNode, b: GraphNode): number => {
+    const base = (isMainNode(a) && isMainNode(b)) ? 20 : 30
+    return (nh(a) > HEADER_H || nh(b) > HEADER_H) ? 48 : base
   }
-  for (let i = 0; i < nodes.length; i++) {
-    for (let j = i + 1; j < nodes.length; j++) {
-      const a = nodes[i], b = nodes[j]
+
+  // ── Pass 1 (bottom-up): 각 서브트리가 자기 중심(center) 기준 위/아래로 필요한 공간 ──
+  interface VInfo { above: number; below: number }
+  const infoCache = new Map<string, VInfo>()
+  // assign()의 실제 순회(부모→첫 자식 사이에도 gap이 들어감)와 정확히 같은 식이어야 함.
+  // 여기서 첫 자식 앞의 gap을 빼먹으면 bottom-up 추정치가 top-down 실제 배치보다
+  // 작게 나와서, 트리가 깊어질수록(hop-2, hop-3 ...) 오차가 누적되고 결국 다른
+  // main topic 클러스터와 겹치는 버그가 생김(사용자가 실제 테스트로 발견) — layoutInfo와
+  // assign이 이 함수 하나를 공유해야 서로 어긋나지 않는다.
+  function stackSize(group: string[], parentNode: GraphNode): number {
+    if (group.length === 0) return 0
+    let total = 0
+    for (let i = 0; i < group.length; i++) {
+      const kid = nodeById.get(group[i])!
+      const prev = i === 0 ? parentNode : nodeById.get(group[i - 1])!
+      total += gapFor(prev, kid)
+      const kInfo = layoutInfo(group[i])
+      total += kInfo.above + kInfo.below
+    }
+    return total
+  }
+  const layoutInfo = (id: string): VInfo => {
+    const cached = infoCache.get(id)
+    if (cached) return cached
+    const node = nodeById.get(id)!
+    const ownHalf = nh(node) / 2
+    const { above, below } = splitByOriginalSide(id)
+    const belowSize = stackSize(below, node)
+    const aboveSize = stackSize(above, node)
+    // assign()이 한쪽에만 자식이 있을 때 그 스택을 부모 중심에 대칭으로 배치하므로
+    // (아래 참고), 필요 공간도 위/아래로 절반씩 나눠 잡아야 top-down 실제 배치와
+    // 일치한다 — 안 그러면 위쪽으로 튀어나온 절반이 반영 안 돼서 위 클러스터와 겹침.
+    const oneSidedBelow = below.length > 0 && above.length === 0
+    const oneSidedAbove = above.length > 0 && below.length === 0
+    const aboveNeed = oneSidedBelow ? belowSize / 2 : oneSidedAbove ? aboveSize / 2 : aboveSize
+    const belowNeed = oneSidedBelow ? belowSize / 2 : oneSidedAbove ? aboveSize / 2 : belowSize
+    const info: VInfo = {
+      above: Math.max(ownHalf, aboveNeed),
+      below: Math.max(ownHalf, belowNeed),
+    }
+    infoCache.set(id, info)
+    return info
+  }
+
+  // ── Pass 2 (top-down): center Y 확정 — 부모가 정해지면 그 중심을 기준으로
+  // 위/아래 그룹을 각자의 layoutInfo만큼만 떨어뜨려 배치. 형제끼리는 여기서 서로의
+  // 필요 공간만 참고할 뿐, 무관한 다른 묶음의 상태에 따라 재계산되지 않는다.
+  const centerY = new Map<string, number>()
+  const assign = (id: string, cy: number) => {
+    const node = nodeById.get(id)!
+    const actualCy = id === draggingNodeId ? node.position.y + nh(node) / 2 : cy
+    centerY.set(id, actualCy)
+    const { above, below } = splitByOriginalSide(id)
+
+    // hop-2+처럼 자식이 한쪽에만 있으면(재분기 없이 한 방향으로만 뻗는 설계) 그 스택
+    // 전체를 부모 중심에 대칭으로 배치한다 — 그렇지 않으면 스택이 부모 중심 바로
+    // 아래(또는 위)에서만 시작해서 부모가 키 큰 노드일 때 위쪽 공간을 전혀 못 쓰고
+    // 아래로만 치우쳐 보임(사용자 리포트: "가운데가 아니라 애매하게 위에서 시작").
+    // 양쪽에 다 자식이 있으면(hop-1처럼 부채꼴) 이미 중심 기준 대칭이라 그대로 둔다.
+    const belowStart = (below.length > 0 && above.length === 0)
+      ? actualCy - stackSize(below, node) / 2
+      : actualCy
+    const aboveStart = (above.length > 0 && below.length === 0)
+      ? actualCy + stackSize(above, node) / 2
+      : actualCy
+
+    let cursor = belowStart
+    for (let i = 0; i < below.length; i++) {
+      const kid = nodeById.get(below[i])!
+      const kInfo = layoutInfo(below[i])
+      const prev = i === 0 ? node : nodeById.get(below[i - 1])!
+      cursor += gapFor(prev, kid) + kInfo.above
+      assign(below[i], cursor)
+      cursor += kInfo.below
+    }
+    cursor = aboveStart
+    for (let i = 0; i < above.length; i++) {
+      const kid = nodeById.get(above[i])!
+      const kInfo = layoutInfo(above[i])
+      const prev = i === 0 ? node : nodeById.get(above[i - 1])!
+      cursor -= gapFor(prev, kid) + kInfo.below
+      assign(above[i], cursor)
+      cursor -= kInfo.above
+    }
+  }
+
+  // ── 루트 시퀀싱: X범위가 겹치는 루트끼리만(보통 main_topic 백본 전체) 그룹으로 묶어
+  // 순서(원래 Y)대로 배치하되, 앞 클러스터의 하단(bottom.below) 이후로 밀려야 하면
+  // 그만큼 간격을 벌려 확보한다(요청: "간격을 넓혀서 공간을 확보"). X가 겹치지 않는
+  // 루트(고아 노드 등)는 서로 전혀 영향을 주지 않는다.
+  const roots = nodes.filter(n => tree.isRoot.has(n.id))
+  const rootPar = new Map<string, string>(roots.map(n => [n.id, n.id]))
+  const rootFind = (id: string): string => {
+    const p = rootPar.get(id)!
+    if (p === id) return id
+    const r = rootFind(p)
+    rootPar.set(id, r)
+    return r
+  }
+  for (let i = 0; i < roots.length; i++) {
+    for (let j = i + 1; j < roots.length; j++) {
+      const a = roots[i], b = roots[j]
       if (a.position.x < b.position.x + nw(b) && b.position.x < a.position.x + nw(a)) {
-        const ra = find(a.id), rb = find(b.id)
-        if (ra !== rb) par[ra] = rb
+        const ra = rootFind(a.id), rb = rootFind(b.id)
+        if (ra !== rb) rootPar.set(ra, rb)
       }
     }
   }
-  const colMap = new Map<string, GraphNode[]>()
-  for (const n of nodes) {
-    const root = find(n.id)
-    if (!colMap.has(root)) colMap.set(root, [])
-    colMap.get(root)!.push(n)
+  const rootGroups = new Map<string, GraphNode[]>()
+  for (const r of roots) {
+    const g = rootFind(r.id)
+    if (!rootGroups.has(g)) rootGroups.set(g, [])
+    rootGroups.get(g)!.push(r)
   }
-
-  // 컬럼을 X 오름차순(왼→오)으로 정렬해서 순서대로 처리
-  const columns = [...colMap.values()].sort((a, b) =>
-    Math.min(...a.map(n => n.position.x)) - Math.min(...b.map(n => n.position.x))
-  )
+  for (const group of rootGroups.values()) {
+    group.sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x)
+    let cursorBottom = -Infinity
+    for (let i = 0; i < group.length; i++) {
+      const root = group[i]
+      const info = layoutInfo(root.id)
+      const naturalCenter = root.position.y + nh(root) / 2
+      const gap = i === 0 ? 0 : gapFor(group[i - 1], root)
+      const cy = i === 0 ? naturalCenter : Math.max(naturalCenter, cursorBottom + gap + info.above)
+      assign(root.id, cy)
+      cursorBottom = (centerY.get(root.id) ?? cy) + info.below
+    }
+  }
 
   const renderY: Record<string, number> = {}
-
-  // 이미 팩킹된(왼쪽) 컬럼의 연결 노드를 기준으로 effectiveOriginY 계산
-  // - 연결 노드가 확장(height > HEADER_H)되어 이 노드의 originalY를 덮으면 → bottom 아래로 밀기
-  // - 연결 노드가 접혀있고 Y만 이동했으면 → 이동 delta만큼 따라 내려가기
-  // - 연결 노드가 없거나 영향 없으면 → originalY 유지
-  const getEffectiveOriginY = (node: GraphNode): number => {
-    let effY = node.position.y
-    for (const other of nodes) {
-      if (renderY[other.id] === undefined) continue  // 아직 처리되지 않은 컬럼은 무시
-      if (!isConnected(node.id, other.id)) continue
-      const otherRenderY = renderY[other.id]
-      const otherH = nh(other)
-      const otherBottom = otherRenderY + otherH
-      const otherPush = Math.max(0, otherRenderY - other.position.y)
-      if (otherH > HEADER_H && otherBottom > node.position.y) {
-        // 확장된 노드가 이 노드의 originalY 위치를 덮음 → bottom 아래로 (펼침 여백 48px)
-        effY = Math.max(effY, otherBottom + 48)
-      } else {
-        // 접힌 상태 or originalY 아래: Y 이동 delta만 전파
-        effY = Math.max(effY, node.position.y + otherPush)
-      }
-    }
-    return effY
+  for (const n of nodes) {
+    const cy = centerY.get(n.id) ?? (n.position.y + nh(n) / 2)
+    renderY[n.id] = cy - nh(n) / 2
   }
 
-  // 컬럼별 그리디 패킹 (왼→오 순서)
-  for (const col of columns) {
-    // effectiveOriginY를 먼저 계산 (팩킹 중 renderY가 바뀌기 전에)
-    const effYMap = new Map(col.map(n => [n.id, getEffectiveOriginY(n)]))
-
-    // effectiveOriginY 기준 오름차순 정렬, 동률이면 originalY 기준
-    col.sort((a, b) => {
-      const ea = effYMap.get(a.id)!, eb = effYMap.get(b.id)!
-      return ea !== eb ? ea - eb : a.position.y - b.position.y
-    })
-
-    // 위→아래 그리디 패킹 — gap 규칙은 실제 X범위가 겹치는(pairwise) 노드끼리만 적용
-    // 컬럼은 transitive 체인으로 묶이므로, 체인으로만 연결된 먼 노드가
-    // 빈 공간에 놓인 노드를 밀어내지 않도록 pairwise 충돌 검사 사용
-    const xOverlap = (a: GraphNode, b: GraphNode) =>
-      a.position.x < b.position.x + nw(b) && b.position.x < a.position.x + nw(a)
-    const placed: Array<{ node: GraphNode; y: number; h: number }> = []
-    for (const node of col) {
-      const h = nh(node)
-      if (node.id === draggingNodeId) {
-        // 드래그 중인 노드는 알고리즘 제외 → 마우스 따라 자유롭게 이동
-        renderY[node.id] = node.position.y
-        placed.push({ node, y: node.position.y, h })
-        continue
+  // Pass 4: hop tier(깊이)별 X 정렬 — 같은 depth의 모든 노드가 항상 같은 X에서
+  // 시작하도록 통일한다. 예전엔 노드 단위로 세로 겹침이 있을 때만 그 노드만 오른쪽으로
+  // 밀었는데, 그러면 표 등으로 넓어진 노드가 있는 브랜치만 밀리고 다른 브랜치는 그대로라
+  // 같은 hop 레벨인데도 브랜치마다 X가 달라져(정렬이 깨짐) grid로 보면 hop1/hop2 열이
+  // 삐뚤빼뚤해 보이는 문제가 있었음(사용자 리포트). 이제 depth+방향(좌/우)별로 "그 앞
+  // depth에서 가장 넓은 노드"를 기준으로 다음 depth 전체를 균일하게 밀어서, 같은 depth는
+  // (그래프 전체에 걸쳐) 항상 같은 X에서 시작 — 한 브랜치의 표 때문에 다른 브랜치의
+  // 같은 레벨 열도 함께 밀리더라도, "정렬 유지"가 사용자가 명시적으로 우선시한 값이다.
+  const MIN_HOP_GAP = 750
+  const COL_PAD = 60
+  const sideOf = new Map<string, 1 | -1 | 0>()
+  for (const n of nodes) {
+    if (tree.depthOf.get(n.id) === 0) { sideOf.set(n.id, 0); continue }
+    const root = nodeById.get(tree.rootOf.get(n.id)!)!
+    sideOf.set(n.id, n.position.x >= root.position.x ? 1 : -1)
+  }
+  const maxDepth = nodes.reduce((m, n) => Math.max(m, tree.depthOf.get(n.id) ?? 0), 0)
+  const colOffset = new Map<string, number>() // `${depth}:${side}` -> root 기준 누적 X 오프셋
+  for (const side of [1, -1] as const) {
+    let offset = 0
+    let prevMaxWidth = 0
+    for (let d = 0; d <= maxDepth; d++) {
+      if (d > 0) offset += Math.max(MIN_HOP_GAP, prevMaxWidth + COL_PAD)
+      colOffset.set(`${d}:${side}`, offset)
+      let widest = 0
+      for (const n of nodes) {
+        if (tree.depthOf.get(n.id) === d && sideOf.get(n.id) === side) widest = Math.max(widest, nw(n))
       }
-      // 적응형 gap: 둘 다 접힌 상태면 촘촘하게(20/30), 한쪽이라도 펼쳐져 있으면
-      // 48px로 넓혀 펼친 콘텐츠 주변 가독성 확보 (접힌 노드들은 공간 낭비 없음)
-      const baseGap = isMainNode(node) ? 20 : 30
-      let y = effYMap.get(node.id)!
-      let moved = true
-      while (moved) {
-        moved = false
-        for (const p of placed) {
-          if (!xOverlap(node, p.node)) continue
-          const gap = (h > HEADER_H || p.h > HEADER_H) ? 48 : baseGap
-          // 세로 구간이 (gap 여유 포함) 겹치면 해당 노드 아래로 밀기
-          if (y < p.y + p.h + gap && y + h + gap > p.y) {
-            y = p.y + p.h + gap
-            moved = true
-          }
-        }
-      }
-      renderY[node.id] = y
-      placed.push({ node, y, h })
+      prevMaxWidth = widest
     }
   }
-
-  // Pass 3: line 엣지 버스 그룹 Y 정규화
-  const lineBySource = new Map<string, string[]>()
-  for (const edge of edges) {
-    if (edge.type !== 'line') continue
-    if (!nodeById.has(edge.source) || !nodeById.has(edge.target)) continue
-    if (!lineBySource.has(edge.source)) lineBySource.set(edge.source, [])
-    lineBySource.get(edge.source)!.push(edge.target)
-  }
-  for (const [, targetIds] of lineBySource) {
-    if (targetIds.length < 2) continue
-    const xGroups: string[][] = []
-    for (const id of targetIds) {
-      const nx = nodeById.get(id)!.position.x
-      const nwid = nodeSizes[id]?.width ?? 432
-      let placed = false
-      for (const grp of xGroups) {
-        const firstId = grp[0]
-        const fx = nodeById.get(firstId)!.position.x
-        const fw = nodeSizes[firstId]?.width ?? 432
-        if (nx < fx + fw && fx < nx + nwid) { grp.push(id); placed = true; break }
-      }
-      if (!placed) xGroups.push([id])
-    }
-    for (const grp of xGroups) {
-      if (grp.length < 2) continue
-      const sorted = grp
-        .map(id => ({ id, y: renderY[id] ?? nodeById.get(id)!.position.y, h: nodeSizes[id]?.height ?? HEADER_H }))
-        .sort((a, b) => a.y - b.y)
-      for (let i = 1; i < sorted.length; i++) {
-        const minY = sorted[i - 1].y + sorted[i - 1].h + 30
-        const newY = Math.max(sorted[i].y, minY)
-        sorted[i].y = newY
-        renderY[sorted[i].id] = newY
-      }
-    }
-  }
-
-  // Pass 4: 가로 간격 확보 — 노드 단위 X-패킹 (Y-패킹을 90° 회전한 그리디)
-  // 세로로 겹치는 두 노드가 가로로 H_GAP 이내로 붙으면 오른쪽 노드를 밀어냄.
-  // 노드가 펼쳐져 넓어지면(표 등) 옆 노드가 실시간으로 밀리고, 접으면 원위치 복귀.
-  // 세로로 겹치지 않는 노드(위아래로 이미 분리된)는 절대 밀지 않음 → 공간 낭비 없음
-  const H_GAP = 60
   const renderX: Record<string, number> = {}
-  const byX = [...nodes].sort((a, b) => a.position.x - b.position.x)
-  for (const node of byX) {
-    if (node.id === draggingNodeId) {
-      // 드래그 중인 노드는 마우스 위치 그대로 (밀리지 않음, 밀 수는 있음)
-      renderX[node.id] = node.position.x
-      continue
-    }
-    const ny = renderY[node.id] ?? node.position.y
-    const nH = nh(node)
-    const nW = nw(node)
-    let x = node.position.x
-    let moved = true
-    while (moved) {
-      moved = false
-      for (const other of byX) {
-        const ox = renderX[other.id]  // 이미 배치된(왼쪽부터 처리) 노드만 존재
-        if (ox === undefined || other.id === node.id) continue
-        const oy = renderY[other.id] ?? other.position.y
-        // 세로로 겹치는 노드끼리만 가로 gap 강제
-        if (!(ny < oy + nh(other) && oy < ny + nH)) continue
-        // 가로 구간이 (H_GAP 여유 포함) 겹치면 해당 노드 오른쪽으로 밀기
-        if (x < ox + nw(other) + H_GAP && ox < x + nW + H_GAP) {
-          x = ox + nw(other) + H_GAP
-          moved = true
-        }
-      }
-    }
-    renderX[node.id] = x
+  for (const n of nodes) {
+    if (n.id === draggingNodeId) { renderX[n.id] = n.position.x; continue }
+    const depth = tree.depthOf.get(n.id) ?? 0
+    if (depth === 0) { renderX[n.id] = n.position.x; continue }
+    const side = sideOf.get(n.id) ?? 1
+    const root = nodeById.get(tree.rootOf.get(n.id)!)!
+    const offset = colOffset.get(`${depth}:${side}`) ?? depth * MIN_HOP_GAP
+    renderX[n.id] = root.position.x + side * offset
   }
 
   return Object.fromEntries(nodes.map(n => [n.id, {
     x: renderX[n.id] ?? n.position.x,
     y: renderY[n.id] ?? n.position.y,
   }]))
+}
+
+// 디버그용 격자선: 세로선은 hop 레벨(main topic으로부터 몇 단계 떨어졌는지) 경계,
+// 가로선은 main topic 클러스터(자신 + 모든 hop 자손) 경계. computeRenderPositions가
+// 실제로 만들어낸 최종 위치를 그대로 읽어서 계산하므로, 정렬이 어긋나면 이 격자선도
+// 같이 어긋나 보여서 레이아웃 버그를 눈으로 바로 확인할 수 있다.
+interface GridLines { hLines: number[]; vLines: number[] }
+function computeGridLines(
+  nodes: GraphNode[],
+  edges: { source: string; target: string; type?: string }[],
+  nodeTemplates: Record<string, { shape: 'sharp' | 'rounded' }>,
+  renderPositions: Record<string, { x: number; y: number }>,
+  nodeSizes: Record<string, { width: number; height: number }>
+): GridLines {
+  const nodeById = new Map(nodes.map(n => [n.id, n]))
+  const nw = (n: GraphNode) => nodeSizes[n.id]?.width ?? (n.nodeWidth ?? 432)
+  const nh = (n: GraphNode) => nodeSizes[n.id]?.height ?? (n.contentExpanded ? (n.nodeHeight ?? HEADER_H) : HEADER_H)
+  const rx = (n: GraphNode) => renderPositions[n.id]?.x ?? n.position.x
+  const ry = (n: GraphNode) => renderPositions[n.id]?.y ?? n.position.y
+
+  const { depthOf, rootOf } = buildHopTree(nodes, edges, nodeTemplates)
+  // 격자는 "main topic 기반 계층 구조"를 보여주기 위한 것이므로, 그래프에 도달할 수
+  // 없는 고아 노드(예: 테스트용 미연결 노드)는 대상에서 제외 — 안 그러면 고아 노드의
+  // 임의 좌표가 main topic(depth 0) 범위에 섞여 들어가 경계선이 잘못 억제된다.
+  const rootIsMain = (id: string) => nodeById.get(rootOf.get(id)!)?.template === 'main_topic'
+
+  // ── 가로선: main topic 클러스터(자신+전체 hop 자손)의 Y 범위 경계 ──
+  const clusterYRange = new Map<string, { min: number; max: number }>()
+  for (const n of nodes) {
+    if (!rootIsMain(n.id)) continue
+    const root = rootOf.get(n.id)!
+    const top = ry(n), bottom = ry(n) + nh(n)
+    const cur = clusterYRange.get(root)
+    if (!cur) clusterYRange.set(root, { min: top, max: bottom })
+    else { cur.min = Math.min(cur.min, top); cur.max = Math.max(cur.max, bottom) }
+  }
+  const roots = nodes.filter(n => depthOf.get(n.id) === 0 && clusterYRange.has(n.id))
+  const rootPar = new Map(roots.map(r => [r.id, r.id]))
+  const rfind = (id: string): string => {
+    const p = rootPar.get(id)!
+    if (p === id) return id
+    const r = rfind(p); rootPar.set(id, r); return r
+  }
+  for (let i = 0; i < roots.length; i++) {
+    for (let j = i + 1; j < roots.length; j++) {
+      const a = roots[i], b = roots[j]
+      if (rx(a) < rx(b) + nw(b) && rx(b) < rx(a) + nw(a)) {
+        const ra = rfind(a.id), rb = rfind(b.id)
+        if (ra !== rb) rootPar.set(ra, rb)
+      }
+    }
+  }
+  const groups = new Map<string, GraphNode[]>()
+  for (const r of roots) {
+    const g = rfind(r.id)
+    if (!groups.has(g)) groups.set(g, [])
+    groups.get(g)!.push(r)
+  }
+  const hLines: number[] = []
+  for (const group of groups.values()) {
+    group.sort((a, b) => ry(a) - ry(b))
+    for (let i = 1; i < group.length; i++) {
+      const prevRange = clusterYRange.get(group[i - 1].id)!
+      const curRange = clusterYRange.get(group[i].id)!
+      hLines.push((prevRange.max + curRange.min) / 2)
+    }
+  }
+
+  // ── 세로선: hop depth별 X 범위 경계 (main topic 기준 좌/우 방향을 나눠서 계산) ──
+  const depthSideXRange = new Map<string, { min: number; max: number }>()
+  for (const n of nodes) {
+    if (!rootIsMain(n.id)) continue
+    const d = depthOf.get(n.id)!
+    const rootNode = nodeById.get(rootOf.get(n.id)!)!
+    const side = d === 0 ? 0 : (rx(n) >= rx(rootNode) ? 1 : -1)
+    const key = `${d}:${side}`
+    const left = rx(n), right = rx(n) + nw(n)
+    const cur = depthSideXRange.get(key)
+    if (!cur) depthSideXRange.set(key, { min: left, max: right })
+    else { cur.min = Math.min(cur.min, left); cur.max = Math.max(cur.max, right) }
+  }
+  const vLines: number[] = []
+  const mainRange = depthSideXRange.get('0:0')
+  if (mainRange) {
+    for (const side of [1, -1]) {
+      let prev = mainRange
+      let d = 1
+      while (depthSideXRange.has(`${d}:${side}`)) {
+        const cur = depthSideXRange.get(`${d}:${side}`)!
+        if (side === 1 && cur.min > prev.max) vLines.push((prev.max + cur.min) / 2)
+        else if (side === -1 && prev.min > cur.max) vLines.push((cur.max + prev.min) / 2)
+        prev = cur
+        d++
+      }
+    }
+  }
+
+  return { hLines, vLines }
 }
 
 const toolbarBtnStyle: React.CSSProperties = {
@@ -333,6 +518,7 @@ export function Canvas({
 }: CanvasProps) {
   const divRef = useRef<HTMLDivElement>(null)
   const [nodeSizes, setNodeSizes] = useState<Record<string, { width: number; height: number }>>({})
+  const [showGrid, setShowGrid] = useState(false)
   const [fontDropOpen, setFontDropOpen] = useState(false)
   const fontInputRef = useRef<HTMLInputElement>(null)
   // 툴바가 overflow-x:auto라 absolute 드롭다운이 클리핑됨 → fixed 좌표로 띄움
@@ -745,6 +931,13 @@ export function Canvas({
   renderPositionsRef.current = renderPositions
   nodeSizesRef.current = nodeSizes
 
+  const gridLines = useMemo(
+    () => showGrid
+      ? computeGridLines(graph.nodes, graph.edges, graph.nodeTemplates, renderPositions, nodeSizes)
+      : { hLines: [], vLines: [] },
+    [showGrid, graph.nodes, graph.edges, graph.nodeTemplates, renderPositions, nodeSizes]
+  )
+
   // Search: matching nodes for dropdown
   const searchMatchNodes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -899,10 +1092,16 @@ export function Canvas({
 
   // 포트 드래그로 엣지 생성
   const handlePortDragStart = useCallback((nodeId: string, port: Port, clientX: number, clientY: number) => {
-    const toCanvas = (cx: number, cy: number) => ({
-      x: (cx - viewport.x) / viewport.zoom,
-      y: (cy - viewport.y) / viewport.zoom,
-    })
+    // clientX/Y는 브라우저 창 기준 절대좌표라, 캔버스 컨테이너의 화면상 오프셋(툴바 높이 등)을
+    // 빼줘야 정확한 canvas 좌표가 나옴 — 노드 드래그(useDrag)는 델타 기반이라 이 보정이 필요 없지만
+    // 여기는 절대좌표 변환이라 반드시 필요함 (없으면 프리뷰 와이어와 드롭 타겟 판정이 어긋남)
+    const toCanvas = (cx: number, cy: number) => {
+      const rect = divRef.current?.getBoundingClientRect()
+      return {
+        x: (cx - (rect?.left ?? 0) - viewport.x) / viewport.zoom,
+        y: (cy - (rect?.top ?? 0) - viewport.y) / viewport.zoom,
+      }
+    }
     const startPos = toCanvas(clientX, clientY)
     setWireDrawing({ srcId: nodeId, srcPort: port, curX: startPos.x, curY: startPos.y })
     const findHoverTarget = (cx: number, cy: number) => {
@@ -1393,6 +1592,11 @@ export function Canvas({
           title={expandFilterLabel ? `Expand only ${graph.nodeTemplates[expandFilterLabel]?.label ?? expandFilterLabel} nodes` : selCount > 0 ? 'Expand selected nodes' : 'Expand all nodes'}
         >📂 Expand</button>
         <button style={toolbarBtnStyle} onClick={handleFitView} title="Fit all nodes into view">🔍 Fit View</button>
+        <button
+          style={{ ...toolbarBtnStyle, background: showGrid ? '#2563eb' : toolbarBtnStyle.background, color: showGrid ? '#ffffff' : toolbarBtnStyle.color }}
+          onClick={() => setShowGrid(v => !v)}
+          title="Toggle debug grid — vertical lines mark hop-level boundaries, horizontal lines mark main-topic cluster boundaries"
+        >▦ Grid</button>
 
         <div style={{ width: 1, height: 18, background: '#d1d5db', margin: '0 4px' }} />
         <button
@@ -1514,6 +1718,19 @@ export function Canvas({
                 />
               )
             })}
+            {showGrid && (
+              <svg
+                style={{ position: 'absolute', left: -10000, top: -10000, width: 20000, height: 20000, pointerEvents: 'none', overflow: 'visible' }}
+                viewBox="-10000 -10000 20000 20000"
+              >
+                {gridLines.vLines.map((x, i) => (
+                  <line key={`gv${i}`} x1={x} y1={-10000} x2={x} y2={10000} stroke="#22c55e" strokeWidth={1.5} strokeDasharray="6 4" opacity={0.55} />
+                ))}
+                {gridLines.hLines.map((y, i) => (
+                  <line key={`gh${i}`} x1={-10000} y1={y} x2={10000} y2={y} stroke="#f97316" strokeWidth={1.5} strokeDasharray="6 4" opacity={0.55} />
+                ))}
+              </svg>
+            )}
             <WireLayer
               nodes={graph.nodes}
               edges={graph.edges}

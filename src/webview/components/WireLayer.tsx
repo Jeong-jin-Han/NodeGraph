@@ -266,17 +266,18 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
         const tgtPt = getPortPosition(tgtRect, targetPort)
         const spread = spreadMap.get(edge.id) ?? 0
         const gridPts = gridRoutes ? gridRoutes[edge.id] : null
+        const obstacles: Rect[] = []
+        allRects.forEach((r, id) => { if (id !== edge.source && id !== edge.target) obstacles.push(r) })
         let d: string
         if (gridPts && gridPts.length > 2) {
           // 그리드 A* 경로 (노드 회피 + congestion 분산) + 같은 소스/타겟 묶음 분산
-          d = pointsToPath(spreadPoints(gridPts, spread))
+          // blockers를 넘겨서 장애물 근처 경유점은 둥글리지 않고 직선으로 꺾음(코너 부풀림 방지)
+          d = pointsToPath(spreadPoints(gridPts, spread), obstacles)
         } else if (gridPts) {
           // 직선 경로: 기존 bezier 모양 유지
           d = getRoutedPath(srcPt, tgtPt, sourcePort, targetPort, [], spread)
         } else {
           // 드래그 중(fast) 또는 A* 실패: 경량 우회 휴리스틱
-          const obstacles: Rect[] = []
-          allRects.forEach((r, id) => { if (id !== edge.source && id !== edge.target) obstacles.push(r) })
           d = getRoutedPath(srcPt, tgtPt, sourcePort, targetPort, obstacles, spread)
         }
         const isSel = selectedEdgeId === edge.id
@@ -295,6 +296,9 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
               strokeWidth={isSel || isGen ? 2.5 : 1.5}
               markerEnd={edge.type === 'arrow' ? (isSel ? 'url(#arrowhead-selected)' : isGen ? 'url(#arrowhead-gen)' : 'url(#arrowhead)') : undefined}
               style={{ pointerEvents: 'none' }}
+              data-edge-id={edge.id}
+              data-edge-source={edge.source}
+              data-edge-target={edge.target}
             />
             {edge.type === 'line' && (
               <>

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import { NodeGraph, NodeLink, CanvasImage } from '../types/graph'
+import { NodeGraph, GraphNode, NodeLink, CanvasImage } from '../types/graph'
 
 function insertImgTokenInCell(content: string, tableIdx: number, rowIdx: number, colIdx: number, filename: string): string {
   const lines = content.split('\n')
@@ -47,6 +47,100 @@ declare function acquireVsCodeApi(): {
 
 const vscode = acquireVsCodeApi()
 const MAX_HISTORY = 50
+
+// --- Hop-based initial position for a newly-connected child node -----------------------
+// Triggered when a wire is drawn (addEdge). Saved positions are otherwise never rewritten
+// (see computeRenderPositions in Canvas.tsx) — this only sets the *starting* position for a
+// node the moment it becomes a child; the user can freely drag it afterward like any node.
+//
+// Rule (confirmed with the user):
+// - A direct child of a main_topic (backbone) node is "hop 1". Hop-1 children fan out to
+//   both sides of their parent — right first, left once the right side has HOP1_RIGHT_CAP
+//   children — and stack around the parent's vertical center.
+// - Anything deeper (hop 2+) is not re-split: it inherits whichever side its own direct
+//   parent already sits on (relative to the nearest backbone ancestor) and keeps extending
+//   the same direction, one HOP_X_OFFSET further out per level — which is also what keeps a
+//   long hop-2+ chain from overlapping the hop-1 cluster near the backbone.
+const HOP_X_OFFSET = 750
+const HOP1_Y_SPACING = 150
+const HOPN_Y_SPACING = 90
+const HOP1_RIGHT_CAP = 4
+
+// main_topic(백본) 여부는 template의 shape가 아니라 template 키 자체로 판별해야 함 —
+// Method/Result/Claim도 "paper-derived fact"를 나타내려고 shape:'sharp'를 쓰지만
+// 구조적으로는 main_topic의 평범한 hop 자식일 뿐, 별도 백본/루트가 아니다.
+export function isMainTopicNode(g: NodeGraph, node: GraphNode): boolean {
+  return node.template === 'main_topic'
+}
+
+export function childIdsOf(g: NodeGraph, nodeId: string): string[] {
+  return [...new Set([
+    ...(g.nodes.find(n => n.id === nodeId)?.children ?? []),
+    ...g.edges.filter(e => e.source === nodeId).map(e => e.target),
+  ])]
+}
+
+export function parentIdOf(g: NodeGraph, nodeId: string): string | null {
+  const byChildren = g.nodes.find(n => n.children.includes(nodeId))
+  if (byChildren) return byChildren.id
+  const byEdge = g.edges.find(e => e.target === nodeId)
+  return byEdge ? byEdge.source : null
+}
+
+// Walks up from `fromId` to the nearest main_topic ancestor, returning which side of that
+// ancestor fromId's own branch sits on (1 = right, -1 = left). Null if there is no backbone
+// ancestor (fromId is itself a root/main_topic, or the chain is broken).
+export function findBackboneSide(g: NodeGraph, fromId: string): 1 | -1 | null {
+  let branch = fromId
+  let current = fromId
+  const visited = new Set<string>()
+  for (let i = 0; i < g.nodes.length + 1; i++) {
+    if (visited.has(current)) return null
+    visited.add(current)
+    const node = g.nodes.find(n => n.id === current)
+    if (!node) return null
+    if (isMainTopicNode(g, node)) {
+      if (current === fromId) return null // fromId is itself the backbone — caller decides the side
+      const branchNode = g.nodes.find(n => n.id === branch)!
+      return branchNode.position.x >= node.position.x ? 1 : -1
+    }
+    const parentId = parentIdOf(g, current)
+    if (!parentId) return null
+    branch = current
+    current = parentId
+  }
+  return null
+}
+
+export function computeHopPosition(g: NodeGraph, parentId: string): { x: number; y: number } | null {
+  const parent = g.nodes.find(n => n.id === parentId)
+  if (!parent) return null
+  const existingChildren = childIdsOf(g, parentId)
+
+  if (isMainTopicNode(g, parent)) {
+    let rightCount = 0, leftCount = 0
+    for (const id of existingChildren) {
+      const n = g.nodes.find(x => x.id === id)
+      if (!n) continue
+      if (n.position.x >= parent.position.x) rightCount++
+      else leftCount++
+    }
+    const sign: 1 | -1 = rightCount < HOP1_RIGHT_CAP ? 1 : -1
+    const sideCount = sign === 1 ? rightCount : leftCount
+    // Fan out around the parent's vertical center: 0, +1, -1, +2, -2, ...
+    const slot = Math.ceil(sideCount / 2) * (sideCount % 2 === 0 ? -1 : 1)
+    return {
+      x: parent.position.x + sign * HOP_X_OFFSET,
+      y: parent.position.y + slot * HOP1_Y_SPACING,
+    }
+  }
+
+  const sign = findBackboneSide(g, parentId) ?? 1
+  return {
+    x: parent.position.x + sign * HOP_X_OFFSET,
+    y: parent.position.y + existingChildren.length * HOPN_Y_SPACING,
+  }
+}
 
 export function useGraph() {
   const [graph, setGraphState] = useState<NodeGraph | null>(null)
@@ -274,7 +368,20 @@ export function useGraph() {
     setGraph(g => {
       if (g.edges.some(e => e.source === sourceId && e.target === targetId)) return g
       const id = `edge_${Date.now()}`
-      return { ...g, edges: [...g.edges, { id, source: sourceId, target: targetId, type, label: '' }] }
+      const edges = [...g.edges, { id, source: sourceId, target: targetId, type, label: '' }]
+      // Reposition the target using hop-based placement, as if it's a fresh child of source —
+      // only meaningful the first time a node gets a parent; leave it alone if it already has one.
+      // Also skip if the target is itself a main_topic (backbone) node — connecting two backbone
+      // nodes is a sequence link, not a hop-1 relationship, and must never move the target off
+      // its own backbone position.
+      const targetNode = g.nodes.find(n => n.id === targetId)
+      const alreadyHasParent = parentIdOf(g, targetId) !== null
+      const targetIsMainTopic = !!targetNode && isMainTopicNode(g, targetNode)
+      const newPos = (alreadyHasParent || targetIsMainTopic) ? null : computeHopPosition(g, sourceId)
+      const nodes = newPos
+        ? g.nodes.map(n => n.id === targetId ? { ...n, position: newPos, nodeNaturalY: newPos.y } : n)
+        : g.nodes
+      return { ...g, edges, nodes }
     }, true)
   }, [setGraph])
 
@@ -455,7 +562,7 @@ export function useGraph() {
     for (const childId of childIds) {
       if (stopAtMain) {
         const childNode = g.nodes.find(n => n.id === childId)
-        if ((g.nodeTemplates[childNode?.template ?? '']?.shape ?? 'sharp') === 'sharp') continue  // 직사각형(sharp) 자식은 펼치기에서 제외
+        if (childNode?.template === 'main_topic') continue  // main_topic 자식은 펼치기에서 제외
       }
       result.push(...getAllDescendants(g, childId, visited, stopAtMain))
     }
@@ -480,7 +587,7 @@ export function useGraph() {
   // outgoing edges 뿐 아니라, 이 노드를 향하는 incoming edge의 non-main 소스도 포함
   const expandNodes = useCallback((ids: string[]) => {
     setGraph(g => {
-      const isMain = (n: GraphNode) => (g.nodeTemplates[n.template]?.shape ?? 'sharp') === 'sharp'
+      const isMain = (n: GraphNode) => n.template === 'main_topic'
 
       function getExpandDesc(nodeId: string, visited = new Set<string>()): string[] {
         if (visited.has(nodeId)) return []

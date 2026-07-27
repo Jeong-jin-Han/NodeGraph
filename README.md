@@ -20,18 +20,20 @@ A VS Code extension for building node-based knowledge graphs from research paper
 ### Editing
 - **Custom editor** for `.nodegraph.json` files — pan (left-drag), zoom (scroll wheel, 0.05×–8×, centered on the cursor), box-select (right-drag)
 - **Rich node content** — Markdown (GFM) tables, LaTeX via KaTeX, `**bold**`, inline images; click any text to edit it in place (`Esc` cancels, clicking elsewhere commits)
+- **Content height cap** — a node's main content (not toggles) is capped at a default max-height with a vertical scrollbar past that; a table or image that needs more room raises the cap to fit it fully instead of clipping it. A `▼ More` / `▲ Less` button appears whenever there's more to see, to view the full content uncapped — this state is per-session (resets on reload)
 - **Node types** — 8 templates: Main topic, Method, Result, Claim (sharp = from the paper) and Question, Gap/Idea, Reference, Memo (rounded = your own notes); change a selected node's type from the toolbar dropdown
 - **Fold / Unfold** — click the node title; toolbar `Expand↓` / `Collapse↑` act on the selected node's whole subtree (expand stops at other main-topic nodes), or on every node when nothing is selected; a node-type filter dropdown next to these buttons restricts them to one template — `Collapse↑` always closes everything, `Expand↓` opens only nodes of that type (ignoring parent/child relationships) and closes the rest
 - **Toggle sections** — collapsible sub-sections inside a node (`+ Toggle` button); same rich rendering as the main content (GFM tables, LaTeX, inline images)
 - **Original text** — verbatim source quote with an editable label and `§, p.` location (`+ Original` button); rendered in italics below the content; right-click the quote to jump to and highlight it in the source PDF (see **Find & focus**)
 - **Links** — attach `url` / `pdf` / `obsidian` links to a node (`+ Link` button); click to open — PDFs are resolved relative to the JSON file
-- **Edges** — drag from a port dot (appears on hover) onto any node body to create an `arrow` edge; duplicates are ignored; click a wire to select it (blue) and press `Delete` to remove it (transitively redundant A→C edges are expected to be avoided when the graph is written — see Agent / AI Editing)
+- **Edges** — drag from a port dot (appears on hover) onto any node body to create an `arrow` edge; duplicates are ignored; click a wire to select it (blue) and press `Delete` to remove it (transitively redundant A→C edges are expected to be avoided when the graph is written — see Agent / AI Editing). Connecting a node that doesn't have a parent yet also gives it an initial hop-based position: a direct child of a main-topic node fans out to that node's right (or left, once the right side has 4) around its vertical center, and anything deeper keeps extending the same direction its parent already went
 - **Resize & typography** — drag an expanded node's right/bottom/corner handles (min 160×60); nodes widen automatically to fit tables and sized images; per-node font size 8–72px via the toolbar combo (with multiple nodes selected, sizes shift together preserving differences)
 - **Undo / Redo** — full history with `Ctrl+Z` / `Ctrl+Y` (or `Ctrl+Shift+Z`)
 
 ### Layout & wires
-- **Overlap-free layout** — saved positions are never rewritten by the layout; at render time an expanded node pushes overlapping neighbors down (adaptive 20/30/48px gaps) and sideways (60px minimum), and everything returns to place when folded — identical in the editor and the exported HTML
+- **Overlap-free layout** — saved positions are never rewritten by the layout; at render time each main-topic node and its whole hop tree is treated as one group, laid out bottom-up (each subtree's needed space computed from its leaves first) then positioned top-down in one pass, so expanding a node only grows its own group's space — other main-topic groups shift down to make room instead of every node individually re-packing against its neighbors. Horizontally, every node at the same hop level (hop-1, hop-2, ...) stays aligned to the same X across the whole graph — if one branch needs a wider column (e.g. a table), the whole hop-level column shifts out together rather than drifting out of alignment with sibling branches. Nodes also push apart sideways (60px minimum) when widened by a table, and everything returns to place when folded. *(Editor only for now — the exported HTML still uses the previous per-node packing algorithm.)*
 - **Smart wire routing** — wires are planned on a 24px cost grid (A*): node interiors are heavily penalized (crossed only when a node is fully enclosed), wires keep clearance from node borders and spread into free space instead of stacking; while dragging a node a light heuristic keeps rendering smooth and the precise routes return 150ms after the layout settles
+- **Layout debug grid (`▦ Grid`)** — toggles an overlay of dashed boundary lines: vertical lines mark hop-level boundaries (main topic / hop-1 / hop-2 / ...), horizontal lines mark each main-topic cluster's extent. Useful for visually spotting layout/spacing issues
 - **Bus routing** — one source with 2+ `line` targets clearly to its right renders as a single trunk with per-target branches
 
 ### Find & focus
@@ -50,7 +52,7 @@ A VS Code extension for building node-based knowledge graphs from research paper
 - **Save** — `Ctrl+S` writes pretty-printed JSON to disk immediately; image insertion saves automatically
 - **External edits** — when the file changes outside the webview the graph reloads automatically; `↺ Reload` force-re-reads from disk (useful after an AI agent edits the JSON)
 - **Slidable toolbar** — on narrow windows the toolbar keeps its button positions and slides horizontally (`Shift`+wheel on desktop, swipe on touch)
-- **Theme-independent nodes** — only the canvas background follows the active VSCode theme; node colors, text, links, and inputs render the same regardless of theme
+- **Theme-independent canvas** — canvas background, node colors, text, links, and inputs are all snapshotted from the active VSCode theme when the webview first loads, and stay fixed after that even if you switch themes
 - **Help (`?`)** — opens the extension's bundled README, scrolled to the Features section
 
 ## Mouse & Keyboard Controls
@@ -95,6 +97,7 @@ A VS Code extension for building node-based knowledge graphs from research paper
 | Collapse↑ / Expand↓ | Fold/unfold the selected subtree, or everything when nothing is selected |
 | Node-type filter (next to Collapse↑/Expand↓) | When set to a type instead of `None`: `Collapse↑` closes everything, `Expand↓` opens only that type's nodes and closes the rest |
 | Fit View | Zoom to fit all nodes |
+| ▦ Grid | Toggle the layout debug grid (hop-level vertical lines, main-topic-cluster horizontal lines) |
 | Export HTML | Write `<name>.html` next to the JSON |
 | Reload | Re-read the JSON from disk |
 | Help | Open the bundled README's Features section in a Markdown preview beside the editor |
