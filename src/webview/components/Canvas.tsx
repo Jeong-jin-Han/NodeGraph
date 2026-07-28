@@ -6,6 +6,7 @@ import { CanvasImageLayer } from './CanvasImageLayer'
 import { SearchBar } from './SearchBar'
 import { Port } from '../utils/wireGeometry'
 import { THEME } from '../utils/themeSnapshot'
+import { parentIdOf, childIdsOf } from '../hooks/useGraph'
 
 interface CanvasProps {
   openSearchSignal: number
@@ -22,7 +23,6 @@ interface CanvasProps {
   onSetViewport: (vp: Viewport) => void
   graph: NodeGraph
   onUpdateNodePosition: (id: string, x: number, y: number) => void
-  onAutoSaveNodePosition: (id: string, x: number, y: number) => void
   onUpdateNode: (id: string, field: string, value: string) => void
   onAddNode: (x: number, y: number, template?: string) => void
   onAddChildNode: (parentId: string, template?: string) => void
@@ -165,20 +165,57 @@ function computeRenderPositions(
   const nodeById = new Map(nodes.map(n => [n.id, n]))
   const tree = buildHopTree(nodes, edges, nodeTemplates)
   const { childrenOf } = tree
+  // main topic(백본) 기준 좌/우 — Pass 4(X 정렬)뿐 아니라 아래 세로 배치(Pass 1/2)에서도
+  // 왼쪽·오른쪽 자식을 독립적으로 다루기 위해 먼저 계산해둔다.
+  const sideOf = new Map<string, 1 | -1 | 0>()
+  for (const n of nodes) {
+    if (tree.depthOf.get(n.id) === 0) { sideOf.set(n.id, 0); continue }
+    const root = nodeById.get(tree.rootOf.get(n.id)!)!
+    sideOf.set(n.id, n.position.x >= root.position.x ? 1 : -1)
+  }
   // 각 부모의 자식들을 저장된 상대 Y(디자인 의도상 순서) 기준으로 정렬
   for (const [pid, kids] of childrenOf) {
     const parent = nodeById.get(pid)!
     kids.sort((a, b) =>
       (nodeById.get(a)!.position.y - parent.position.y) - (nodeById.get(b)!.position.y - parent.position.y))
   }
-  // 형제 그룹을 부모의 원래 Y 기준 위/아래로 분리 (hop-1의 "부모 중심으로 부채꼴" 배치,
-  // hop-2+의 "한 방향으로만 계속 뻗기" 배치를 그대로 재현 — 부호는 저장된 좌표가 결정)
-  const splitByOriginalSide = (parentId: string) => {
+  // 형제 그룹을 부모의 원래 Y 기준 위/아래로, 그리고 좌/우(side)로 분리한다. 왼쪽·오른쪽
+  // 자식은 서로 다른 X에 그려져 세로 공간을 절대 공유하지 않는데, side를 안 나누고
+  // 위/아래로만 묶으면 왼쪽 자식 하나가 커질 때 같은 묶음에 있던 오른쪽 자식까지 분기점이
+  // 같이 밀려 내려가버리는 버그가 있었음(사용자가 실제로 왼쪽 노드를 펼쳐서 오른쪽 자식
+  // 묶음 중심이 부모에서 벗어나는 것을 스크린샷으로 확인) — side별로 완전히 독립된
+  // above/below 계산을 하도록 분리.
+  //
+  // 지금 드래그 중인 노드는 이 그룹에서 아예 빼버린다 — 안 그러면 드래그로 raw Y가
+  // 실시간으로 바뀌면서 형제 정렬 순서 안에서 자리가 계속 옮겨 다니는데, assign()의
+  // 커서 진행은 "그 자리에 정말 그 노드가 있다"고 가정하고 gap+높이만큼 진행해버려서
+  // (실제로는 그 노드가 특수 케이스로 완전히 다른 곳에 떠 있는데도) 다른 형제들이 그
+  // "유령 자리"만큼 밀려버렸다(사용자 리포트: "드래그로 순서를 바꾸는 게 거의 불가능,
+  // 아래로 내리면 늘 맨 밑으로 간다" — 실제로는 드래그 중인 노드가 형제 배열 안에서
+  // 계속 재정렬되면서 다른 형제들을 끌고 다녔던 것). 드래그 중엔 완전히 손을 떼서
+  // 다른 형제들은 그 노드가 원래 없었던 것처럼 재배치되고, 드래그 중인 노드 자신은
+  // assign()의 draggingNodeId 특례로 커서와 무관하게 raw 위치를 그대로 따라간다.
+  const splitByOriginalSide = (parentId: string, side: 1 | -1) => {
     const parent = nodeById.get(parentId)!
-    const kids = childrenOf.get(parentId) ?? []
+    const kids = (childrenOf.get(parentId) ?? [])
+      .filter(k => k !== draggingNodeId)
+      .filter(k => sideOf.get(k) === side)
+    // kids는 위에서 이미 상대 Y 오름차순(작은 Y 먼저)으로 정렬돼 있다 — below 그룹은
+    // assign()이 배열을 순서대로 소비하며 부모에서 "멀어지는" 방향으로 커서를 진행하므로
+    // 이 순서(작은 Y=부모와 가까움 먼저)가 그대로 맞다. 하지만 above 그룹은 assign()이
+    // 배열 순서대로 소비하며 부모에서 "멀어지는" 방향(더 위로)으로 진행하는 건 같은데,
+    // 오름차순 정렬에서는 "가장 작은(가장 음수인=가장 멀리 있는) Y"가 배열 맨 앞에 오므로
+    // 그게 먼저 소비돼 오히려 부모와 가장 가까운 자리에 배치되고, 그 다음 항목이 더
+    // 멀리 밀려나는 식으로 시각적 순서가 통째로 뒤집혔다 — 실제로 above 그룹에서만
+    // 재현되고 below 그룹은 멀쩡했던 이유(사용자 리포트: "위치에 따라서 되는 부분도
+    // 있고 안되는 부분도 있어"). above만 reverse해서 "부모와 가까운 것부터" 순서로
+    // 맞춘다.
+    const above = kids
+      .filter(k => nodeById.get(k)!.position.y < parent.position.y)
+      .reverse()
     return {
       below: kids.filter(k => nodeById.get(k)!.position.y >= parent.position.y),
-      above: kids.filter(k => nodeById.get(k)!.position.y < parent.position.y),
+      above,
     }
   }
 
@@ -213,24 +250,57 @@ function computeRenderPositions(
     }
     return total
   }
+  // above+below 블록을 부모 중심에 맞추기 위한 분기점 이동량(shift)을 계산한다.
+  // 이상적으로는 (belowSize-aboveSize)/2만큼 이동해야 블록 전체가 정확히 부모 중심에
+  //오지만, 양쪽에 다 형제가 있는 상태(hop-1 부채꼴)에서 두 그룹의 크기 차이가 크면
+  // (예: 3:1 이상) 이 이동량이 큰 쪽 그룹의 "부모와 가장 가까운 자식"을 부모 중심 반대편
+  // 으로 밀어버린다 — below 그룹의 첫 자식이 부모보다 위에, 혹은 above 그룹의 첫 자식이
+  // 부모보다 아래에 렌더링되는 것 — 이는 "블록이 부모와 대략 비슷한 위치에 있었으면
+  // 좋겠다"는 원래 요청보다 훨씬 나쁜, 자식이 자기 부모를 시각적으로 뛰어넘는 버그다
+  // (실측: 위 1개 vs 아래 3개처럼 불균형한 실제 구성에서 재현, 사용자 리포트: "위치에
+  // 따라서 되는 부분도 있고 안되는 부분도 있어"). 두 그룹이 다 있을 때만, "더 큰 쪽의
+  // 첫 자식이 부모 중심을 넘어가지 않는 한도"로 이동량을 clamp한다 — 한쪽만 있는 경우
+  // (hop-2+ 단방향 뻗기)는 애초에 넘어갈 반대쪽이 없으므로 원래 동작 그대로 둔다.
+  function splitShift(id: string, side: 1 | -1) {
+    const node = nodeById.get(id)!
+    const { above, below } = splitByOriginalSide(id, side)
+    const belowSize = stackSize(below, node)
+    const aboveSize = stackSize(above, node)
+    let shift = (belowSize - aboveSize) / 2
+    if (above.length > 0 && below.length > 0) {
+      if (shift > 0) {
+        const first = nodeById.get(below[0])!
+        const firstInfo = layoutInfo(below[0])
+        shift = Math.min(shift, gapFor(node, first) + firstInfo.above)
+      } else if (shift < 0) {
+        const first = nodeById.get(above[0])!
+        const firstInfo = layoutInfo(above[0])
+        shift = Math.max(shift, -(gapFor(node, first) + firstInfo.below))
+      }
+    }
+    return { above, below, belowSize, aboveSize, shift }
+  }
+
   const layoutInfo = (id: string): VInfo => {
     const cached = infoCache.get(id)
     if (cached) return cached
     const node = nodeById.get(id)!
     const ownHalf = nh(node) / 2
-    const { above, below } = splitByOriginalSide(id)
-    const belowSize = stackSize(below, node)
-    const aboveSize = stackSize(above, node)
-    // assign()이 한쪽에만 자식이 있을 때 그 스택을 부모 중심에 대칭으로 배치하므로
-    // (아래 참고), 필요 공간도 위/아래로 절반씩 나눠 잡아야 top-down 실제 배치와
-    // 일치한다 — 안 그러면 위쪽으로 튀어나온 절반이 반영 안 돼서 위 클러스터와 겹침.
-    const oneSidedBelow = below.length > 0 && above.length === 0
-    const oneSidedAbove = above.length > 0 && below.length === 0
-    const aboveNeed = oneSidedBelow ? belowSize / 2 : oneSidedAbove ? aboveSize / 2 : aboveSize
-    const belowNeed = oneSidedBelow ? belowSize / 2 : oneSidedAbove ? aboveSize / 2 : belowSize
+    // assign()이 side별로 독립적으로 above+below 블록을 자기 중심에 맞춰 재센터링하므로
+    // (아래 참고), 이 노드가 자기 부모의 형제 배치를 위해 보고하는 "필요 공간"도 side별로
+    // 따로 구해서 — 왼쪽·오른쪽은 같은 세로 공간을 놓고 겹칠 일이 없으므로 둘을 더하지
+    // 않고 더 많이 필요한 쪽(bounding box) 기준으로 잡는다. splitShift가 clamp한 실제
+    // shift를 그대로 반영해야 assign()이 실제로 만드는 위치와 어긋나지 않는다(안 그러면
+    // "다른 main topic 클러스터와 겹침" 같은 예전 버그 계열이 재발함).
+    let aboveReach = 0, belowReach = 0
+    for (const side of [1, -1] as const) {
+      const { aboveSize, belowSize, shift } = splitShift(id, side)
+      aboveReach = Math.max(aboveReach, aboveSize + shift)
+      belowReach = Math.max(belowReach, belowSize - shift)
+    }
     const info: VInfo = {
-      above: Math.max(ownHalf, aboveNeed),
-      below: Math.max(ownHalf, belowNeed),
+      above: Math.max(ownHalf, aboveReach),
+      below: Math.max(ownHalf, belowReach),
     }
     infoCache.set(id, info)
     return info
@@ -244,37 +314,37 @@ function computeRenderPositions(
     const node = nodeById.get(id)!
     const actualCy = id === draggingNodeId ? node.position.y + nh(node) / 2 : cy
     centerY.set(id, actualCy)
-    const { above, below } = splitByOriginalSide(id)
 
-    // hop-2+처럼 자식이 한쪽에만 있으면(재분기 없이 한 방향으로만 뻗는 설계) 그 스택
-    // 전체를 부모 중심에 대칭으로 배치한다 — 그렇지 않으면 스택이 부모 중심 바로
-    // 아래(또는 위)에서만 시작해서 부모가 키 큰 노드일 때 위쪽 공간을 전혀 못 쓰고
-    // 아래로만 치우쳐 보임(사용자 리포트: "가운데가 아니라 애매하게 위에서 시작").
-    // 양쪽에 다 자식이 있으면(hop-1처럼 부채꼴) 이미 중심 기준 대칭이라 그대로 둔다.
-    const belowStart = (below.length > 0 && above.length === 0)
-      ? actualCy - stackSize(below, node) / 2
-      : actualCy
-    const aboveStart = (above.length > 0 && below.length === 0)
-      ? actualCy + stackSize(above, node) / 2
-      : actualCy
+    // 왼쪽/오른쪽을 완전히 독립적으로 배치한다 — 두 side 다 "above+below 블록을 부모
+    // 중심에 맞춘다"는 원리는 같지만, 그 계산에 쓰이는 stackSize는 오직 같은 side의
+    // 형제끼리만 더해지므로 한쪽 크기가 반대쪽 분기점에 영향을 주지 않는다(사용자
+    // 리포트: "왼쪽을 펼치면 오른쪽 자식 block의 중심이 내려간다").
+    for (const side of [1, -1] as const) {
+      // above+below 전체를 하나의 블록으로 보고, 그 블록의 세로 중심이 (가능한 한) 부모
+      // 중심과 일치하도록 분기점(split)을 옮겨둔다 — splitShift가 "한쪽 그룹이 부모 반대
+      // 편으로 넘어가지 않는 한도" 안에서만 이동량을 계산해준다(그 이상 필요한 경우는
+      // 대칭을 100% 맞추는 대신 자식이 부모를 뛰어넘지 않는 쪽을 우선한다).
+      const { above, below, shift } = splitShift(id, side)
+      const split = actualCy - shift
 
-    let cursor = belowStart
-    for (let i = 0; i < below.length; i++) {
-      const kid = nodeById.get(below[i])!
-      const kInfo = layoutInfo(below[i])
-      const prev = i === 0 ? node : nodeById.get(below[i - 1])!
-      cursor += gapFor(prev, kid) + kInfo.above
-      assign(below[i], cursor)
-      cursor += kInfo.below
-    }
-    cursor = aboveStart
-    for (let i = 0; i < above.length; i++) {
-      const kid = nodeById.get(above[i])!
-      const kInfo = layoutInfo(above[i])
-      const prev = i === 0 ? node : nodeById.get(above[i - 1])!
-      cursor -= gapFor(prev, kid) + kInfo.below
-      assign(above[i], cursor)
-      cursor -= kInfo.above
+      let cursor = split
+      for (let i = 0; i < below.length; i++) {
+        const kid = nodeById.get(below[i])!
+        const kInfo = layoutInfo(below[i])
+        const prev = i === 0 ? node : nodeById.get(below[i - 1])!
+        cursor += gapFor(prev, kid) + kInfo.above
+        assign(below[i], cursor)
+        cursor += kInfo.below
+      }
+      cursor = split
+      for (let i = 0; i < above.length; i++) {
+        const kid = nodeById.get(above[i])!
+        const kInfo = layoutInfo(above[i])
+        const prev = i === 0 ? node : nodeById.get(above[i - 1])!
+        cursor -= gapFor(prev, kid) + kInfo.below
+        assign(above[i], cursor)
+        cursor -= kInfo.above
+      }
     }
   }
 
@@ -320,6 +390,16 @@ function computeRenderPositions(
     }
   }
 
+  // 드래그 중인 노드는 부모의 below/above 그룹에서 빠져 있어서(위 splitByOriginalSide
+  // 참고) 위 재귀가 알아서 방문해주지 않는다 — 그 자신은 draggingNodeId 특례로 이미
+  // 올바른 위치를 갖지만(아래 renderY 계산의 fallback이 처리), 그 노드에게 자기 자신의
+  // 자식(손자뻘)이 있다면 그 자식들의 위치는 여전히 assign()을 통해 계산돼야 하므로
+  // 여기서 별도로 한 번 호출해준다 — 인자로 넘기는 cy는 draggingNodeId 특례가 무시하므로
+  // 아무 값이나 상관없다.
+  if (draggingNodeId && !tree.isRoot.has(draggingNodeId) && !centerY.has(draggingNodeId)) {
+    assign(draggingNodeId, 0)
+  }
+
   const renderY: Record<string, number> = {}
   for (const n of nodes) {
     const cy = centerY.get(n.id) ?? (n.position.y + nh(n) / 2)
@@ -336,12 +416,6 @@ function computeRenderPositions(
   // 같은 레벨 열도 함께 밀리더라도, "정렬 유지"가 사용자가 명시적으로 우선시한 값이다.
   const MIN_HOP_GAP = 750
   const COL_PAD = 60
-  const sideOf = new Map<string, 1 | -1 | 0>()
-  for (const n of nodes) {
-    if (tree.depthOf.get(n.id) === 0) { sideOf.set(n.id, 0); continue }
-    const root = nodeById.get(tree.rootOf.get(n.id)!)!
-    sideOf.set(n.id, n.position.x >= root.position.x ? 1 : -1)
-  }
   const maxDepth = nodes.reduce((m, n) => Math.max(m, tree.depthOf.get(n.id) ?? 0), 0)
   // 전역에서 가장 넓은 main topic 폭 — 어느 main topic 하나가 표 등으로 넓어지면, 그
   // main topic 자신의 왼쪽·오른쪽 hop1 간격이 똑같이 유지되는 것은 물론(오른쪽 변만
@@ -580,7 +654,7 @@ export function Canvas({
   focusCanvasSignal,
   viewport, cursor, nativeWheelHandler,
   onMouseDown, onMouseMove, onMouseUp, onMouseLeave, onContextMenu,
-  onSetViewport, graph, onUpdateNodePosition, onAutoSaveNodePosition, onUpdateNode, onAddNode, onAddChildNode, onDeleteNodes,
+  onSetViewport, graph, onUpdateNodePosition, onUpdateNode, onAddNode, onAddChildNode, onDeleteNodes,
   onSetFontSize, onBumpFontSize, onSetFontSizeExact,
   onSetNodeWidth, onSetNodeHeight,
   onPushHistory, onUndo, onRedo, canUndo, canRedo,
@@ -631,6 +705,70 @@ export function Canvas({
   const [wireDrawing, setWireDrawing] = useState<{ srcId: string; srcPort: Port; curX: number; curY: number } | null>(null)
   const [wireHoverTarget, setWireHoverTarget] = useState<string | null>(null)
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null)
+
+  // 드래그로 형제 순서를 바꾸는 것이 사실상 불가능했던 버그 수정 — 드래그 중에는 부드러운
+  // 추적을 위해 커서 이동량을 "지금 화면에 렌더된 위치"(renderPosition, 레이아웃 알고리즘이
+  // 계산한 값)에 누적해서 raw position에 그대로 써왔는데, 정작 형제 순서/그룹핑은 그
+  // raw position을 서로 비교해서 정해진다. raw position은 (표로 넓어짐/hop 정렬 등으로)
+  // 실제 렌더 위치와 크게 어긋나 있는 게 보통이라, "화면에서 형제 두 개 사이에 놓았다"는
+  // raw 값으로 번역하면 다른 형제들의 raw 범위를 완전히 벗어나 버리는 경우가 흔했음 —
+  // 그 결과가 사용자가 보던 "밑으로 내리면 항상 맨 밑으로/순서를 못 바꾼다"는 증상.
+  // 드롭 시점에만, 같은 부모의 같은 side 형제들을 "지금 렌더된 Y"로 정렬해 이 노드가
+  // 실제로 어디 사이에 놓였는지 찾고, 그 두 형제의 raw Y 사이 값으로 다시 맞춰쓴다.
+  // updateNodePosition을 써서 nodeNaturalY도 같이 갱신 — 안 그러면(autoSaveNodePosition)
+  // position.y는 바로잡히지만 HTML export가 형제 정렬에 쓰는 nodeNaturalY는 드래그 중에
+  // 이미 오염된 값(위와 같은 render/raw 혼용 버그) 그대로 남아서, 에디터에서는 순서가
+  // 맞는데 export한 HTML에서는 다시 틀어져 보이는 불일치가 생긴다.
+  const handleNodeDragEnd = useCallback((id: string) => {
+    const g = graphRef.current
+    const node = g.nodes.find(n => n.id === id)
+    const parentId = node ? parentIdOf(g, id) : null
+    if (node && parentId) {
+      const findRootId = (fromId: string): string => {
+        let cur = fromId
+        const visited = new Set<string>()
+        while (!visited.has(cur)) {
+          visited.add(cur)
+          const n = g.nodes.find(x => x.id === cur)
+          if (!n) return cur
+          if (n.template === 'main_topic') return cur
+          const p = parentIdOf(g, cur)
+          if (!p) return cur
+          cur = p
+        }
+        return cur
+      }
+      const root = g.nodes.find(n => n.id === findRootId(id))
+      const sideOfNode = (n: GraphNode): 1 | -1 =>
+        root && n.position.x >= root.position.x ? 1 : -1
+      const draggedSide = sideOfNode(node)
+      const sameSideSiblings = childIdsOf(g, parentId)
+        .filter(sid => sid !== id)
+        .map(sid => g.nodes.find(n => n.id === sid))
+        .filter((s): s is GraphNode => !!s && sideOfNode(s) === draggedSide)
+
+      if (sameSideSiblings.length > 0) {
+        const draggedRenderY = renderPositionsRef.current[id]?.y ?? node.position.y
+        const ordered = sameSideSiblings
+          .map(s => ({ node: s, renderY: renderPositionsRef.current[s.id]?.y ?? s.position.y }))
+          .sort((a, b) => a.renderY - b.renderY)
+        // eslint-disable-next-line no-console
+        console.log('[DEBUG dragEnd] ' + JSON.stringify({
+          id, rawY: node.position.y, draggedRenderY,
+          siblings: ordered.map(o => ({ id: o.node.id, rawY: o.node.position.y, renderY: o.renderY })),
+        }))
+        const belowIdx = ordered.findIndex(s => s.renderY > draggedRenderY)
+        let newY: number
+        if (belowIdx === -1) newY = ordered[ordered.length - 1].node.position.y + 1
+        else if (belowIdx === 0) newY = ordered[0].node.position.y - 1
+        else newY = (ordered[belowIdx - 1].node.position.y + ordered[belowIdx].node.position.y) / 2
+        // X는 렌더 좌표가 raw에 잘못 섞여 들어간 것만 바로잡는다(같은 side 형제의 raw X를
+        // 그대로 빌려씀) — 형제가 없어 side를 새로 만드는 경우(side 전환)는 건드리지 않음.
+        onUpdateNodePosition(id, sameSideSiblings[0].position.x, newY)
+      }
+    }
+    setDraggingNodeId(null)
+  }, [onUpdateNodePosition])
   const [selectedEdgeId, _setSelectedEdgeId] = useState<string | null>(null)
   const selectedEdgeIdRef = useRef<string | null>(null)
   const setSelectedEdgeId = useCallback((id: string | null) => {
@@ -683,6 +821,8 @@ export function Canvas({
   viewportRef.current = viewport
   const graphNodesRef = useRef(graph.nodes)
   graphNodesRef.current = graph.nodes
+  const graphRef = useRef(graph)
+  graphRef.current = graph
   const canvasImagesRef = useRef(graph.canvasImages)
   canvasImagesRef.current = graph.canvasImages
   const renderPositionsRef = useRef<Record<string, { x: number; y: number }>>({})
@@ -1892,7 +2032,7 @@ export function Canvas({
                   isGenHighlight={genHighlight.nodeIds.has(node.id)}
                   onPinHighlight={handlePinHighlight}
                   onNodeDragActivate={setDraggingNodeId}
-                  onNodeDragDeactivate={() => setDraggingNodeId(null)}
+                  onNodeDragDeactivate={handleNodeDragEnd}
                 />
               )
             })}

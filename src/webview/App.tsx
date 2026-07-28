@@ -7,7 +7,7 @@ import { THEME } from './utils/themeSnapshot'
 export function App() {
   const {
     graph, imageUris,
-    updateNodePosition, autoSaveNodePosition, toggleContent, toggleOriginal,
+    updateNodePosition, toggleContent, toggleOriginal,
     updateNodeField, addNode, addChildNode, deleteNodes, addEdge, deleteEdge,
     addToggle, updateToggle, deleteToggle, expandToggle, deleteOriginal,
     saveImage,
@@ -82,7 +82,6 @@ export function App() {
       onSetViewport={setViewport}
       graph={graph}
       onUpdateNodePosition={updateNodePosition}
-      onAutoSaveNodePosition={autoSaveNodePosition}
       onUpdateNode={updateNodeField}
       onAddNode={(x, y, t) => addNode(x, y, t)}
       onAddChildNode={addChildNode}

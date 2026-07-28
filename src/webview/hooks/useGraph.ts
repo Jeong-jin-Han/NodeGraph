@@ -317,11 +317,6 @@ export function useGraph() {
     setGraph(g => ({ ...g, nodes: g.nodes.map(n => n.id === id ? { ...n, position: { x, y }, nodeNaturalY: y } : n) }))
   }, [setGraph])
 
-  // Auto-save pushed position without changing nodeNaturalY (prevents delta compounding)
-  const autoSaveNodePosition = useCallback((id: string, x: number, y: number) => {
-    setGraph(g => ({ ...g, nodes: g.nodes.map(n => n.id === id ? { ...n, position: { x, y } } : n) }))
-  }, [setGraph])
-
   const toggleContent = useCallback((id: string) => {
     setGraph(g => ({
       ...g,
@@ -776,7 +771,7 @@ export function useGraph() {
 
   return {
     graph, imageUris,
-    updateNodePosition, autoSaveNodePosition, toggleContent, toggleOriginal,
+    updateNodePosition, toggleContent, toggleOriginal,
     updateNodeField, addNode, addChildNode, deleteNodes, addEdge, deleteEdge,
     addToggle, updateToggle, deleteToggle, expandToggle, deleteOriginal,
     saveImage,
