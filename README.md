@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-0.4.3-orange" alt="Version 0.4.3" />
+  <img src="https://img.shields.io/badge/version-0.4.4-orange" alt="Version 0.4.4" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="MIT License" />
 </p>
 
@@ -93,6 +93,63 @@ A VS Code extension for building node-based knowledge graphs from research paper
 
 ---
 
+## Agent / AI Editing
+
+> **Before pointing an AI agent at a project, run `NodeGraph: Copy Agent Spec to Workspace` once** — it writes both `.agent/NODEGRAPH_SPEC.md` (copied from the extension bundle) and `.agent/ENVIRONMENT.md` (freshly generated) into one folder, so the agent can read both like any other file without needing to know the extension's install path. Right-click the target folder in the Explorer and pick it from the context menu (this is the reliable way in a multi-root workspace, or to target one specific subfolder — it writes into exactly the folder you clicked, nowhere else); running it from the Command Palette instead targets the workspace's only folder, or prompts you to pick one if there are several. It's opt-in rather than automatic on purpose: `.agent/NODEGRAPH_SPEC.md` is a large static doc identical across every install, and writing it into a folder automatically (the way `.agent/ENVIRONMENT.md` alone already does, silently, at every activation) would mean it could land in your own repo without you choosing that.
+>
+> **AI agents: read these two files before doing anything (both written by the command above, into the same folder):**
+> 1. `.agent/NODEGRAPH_SPEC.md` — full JSON schema, syntax rules, and constraints
+> 2. `.agent/ENVIRONMENT.md` — lists which Python libraries and CLI tools are installed on this machine (PDF reading, image processing, etc.)
+>
+> Key rules from the spec:
+> - Backslashes in KaTeX **must be doubled** in JSON strings (`\\frac`, `\\sqrt`, `\\text`)
+> - Prefer `$$...$$` display blocks for formulas — inline `$...$` only for short in-sentence symbols
+> - Literal currency dollars must be escaped: `\$4.28/GB` (in JSON strings: `\\$4.28/GB`) — a bare `$` opens an inline-math region
+> - When writing content in a non-English language, pair each key technical term with its original English form (see `.agent/NODEGRAPH_SPEC.md` for the exact convention)
+> - The Killer Application is not limited to one — capture every genuinely remarkable contribution
+> - `toggleItems[].content` renders exactly like `node.content` — Markdown tables, KaTeX, and `[[IMG:filename:WxH]]` tokens all work inside toggles too
+> - Always update the `"modified"` timestamp after every edit
+
+The file `.agent/NODEGRAPH_SPEC.md` (included in the extension) is a machine-readable specification for AI agents. It documents the full JSON schema, ID conventions, KaTeX/Markdown syntax rules, rendering support per field, and a step-by-step workflow for generating a nodegraph from a PDF.
+
+A worked example is included at `demo/ex1/attention-is-all-you-need.nodegraph.json` — the full "Attention Is All You Need" paper rendered as a nodegraph with KaTeX formulas, Markdown tables, toggle sections, and deep question nodes.
+
+**Typical agent workflow:**
+1. Right-click the project folder in the Explorer and run `NodeGraph: Copy Agent Spec to Workspace` (one-time per folder)
+2. Tell your agent to read `.agent/NODEGRAPH_SPEC.md` and `.agent/ENVIRONMENT.md`
+3. Read or create the target `.nodegraph.json`
+4. Edit the JSON directly
+5. Click **Reload** in the toolbar to see the updated graph without closing/reopening the file
+
+### Example prompt
+
+<b>English</b> | <a href="docs/ko/README.md#example-prompt">한국어</a>
+
+After running `NodeGraph: Copy Agent Spec to Workspace` on the folder that holds your PDF (step 1 above), paste this into your agent — fill in the path and it does the rest: reads the spec, reads the paper, and builds the graph without further back-and-forth.
+
+```
+PDF_ABSOLUTE_PATH = <PDF_ABSOLUTE_PATH>
+PROJECT_FOLDER = dirname(PDF_ABSOLUTE_PATH)
+
+PROJECT_FOLDER/.agent/NODEGRAPH_SPEC.md and PROJECT_FOLDER/.agent/ENVIRONMENT.md
+are already prepared for you — read both in full.
+
+Based on the paper and those two files, briefly explain what kind of
+nodegraph you can build from it. This extension ships a worked example
+at demo/ex1/attention-is-all-you-need.nodegraph.json (inside its own
+install folder) as a reference for depth/structure — check it if
+useful, then build ours the same way for this paper.
+
+Write all node content in English.
+
+Follow the spec exactly, save the result inside PROJECT_FOLDER, and run
+end to end without asking me anything. Tell me when done.
+```
+
+> **Benchmark** — on `demo/ex2` (a paper the graph had never seen before), Claude Opus 5 read the PDF, planned, and wrote the full nodegraph in **~16 minutes** using **~65k tokens**, no manual cleanup needed afterward.
+
+---
+
 ## Mouse & Keyboard Controls
 
 <details>
@@ -165,12 +222,20 @@ Matched text inside each node is additionally marked (inverse template color + u
 
 ## Installation
 
-> **VS Code Marketplace** — not yet published; install from the packaged `.vsix` for now.
+Install **NodeGraph** from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=JeongjinHan.nodegraph), or search "NodeGraph" in VS Code's Extensions view (`Ctrl+Shift+X`) and click Install. A packaged `.vsix` (`packages/nodegraph-<version>.vsix`) is also available in this repo if you'd rather install that directly.
 
-1. Grab the latest `packages/nodegraph-<version>.vsix` from the repo, then `code --install-extension packages/nodegraph-<version>.vsix`
-2. Run **NodeGraph: New Graph** (`Ctrl+Shift+P`) to create a `.nodegraph.json` file — or open an existing one, the custom editor opens automatically
-3. **Drag nodes** by the colored tag badge; **click the title** to fold/unfold; **right-click the title** to rename it
-4. Use the toolbar — **Expand / Collapse / Fit View / Export HTML / Reload / Help** — and **Ctrl+F** to search
+<details>
+<summary><b>Getting started</b></summary>
+
+1. Run **NodeGraph: New Graph** (`Ctrl+Shift+P`) to create a `.nodegraph.json` file — or open an existing one, the custom editor opens automatically
+2. **Drag nodes** by the colored tag badge; **click the title** to fold/unfold; **right-click the title** to rename it
+3. Use the toolbar — **Expand / Collapse / Fit View / Export HTML / Reload / Help** — and **Ctrl+F** to search
+
+Installing from the `.vsix` directly:
+
+```bash
+code --install-extension packages/nodegraph-<version>.vsix
+```
 
 To build the `.vsix` yourself:
 
@@ -179,6 +244,8 @@ npm install
 node esbuild.js --production
 npx vsce package -o packages/nodegraph-<version>.vsix
 ```
+
+</details>
 
 ---
 
@@ -198,6 +265,9 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
 ---
 
 ## File Format
+
+<details>
+<summary><b>Full JSON schema example</b></summary>
 
 ```jsonc
 {
@@ -241,35 +311,7 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
 }
 ```
 
----
-
-## Agent / AI Editing
-
-> **Before pointing an AI agent at a project, run `NodeGraph: Copy Agent Spec to Workspace` once** — it copies the spec into `.agent/NODEGRAPH_SPEC.md` so the agent can read it like any other file, without needing to know the extension's install path. Right-click the target folder in the Explorer and pick it from the context menu (this is the reliable way in a multi-root workspace — it copies into exactly the folder you clicked, not every open folder); running it from the Command Palette instead works the same way when only one folder is open, and prompts you to pick one if several are. It's opt-in rather than automatic on purpose: unlike `.agent/ENVIRONMENT.md` (small, genuinely per-machine, regenerated silently at activation), the spec is a large static doc, and copying it into a workspace automatically would mean it could land in your own repo without you choosing that.
->
-> **AI agents: read these two files before doing anything:**
-> 1. `.agent/NODEGRAPH_SPEC.md` — full JSON schema, syntax rules, and constraints (only present after the command above has been run)
-> 2. `.agent/ENVIRONMENT.md` — auto-generated at extension activation; lists which Python libraries and CLI tools are installed on this machine (PDF reading, image processing, etc.)
->
-> Key rules from the spec:
-> - Backslashes in KaTeX **must be doubled** in JSON strings (`\\frac`, `\\sqrt`, `\\text`)
-> - Prefer `$$...$$` display blocks for formulas — inline `$...$` only for short in-sentence symbols
-> - Literal currency dollars must be escaped: `\$4.28/GB` (in JSON strings: `\\$4.28/GB`) — a bare `$` opens an inline-math region
-> - When writing content in a non-English language, pair each key technical term with its original English form (see `.agent/NODEGRAPH_SPEC.md` for the exact convention)
-> - The Killer Application is not limited to one — capture every genuinely remarkable contribution
-> - `toggleItems[].content` renders exactly like `node.content` — Markdown tables, KaTeX, and `[[IMG:filename:WxH]]` tokens all work inside toggles too
-> - Always update the `"modified"` timestamp after every edit
-
-The file `.agent/NODEGRAPH_SPEC.md` (included in the extension) is a machine-readable specification for AI agents. It documents the full JSON schema, ID conventions, KaTeX/Markdown syntax rules, rendering support per field, and a step-by-step workflow for generating a nodegraph from a PDF.
-
-A worked example is included at `demo/ex1/attention-is-all-you-need.nodegraph.json` — the full "Attention Is All You Need" paper rendered as a nodegraph with KaTeX formulas, Markdown tables, toggle sections, and deep question nodes.
-
-**Typical agent workflow:**
-1. Right-click the project folder in the Explorer and run `NodeGraph: Copy Agent Spec to Workspace` (one-time per folder)
-2. Tell your agent to read `.agent/NODEGRAPH_SPEC.md`
-3. Read or create the target `.nodegraph.json`
-4. Edit the JSON directly
-5. Click **Reload** in the toolbar to see the updated graph without closing/reopening the file
+</details>
 
 ---
 
@@ -279,8 +321,7 @@ A worked example is included at `demo/ex1/attention-is-all-you-need.nodegraph.js
 |---------|----------|-------------|
 | `NodeGraph: New Graph` | — | Create a new empty graph. Right-click a folder in the Explorer to target it directly; from the Command Palette it targets the workspace's only folder, or prompts you to pick one if there are several |
 | `NodeGraph: Search Nodes` | `Ctrl+F` / `Cmd+F` | Open search dropdown |
-| `NodeGraph: Copy Agent Spec to Workspace` | — | Copy `.agent/NODEGRAPH_SPEC.md` into a folder so an AI agent can read it. Same folder-targeting as New Graph above |
-| `NodeGraph: Copy Agent Spec to Workspace` | — | Copy `.agent/NODEGRAPH_SPEC.md` into the workspace so an AI agent can read it |
+| `NodeGraph: Copy Agent Spec to Workspace` | — | Write `.agent/NODEGRAPH_SPEC.md` and `.agent/ENVIRONMENT.md` into a folder so an AI agent can read both. Same folder-targeting as New Graph above |
 
 ---
 
@@ -304,9 +345,3 @@ NodeGraph does **not** collect, store, or transmit any data to external servers.
 - Everything lives in the `.nodegraph.json` file and local image assets next to it — no accounts, no telemetry, no analytics
 - The editor loads KaTeX from the extension's own bundled assets (no CDN, no network)
 - The one exception: opening an **exported HTML file** in a browser loads KaTeX from a CDN, since that file is meant to be viewed outside VS Code — the editor itself never does this
-
----
-
-## License
-
-MIT

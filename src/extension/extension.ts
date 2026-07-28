@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 import { NodeGraphEditorProvider } from './NodeGraphEditorProvider'
-import { writeEnvironmentReport, syncAgentSpec } from './environmentChecker'
+import { writeEnvironmentReport, writeEnvironmentReportToFolder, syncAgentSpec } from './environmentChecker'
 import { createEmptyGraph } from './defaultGraph'
 
 const RECOMMENDED_EXTENSIONS = [
@@ -91,11 +91,17 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.window.showWarningMessage('NodeGraph: open or select a folder first — there is no workspace to copy the spec into.')
         return
       }
-      const ok = await syncAgentSpec(context.extensionUri, target)
-      if (ok) {
-        vscode.window.showInformationMessage(`NodeGraph: copied NODEGRAPH_SPEC.md to .agent/ in ${target.fsPath}.`)
+      // Write both agent files into the exact same target folder — an agent
+      // told "read .agent/ENVIRONMENT.md next to the PDF" would find nothing
+      // there if this only wrote NODEGRAPH_SPEC.md and left ENVIRONMENT.md to
+      // the activation-time writer above, which targets workspace roots, not
+      // whatever subfolder was right-clicked here.
+      const specOk = await syncAgentSpec(context.extensionUri, target)
+      const envOk = await writeEnvironmentReportToFolder(target)
+      if (specOk && envOk) {
+        vscode.window.showInformationMessage(`NodeGraph: wrote .agent/NODEGRAPH_SPEC.md and .agent/ENVIRONMENT.md in ${target.fsPath}.`)
       } else {
-        vscode.window.showErrorMessage('NodeGraph: failed to copy the agent spec — check that the folder is writable and try again.')
+        vscode.window.showErrorMessage('NodeGraph: failed to write the agent files — check that the folder is writable and try again.')
       }
     })
   )

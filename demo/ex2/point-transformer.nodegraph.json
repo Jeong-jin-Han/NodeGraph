@@ -1,0 +1,948 @@
+{
+  "version": "1.0.0",
+  "title": "Point Transformer",
+  "created": "2026-07-28T00:00:00.000Z",
+  "modified": "2026-07-27T18:10:53.000Z",
+  "source": {
+    "pdf": "2012.09164v2.pdf",
+    "authors": "Hengshuang Zhao, Li Jiang, Jiaya Jia, Philip Torr, Vladlen Koltun",
+    "venue": "arXiv v2 (cs.CV), 26 Sep 2021",
+    "doi": "arXiv:2012.09164",
+    "pages": 11
+  },
+  "nodeTemplates": {
+    "main_topic": {
+      "label": "Main topic",
+      "color": "#4B8BBE",
+      "icon": "file-text",
+      "shape": "sharp"
+    },
+    "method": {
+      "label": "Method",
+      "color": "#5C9E6E",
+      "icon": "cpu",
+      "shape": "sharp"
+    },
+    "result": {
+      "label": "Result",
+      "color": "#9B59B6",
+      "icon": "bar-chart-2",
+      "shape": "sharp"
+    },
+    "claim": {
+      "label": "Claim",
+      "color": "#E74C3C",
+      "icon": "alert-circle",
+      "shape": "sharp"
+    },
+    "question": {
+      "label": "Question",
+      "color": "#E5A835",
+      "icon": "help-circle",
+      "shape": "rounded"
+    },
+    "gap": {
+      "label": "Gap / Idea",
+      "color": "#1ABC9C",
+      "icon": "lightbulb",
+      "shape": "rounded"
+    },
+    "reference": {
+      "label": "Reference",
+      "color": "#95A5A6",
+      "icon": "book-open",
+      "shape": "rounded"
+    },
+    "memo": {
+      "label": "Memo",
+      "color": "#BDC3C7",
+      "icon": "edit-3",
+      "shape": "rounded"
+    }
+  },
+  "nodes": [
+    {
+      "id": "node_001",
+      "template": "main_topic",
+      "title": "Killer Application",
+      "content": "**Make self-attention the only feature-aggregation operator for 3D point clouds, and have it win on every 3D task at once.**\n\nA point cloud is an unordered set of points in continuous space, so the standard vision workhorse -- discrete convolution on a regular grid -- has no direct definition on it. This paper shows that a network built purely from self-attention layers, pointwise transformations and pooling, with **no convolutions anywhere**, beats every prior family of 3D architectures.\n\nThree things make it remarkable:\n\n**1. First model to cross the 70% mIoU wall on S3DIS.** Area 5 mIoU of $70.4$ against $67.1$ for the strongest prior model (KPConv) -- $+3.3$ absolute points, an unusually large jump on a benchmark that had been moving in fractions of a point.\n\n**2. One backbone, three task types.** The same point transformer block serves large-scale semantic scene segmentation (S3DIS), shape classification (ModelNet40, $93.7$ overall accuracy) and object part segmentation (ShapeNetPart, $86.6$ instance mIoU) -- a new state of the art on all three.\n\n**3. Vector attention applied locally is what makes it work.** Earlier attention-based point cloud methods used global, scalar dot-product attention, which cannot scale to a room-sized scan. Restricting attention to a $k$-nearest-neighbor set and making the attention weights vectors instead of scalars is worth $+5.8$ mIoU in the paper's own ablation -- this is the technical core, not a detail.\n\n[[IMG:fig1_teaser_tasks.png:520x400]]\n\nFigure 1 is the whole claim in one picture: a single Point Transformer backbone feeding three different heads. The point of the figure is not that these tasks exist, but that they normally require three different architectural families -- and here one operator covers all of them.",
+      "original": {
+        "text": "For example, on the challenging S3DIS dataset for large-scale semantic scene segmentation, the Point Transformer attains an mIoU of 70.4% on Area 5, outperforming the strongest prior model by 3.3 absolute percentage points and crossing the 70% mIoU threshold for the first time.",
+        "location": "Abstract, p.1"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "children": [
+        "node_006",
+        "node_007",
+        "node_008",
+        "node_009"
+      ],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://arxiv.org/abs/2012.09164",
+          "label": "arXiv:2012.09164"
+        }
+      ]
+    },
+    {
+      "id": "node_002",
+      "template": "main_topic",
+      "title": "Why It's Needed",
+      "content": "**The problem: point clouds are sets, and the entire deep-vision toolbox assumes grids.**\n\nAn image lives on a regular pixel lattice, so a convolution kernel can be defined once and slid everywhere. A point cloud is an unordered set $\\mathcal{X} = \\{\\mathbf{x}_i\\}_i$ of coordinates in continuous space: no canonical ordering, no fixed neighborhood, no shared kernel geometry. Convolution simply is not defined on it.\n\nEvery prior workaround pays a specific price, and the paper names each one:\n\n**Projection-based** -- render the cloud into 2D image planes and reuse a 2D CNN. But \"the geometric information inside point clouds is collapsed during the projection stage\", the sparsity is wasted on dense pixel grids, and occlusion in 3D caps accuracy.\n\n**Voxel-based** -- quantize onto a 3D grid and run 3D convolutions. Cost grows cubically with resolution; sparse convolution recovers the cost, but these methods \"may still lose geometric detail due to quantization onto the voxel grid\".\n\n**Point-based** -- consume the set directly (PointNet, PointNet++, graph methods, continuous convolutions). These respect the set structure, but aggregate with pooling or with kernels whose weights are fixed once trained, so aggregation cannot adapt to what is actually in the neighborhood.\n\nAnd attention had already been tried on point clouds -- but globally and in scalar form, which \"introduces heavy computation and renders these approaches inapplicable to large-scale 3D scene understanding\". So the gap is narrower than \"nobody tried attention\": nobody had made attention **local** and **vector-valued**, which is precisely what is needed to run it on a scan with millions of points.",
+      "original": {
+        "text": "3D point clouds are sets embedded in continuous space. This makes 3D point clouds structurally different from images and precludes immediate application of deep network designs that have become standard in computer vision, such as networks based on the discrete convolution operator.",
+        "location": "§1, p.1"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 300
+      },
+      "children": [
+        "node_010",
+        "node_011",
+        "node_012",
+        "node_013"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_003",
+      "template": "main_topic",
+      "title": "Solution",
+      "content": "**The point transformer layer: local vector self-attention with a trainable relative position encoding injected into both branches.**\n\nStart from standard scalar dot-product attention, where each neighbor contributes with a single scalar weight:\n\n$$\\mathbf{y}_i = \\sum_{\\mathbf{x}_j \\in \\mathcal{X}} \\rho\\big(\\varphi(\\mathbf{x}_i)^\\top \\psi(\\mathbf{x}_j) + \\delta\\big)\\,\\alpha(\\mathbf{x}_j)$$\n\nVector attention replaces that scalar with a **weight vector**, so each feature channel can be modulated independently. The point transformer layer specializes vector attention with three concrete choices -- a subtraction relation, a local neighborhood $\\mathcal{X}(i)$ given by the $k$ nearest neighbors of $\\mathbf{x}_i$, and a position encoding $\\delta$ added to the attention branch **and** the value branch:\n\n$$\\mathbf{y}_i = \\sum_{\\mathbf{x}_j \\in \\mathcal{X}(i)} \\rho\\Big(\\gamma\\big(\\varphi(\\mathbf{x}_i) - \\psi(\\mathbf{x}_j) + \\delta\\big)\\Big) \\odot \\big(\\alpha(\\mathbf{x}_j) + \\delta\\big)$$\n\nHere $\\varphi, \\psi, \\alpha$ are pointwise linear projections, $\\gamma$ is an MLP with two linear layers and one ReLU that turns the relation vector into an attention vector, $\\rho$ is a softmax over the neighborhood, and $\\odot$ is the elementwise product.\n\nThe position encoding is not hand-designed. It is an MLP $\\theta$ (two linear layers, one ReLU) applied to the coordinate difference, trained end to end with everything else:\n\n$$\\delta = \\theta(\\mathbf{p}_i - \\mathbf{p}_j)$$\n\n[[IMG:fig2_point_transformer_layer.png:520x270]]\n\nFigure 2 is worth reading against the Killer Application. The input $(x, p)$ splits three ways: the attention branch $\\varphi, \\psi$, the position branch $\\delta$, and the value branch $\\alpha$. The two circled sums show $\\delta$ entering **both** sides before $\\gamma$ produces the attention vectors. That double injection is not cosmetic -- Table 6 shows that feeding the relative position encoding to only one branch costs $1.7$ to $3.4$ mIoU. The figure is the mechanism by which geometry, not just feature similarity, decides how a point aggregates its neighborhood.",
+      "original": {
+        "text": "Self-attention is a natural fit for point clouds because point clouds are essentially sets embedded irregularly in a metric space. Our point transformer layer is based on vector self-attention.",
+        "location": "§3.2, p.3"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 600
+      },
+      "children": [
+        "node_014",
+        "node_015",
+        "node_016",
+        "node_017",
+        "node_018"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_004",
+      "template": "main_topic",
+      "title": "Results",
+      "content": "**Quantitative evidence: state of the art on three benchmarks, with a third of the parameters of the nearest competitor.**\n\n| Benchmark | Metric | Point Transformer | Best prior | Delta |\n|---|---|---|---|---|\n| S3DIS Area 5 | mIoU | **70.4** | 67.1 (KPConv) | $+3.3$ |\n| S3DIS 6-fold | mIoU | **73.5** | 70.6 (KPConv) | $+2.9$ |\n| ModelNet40 | OA | **93.7** | 93.0 (InterpCNN) | $+0.7$ |\n| ShapeNetPart | ins. mIoU | **86.6** | 86.4 (KPConv) | $+0.2$ |\n\nRead this table through the Killer Application rather than as a scoreboard. The margins are not uniform, and that is the informative part. On the **saturated object-level** benchmarks (ModelNet40, ShapeNetPart) the gain is a few tenths -- these datasets are close to their ceiling and every recent method sits within a point of every other. On **large-scale scene parsing**, where the model has to reason over an entire room, the gain is $+3.3$ and $+2.9$ points. That is exactly the regime where the paper's two design choices pay off: locality is what allows attention to run on the scene at all, and content-adaptive vector weights are what let a point pick out the few neighbors that actually determine its label in a cluttered room.\n\nThe efficiency side matters just as much: Point Transformer reaches these numbers with **4.9M parameters**, against 14.9M for KPConv and 30.1M for SparseConv. The claim is not just \"more accurate\", it is \"more accurate with a smaller, simpler, convolution-free model\".",
+      "original": {
+        "text": "On Area 5, the Point Transformer attains mIoU/mAcc/OA of 70.4%/76.5%/90.8%, outperforming all prior work by multiple percentage points in each metric. The Point Transformer is the first model to pass the 70% mIoU bar, outperforming the prior state of the art by 3.3 absolute percentage points in mIoU.",
+        "location": "§4.1, p.5"
+      },
+      "toggleItems": [
+        {
+          "id": "toggle_001",
+          "title": "Table 3 -- Shape classification on ModelNet40",
+          "content": "| Method | input | mAcc | OA |\n|---|---|---|---|\n| 3DShapeNets | voxel | 77.3 | 84.7 |\n| VoxNet | voxel | 83.0 | 85.9 |\n| Subvolume | voxel | 86.0 | 89.2 |\n| MVCNN | image | -- | 90.1 |\n| PointNet | point | 86.2 | 89.2 |\n| Set Transformer | point | -- | 90.4 |\n| PointNet++ | point | -- | 91.9 |\n| PointCNN | point | 88.1 | 92.2 |\n| DGCNN | point | 90.2 | 92.2 |\n| PointConv | point | -- | 92.5 |\n| Point2Sequence | point | 90.4 | 92.6 |\n| KPConv | point | -- | 92.9 |\n| InterpCNN | point | -- | 93.0 |\n| **PointTransformer** | point | **90.6** | **93.7** |\n\nModelNet40 is nearly saturated -- the top eight methods span 1.5 points. Point Transformer still takes the top spot in both metrics, which matters less as a margin than as evidence of generality: the same operator that wins on room-scale scenes also wins on single objects.",
+          "expanded": false
+        },
+        {
+          "id": "toggle_002",
+          "title": "Table 4 -- Object part segmentation on ShapeNetPart",
+          "content": "| Method | cat. mIoU | ins. mIoU |\n|---|---|---|\n| PointNet | 80.4 | 83.7 |\n| PCNN | 81.8 | 85.1 |\n| PointNet++ | 81.9 | 85.1 |\n| DGCNN | 82.3 | 85.1 |\n| SPLATNet | 83.7 | 85.4 |\n| PointConv | 82.8 | 85.7 |\n| SGPN | 82.8 | 85.8 |\n| PointCNN | 84.6 | 86.1 |\n| InterpCNN | 84.0 | 86.3 |\n| KPConv | 85.1 | 86.4 |\n| **PointTransformer** | 83.7 | **86.6** |\n\nBest instance mIoU, but **not** best category mIoU -- KPConv keeps that at 85.1. The paper is explicit about why: \"we did not use loss-balancing during training, which can boost category mIoU\". Worth noting as an honest limitation rather than a clean sweep.",
+          "expanded": false
+        }
+      ],
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 900
+      },
+      "children": [
+        "node_021",
+        "node_022",
+        "node_023",
+        "node_024",
+        "node_025"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_005",
+      "template": "main_topic",
+      "title": "Conclusion",
+      "content": "**What this enables: transformers become a general 3D backbone, not a 2D import.**\n\nThe paper's closing argument is a conceptual one. Transformers were adapted to images somewhat awkwardly -- an image has to be cut into patches and linearized before self-attention applies. A point cloud needs no such surgery: it is already a set in a metric space, and self-attention is already a set operator, invariant to permutation and cardinality. The claim is that point clouds are the **more** natural domain for transformers than the ones they were imported from.\n\n**What it enables in practice**\n\n- A drop-in general backbone for 3D scene understanding: encoder-only for classification, encoder-decoder for dense prediction, same block throughout.\n- A path off the grid: no voxelization, no projection, no precomputed kNN indices -- so resolution is not a hyperparameter to trade against memory.\n- An explicit invitation to extend the operator, which the authors name: \"the application of transformers to other tasks, such as 3D object detection\".\n\n**Limitations the paper itself leaves visible**\n\n- No complexity analysis or accuracy-vs-cost curve; only raw inference times in the appendix ($44$/$86$/$222$/$719$ ms for $10$k/$20$k/$40$k/$80$k points on a Quadro RTX 6000).\n- $k=16$ is chosen empirically, and performance degrades on both sides of it -- the neighborhood size is a real hyperparameter, not a robust default.\n- Category mIoU on ShapeNetPart still trails KPConv, attributed to the absence of loss balancing.\n- The ablations isolate the operator, but never the backbone: no experiment swaps the U-Net encoder-decoder for another skeleton, so how much of the gain comes from the attention layer versus the surrounding architecture is left open.",
+      "original": {
+        "text": "Transformers are perhaps an even more natural fit for point cloud processing than they are for language or image processing, because point clouds are essentially sets embedded in a metric space, and the self-attention operator at the core of transformer networks is fundamentally a set operator.",
+        "location": "§5, p.8"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 1200
+      },
+      "children": [
+        "node_028",
+        "node_029",
+        "node_030",
+        "node_031"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_006",
+      "template": "method",
+      "title": "Figure 1: one backbone, three 3D understanding tasks",
+      "content": "[[IMG:fig1_teaser_tasks.png:560x430]]\n\nThe teaser encodes the paper's scope claim. A single Point Transformer feature extractor branches into three heads that, in the prior literature, were served by three different architectural families:\n\n- **classification** -- one global label per shape (airplane, lamp, bed)\n- **part segmentation** -- a label per point within one object\n- **semantic segmentation** -- a label per point across a whole indoor scene\n\nWhy this matters for the Killer Application: the argument is not \"attention works for point clouds\", it is \"attention is the aggregation operator, so the same block scales from a single object to a room-sized scan just by changing the head\". The teaser is the visual form of that argument -- the backbone box in the middle is identical in all three rows.",
+      "original": {
+        "text": "The Point Transformer can serve as the backbone for various 3D point cloud understanding tasks such as object classification, object part segmentation, and semantic scene segmentation.",
+        "location": "Figure 1, p.1"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": -120
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_007",
+      "template": "result",
+      "title": "Three benchmark records claimed in the introduction",
+      "content": "The introduction commits to three specific numbers before any method is described -- a useful way to read the rest of the paper, because every design choice is later defended against exactly these.\n\n| Task | Dataset | Metric | Reported |\n|---|---|---|---|\n| Semantic segmentation | S3DIS Area 5 | mIoU | 70.4 |\n| Shape classification | ModelNet40 | OA | 93.7 |\n| Object part segmentation | ShapeNetPart | ins. mIoU | 86.6 |\n\nThe claim being staked is **breadth**, not a single record. Any one of these numbers alone would read as a well-tuned model; all three from one operator is what supports the \"general backbone for 3D scene understanding\" framing. The S3DIS number is the one doing the real work -- it is the only one of the three whose benchmark was not already saturated.",
+      "original": {
+        "text": "In particular, Point Transformers set the new state of the art on large-scale semantic segmentation on the S3DIS dataset (70.4% mIoU on Area 5), shape classification on ModelNet40 (93.7% overall accuracy), and object part segmentation on ShapeNetPart (86.6% instance mIoU).",
+        "location": "§1, p.1"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 0
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_008",
+      "template": "gap",
+      "title": "Why a set operator is the right primitive here",
+      "content": "The deepest idea in the paper is an argument about type-matching, and it is worth separating from the empirical results.\n\nSelf-attention is **invariant to permutation and cardinality** of its inputs. In language and vision that invariance is a nuisance to be undone -- positional encodings exist precisely to reinject the order that attention throws away. In 3D, the data genuinely has no order: two scans of the same room with the points listed differently are the same scan. Here the invariance is not a bug to patch but the correct symmetry of the domain.\n\nPosition, meanwhile, is not an index to be recovered -- it is an actual attribute of each element ($\\mathbf{p}_i \\in \\mathbb{R}^3$). So the awkward part of transformers in other domains becomes the natural part here: the position encoding can be a genuine function of geometry, $\\theta(\\mathbf{p}_i - \\mathbf{p}_j)$, rather than a sinusoidal stand-in for sequence position.\n\nThis is why the paper can argue that point clouds are a **more** natural fit for transformers than images are, rather than merely another domain to port them to.",
+      "original": {
+        "text": "The transformer family of models is particularly appropriate for point cloud processing because the self-attention operator, which is at the core of transformer networks, is in essence a set operator: it is invariant to permutation and cardinality of the input elements.",
+        "location": "§1, p.1"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 120
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_009",
+      "template": "result",
+      "title": "State of the art at one third the parameter count",
+      "content": "| Model | Parameters | S3DIS Area 5 mIoU |\n|---|---|---|\n| SparseConv | 30.1M | -- |\n| MinkowskiNet | -- | 65.4 |\n| KPConv | 14.9M | 67.1 |\n| **Point Transformer** | **4.9M** | **70.4** |\n\n(The paper reports parameter counts for SparseConv and KPConv in the text and accuracies in Table 1; it does not give a parameter count for every row.)\n\nThe efficiency claim strengthens the Killer Application rather than merely decorating it. If a convolution-free attention network needed 3 to 6 times the parameters of a convolutional one to edge past it, the natural reading would be \"capacity, not architecture\". Winning by $+3.3$ mIoU with roughly a third of KPConv's parameters removes that explanation and points at the operator itself.\n\nNote the paper reports only parameter counts here, not training FLOPs or memory -- inference cost appears separately in the appendix, and there is no accuracy-versus-compute curve anywhere in the paper.",
+      "original": {
+        "text": "The number of parameters in Point Transformer (4.9M) is much smaller than in current high-performing architectures such as KPConv (14.9M) and SparseConv (30.1M).",
+        "location": "§4.1, p.5"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 0
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_010",
+      "template": "method",
+      "title": "The three prior families, and where each one breaks",
+      "content": "| Family | Idea | Failure mode named in the paper |\n|---|---|---|\n| Projection-based | Render the cloud onto 2D planes, use 2D CNNs | Geometry \"is collapsed during the projection stage\"; occlusion and choice of projection plane cap accuracy |\n| Voxel-based | Quantize to a 3D grid, use 3D convolutions | Cubic growth in voxel count; sparse convolution fixes cost but \"may still lose geometric detail due to quantization\" |\n| Point-based | Consume points directly (PointNet, PointNet++, graph, continuous conv) | Respects the set, but aggregates by pooling or by kernels whose weights do not adapt to neighborhood content |\n\nReading the table against the Killer Application: the first two families fail because they force the data onto a grid it does not live on, and the third fails at a subtler level -- it keeps the set structure but its aggregation is content-independent. Vector self-attention is aimed exactly at that third gap: it keeps the set structure **and** makes the aggregation weights a learned function of what the neighbors actually contain.",
+      "original": {
+        "text": "Learning-based approaches to processing 3D point clouds can be classified into the following types: projection-based, voxel-based, and point-based networks.",
+        "location": "§2, p.2"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 180
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_011",
+      "template": "gap",
+      "title": "Prior attention on point clouds was global and scalar -- both fatal",
+      "content": "Attention on point clouds predates this paper (the related-work section cites four such efforts). Both of their shared choices are disqualifying for scene-scale work:\n\n**Global attention.** Attending over the whole cloud means every point attends to every other point. On a single object of a few thousand points that is affordable; on an S3DIS room of millions of points it is not -- the paper says it \"renders these approaches inapplicable to large-scale 3D scene understanding\". Restricting attention to $k$ nearest neighbors is what turns the cost from all-pairs into a per-point constant.\n\n**Scalar dot-product attention.** One scalar weight per neighbor means \"different channels share the same aggregation weights\". Every feature dimension of a neighbor is scaled by the same number, so the operator can decide *how much* a neighbor matters but not *in what respect*. Table 7 measures the cost of that restriction directly: $64.6$ versus $70.4$ mIoU.\n\nSo the contribution is sharper than \"we applied attention to point clouds\": it is that both of the obvious ways to do so were already tried, and both had to be replaced.",
+      "original": {
+        "text": "They apply global attention on the whole point cloud, which introduces heavy computation and renders these approaches inapplicable to large-scale 3D scene understanding. They also utilize scalar dot-product attention, where different channels share the same aggregation weights.",
+        "location": "§2, p.3"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 300
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_012",
+      "template": "question",
+      "title": "If quantization is the problem, why not just use sparse convolution?",
+      "content": "Sparse convolutional networks already solve the cost half of the voxel problem -- they evaluate the kernel only at occupied voxels, so the cubic blowup disappears. MinkowskiNet reaches $65.4$ mIoU on S3DIS Area 5 with exactly this approach. So why is a new operator warranted?\n\nThe paper's stated objection is that sparsity fixes cost but not fidelity: sparse convolution methods \"may still lose geometric detail due to quantization onto the voxel grid\". A point's exact continuous position is discarded the moment it is assigned to a voxel, and no amount of sparsity restores it.\n\nPoint Transformer never quantizes. Its position encoding $\\theta(\\mathbf{p}_i - \\mathbf{p}_j)$ consumes the raw coordinate difference at full precision, so sub-voxel geometry stays available to every layer. The empirical spread is consistent with that reading -- $70.4$ versus $65.4$ -- though the paper runs no controlled experiment isolating quantization as the cause, so this remains the authors' explanation rather than a measured result.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 420
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_013",
+      "template": "reference",
+      "title": "PointNet / PointNet++ -- the point-based lineage this builds on",
+      "content": "The paper's baseline family, and the source of two components it reuses directly:\n\n- **PointNet** (Qi et al., CVPR 2017, ref. [25]) -- established that a network can consume raw point sets by using permutation-invariant operators: pointwise MLPs followed by pooling. It is the reason \"operate directly on points\" is a viable design at all.\n- **PointNet++** (Qi et al., NIPS 2017, ref. [27]) -- adds hierarchy, applying those operators within nested local regions to recover sensitivity to local geometry.\n\nPoint Transformer inherits two specific mechanisms from PointNet++ and says so: **farthest point sampling** for the transition-down module, and the **sampled point sets** used for the ShapeNetPart comparison. What it replaces is the aggregation step -- max pooling over the local region becomes attention-weighted summation over the local region. Seen this way, the paper is a targeted upgrade of one operator inside an established hierarchy, not a from-scratch architecture.\n\nThe paper's own \"MLP+pooling\" ablation baseline in Table 7 ($63.7$ mIoU) is essentially this lineage without attention, which makes the $+6.7$ point gap a fair measure of what the operator swap buys.",
+      "original": {
+        "text": "PointNet [25] utilizes permutation-invariant operators such as pointwise MLPs and pooling layers to aggregate features across a set. PointNet++ [27] applies these ideas within a hierarchical spatial structure to increase sensitivity to local geometric layout.",
+        "location": "§2, p.2"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 300
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://arxiv.org/abs/1612.00593",
+          "label": "PointNet (arXiv:1612.00593)"
+        },
+        {
+          "type": "url",
+          "target": "https://arxiv.org/abs/1706.02413",
+          "label": "PointNet++ (arXiv:1706.02413)"
+        }
+      ]
+    },
+    {
+      "id": "node_014",
+      "template": "method",
+      "title": "Eq. 1 vs Eq. 2: scalar attention against vector attention",
+      "content": "**Scalar attention (Eq. 1)** -- the formulation from the original Transformer:\n\n$$\\mathbf{y}_i = \\sum_{\\mathbf{x}_j \\in \\mathcal{X}} \\rho\\big(\\varphi(\\mathbf{x}_i)^\\top \\psi(\\mathbf{x}_j) + \\delta\\big)\\,\\alpha(\\mathbf{x}_j)$$\n\nThe inner product $\\varphi(\\mathbf{x}_i)^\\top \\psi(\\mathbf{x}_j)$ collapses the whole comparison of two points into **one number**. After $\\rho$ (softmax), that number scales every channel of $\\alpha(\\mathbf{x}_j)$ identically.\n\n**Vector attention (Eq. 2)** -- weights become vectors:\n\n$$\\mathbf{y}_i = \\sum_{\\mathbf{x}_j \\in \\mathcal{X}} \\rho\\Big(\\gamma\\big(\\beta(\\varphi(\\mathbf{x}_i), \\psi(\\mathbf{x}_j)) + \\delta\\big)\\Big) \\odot \\alpha(\\mathbf{x}_j)$$\n\nHere $\\beta$ is a relation function (the paper uses subtraction) and $\\gamma$ is a mapping MLP that produces an **attention vector**. Because the result is combined with $\\odot$ rather than by scalar multiplication, each feature channel of the neighbor gets its own weight.\n\n**Why this is the pivot of the paper.** A scalar says \"this neighbor is 0.3 relevant\". A vector says \"this neighbor is relevant for the channels encoding a horizontal surface, and irrelevant for those encoding vertical structure\". In a cluttered room, a point on a table edge has neighbors belonging to the table, the floor and a chair simultaneously; a single scalar per neighbor cannot express that a neighbor is informative about one property and misleading about another. Table 7 prices the difference at $+5.8$ mIoU.",
+      "original": {
+        "text": "In vector attention, the computation of attention weights is different. In particular, attention weights are vectors that can modulate individual feature channels.",
+        "location": "§3.1, p.3"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 480
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_015",
+      "template": "method",
+      "title": "Eq. 4: trainable relative position encoding",
+      "content": "$$\\delta = \\theta(\\mathbf{p}_i - \\mathbf{p}_j)$$\n\n$\\theta$ is an MLP with two linear layers and one ReLU, applied to the 3D coordinate **difference** between the two points, and trained end to end with the rest of the network.\n\nThree properties follow, and each maps onto a row of the Table 6 ablation:\n\n- **Relative, not absolute.** The input is $\\mathbf{p}_i - \\mathbf{p}_j$, so the encoding depends on local geometry rather than on where the scan's origin happens to sit. A chair in the corner of a room and the same chair in the middle produce the same encodings. Absolute encoding scores $66.5$; relative scores $70.4$.\n- **Learned, not hand-crafted.** Sequences and image grids use fixed sinusoidal or normalized-range schemes because their index space is uniform. A 3D neighborhood has no such canonical parameterization, so the paper lets the network learn what aspects of the offset matter.\n- **Injected into both branches.** Eq. 3 adds $\\delta$ inside $\\gamma$ (which decides the attention weights) and again to $\\alpha(\\mathbf{x}_j)$ (the value being aggregated). Feeding it to only one branch drops performance to $67.0$ or $68.7$.\n\nWhy this matters for the Killer Application: without $\\delta$, the layer is a set operator that has thrown away geometry -- it would treat a neighbor 2cm away and one 2m away identically. The position encoding is what makes attention **spatial** rather than merely relational, and Table 6 shows it is worth $70.4 - 64.6 = 5.8$ mIoU, the same order as vector attention itself.",
+      "original": {
+        "text": "Notably, we found that position encoding is important for both the attention generation branch and the feature transformation branch. Thus Eq. 3 adds the trainable position encoding in both branches.",
+        "location": "§3.3, p.4"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 600
+      },
+      "children": [
+        "node_019"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_016",
+      "template": "method",
+      "title": "Module design: block, transition down, transition up",
+      "content": "[[IMG:fig4_module_structures.png:620x220]]\n\nThree modules make up the entire network. Figure 4 shows all of them, and the notable thing is how little there is:\n\n**(a) Point transformer block** -- linear, point transformer layer, linear, wrapped in a residual connection. The two linear projections reduce dimensionality around the attention layer to keep it cheap; the residual connection makes the stack trainable at depth. Input and output are both a feature set plus its coordinates $(x, p)$, so blocks compose freely.\n\n**(b) Transition down** -- farthest point sampling picks a well-spread subset $\\mathcal{P}_2 \\subset \\mathcal{P}_1$ of the required cardinality, then features are pooled from $\\mathcal{P}_1$ onto $\\mathcal{P}_2$ through a $k$NN graph, via linear, batch norm, ReLU, and local max pooling. This is the downsampling that gives the encoder its receptive-field growth.\n\n**(c) Transition up** -- for dense prediction. Features on the coarser set $\\mathcal{P}_2$ are mapped back onto the finer superset $\\mathcal{P}_1$ by trilinear interpolation, then summed with the encoder features arriving through a skip connection.\n\nWhy this supports the Killer Application: none of these three modules contains a convolution. The only learned operations are linear layers, MLPs and the attention layer itself -- so the claim \"the network is based entirely on point transformer layers, pointwise transformations, and pooling\" is literal, and the accuracy gains cannot be attributed to a convolutional component hiding in the pipeline.",
+      "original": {
+        "text": "The transformer block integrates the self-attention layer, linear projections that can reduce dimensionality and accelerate processing, and a residual connection.",
+        "location": "§3.4, p.4"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 720
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_017",
+      "template": "method",
+      "title": "Network architecture: a five-stage U-Net over point sets",
+      "content": "[[IMG:fig3_network_architecture.png:640x235]]\n\nThe encoder has five stages with downsampling rates $[1, 4, 4, 4, 4]$, so the point set shrinks as\n\n$$[N,\\ N/4,\\ N/16,\\ N/64,\\ N/256]$$\n\nwhile channel width grows $[32, 64, 128, 256, 512]$. Consecutive stages are joined by transition-down modules.\n\n**Semantic segmentation (top row)** adds a symmetric decoder joined by transition-up modules, with skip connections from each encoder stage -- a U-Net, but over point sets instead of feature maps. The final decoder stage emits one feature vector per input point, and an MLP maps it to logits.\n\n**Classification (bottom row)** keeps only the encoder, then global average pooling over the pointwise features gives one vector for the whole shape, followed by an MLP for the class logits.\n\nThis is the structural reason one operator covers three tasks: the backbone is identical, and the task is chosen by whether a decoder and which head are attached. It also makes the number of stages and the downsampling rates ordinary hyperparameters -- the paper notes they \"can be varied depending on the application, for example to construct light-weight backbones for fast processing\".",
+      "original": {
+        "text": "The feature encoder in point transformer networks for semantic segmentation and classification has five stages that operate on progressively downsampled point sets. The downsampling rates for the stages are [1, 4, 4, 4, 4], thus the cardinality of the point set produced by each stage is [N, N/4, N/16, N/64, N/256], where N is the number of input points.",
+        "location": "§3.5, p.5"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 540
+      },
+      "children": [
+        "node_020"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_018",
+      "template": "memo",
+      "title": "Training setup -- what was and was not tuned",
+      "content": "| Setting | S3DIS | ModelNet40 / ShapeNetPart |\n|---|---|---|\n| Framework | PyTorch | PyTorch |\n| Optimizer | SGD with momentum | SGD with momentum |\n| Momentum / weight decay | 0.9 / 0.0001 | 0.9 / 0.0001 |\n| Schedule | 40K iterations | 200 epochs |\n| Initial learning rate | 0.5 | 0.05 |\n| LR drops (10x) | steps 24K, 32K | epochs 120, 160 |\n| Neighborhood size $k$ | 16 | 16 |\n\nTwo things are worth flagging as design memos rather than results.\n\n**No exotic training machinery.** Plain SGD with momentum, step decay, no warmup, no label smoothing, no learned-rate schedule of the kind the original Transformer needed. The paper attributes nothing to training tricks, which strengthens the attribution of the gains to the operator.\n\n**A single $k$ across everything.** $k = 16$ is used in the point transformer layer and in transition down, on every dataset and every task. Table 5 shows accuracy falling on both sides of that value ($67.7$ at $k=8$, $68.3$ at $k=32$), so it is a genuinely tuned hyperparameter -- but it was tuned once on S3DIS Area 5 and then held fixed, so the object-level results are not benefiting from a per-dataset sweep.\n\n**No loss balancing**, which the paper names as the reason category mIoU on ShapeNetPart trails KPConv.",
+      "original": {
+        "text": "We implement the Point Transformer in PyTorch [24]. We use the SGD optimizer with momentum and weight decay set to 0.9 and 0.0001, respectively.",
+        "location": "§4, p.5"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 660
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_019",
+      "template": "gap",
+      "title": "Why subtraction as the relation function?",
+      "content": "Eq. 2 leaves the relation function $\\beta(\\varphi(\\mathbf{x}_i), \\psi(\\mathbf{x}_j))$ open; Eq. 3 fixes it to subtraction, $\\varphi(\\mathbf{x}_i) - \\psi(\\mathbf{x}_j)$. The paper states the choice (\"We use the subtraction relation\") but never ablates it, so the reason has to be read out of the structure rather than the experiments -- and it is worth stating what is inference and what is measured.\n\n**What the structure implies.** Subtraction returns a *vector* in feature space; a dot product returns a *scalar*. Since the whole point of vector attention is to emit a per-channel weight, the relation feeding $\\gamma$ must itself carry channel structure. A dot product would throw that away before $\\gamma$ ever sees it. In that sense subtraction is not an independent design choice -- it is what vector attention requires.\n\n**It also makes $\\delta$ type-compatible.** The position encoding $\\delta = \\theta(\\mathbf{p}_i - \\mathbf{p}_j)$ is itself a difference, in coordinate space. Adding it to a feature-space difference keeps both terms of $\\varphi(\\mathbf{x}_i) - \\psi(\\mathbf{x}_j) + \\delta$ in the same \"relative\" register -- appearance offset plus geometric offset.\n\n**Open question.** Concatenation would preserve channel structure too, at twice the width into $\\gamma$. The paper runs no such comparison, so whether subtraction beats concatenation, or is merely the cheaper option that worked, is not answered here.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 1500,
+        "y": 600
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_020",
+      "template": "question",
+      "title": "Does local attention actually scale? What the appendix numbers show",
+      "content": "Global attention is $O(N^2)$ in the number of points, which is why prior attention-based point cloud work stopped at object scale. Restricting attention to $k$ nearest neighbors makes each layer's attention cost proportional to $N \\cdot k$ instead -- with $k = 16$ fixed, linear in $N$.\n\nThe paper never writes this complexity down. What it does give is measured inference cost on one Quadro RTX 6000:\n\n| Input points | Inference time | Memory |\n|---|---|---|\n| 10k | 44 ms | 1702 MB |\n| 20k | 86 ms | 2064 MB |\n| 40k | 222 ms | 2800 MB |\n| 80k | 719 ms | 4266 MB |\n\nRead honestly: memory grows close to linearly ($2.5\\times$ for an $8\\times$ larger input), but **time does not** -- $8\\times$ the points costs $16\\times$ the time. So end-to-end behaviour is superlinear despite the linear-in-$N$ attention, which points at the surrounding machinery (kNN construction, farthest point sampling, interpolation) rather than the attention layer as the practical bottleneck. The paper offers no breakdown by component and says only that the numbers \"can be further reduced with optimized implementation\".\n\nThe claim that survives is the one the paper actually needs: local attention makes room-scale scans **feasible**, where global attention made them impossible. The stronger claim -- that it scales gracefully -- is not established by these numbers.",
+      "original": {
+        "text": "The inference time and memory consumption are 44ms/86ms/222ms/719ms and 1702M/2064M/2800M/4266M for 10k/20k/40k/80k input points respectively and they can be further reduced with optimized implementation.",
+        "location": "§A, p.9"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -1500,
+        "y": 540
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_021",
+      "template": "result",
+      "title": "Table 1 -- S3DIS Area 5, the headline benchmark",
+      "content": "| Method | OA | mAcc | mIoU |\n|---|---|---|---|\n| PointNet | -- | 49.0 | 41.1 |\n| SegCloud | -- | 57.4 | 48.9 |\n| TangentConv | -- | 62.2 | 52.6 |\n| PointCNN | 85.9 | 63.9 | 57.3 |\n| SPGraph | 86.4 | 66.5 | 58.0 |\n| PCCN | -- | 67.0 | 58.3 |\n| PAT | -- | 70.8 | 60.1 |\n| PointWeb | 87.0 | 66.6 | 60.3 |\n| HPEIN | 87.2 | 68.3 | 61.9 |\n| MinkowskiNet | -- | 71.7 | 65.4 |\n| KPConv | -- | 72.8 | 67.1 |\n| **PointTransformer** | **90.8** | **76.5** | **70.4** |\n\nThe comparison spans every family the related-work section listed -- MLP-based (PointNet), voxel-based (SegCloud), graph-based (SPGraph), attention-based (PAT), sparse convolutional (MinkowskiNet) and continuous convolutional (KPConv) -- and Point Transformer leads all of them on all three metrics.\n\nTwo readings matter for the Killer Application. First, the $+3.3$ mIoU over KPConv is nearly double the $1.7$-point gap that separated KPConv from the next best prior model (MinkowskiNet), on a benchmark that had been advancing in small increments. Second, PAT is the closest prior attention-based method at $60.1$ mIoU -- so the gap is not \"attention beats convolution\" but \"**local vector** attention beats both\", which is exactly what the ablations then isolate.",
+      "original": {
+        "text": "The Point Transformer outperforms MLPs-based frameworks such as PointNet [25], voxel-based architectures such as SegCloud [36], graph-based methods such as SPGraph [15], attention-based methods such as PAT [50], sparse convolutional networks such as MinkowskiNet [3], and continuous convolutional networks such as KPConv [37].",
+        "location": "§4.1, p.5"
+      },
+      "toggleItems": [
+        {
+          "id": "toggle_003",
+          "title": "Table 1 -- full per-class IoU on Area 5",
+          "content": "| Method | mIoU | ceiling | floor | wall | beam | column | window | door | table | chair | sofa | bookcase | board | clutter |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n| PointNet | 41.1 | 88.8 | 97.3 | 69.8 | 0.1 | 3.9 | 46.3 | 10.8 | 59.0 | 52.6 | 5.9 | 40.3 | 26.4 | 33.2 |\n| SegCloud | 48.9 | 90.1 | 96.1 | 69.9 | 0.0 | 18.4 | 38.4 | 23.1 | 70.4 | 75.9 | 40.9 | 58.4 | 13.0 | 41.6 |\n| TangentConv | 52.6 | 90.5 | 97.7 | 74.0 | 0.0 | 20.7 | 39.0 | 31.3 | 77.5 | 69.4 | 57.3 | 38.5 | 48.8 | 39.8 |\n| PointCNN | 57.3 | 92.3 | 98.2 | 79.4 | 0.0 | 17.6 | 22.8 | 62.1 | 74.4 | 80.6 | 31.7 | 66.7 | 62.1 | 56.7 |\n| SPGraph | 58.0 | 89.4 | 96.9 | 78.1 | 0.0 | 42.8 | 48.9 | 61.6 | 84.7 | 75.4 | 69.8 | 52.6 | 2.1 | 52.2 |\n| PCCN | 58.3 | 92.3 | 96.2 | 75.9 | 0.3 | 6.0 | 69.5 | 63.5 | 66.9 | 65.6 | 47.3 | 68.9 | 59.1 | 46.2 |\n| PAT | 60.1 | 93.0 | 98.5 | 72.3 | 1.0 | 41.5 | 85.1 | 38.2 | 57.7 | 83.6 | 48.1 | 67.0 | 61.3 | 33.6 |\n| PointWeb | 60.3 | 92.0 | 98.5 | 79.4 | 0.0 | 21.1 | 59.7 | 34.8 | 76.3 | 88.3 | 46.9 | 69.3 | 64.9 | 52.5 |\n| HPEIN | 61.9 | 91.5 | 98.2 | 81.4 | 0.0 | 23.3 | 65.3 | 40.0 | 75.5 | 87.7 | 58.5 | 67.8 | 65.6 | 49.4 |\n| MinkowskiNet | 65.4 | 91.8 | 98.7 | 86.2 | 0.0 | 34.1 | 48.9 | 62.4 | 81.6 | 89.8 | 47.2 | 74.9 | 74.4 | 58.6 |\n| KPConv | 67.1 | 92.8 | 97.3 | 82.4 | 0.0 | 23.9 | 58.0 | 69.0 | 81.5 | 91.0 | 75.4 | 75.3 | 66.7 | 58.9 |\n| **PointTransformer** | **70.4** | 94.0 | 98.5 | 86.3 | 0.0 | 38.0 | 63.4 | 74.3 | 89.1 | 82.4 | 74.3 | 80.2 | 76.0 | 59.3 |\n\nPoint Transformer takes the best score in 7 of the 13 classes (ceiling, wall, door, table, bookcase, board, clutter). The losses are informative: chair 82.4 against KPConv's 91.0, window 63.4 against PAT's 85.1, column 38.0 against SPGraph's 42.8, sofa 74.3 against KPConv's 75.4, floor 98.5 against MinkowskiNet's 98.7 -- and beam, where no method learns the class at all on this split.",
+          "expanded": false
+        }
+      ],
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 780
+      },
+      "children": [
+        "node_026",
+        "node_027"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_022",
+      "template": "result",
+      "title": "Table 2 / A.1 -- 6-fold cross-validation confirms it is not an Area 5 artifact",
+      "content": "| Method | OA | mAcc | mIoU |\n|---|---|---|---|\n| PointNet | 78.5 | 66.2 | 47.6 |\n| RSNet | -- | 66.5 | 56.5 |\n| SPGraph | 85.5 | 73.0 | 62.1 |\n| PAT | -- | 76.5 | 64.3 |\n| PointCNN | 88.1 | 75.6 | 65.4 |\n| PointWeb | 87.3 | 76.2 | 66.7 |\n| ShellNet | 87.1 | -- | 66.8 |\n| RandLA-Net | 88.0 | 82.0 | 70.0 |\n| KPConv | -- | 79.1 | 70.6 |\n| **PointTransformer** | **90.2** | 81.9 | **73.5** |\n\nWhy a second evaluation mode matters: S3DIS Area 5 is a single held-out area, so a $+3.3$ point lead there could in principle be a lucky match between one model's inductive bias and one building's layout. Six-fold cross-validation trains and tests on every area in turn, and the lead holds at $+2.9$ mIoU over KPConv. The Killer Application claim -- that this generalizes as a backbone -- needs both numbers, not just the headline one.\n\nOne honest wrinkle: RandLA-Net posts the best mAcc in this mode ($82.0$ against $81.9$), so the sweep is not total. The mIoU margin is the substantive one.",
+      "original": {
+        "text": "The mIoU in this mode is 73.5%, outperforming the prior state of the art (KPConv) by 2.9 absolute percentage points.",
+        "location": "§4.1, p.5"
+      },
+      "toggleItems": [
+        {
+          "id": "toggle_004",
+          "title": "Table A.1 -- per-class IoU under 6-fold cross-validation",
+          "content": "| Method | mIoU | ceiling | floor | wall | beam | column | window | door | table | chair | sofa | bookcase | board | clutter |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n| PointNet | 47.6 | 88.0 | 88.7 | 69.3 | 42.4 | 23.1 | 47.5 | 51.6 | 54.1 | 42.0 | 9.6 | 38.2 | 29.4 | 35.2 |\n| RSNet | 56.5 | 92.5 | 92.8 | 78.6 | 32.8 | 34.4 | 51.6 | 68.1 | 60.1 | 59.7 | 50.2 | 16.4 | 44.9 | 52.0 |\n| SPGraph | 62.1 | 89.9 | 95.1 | 76.4 | 62.8 | 47.1 | 55.3 | 68.4 | 73.5 | 69.2 | 63.2 | 45.9 | 8.7 | 52.9 |\n| PointCNN | 65.4 | 94.8 | 97.3 | 75.8 | 63.3 | 51.7 | 58.4 | 57.2 | 71.6 | 69.1 | 39.1 | 61.2 | 52.2 | 58.6 |\n| PointWeb | 66.7 | 93.5 | 94.2 | 80.8 | 52.4 | 41.3 | 64.9 | 68.1 | 71.4 | 67.1 | 50.3 | 62.7 | 62.2 | 58.5 |\n| ShellNet | 66.8 | 90.2 | 93.6 | 79.9 | 60.4 | 44.1 | 64.9 | 52.9 | 71.6 | 84.7 | 53.8 | 64.6 | 48.6 | 59.4 |\n| RandLA-Net | 70.0 | 93.1 | 96.1 | 80.6 | 62.4 | 48.0 | 64.4 | 69.4 | 69.4 | 76.4 | 60.0 | 64.2 | 65.9 | 60.1 |\n| KPConv | 70.6 | 93.6 | 92.4 | 83.1 | 63.9 | 54.3 | 66.1 | 76.6 | 64.0 | 57.8 | 74.9 | 69.3 | 61.3 | 60.3 |\n| **PointTransformer** | **73.5** | 94.3 | 97.5 | 84.7 | 55.6 | 58.1 | 66.1 | 78.2 | 77.6 | 74.1 | 67.3 | 71.2 | 65.7 | 64.8 |\n\nUnlike Area 5, beam is learnable here (all areas contribute training data), and this is where Point Transformer is clearly beaten: 55.6 against KPConv's 63.9 and PointCNN's 63.3.",
+          "expanded": false
+        }
+      ],
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 900
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_023",
+      "template": "result",
+      "title": "Tables 3 & 4 -- object-level tasks confirm generality, not dominance",
+      "content": "| Benchmark | Metric | Point Transformer | Best prior | Delta |\n|---|---|---|---|---|\n| ModelNet40 | mAcc | **90.6** | 90.4 (Point2Sequence) | $+0.2$ |\n| ModelNet40 | OA | **93.7** | 93.0 (InterpCNN) | $+0.7$ |\n| ShapeNetPart | cat. mIoU | 83.7 | **85.1** (KPConv) | $-1.4$ |\n| ShapeNetPart | ins. mIoU | **86.6** | 86.4 (KPConv) | $+0.2$ |\n\nThe full tables are in the toggles on the Results node. What they show is worth stating precisely, because it is easy to overclaim from the abstract: on object-level benchmarks the margins are within a point, and on one metric Point Transformer **loses** -- category mIoU on ShapeNetPart trails KPConv by $1.4$, which the paper attributes to not using loss balancing.\n\nWhy this is still evidence for the Killer Application. The argument being made is that one operator serves as a general backbone. Beating a saturated benchmark by $0.7$ points is not the interesting part; the interesting part is that the model tuned for million-point room scans is simultaneously competitive on single isolated objects, with no architectural change beyond swapping the head. The paper's real margin lives at scene scale, and it is honest about not sweeping every object-level metric.",
+      "original": {
+        "text": "The Point Transformer outperforms all prior models as measured by instance mIoU. (Note that we did not use loss-balancing during training, which can boost category mIoU.)",
+        "location": "§4.3, p.6"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1020
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_024",
+      "template": "result",
+      "title": "Table 7 -- the ablation that carries the paper",
+      "content": "| Operator | mIoU | mAcc | OA |\n|---|---|---|---|\n| MLP | 61.7 | 68.6 | 87.1 |\n| MLP + pooling | 63.7 | 71.0 | 87.8 |\n| scalar attention | 64.6 | 71.9 | 88.4 |\n| **vector attention** | **70.4** | **76.5** | **90.8** |\n\nThis is a four-rung ladder, and each rung isolates one thing:\n\n- **MLP** ($61.7$) -- pointwise transformation only, no neighborhood exchange at all.\n- **MLP + pooling** ($63.7$) -- adds local neighborhood exchange, but with fixed, content-independent aggregation. This is essentially the PointNet++ style of aggregation. Cost of having no attention: $+2.0$ over plain MLP.\n- **scalar attention** ($64.6$) -- adds content-adaptive weights, one scalar per neighbor. Buys only $+0.9$ over max pooling.\n- **vector attention** ($70.4$) -- per-channel weights. Buys $+5.8$.\n\nThe shape of the ladder is the argument. If attention as such were the contribution, the big jump would sit between pooling and scalar attention; instead that step is nearly free, and almost all of the gain sits in the scalar-to-vector transition. So the paper's claim is narrower and better supported than \"transformers work in 3D\": it is that **channel-wise** adaptive aggregation is the thing that matters, and that dot-product attention as inherited from NLP is the wrong operator to port over.\n\nNote the ablation swaps only the operator inside the same block and backbone, so the comparison is controlled -- though for the same reason it says nothing about how much the U-Net skeleton itself contributes.",
+      "original": {
+        "text": "The performance gap between vector and scalar attention is significant: 70.4% vs. 64.6%, an improvement of 5.8 absolute percentage points. Vector attention is more expressive since it supports adaptive modulation of individual feature channels, not just whole feature vectors.",
+        "location": "§4.4, p.7"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 840
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_025",
+      "template": "result",
+      "title": "Tables 5 & 6 -- neighborhood size, position encoding, and softmax",
+      "content": "**Table 5: number of neighbors $k$**\n\n| $k$ | mIoU | mAcc | OA |\n|---|---|---|---|\n| 4 | 59.6 | 66.0 | 86.0 |\n| 8 | 67.7 | 73.8 | 89.9 |\n| **16** | **70.4** | **76.5** | **90.8** |\n| 32 | 68.3 | 75.0 | 89.8 |\n| 64 | 67.7 | 74.1 | 89.9 |\n\nAccuracy falls on both sides of $k = 16$, and the paper gives a reason for each side: too small and \"the model may not have sufficient context\", too large and the neighborhood admits points that \"may be farther and less relevant\", injecting noise. This is direct evidence for the locality argument -- attention on point clouds is not simply better with more context, so the global attention used by prior work was not merely expensive, it was also *worse*.\n\n**Table 6: position encoding $\\delta$**\n\n| Position encoding | mIoU | mAcc | OA |\n|---|---|---|---|\n| none | 64.6 | 71.9 | 88.2 |\n| absolute | 66.5 | 73.2 | 88.9 |\n| **relative** | **70.4** | **76.5** | **90.8** |\n| relative, attention branch only | 67.0 | 73.0 | 89.3 |\n| relative, feature branch only | 68.7 | 74.4 | 90.4 |\n\nRemoving position encoding costs $5.8$ mIoU -- the same magnitude as removing vector attention. Rows 4 and 5 are the subtle ones: injecting $\\delta$ into just one branch recovers only about half the gain, which is why Eq. 3 adds it to both.\n\n**Softmax normalization** (no table): removing $\\rho$ drops S3DIS Area 5 to $66.5/72.8/89.3$, so normalization is load-bearing too -- unnormalized attention vectors let the aggregation scale drift with neighborhood density.\n\nTaken together, the three ablations say the Killer Application rests on three legs of comparable size, not one headline trick.",
+      "original": {
+        "text": "We can see that without position encoding, the performance drops significantly. With absolute position encoding, the performance is higher than without. Relative position encoding yields the highest performance.",
+        "location": "§4.4, p.7"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 960
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_026",
+      "template": "method",
+      "title": "Figures 5 & 7 -- what the predictions look like",
+      "content": "[[IMG:fig5_s3dis_semseg_viz.png:640x275]]\n\nS3DIS scenes: input scan, ground truth, prediction. What to look for is where a scalar-attention or pooling-based model typically fails -- **boundaries in clutter**. The paper points to \"the legs of chairs, the outlines of poster boards, and the trim around doorways\", all cases where a point's correct label is determined by a small subset of its neighbors while the rest belong to a different object. That is precisely the situation a per-channel attention vector can express and a single scalar weight cannot, so these boundary regions are where the $+5.8$ mIoU of Table 7 becomes visible.\n\n[[IMG:fig7_shapenetpart_viz.png:640x225]]\n\nShapeNetPart, ground truth on top and predictions below. The same reading applies at object scale: part boundaries (guitar neck to body, knife blade to handle, chair seat to leg) are the hard regions, and the two rows are nearly indistinguishable there.\n\nThese figures are qualitative evidence, not measurements -- the cases shown are chosen by the authors. Their value is in showing *which* errors disappeared, which the aggregate mIoU cannot.",
+      "original": {
+        "text": "Point Transformer captures detailed semantic structure in complex 3D scenes, such as the legs of chairs, the outlines of poster boards, and the trim around doorways.",
+        "location": "§4.1, p.6"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 1500,
+        "y": 780
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_027",
+      "template": "gap",
+      "title": "Beam: the class nobody wins, and the one Point Transformer loses",
+      "content": "Two per-class results complicate the clean sweep, and both concern **beam** (structural ceiling beams).\n\n**On Area 5, essentially no method learns beam at all.** Point Transformer, KPConv, MinkowskiNet, PointCNN, SPGraph and PointWeb all score exactly $0.0$ IoU; the highest score any method reaches is PAT's $1.0$, and PointNet manages $0.1$. This is not an architecture failure; it is a dataset artifact. Area 5 apparently contains almost no beam points, so the class is effectively absent from the test split, and mIoU averages a meaningless zero into every method's score equally.\n\n**Under 6-fold cross-validation, where beam is learnable, Point Transformer loses it**: $55.6$ against KPConv's $63.9$ and PointCNN's $63.3$ -- an $8.3$ point deficit on the one class where it is clearly beaten, even while leading overall by $2.9$.\n\nWhy raise this against the Killer Application. Beams are large, thin, planar structures spanning a long distance -- geometry whose defining property lives well outside a 16-nearest-neighbor ball. The locality that makes attention affordable on a whole room is also a receptive-field restriction, and beam is what that restriction looks like when it bites. The paper reports the number but does not discuss it, so the connection to $k = 16$ is an inference from the design, not a claim the authors make or test.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 1500,
+        "y": 660
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_028",
+      "template": "gap",
+      "title": "What this opens: the point-transformer line and 3D detection",
+      "content": "The paper closes by naming its own next step -- \"the application of transformers to other tasks, such as 3D object detection\" -- and by inviting work on \"the development of new operators and network designs\".\n\nThree directions follow directly from what is left unresolved in this paper:\n\n**Beyond a fixed $k$.** Table 5 shows accuracy dropping on both sides of $k = 16$, and the beam result suggests a single fixed radius cannot serve both fine detail and large planar structure. A neighborhood that adapts per point, or multi-scale attention across several $k$, is the obvious opening.\n\n**Detection, not just labeling.** Every task here assigns labels to points that already exist. Detection requires proposing boxes -- outputs that are not point-indexed -- so it needs machinery the paper does not have. The authors flag it as future work rather than claiming it.\n\n**Cost.** The appendix numbers show inference time growing faster than linearly in the number of points despite locality. Making the surrounding operations (kNN, farthest point sampling, interpolation) as scalable as the attention layer itself is unfinished business, and the paper says only that the numbers \"can be further reduced with optimized implementation\".",
+      "original": {
+        "text": "We hope that our work will inspire further investigation of the properties of point transformers, the development of new operators and network designs, and the application of transformers to other tasks, such as 3D object detection.",
+        "location": "§5, p.8"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1080
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_029",
+      "template": "question",
+      "title": "Is the gain from the attention operator, or from the U-Net backbone?",
+      "content": "The strongest ablation in the paper (Table 7) swaps the operator while holding the backbone fixed: MLP $61.7$, MLP+pooling $63.7$, scalar $64.6$, vector $70.4$. That is a clean isolation of the operator -- **inside this architecture**.\n\nWhat is never varied is the architecture itself. The five-stage encoder with $[1,4,4,4,4]$ downsampling, the symmetric decoder, the skip connections, the transition-down and transition-up modules -- all of it is held constant across every experiment in the paper. So two questions stay open:\n\n- **How much does the backbone contribute?** The MLP baseline at $61.7$ mIoU already beats PointNet ($41.1$), SPGraph ($58.0$) and PCCN ($58.3$) from Table 1 -- with *no* attention and *no* neighborhood exchange at all. A large share of the headline number is evidently attributable to the surrounding architecture, training recipe and implementation, not to the operator.\n- **Does vector attention transfer?** If the point transformer layer were dropped into a different 3D backbone, would it still buy $+5.8$? Nothing here answers that.\n\nThis does not undercut the contribution -- the operator comparison is controlled and the $+5.8$ is real within this architecture. But the framing \"attention beats convolution in 3D\" is stronger than what the experiments establish; what they establish is \"vector attention beats scalar attention and pooling, inside a strong point-set U-Net\".",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1200
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_030",
+      "template": "method",
+      "title": "Table A.2 -- making kNN cheap enough to compute on the fly",
+      "content": "A quiet but load-bearing engineering contribution. Prior methods such as KPConv and RandLA-Net use **precomputed** kNN indices, \"which limits the flexibility of the overall framework\" -- neighborhoods must be fixed before training, so the point set cannot change between stages without recomputing them offline. Point Transformer computes kNN on the fly using a heap-sort implementation.\n\nRunning time in milliseconds on one Quadro RTX 6000:\n\n| #points | $k=8$ | $k=16$ | $k=32$ | $k=64$ | $k=128$ | $k=256$ |\n|---|---|---|---|---|---|---|\n| 10k | 2 | 2 | 5 | 10 | 17 | 21 |\n| 20k | 3 | 5 | 8 | 23 | 43 | 49 |\n| 40k | 8 | 12 | 26 | 71 | 127 | 144 |\n| 80k | 23 | 37 | 82 | 198 | 356 | 399 |\n| 100k | 32 | 46 | 99 | 248 | 445 | 494 |\n| 200k | 104 | 125 | 225 | 545 | 992 | 1091 |\n| 1m | 2496 | 2648 | 2949 | 4087 | 6362 | 6878 |\n\nWhy this matters for the Killer Application. The entire architecture -- transition down via farthest point sampling, attention over a $k$-NN set at every stage, transition up via interpolation -- assumes neighborhoods can be rebuilt at each resolution. That assumption is only affordable because of this implementation: at the operating point ($k = 16$), 20k points cost 5 ms against 228 ms for the naive version, and the naive implementation \"run[s] out of memory when given larger point clouds\". Without it, the on-the-fly, resolution-free design that distinguishes this network from grid-based methods would not run.\n\nNote also the $k$ dependence: at $k = 256$ the cost is 10 to 20 times that of $k = 16$, so the empirical preference for small neighborhoods in Table 5 is fortunate as well as accurate.",
+      "original": {
+        "text": "In our architecture, we implement a high-efficiency solution for kNN using the heap sort algorithm.",
+        "location": "§A, p.9"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1320
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_031",
+      "template": "reference",
+      "title": "The two papers this is built directly on",
+      "content": "The paper positions itself as the intersection of two specific lines, both cited as direct antecedents rather than general background:\n\n**Attention Is All You Need** (Vaswani et al., NIPS 2017, ref. [39]) -- the source of scalar dot-product attention, reproduced as Eq. 1 and used as the ablation baseline in Table 7 ($64.6$ mIoU). Also the source of the observation this paper builds its position-encoding section on: that \"position encoding plays an important role in self-attention, allowing the operator to adapt to local structure in the data\".\n\n**Exploring Self-attention for Image Recognition** (Zhao, Jia and Koltun, CVPR 2020, ref. [54]) -- the source of **vector attention**, reproduced as Eq. 2. Note the author overlap: Hengshuang Zhao, Jiaya Jia and Vladlen Koltun all appear on both papers, so Point Transformer is in a real sense the 3D continuation of that work.\n\nSeen through this lens the contribution is precise: take vector attention from [54], apply it locally as image-domain self-attention networks do, and replace the hand-crafted position encoding of [39] with a learned function of 3D coordinate differences. Each ingredient exists; the composition, and the demonstration that it beats every 3D architecture family, is new.",
+      "original": {
+        "text": "Self-attention operators can be classified into two types: scalar attention [39] and vector attention [54].",
+        "location": "§3.1, p.3"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 1200
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://arxiv.org/abs/1706.03762",
+          "label": "Attention Is All You Need (arXiv:1706.03762)"
+        },
+        {
+          "type": "url",
+          "target": "https://arxiv.org/abs/2004.13621",
+          "label": "Exploring Self-attention for Image Recognition (arXiv:2004.13621)"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_001",
+      "source": "node_001",
+      "target": "node_002",
+      "type": "arrow",
+      "label": ""
+    },
+    {
+      "id": "edge_002",
+      "source": "node_002",
+      "target": "node_003",
+      "type": "arrow",
+      "label": ""
+    },
+    {
+      "id": "edge_003",
+      "source": "node_003",
+      "target": "node_004",
+      "type": "arrow",
+      "label": ""
+    },
+    {
+      "id": "edge_004",
+      "source": "node_004",
+      "target": "node_005",
+      "type": "arrow",
+      "label": ""
+    },
+    {
+      "id": "edge_005",
+      "source": "node_001",
+      "target": "node_006",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_006",
+      "source": "node_001",
+      "target": "node_007",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_007",
+      "source": "node_001",
+      "target": "node_008",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_008",
+      "source": "node_001",
+      "target": "node_009",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_009",
+      "source": "node_002",
+      "target": "node_010",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_010",
+      "source": "node_002",
+      "target": "node_011",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_011",
+      "source": "node_002",
+      "target": "node_012",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_012",
+      "source": "node_002",
+      "target": "node_013",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_013",
+      "source": "node_003",
+      "target": "node_014",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_014",
+      "source": "node_003",
+      "target": "node_015",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_015",
+      "source": "node_003",
+      "target": "node_016",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_016",
+      "source": "node_003",
+      "target": "node_017",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_017",
+      "source": "node_003",
+      "target": "node_018",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_018",
+      "source": "node_015",
+      "target": "node_019",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_019",
+      "source": "node_017",
+      "target": "node_020",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_020",
+      "source": "node_004",
+      "target": "node_021",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_021",
+      "source": "node_004",
+      "target": "node_022",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_022",
+      "source": "node_004",
+      "target": "node_023",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_023",
+      "source": "node_004",
+      "target": "node_024",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_024",
+      "source": "node_004",
+      "target": "node_025",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_025",
+      "source": "node_021",
+      "target": "node_026",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_026",
+      "source": "node_021",
+      "target": "node_027",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_027",
+      "source": "node_005",
+      "target": "node_028",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_028",
+      "source": "node_005",
+      "target": "node_029",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_029",
+      "source": "node_005",
+      "target": "node_030",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_030",
+      "source": "node_005",
+      "target": "node_031",
+      "type": "line",
+      "label": ""
+    }
+  ],
+  "viewport": {
+    "x": 0,
+    "y": 0,
+    "zoom": 0.8
+  },
+  "canvasImages": []
+}

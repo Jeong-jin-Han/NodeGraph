@@ -14,9 +14,7 @@ function check(cmd: string): boolean {
   return run(cmd) !== ''
 }
 
-export async function writeEnvironmentReport(workspaceFolders: readonly vscode.WorkspaceFolder[]): Promise<void> {
-  if (!workspaceFolders || workspaceFolders.length === 0) return
-
+function buildEnvironmentReport(): string {
   const lines: string[] = []
   const now = new Date().toISOString()
 
@@ -148,17 +146,31 @@ export async function writeEnvironmentReport(workspaceFolders: readonly vscode.W
   lines.push(``)
   lines.push(`*To refresh this report, reopen any \`.nodegraph.json\` file.*`)
 
-  const report = lines.join('\n')
+  return lines.join('\n')
+}
 
+// Writes ENVIRONMENT.md into one specific folder. Used both by the
+// per-workspace-folder loop below (activation time) and by the
+// "Copy Agent Spec to Workspace" command (extension.ts), which needs it
+// written into the exact folder it targets — not necessarily a workspace
+// root — so that folder ends up with both agent files together, consistent
+// with what NODEGRAPH_SPEC.md expects to find next to it.
+export async function writeEnvironmentReportToFolder(folderUri: vscode.Uri): Promise<boolean> {
+  const agentDir = vscode.Uri.joinPath(folderUri, '.agent')
+  const outFile = vscode.Uri.joinPath(agentDir, 'ENVIRONMENT.md')
+  try {
+    await vscode.workspace.fs.createDirectory(agentDir)
+    await vscode.workspace.fs.writeFile(outFile, Buffer.from(buildEnvironmentReport(), 'utf-8'))
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function writeEnvironmentReport(workspaceFolders: readonly vscode.WorkspaceFolder[]): Promise<void> {
+  if (!workspaceFolders || workspaceFolders.length === 0) return
   for (const folder of workspaceFolders) {
-    const agentDir = vscode.Uri.joinPath(folder.uri, '.agent')
-    const outFile = vscode.Uri.joinPath(agentDir, 'ENVIRONMENT.md')
-    try {
-      await vscode.workspace.fs.createDirectory(agentDir)
-      await vscode.workspace.fs.writeFile(outFile, Buffer.from(report, 'utf-8'))
-    } catch {
-      // silently ignore — workspace may be read-only
-    }
+    await writeEnvironmentReportToFolder(folder.uri)
   }
 }
 

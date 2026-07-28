@@ -380,7 +380,20 @@ export function NodeCard({
           position: 'absolute',
           left: renderPosition.x,
           top: renderPosition.y,
-          minWidth: Math.max(node.nodeWidth ?? 0, 432, autoMinWidth),
+          // minWidth(하한만 지정)이 아니라 width(고정값)여야 한다 — 본문 스크롤 컨테이너
+          // (tableBodyRef, overflow-y:auto)는 새 블록 서식 맥락(BFC)을 만드는데, BFC/스크롤
+          // 컨테이너는 조상에게 자기 "선호 너비"를 보고할 때 줄바꿈을 무시한 max-content
+          // 크기로 보고한다 — 카드가 minWidth(하한)만 갖고 있으면 이 BFC의 부풀려진
+          // 선호 너비를 그대로 받아들여 카드가 수천 px로 부풀어버림. 게다가 이 조상 쪽
+          // shrink-to-fit 계산 자체도 캔버스 wrapper의 컨테이닝 블록 너비에 좌우돼서, hop
+          // 트리에서 원점보다 왼쪽(음수 left)에 있는 노드일수록 우연히 더 크게 계산되는
+          // 문제까지 겹쳐 있었음(실제 그래프의 hop-2 왼쪽 노드+표 조합에서 재현, 사용자
+          // 리포트: "main topic 왼쪽에서 expand하면 다른 노드와 겹친다"). width를 고정값으로
+          // 주면 이 두 문제(BFC 선호너비 유출 + wrapper 컨테이닝 블록 크기 의존)가 아예
+          // 발생하지 않고, 진짜로 더 넓어야 하는 표는 "표 렌더 후 노드 너비 자동 확장"
+          // 이펙트(위, tbl.scrollWidth 기반)가 node.nodeWidth를 늘려 이 값 자체를 키우는
+          // 정상 경로로만 처리된다.
+          width: Math.max(node.nodeWidth ?? 0, 432, autoMinWidth),
           minHeight: node.contentExpanded ? (node.nodeHeight ?? undefined) : undefined,
           background: `color-mix(in srgb, ${color} 15%, ${NODE_BG_BASE})`,
           border: isGenHighlight

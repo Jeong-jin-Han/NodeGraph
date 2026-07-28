@@ -1744,6 +1744,21 @@ export function Canvas({
         >
           <div style={{
             position: 'absolute',
+            // 이 wrapper는 position:absolute인데 width/height를 안 주면(과거 코드) 자기
+            // 자식(NodeCard들)도 전부 absolute라 in-flow 콘텐츠가 없어서 shrink-to-fit이
+            // 0x0으로 잡힌다. 그러면 NodeCard의 width:auto(shrink-to-fit) 계산에 쓰이는
+            // "available width = containingBlockWidth - left"가, hop 트리에서 root보다
+            // 왼쪽(음수 left)에 있는 노드에 한해 "0 - (음수 left)" = 노드가 원점에서 왼쪽으로
+            // 떨어진 거리와 정확히 같은 양수로 나와버렸음 — 표처럼 실제 필요 너비가 그 값보다
+            // 작은 콘텐츠가 그 값을 그대로 자기 너비로 삼아 카드가 수천 px로 부풀고 부모/형제
+            // 노드와 겹치는 버그가 있었음(사용자가 실제 그래프의 hop-2 왼쪽 노드+표 조합에서
+            // 발견 — 오른쪽 노드나 표 없는 노드에서는 재현 안 됨, 우연히 자릿수가 맞아떨어진
+            // 경우라 발견하기 까다로웠음). left/top은 그대로 두고(자식의 left:renderPosition.x가
+            // 가리키는 화면 위치가 바뀌면 안 되므로) width/height만 넉넉하게 고정값으로 줘서
+            // 이 계산이 항상 크게 나오도록 한다 — 노드 좌표가 이 범위(±100000px) 안에만
+            // 있으면 충분.
+            width: 200000,
+            height: 200000,
             transformOrigin: '0 0',
             transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
           }}>
