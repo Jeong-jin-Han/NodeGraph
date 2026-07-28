@@ -106,7 +106,13 @@ function buildHopTree(
     const byChildren = nodes.find(n => n.children?.includes(nodeId))
     if (byChildren) return byChildren.id
     const byEdge = edges.find(e => e.target === nodeId)
-    return byEdge ? byEdge.source : null
+    if (byEdge) return byEdge.source
+    // 포트를 반대 방향(새 노드 → 기존 노드)으로 끌어 만든 엣지는 source/target이 뒤바뀐
+    // 채로 저장돼 있을 수 있다(예: source=새 노드, target=main topic) — addEdge가 이제
+    // 이런 경우를 새로 만들 땐 자동으로 바로잡지만, 이미 이렇게 저장된 기존 데이터도
+    // 여기서 인식해줘야 리로드 없이(또는 재연결 없이) 바로 hop 트리에 편입된다.
+    const reversedToMain = edges.find(e => e.source === nodeId && !!nodeById.get(e.target) && isMainNode(nodeById.get(e.target)!))
+    return reversedToMain ? reversedToMain.target : null
   }
 
   const isRoot = new Set<string>()
@@ -373,15 +379,34 @@ function computeRenderPositions(
   // 가까운 오른쪽 변은 카드 너비에 따라 들쭉날쭉해져서, 커넥터가 main topic으로 모이는
   // 지점이 노드마다 제각각이 되는 문제가 있었음(사용자 리포트: "hop1 시작점에 대해서
   // 왼쪽 정렬이 아니라 오른쪽 정렬을 하라는 것").
+  // main topic(백본)도 hop1/hop2처럼 "어디에 배치되든 하나의 세로줄로 자동 정렬"되게 한다 —
+  // 지금까지는 depth 0 노드가 자기 raw 저장 좌표를 그대로 썼어서, 새 main topic을 만들거나
+  // (그 경우 저장 좌표가 화면 중앙 기준 임의값이 됨) 실수로 다른 X로 드래그해두면 기존
+  // 백본과 다른 세로줄에 떨어져 "왼쪽부터 쭉 이어지는 하나의 백본"이 깨졌음(사용자 리포트:
+  // "main topic에 대해서는 노드 배치를 수평에 대해서 왼쪽 배치를 기준으로 해서 user가
+  // main topic관련 노드를 배치해도 해당 지점으로 갈 수 있게"). 현재 드래그 중인 main
+  // topic은 제외하고(안 그러면 드래그하는 동안 나머지가 그 쪽으로 실시간으로 튀어버림)
+  // 나머지 main topic들 중 가장 왼쪽(raw x 최소값)을 기준으로 전부 그 X로 통일한다.
+  // depth 0에는 main_topic 말고도(연결이 끊긴) 고아 노드가 섞일 수 있는데, 그런 노드는
+  // 백본이 아니라 자유 배치가 맞으므로 isMainNode인 것만 대상으로 한다.
+  const settledMainTopicXs = nodes
+    .filter(n => isMainNode(n) && n.id !== draggingNodeId)
+    .map(n => n.position.x)
+  const mainTopicAnchorX = settledMainTopicXs.length > 0 ? Math.min(...settledMainTopicXs) : 0
+
   const renderX: Record<string, number> = {}
   for (const n of nodes) {
     if (n.id === draggingNodeId) { renderX[n.id] = n.position.x; continue }
     const depth = tree.depthOf.get(n.id) ?? 0
-    if (depth === 0) { renderX[n.id] = n.position.x; continue }
+    if (depth === 0) { renderX[n.id] = isMainNode(n) ? mainTopicAnchorX : n.position.x; continue }
     const side = sideOf.get(n.id) ?? 1
     const root = nodeById.get(tree.rootOf.get(n.id)!)!
+    // root가 main topic이면(항상 그렇진 않음 — 연결 끊긴 고아 노드도 자기 자손의 root가
+    // 될 수 있음) raw 저장 좌표가 아니라 위에서 통일한 mainTopicAnchorX를 기준 삼아야,
+    // main topic 자신의 렌더 위치와 그 hop 자식들의 렌더 위치가 서로 어긋나지 않는다.
+    const rootX = isMainNode(root) ? mainTopicAnchorX : root.position.x
     const offset = colOffset.get(`${depth}:${side}`) ?? depth * MIN_HOP_GAP
-    const nearRootEdge = root.position.x + side * offset
+    const nearRootEdge = rootX + side * offset
     renderX[n.id] = side === 1 ? nearRootEdge : nearRootEdge - nw(n)
   }
 
@@ -967,10 +992,14 @@ export function Canvas({
     })
   }, [graph.nodes])
 
-  // 첫 템플릿 기본값
+  // 첫 템플릿 기본값 — main_topic은 항상 백본 루트로 취급되는 특수 템플릿이라(자식으로
+  // 추가되면 hop 트리 정렬에서 아예 빠져버림) 툴바를 열자마자 실수로 main_topic이 선택된
+  // 채 "+ Add Node"를 누르는 사고를 줄이기 위해 그 다음 템플릿을 기본값으로 삼는다.
   useEffect(() => {
     const keys = Object.keys(graph.nodeTemplates)
-    if (keys.length > 0 && !keys.includes(selectedTemplate)) setSelectedTemplate(keys[0])
+    if (keys.length > 0 && !keys.includes(selectedTemplate)) {
+      setSelectedTemplate(keys.find(k => k !== 'main_topic') ?? keys[0])
+    }
   }, [graph.nodeTemplates, selectedTemplate])
 
 

@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-0.4.5-orange" alt="Version 0.4.5" />
+  <img src="https://img.shields.io/badge/version-0.5.0-orange" alt="Version 0.5.0" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="MIT License" />
 </p>
 
@@ -58,7 +58,7 @@ A VS Code extension for building node-based knowledge graphs from research paper
 - **Toggle sections** — collapsible sub-sections inside a node (`+ Toggle` button); same rich rendering as the main content (GFM tables, LaTeX, inline images)
 - **Original text** — verbatim source quote with an editable label and `§, p.` location (`+ Original` button); rendered in italics below the content; right-click the quote to jump to and highlight it in the source PDF (see **Find & focus**)
 - **Links** — attach `url` / `pdf` / `obsidian` links to a node (`+ Link` button); click to open — PDFs are resolved relative to the JSON file
-- **Edges** — drag from a port dot (appears on hover) onto any node body to create an `arrow` edge; duplicates are ignored; click a wire to select it (blue) and press `Delete` to remove it (transitively redundant A→C edges are expected to be avoided when the graph is written — see Agent / AI Editing). Connecting a node that doesn't have a parent yet also gives it an initial hop-based position: a direct child of a main-topic node fans out to that node's right (or left, once the right side has 4) around its vertical center, and anything deeper keeps extending the same direction its parent already went
+- **Edges** — drag from a port dot (appears on hover) onto any node body to connect two nodes, in either direction; the type is chosen automatically (an arrow only between two Main topic nodes — the backbone sequence — a plain line otherwise); duplicates are ignored; click a wire to select it (blue) and press `Delete` to remove it (transitively redundant A→C edges are expected to be avoided when the graph is written — see Agent / AI Editing). Connecting a node that doesn't have a parent yet also gives it an initial hop-based position: a direct child of a main-topic node fans out to that node's right (or left, once the right side has 4) around its vertical center, and anything deeper keeps extending the same direction its parent already went
 - **Resize & typography** — drag an expanded node's right/bottom/corner handles (min 160×60); nodes widen automatically to fit tables and sized images; per-node font size 8–72px via the toolbar combo (with multiple nodes selected, sizes shift together preserving differences)
 - **Undo / Redo** — full history with `Ctrl+Z` / `Ctrl+Y` (or `Ctrl+Shift+Z`)
 
@@ -67,7 +67,6 @@ A VS Code extension for building node-based knowledge graphs from research paper
 - **Smart wire routing** — wires are planned on a 24px cost grid (A*): node interiors are heavily penalized (crossed only when a node is fully enclosed), wires keep clearance from node borders and spread into free space instead of stacking; while dragging a node a light heuristic keeps rendering smooth and the precise routes return 150ms after the layout settles
 - **Zoom-stable line weight** — wires, arrowheads, and the debug grid keep their base thickness once you're zoomed in (≥100%), but thicken as you zoom out below 100% so they stay readable instead of fading to hairlines
 - **Layout debug grid (`Grid`)** — toggles an overlay of dashed boundary lines: vertical lines mark hop-level boundaries (main topic / hop-1 / hop-2 / ...), horizontal lines mark each main-topic cluster's extent. Useful for visually spotting layout/spacing issues
-- **Bus routing** — one source with 2+ `line` targets clearly to its right renders as a single trunk with per-target branches
 
 ### Find & focus
 - **Ctrl+F search** — live dropdown over title, content, original text (including its custom label), and toggle-section titles/content, ordered by main-topic BFS (each main topic in backbone order, then all of its hop-1 matches, then all of its hop-2 matches, and so on, before moving to the next main topic); `↑`/`↓` flies the viewport to each match, `Enter` expands the chosen node (and its Original section / any toggle sections the match falls inside) and collapses the other matches; the matched text itself is marked inside the node in the inverse of its template color
@@ -170,7 +169,7 @@ end to end without asking me anything. Tell me when done.
 | Clear highlight / selection | `Escape` (background clicks keep the highlight) |
 | Delete selection | `Delete` or `Backspace` — canvas images first, then a selected wire, then nodes |
 | Select wire | Left-click a wire (turns blue) |
-| Draw edge | Drag from a port dot (appears on hover) onto the target node body — creates an `arrow` edge |
+| Draw edge | Drag from a port dot (appears on hover) onto the other node's body, in either direction — becomes an arrow only between two Main topic nodes, a plain line otherwise |
 
 ### Node
 
@@ -191,7 +190,7 @@ The toolbar is two rows — editing controls on top, view/graph-navigation contr
 | Row | Control | Description |
 |-----|---------|-------------|
 | Edit | Undo / Redo | History (also `Ctrl+Z` / `Ctrl+Y` / `Ctrl+Shift+Z`) |
-| Edit | Template dropdown + `+ Add Node` | Creates a node of the chosen type in the nearest free spot around the view center |
+| Edit | Template dropdown + `+ Add Node` | With exactly one node selected, adds a child of the chosen type to it (auto-positioned into the hop layout); with none or multiple selected, creates an unparented node in the nearest free spot around the view center |
 | Edit | Delete | Deletes all selected nodes (shows a live count, e.g. `Delete (3)`, once more than one is selected) |
 | Edit | Type & font controls | Shown while nodes are selected — switch the node's template; set font size by typing a number or picking a preset (8–72) |
 | View | Collapse / Expand | Fold/unfold the selected subtree, or everything when nothing is selected — collapsing *everything* also auto-runs Fit View |

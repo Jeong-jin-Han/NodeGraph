@@ -234,9 +234,13 @@ Edge type guidelines:
 - `"arrow"`: backbone connections between main nodes (sequence / flow)
 - `"line"`: main→sub, sub→sub, or cross-references
 
-Edges drawn interactively in the editor (port-dot drag) are always `"arrow"`;
-`"line"` edges are set by editing the JSON. Duplicate edges with the same
-source and target are rejected by the editor.
+Edges drawn interactively in the editor (port-dot drag) get their type chosen
+automatically to match the guidelines above: `"arrow"` only when both endpoints
+are `main_topic`, `"line"` otherwise — no manual cleanup needed. Which node you
+drag from doesn't matter either; the editor always stores whichever endpoint is
+already anchored (a `main_topic`, or a node that already has a parent) as
+`source`, so the direction you drag in never breaks the hop tree. Duplicate
+edges with the same source and target are rejected by the editor.
 
 **Avoid transitively redundant edges yourself** — if A→B and B→C already exist, do not
 also add a direct A→C edge; the reader can already follow A→B→C. The editor no longer has

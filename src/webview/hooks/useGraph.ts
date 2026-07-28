@@ -378,7 +378,17 @@ export function useGraph() {
       const parent = g.nodes.find(n => n.id === parentId)
       if (!parent) return g
       const id = nextNodeId(g)
-      const resolved = (templateKey && g.nodeTemplates[templateKey]) ? templateKey : Object.keys(g.nodeTemplates)[0] ?? 'memo'
+      // main_topic은 들어오는 엣지가 있어도 항상 백본 루트로 취급되므로(buildHopTree),
+      // "누군가의 자식으로 추가"라는 맥락 자체와 구조적으로 맞지 않는다 — 그대로 두면
+      // depth 0(자기 자신만의 루트)으로 분류돼 hop tree 정렬(Pass 4)이 아예 적용 안 되고
+      // 저장된 원시 좌표에 그대로 렌더됨. 사용자 리포트("hop1 밑에 hop2 노드를 추가했는데
+      // 수평 위치가 자동정렬 안 된다")의 실제 원인이 이거였음 — 툴바 템플릿 드롭다운의
+      // 기본값이 마침 main_topic이라 새로 추가한 노드가 통째로 트리 밖으로 빠졌던 것.
+      const keys = Object.keys(g.nodeTemplates)
+      const nonMainKeys = keys.filter(k => k !== 'main_topic')
+      const resolved = (templateKey && templateKey !== 'main_topic' && g.nodeTemplates[templateKey])
+        ? templateKey
+        : (nonMainKeys[0] ?? keys[0] ?? 'memo')
       const pos = computeHopPosition(g, parentId) ?? { x: parent.position.x + HOP_X_OFFSET, y: parent.position.y }
       const newNode: GraphNode = {
         id, template: resolved, title: 'New Node', content: '',
@@ -407,20 +417,36 @@ export function useGraph() {
   const addEdge = useCallback((sourceId: string, targetId: string, type?: 'arrow' | 'line') => {
     setGraph(g => {
       if (g.edges.some(e => e.source === sourceId && e.target === targetId)) return g
+      // 포트 드래그는 방향에 상관없이(새 노드 → 기존 노드로 끌어도) 연결을 만들 수 있는데,
+      // buildHopTree의 parentIdOf는 "target이 자식"으로만 해석하므로 반대 방향으로 그으면
+      // 새/고아 노드가 target이 아니라 source가 되어 "부모 없음"으로 오판되고, hop 트리에서
+      // 완전히 빠져 자동 정렬이 전혀 안 되는 채로 화면 중앙 근처 임의 위치에 방치된다
+      // (사용자 리포트: 새 노드를 만들고 거기서 기존 main topic으로 직접 선을 그었더니
+      // 시작점이 다른 형제와 안 맞음 — 실제 저장된 엣지가 source=새 노드, target=main
+      // topic으로 거꾸로 들어가 있었음). 두 끝점 중 "이미 트리에 자리 잡은 쪽"(main
+      // topic이거나 이미 부모가 있는 쪽)을 항상 source로, 나머지를 target으로 저장해서
+      // 드래그 방향과 무관하게 항상 부모→자식으로 기록되게 한다.
+      const isAnchored = (id: string) => {
+        const n = g.nodes.find(x => x.id === id)
+        return !!n && (isMainTopicNode(g, n) || parentIdOf(g, id) !== null)
+      }
+      const [source, target] = (!isAnchored(sourceId) && isAnchored(targetId))
+        ? [targetId, sourceId]
+        : [sourceId, targetId]
       const id = `edge_${Date.now()}`
-      const resolvedType = type ?? edgeTypeFor(g, sourceId, targetId)
-      const edges = [...g.edges, { id, source: sourceId, target: targetId, type: resolvedType, label: '' }]
+      const resolvedType = type ?? edgeTypeFor(g, source, target)
+      const edges = [...g.edges, { id, source, target, type: resolvedType, label: '' }]
       // Reposition the target using hop-based placement, as if it's a fresh child of source —
       // only meaningful the first time a node gets a parent; leave it alone if it already has one.
       // Also skip if the target is itself a main_topic (backbone) node — connecting two backbone
       // nodes is a sequence link, not a hop-1 relationship, and must never move the target off
       // its own backbone position.
-      const targetNode = g.nodes.find(n => n.id === targetId)
-      const alreadyHasParent = parentIdOf(g, targetId) !== null
+      const targetNode = g.nodes.find(n => n.id === target)
+      const alreadyHasParent = parentIdOf(g, target) !== null
       const targetIsMainTopic = !!targetNode && isMainTopicNode(g, targetNode)
-      const newPos = (alreadyHasParent || targetIsMainTopic) ? null : computeHopPosition(g, sourceId)
+      const newPos = (alreadyHasParent || targetIsMainTopic) ? null : computeHopPosition(g, source)
       const nodes = newPos
-        ? g.nodes.map(n => n.id === targetId ? { ...n, position: newPos, nodeNaturalY: newPos.y } : n)
+        ? g.nodes.map(n => n.id === target ? { ...n, position: newPos, nodeNaturalY: newPos.y } : n)
         : g.nodes
       return { ...g, edges, nodes }
     }, true)
