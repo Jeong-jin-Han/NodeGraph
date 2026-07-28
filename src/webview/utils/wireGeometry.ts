@@ -32,6 +32,20 @@ export function getNearestPorts(source: Rect, target: Rect): { sourcePort: Port;
   return best
 }
 
+// hop 자식(line) 엣지 전용: 반드시 좌/우 포트만 쓴다. getNearestPorts(4방향 전체 유클리드
+// 최솟값)는 타겟이 소스 중심에서 수직으로 많이 떨어져 있으면(above/below 부채꼴이 넓을 때)
+// source 쪽 포트가 top/bottom으로 뒤집히는 경우가 있었음 — 그러면 같은 side(왼쪽/오른쪽)의
+// 다른 형제들은 여전히 left/right에서 나가는데 그 형제 하나만 다른 지점(위/아래 중앙)에서
+// 나가서 선끼리 서로 가로질러 지나가 버려 지저분해 보였다(사용자가 스크린샷으로 지적:
+// "선이 왜 깔끔하게 정리되지 않은 거지"). hop 자식은 항상 부모(main topic)의 좌/우에만
+// 붙으므로(레이아웃의 sideOf와 동일 규칙 — 중심 X 기준 좌/우), 포트도 항상 좌/우로 고정해
+// 같은 side 형제는 전부 같은 지점에서 나가도록 한다.
+export function getHorizontalPorts(source: Rect, target: Rect): { sourcePort: Port; targetPort: Port } {
+  const srcCx = source.x + source.width / 2
+  const tgtCx = target.x + target.width / 2
+  return tgtCx >= srcCx ? { sourcePort: 'right', targetPort: 'left' } : { sourcePort: 'left', targetPort: 'right' }
+}
+
 export function getPortPosition(rect: Rect, port: Port): { x: number; y: number } {
   switch (port) {
     case 'top':    return { x: rect.x + rect.width / 2, y: rect.y }

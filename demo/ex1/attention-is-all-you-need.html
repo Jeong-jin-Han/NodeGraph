@@ -726,6 +726,67 @@ function doCollapse() {
   }
 }
 
+// 드롭된 노드의 raw 위치(lx/ly)를 형제들 사이에서 실제로 어디 떨어졌는지에 맞춰 다시
+// 계산한다. onUp이 그냥 "드롭된 렌더 좌표를 그대로 저장"하면, 그 렌더 좌표는 raw 좌표와
+// 전혀 다른 좌표계(레이아웃 알고리즘이 raw를 대폭 재배치하는 게 이 알고리즘의 존재
+// 이유)라 형제들의 raw ly 범위를 완전히 벗어나는 경우가 흔하고, 그 결과 다음 재배치 때
+// 항상 맨 위/맨 아래로 튕기는 것처럼 보인다(에디터에서도 같은 버그가 있었음). 드롭 시점의
+// DOM 위치(형제들은 이 드래그 동안 한 번도 안 움직였으므로 여전히 정확한 배치 상태를
+// 반영함)를 기준으로 어느 두 형제 사이에 놓였는지 찾아 그 사이 값으로 raw ly를 맞춘다.
+function reconcileDroppedPosition(nodeId, nodeDatum) {
+  var nodeMap = {};
+  NODES_DATA.forEach(function(n) { nodeMap[n.id] = n; });
+  var tree = buildHopTreeJs();
+  var parentId = tree.parentOf[nodeId];
+  if (!parentId) return;
+
+  function findRootId(fromId) {
+    var cur = fromId, visited = {};
+    while (!visited[cur]) {
+      visited[cur] = true;
+      var n = nodeMap[cur];
+      if (!n) return cur;
+      if (n.isMain) return cur;
+      var p = tree.parentOf[cur];
+      if (!p) return cur;
+      cur = p;
+    }
+    return cur;
+  }
+  var root = nodeMap[findRootId(nodeId)];
+  function sideOfNode(n) { return (root && n.lx >= root.lx) ? 1 : -1; }
+  var draggedSide = sideOfNode(nodeDatum);
+
+  var sameSideSiblings = [];
+  NODES_DATA.forEach(function(n) {
+    if (n.id === nodeId) return;
+    if (tree.parentOf[n.id] === parentId && sideOfNode(n) === draggedSide) sameSideSiblings.push(n.id);
+  });
+  if (sameSideSiblings.length === 0) return;
+
+  var draggedRenderY = nodeDatum.ly;
+  var ordered = sameSideSiblings.map(function(sid) {
+    var el = document.getElementById('node-' + sid);
+    var ry = el ? (parseFloat(el.style.top) || 0) : nodeMap[sid].ly;
+    return { id: sid, renderY: ry };
+  }).sort(function(a, b) { return a.renderY - b.renderY; });
+
+  var belowIdx = -1;
+  for (var i = 0; i < ordered.length; i++) {
+    if (ordered[i].renderY > draggedRenderY) { belowIdx = i; break; }
+  }
+  var newY;
+  if (belowIdx === -1) newY = nodeMap[ordered[ordered.length - 1].id].ly + 1;
+  else if (belowIdx === 0) newY = nodeMap[ordered[0].id].ly - 1;
+  else newY = (nodeMap[ordered[belowIdx - 1].id].ly + nodeMap[ordered[belowIdx].id].ly) / 2;
+
+  // lx도 드래그 중 렌더 좌표가 raw에 섞여 들어가 오염됐을 수 있으므로, 같은 side 형제의
+  // raw lx를 빌려 바로잡는다(side 전환처럼 형제가 없는 경우는 건드리지 않음).
+  nodeDatum.lx = nodeMap[sameSideSiblings[0]].lx;
+  nodeDatum.ly = newY;
+  nodeDatum.naturalY = newY;
+}
+
 // Tag drag handle
 function onNodeTagMousedown(e, nodeEl) {
   e.stopPropagation();
@@ -755,8 +816,17 @@ function onNodeTagMousedown(e, nodeEl) {
     window.removeEventListener('mousemove', onMove);
     window.removeEventListener('mouseup', onUp);
     nodeEl.classList.remove('ng-dragging');
-    // 드롭된 렌더 좌표를 그대로 저장 — 밀려있던 노드에 delta를 더하면 드롭 위치와 어긋남
-    if (moved) { lastWasDrag = true; if (nodeDatum) { nodeDatum.lx = left0 + finalDX; nodeDatum.ly = top0 + finalDY; nodeDatum.naturalY = nodeDatum.ly; } setTimeout(recomputePositions, 0); }
+    // 드롭된 렌더 좌표를 일단 그대로 저장한 뒤, 형제들 사이 실제 위치에 맞춰 raw로
+    // 재해석한다(reconcileDroppedPosition — 위 참고, 렌더 좌표를 raw에 그대로 쓰면 안
+    // 되는 이유).
+    if (moved) {
+      lastWasDrag = true;
+      if (nodeDatum) {
+        nodeDatum.lx = left0 + finalDX; nodeDatum.ly = top0 + finalDY; nodeDatum.naturalY = nodeDatum.ly;
+        reconcileDroppedPosition(nodeId, nodeDatum);
+      }
+      setTimeout(recomputePositions, 0);
+    }
   }
   window.addEventListener('mousemove', onMove);
   window.addEventListener('mouseup', onUp);
@@ -784,6 +854,15 @@ function recomputePositions() {
 
   var tree = buildHopTreeJs();
 
+  // main topic(백본) 기준 좌/우 — 세로 배치(아래)와 가로 정렬(Pass 4) 양쪽에서 왼쪽/오른쪽
+  // 자식을 독립적으로 다루기 위해 먼저 계산해둔다.
+  var sideOf = {};
+  NODES_DATA.forEach(function(n) {
+    if (tree.depthOf[n.id] === 0) { sideOf[n.id] = 0; return; }
+    var root = nodeMap[tree.rootOf[n.id]];
+    sideOf[n.id] = n.lx >= root.lx ? 1 : -1;
+  });
+
   // 각 부모의 자식들을 저장된 상대 Y(디자인 의도상 순서) 기준으로 정렬
   var childrenOf = {};
   NODES_DATA.forEach(function(n) {
@@ -798,13 +877,20 @@ function recomputePositions() {
     });
   });
 
-  // 형제 그룹을 부모의 원래 Y 기준 위/아래로 분리
-  function splitByOriginalSide(parentId) {
+  // 형제 그룹을 부모의 원래 Y 기준 위/아래로, 그리고 좌/우(side)로 분리한다. 왼쪽/오른쪽
+  // 자식은 서로 다른 X에 그려져 세로 공간을 절대 공유하지 않으므로 독립적으로 계산해야
+  // 한쪽이 커질 때 반대쪽 분기점까지 같이 밀리는 걸 막는다. above 배열은 reverse해서
+  // "부모와 가장 가까운 것부터" 순서로 맞춘다 — kids는 상대 Y 오름차순 정렬이라 below
+  // 그룹(부모에서 멀어지는 방향으로 순서대로 진행)엔 그대로 맞지만, above 그룹은 같은
+  // 진행 방향(위로 멀어짐)인데 오름차순이면 가장 먼 자식이 배열 맨 앞이라 오히려 부모와
+  // 가장 가깝게 배치되고 그다음이 더 멀리 밀리는 식으로 시각적 순서가 뒤집힌다.
+  function splitByOriginalSide(parentId, side) {
     var parent = nodeMap[parentId];
-    var kids = childrenOf[parentId] || [];
+    var kids = (childrenOf[parentId] || []).filter(function(k) { return sideOf[k] === side; });
+    var above = kids.filter(function(k) { return nodeMap[k].ly < parent.ly; }).reverse();
     return {
       below: kids.filter(function(k) { return nodeMap[k].ly >= parent.ly; }),
-      above: kids.filter(function(k) { return nodeMap[k].ly < parent.ly; }),
+      above: above,
     };
   }
 
@@ -828,18 +914,49 @@ function recomputePositions() {
     }
     return total;
   }
+
+  // above+below 블록을 부모 중심에 맞추기 위한 분기점 이동량(shift). 이상적으로는
+  // (belowSize-aboveSize)/2만큼 옮기면 블록 전체가 정확히 부모 중심에 오지만, 양쪽에 다
+  // 형제가 있는 상태에서 두 그룹 크기 차이가 크면(예: 3:1 이상) 그 이동량이 큰 쪽 그룹의
+  // "부모와 가장 가까운 자식"을 부모 중심 반대편으로 밀어버린다(below의 첫 자식이 부모
+  // 보다 위에 렌더되는 등, 자식이 부모를 시각적으로 뛰어넘는 버그). 두 그룹이 다 있을
+  // 때만, "더 큰 쪽의 첫 자식이 부모 중심을 넘지 않는 한도"로 이동량을 clamp한다.
+  function splitShift(id, side) {
+    var node = nodeMap[id];
+    var split = splitByOriginalSide(id, side);
+    var above = split.above, below = split.below;
+    var belowSize = stackSize(below, node);
+    var aboveSize = stackSize(above, node);
+    var shift = (belowSize - aboveSize) / 2;
+    if (above.length > 0 && below.length > 0) {
+      if (shift > 0) {
+        var firstBelow = nodeMap[below[0]];
+        var firstBelowInfo = layoutInfo(below[0]);
+        shift = Math.min(shift, gapFor(node, firstBelow) + firstBelowInfo.above);
+      } else if (shift < 0) {
+        var firstAbove = nodeMap[above[0]];
+        var firstAboveInfo = layoutInfo(above[0]);
+        shift = Math.max(shift, -(gapFor(node, firstAbove) + firstAboveInfo.below));
+      }
+    }
+    return { above: above, below: below, belowSize: belowSize, aboveSize: aboveSize, shift: shift };
+  }
+
   function layoutInfo(id) {
     if (infoCache[id]) return infoCache[id];
     var node = nodeMap[id];
     var ownHalf = getH(node) / 2;
-    var split = splitByOriginalSide(id);
-    var belowSize = stackSize(split.below, node);
-    var aboveSize = stackSize(split.above, node);
-    var oneSidedBelow = split.below.length > 0 && split.above.length === 0;
-    var oneSidedAbove = split.above.length > 0 && split.below.length === 0;
-    var aboveNeed = oneSidedBelow ? belowSize / 2 : oneSidedAbove ? aboveSize / 2 : aboveSize;
-    var belowNeed = oneSidedBelow ? belowSize / 2 : oneSidedAbove ? aboveSize / 2 : belowSize;
-    var info = { above: Math.max(ownHalf, aboveNeed), below: Math.max(ownHalf, belowNeed) };
+    // side별로 독립적으로 above+below 블록을 재센터링하므로, 이 노드가 자기 부모에게
+    // 보고하는 "필요 공간"도 side별로 따로 구해서(왼쪽·오른쪽은 세로 공간을 안 겹치므로
+    // 더하지 않고 더 많이 필요한 쪽 기준) splitShift가 clamp한 실제 shift를 반영한다 —
+    // 안 그러면 assign()이 실제로 만드는 위치와 어긋나 다른 클러스터와 겹칠 수 있다.
+    var aboveReach = 0, belowReach = 0;
+    [1, -1].forEach(function(side) {
+      var s = splitShift(id, side);
+      aboveReach = Math.max(aboveReach, s.aboveSize + s.shift);
+      belowReach = Math.max(belowReach, s.belowSize - s.shift);
+    });
+    var info = { above: Math.max(ownHalf, aboveReach), below: Math.max(ownHalf, belowReach) };
     infoCache[id] = info;
     return info;
   }
@@ -849,30 +966,32 @@ function recomputePositions() {
   function assign(id, cy) {
     var node = nodeMap[id];
     centerY[id] = cy;
-    var split = splitByOriginalSide(id);
-    var below = split.below, above = split.above;
-    // hop-2+처럼 자식이 한쪽에만 있으면 그 스택 전체를 부모 중심에 대칭으로 배치
-    var belowStart = (below.length > 0 && above.length === 0) ? cy - stackSize(below, node) / 2 : cy;
-    var aboveStart = (above.length > 0 && below.length === 0) ? cy + stackSize(above, node) / 2 : cy;
+    // 왼쪽/오른쪽을 완전히 독립적으로 배치한다 — stackSize가 같은 side의 형제끼리만
+    // 더해지므로 한쪽 크기가 반대쪽 분기점에 영향을 주지 않는다.
+    [1, -1].forEach(function(side) {
+      var s = splitShift(id, side);
+      var below = s.below, above = s.above;
+      var split = cy - s.shift;
 
-    var cursor = belowStart;
-    for (var i = 0; i < below.length; i++) {
-      var kid = nodeMap[below[i]];
-      var kInfo = layoutInfo(below[i]);
-      var prev = i === 0 ? node : nodeMap[below[i - 1]];
-      cursor += gapFor(prev, kid) + kInfo.above;
-      assign(below[i], cursor);
-      cursor += kInfo.below;
-    }
-    cursor = aboveStart;
-    for (var j = 0; j < above.length; j++) {
-      var kid2 = nodeMap[above[j]];
-      var kInfo2 = layoutInfo(above[j]);
-      var prev2 = j === 0 ? node : nodeMap[above[j - 1]];
-      cursor -= gapFor(prev2, kid2) + kInfo2.below;
-      assign(above[j], cursor);
-      cursor -= kInfo2.above;
-    }
+      var cursor = split;
+      for (var i = 0; i < below.length; i++) {
+        var kid = nodeMap[below[i]];
+        var kInfo = layoutInfo(below[i]);
+        var prev = i === 0 ? node : nodeMap[below[i - 1]];
+        cursor += gapFor(prev, kid) + kInfo.above;
+        assign(below[i], cursor);
+        cursor += kInfo.below;
+      }
+      cursor = split;
+      for (var j = 0; j < above.length; j++) {
+        var kid2 = nodeMap[above[j]];
+        var kInfo2 = layoutInfo(above[j]);
+        var prev2 = j === 0 ? node : nodeMap[above[j - 1]];
+        cursor -= gapFor(prev2, kid2) + kInfo2.below;
+        assign(above[j], cursor);
+        cursor -= kInfo2.above;
+      }
+    });
   }
 
   // ── 루트 시퀀싱: X 범위가 겹치는 루트끼리만 그룹으로 묶어 원래 순서(Y)대로 배치 ──
@@ -921,19 +1040,34 @@ function recomputePositions() {
 
   // ── hop tier(깊이)별 X 정렬 — 같은 depth의 모든 노드가 항상 같은 X에서 시작 ──
   var MIN_HOP_GAP = 750, COL_PAD = 60;
-  var sideOf = {};
-  NODES_DATA.forEach(function(n) {
-    if (tree.depthOf[n.id] === 0) { sideOf[n.id] = 0; return; }
-    var root = nodeMap[tree.rootOf[n.id]];
-    sideOf[n.id] = n.lx >= root.lx ? 1 : -1;
-  });
+  // main topic(백본)도 hop1/hop2처럼 하나의 세로줄로 자동 정렬 — depth 0 노드는 raw
+  // 좌표를 그대로 쓰지 않고, main topic들 중 가장 왼쪽(raw x 최소값)으로 전부 통일한다.
+  // depth 0에는 main topic 외에 연결 끊긴 고아 노드도 섞이므로 n.isMain으로 필터링
+  // (고아 노드는 원래 자유 좌표 유지).
+  var mainTopicAnchorX = 0;
+  var mainTopicXs = NODES_DATA.filter(function(n) { return n.isMain; }).map(function(n) { return n.lx; });
+  if (mainTopicXs.length > 0) mainTopicAnchorX = Math.min.apply(null, mainTopicXs);
+
   var maxDepth = 0;
   NODES_DATA.forEach(function(n) { maxDepth = Math.max(maxDepth, tree.depthOf[n.id] || 0); });
+  // 전역에서 가장 넓은 main topic 폭 — 어느 main topic 하나가 표 등으로 넓어지면, 그
+  // main topic 자신의 왼쪽·오른쪽 hop1 간격이 똑같이 유지되는 것은 물론(오른쪽 변만
+  // 넓어지므로 오른쪽 계산에만 필요), 다른(안 넓어진) main topic들의 hop1도 전부 같은
+  // 만큼 같이 밀려서 hop1 열이 문서 전체에서 계속 나란히 정렬돼야 한다. "이 브랜치 자신의
+  // 폭"이 아니라 "전역에서 제일 넓은 main topic의 폭"을 모든 브랜치의 오른쪽 오프셋에
+  // 똑같이 더한다 — 표가 없는 보통 상황(모든 main topic 폭이 같음)에서는 이 값이 곧 자기
+  // 폭과 같아서 좌우 간격이 정확히 MIN_HOP_GAP으로 대칭이다. 왼쪽은 main topic이 아무리
+  // 넓어져도 왼쪽 변 자체는 움직이지 않으므로 항상 고정 MIN_HOP_GAP.
+  var globalWidestMainTopic = 0;
+  NODES_DATA.forEach(function(n) {
+    if (tree.depthOf[n.id] === 0) globalWidestMainTopic = Math.max(globalWidestMainTopic, getW(n));
+  });
   var colOffset = {};
   [1, -1].forEach(function(side) {
-    var offset = 0, prevMaxWidth = 0;
-    for (var d = 0; d <= maxDepth; d++) {
-      if (d > 0) offset += Math.max(MIN_HOP_GAP, prevMaxWidth + COL_PAD);
+    var offset = side === 1 ? globalWidestMainTopic + MIN_HOP_GAP : MIN_HOP_GAP;
+    var prevMaxWidth = 0;
+    for (var d = 1; d <= maxDepth; d++) {
+      if (d > 1) offset += Math.max(MIN_HOP_GAP, prevMaxWidth + COL_PAD);
       colOffset[d + ':' + side] = offset;
       var widest = 0;
       NODES_DATA.forEach(function(n) {
@@ -945,12 +1079,22 @@ function recomputePositions() {
   var renderX = {};
   NODES_DATA.forEach(function(n) {
     var depth = tree.depthOf[n.id] || 0;
-    if (depth === 0) { renderX[n.id] = n.lx; return; }
+    if (depth === 0) { renderX[n.id] = n.isMain ? mainTopicAnchorX : n.lx; return; }
     var side = sideOf[n.id] || 1;
     var root = nodeMap[tree.rootOf[n.id]];
+    // root가 main topic이면(항상 그렇진 않음 — 연결 끊긴 고아 노드도 자기 자손의 root가
+    // 될 수 있음) raw 좌표가 아니라 위에서 통일한 mainTopicAnchorX를 기준 삼아야, main
+    // topic 자신의 렌더 위치와 그 hop 자식들의 렌더 위치가 서로 어긋나지 않는다.
+    var rootX = root.isMain ? mainTopicAnchorX : root.lx;
     var offset = colOffset[depth + ':' + side];
     if (offset === undefined) offset = depth * MIN_HOP_GAP;
-    renderX[n.id] = root.lx + side * offset;
+    // offset은 "root와 가장 가까운 쪽 모서리"까지의 거리다. side=1(오른쪽)은 그 모서리가
+    // 곧 CSS left(카드의 왼쪽 변)라 그대로 쓰면 되지만, side=-1(왼쪽)은 root와 가장 가까운
+    // 모서리가 카드의 오른쪽 변이므로, CSS left를 구하려면 거기서 카드 너비만큼 더 빼야
+    // 한다(왼쪽 형제들의 "왼쪽 변"만 정렬되고 main topic과 가까운 "오른쪽 변"은 카드
+    // 너비에 따라 들쭉날쭉해지는 걸 막기 위함).
+    var nearRootEdge = rootX + side * offset;
+    renderX[n.id] = side === 1 ? nearRootEdge : nearRootEdge - getW(n);
   });
 
   NODES_DATA.forEach(function(n) {
@@ -983,7 +1127,16 @@ function buildHopTreeJs() {
     if (byChildren) return byChildren;
     var byEdge = null;
     EDGES.forEach(function(e) { if (!byEdge && e.target === nodeId) byEdge = e.source; });
-    return byEdge;
+    if (byEdge) return byEdge;
+    // 포트를 반대 방향(새 노드 → 기존 노드)으로 끌어 만든 엣지는 source/target이 뒤바뀐
+    // 채로 저장돼 있을 수 있다(source=이 노드, target=main topic) — Canvas.tsx의
+    // buildHopTree와 동일하게, 이런 기존 데이터도 여기서 인식해줘야 에디터와 같은
+    // 트리 구조가 나온다(안 그러면 이 노드가 잘못 독립 루트로 취급됨).
+    var reversedToMain = null;
+    EDGES.forEach(function(e) {
+      if (!reversedToMain && e.source === nodeId && nodeById[e.target] && nodeById[e.target].isMain) reversedToMain = e.target;
+    });
+    return reversedToMain;
   }
   var isRoot = {}, parentOf = {};
   NODES_DATA.forEach(function(n) {
@@ -1335,8 +1488,6 @@ function routeEdgesGrid(reqs,rects){
   });
   return out;
 }
-function svgLine(x1,y1,x2,y2,stroke,sw){var l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('stroke',stroke);l.setAttribute('data-base-sw',sw);return l;}
-function svgCirc(cx,cy,r,fill){var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',r);c.setAttribute('fill',fill);return c;}
 // 확대(zoom>=100%)면 기본 두께, 축소(zoom<100%)면 화면상 두께가 유지되도록 반비례로
 // 키움(에디터의 WireLayer.tsx의 zc = zoom<1 ? 1/zoom : 1 과 동일 규칙). 레이아웃이
 // 안 바뀌는 순수 줌 조작(wheel)에서는 경로를 다시 그리지 않고 이미 그려진 요소들의
@@ -1356,61 +1507,6 @@ function drawEdges(fast) {
   var svg=document.getElementById('wire-svg');
   svg.querySelectorAll('.ng-eg').forEach(function(el){el.remove();});
 
-  // Group line edges by source for bus routing
-  var lineBySource={};
-  EDGES.forEach(function(e){
-    if(e.type!=='line') return;
-    if(!lineBySource[e.source]) lineBySource[e.source]=[];
-    lineBySource[e.source].push(e);
-  });
-
-  var busDrawn={};
-
-  // Bus routing: one source → multiple line targets all on the same side (right)
-  Object.keys(lineBySource).forEach(function(srcId){
-    var group=lineBySource[srcId];
-    if(group.length<2) return;
-    var srcEl=document.getElementById('node-'+srcId);
-    if(!srcEl) return;
-    var sr=getNodeRect(srcEl);
-    var targets=[];
-    group.forEach(function(e){
-      var tEl=document.getElementById('node-'+e.target);
-      if(!tEl) return;
-      targets.push({e:e,r:getNodeRect(tEl)});
-    });
-    if(targets.length<2) return;
-    // 모든 타겟의 왼쪽 끝이 source 오른쪽 끝 + 40px 이상일 때만 bus (에디터와 조건 통일)
-    var allRight=targets.every(function(t){return t.r.x>sr.x+sr.w+40;});
-    if(!allRight) return;
-
-    var busX=sr.x+sr.w+Math.min.apply(null,targets.map(function(t){return t.r.x-(sr.x+sr.w);})) * 0.5;
-    var srcAnchorY=sr.cy;
-    var minTY=Math.min.apply(null,targets.map(function(t){return t.r.cy;}));
-    var maxTY=Math.max.apply(null,targets.map(function(t){return t.r.cy;}));
-    var busMinY=Math.min(srcAnchorY,minTY);
-    var busMaxY=Math.max(srcAnchorY,maxTY);
-
-    // 세대 하이라이트: 루트가 source거나 타겟 중 하나면 트렁크(공용 구간)도 빨간색
-    var srcSel=srcId===genRootId;
-    var groupHl=srcSel||targets.some(function(t){return t.e.target===genRootId;});
-    var trunkColor=groupHl?'#ef4444':'#888', trunkW=groupHl?'2.5':'1.5';
-
-    var g=document.createElementNS('http://www.w3.org/2000/svg','g');
-    g.setAttribute('class','ng-eg');
-    g.appendChild(svgLine(sr.x+sr.w,srcAnchorY,busX,srcAnchorY,trunkColor,trunkW));
-    g.appendChild(svgLine(busX,busMinY,busX,busMaxY,trunkColor,trunkW));
-    g.appendChild(svgCirc(sr.x+sr.w,srcAnchorY,4,trunkColor));
-    targets.forEach(function(t){
-      var tHl=srcSel||t.e.target===genRootId;
-      var branchColor=tHl?'#ef4444':'#888';
-      g.appendChild(svgLine(busX,t.r.cy,t.r.x,t.r.cy,branchColor,tHl?'2.5':'1.5'));
-      g.appendChild(svgCirc(t.r.x,t.r.cy,4,branchColor));
-      busDrawn[t.e.source+'-'+t.e.target]=true;
-    });
-    svg.appendChild(g);
-  });
-
   // 노드 rect 캐시 (엣지 라우팅 장애물 검사용 — drawEdges 1회당 1회만 DOM 조회)
   var rectById={};
   NODES_DATA.forEach(function(n){
@@ -1418,12 +1514,32 @@ function drawEdges(fast) {
     if(el) rectById[n.id]=getNodeRect(el);
   });
 
-  // 같은 source에서 나가거나 같은 target으로 모이는 비-버스 엣지 분산 오프셋 (합산)
+  // hop 자식(line) 엣지: 버스 라우팅도, A*/커브 라우팅도 없이 그냥 평범한 직선
+  // (에디터 WireLayer.tsx와 동일 — 예전엔 "같은 source에서 나가는 line 엣지 여럿을
+  // 세로 트렁크로 묶는 버스 라우팅"이 있었는데, 에디터가 이미 그걸 버리고 순수 직선으로
+  // 바꾼 지 오래라 여기만 안 따라와 있었음). 포트는 항상 좌/우만 강제 — getBestPorts처럼
+  // top/bottom까지 유클리드 최솟값으로 고르면, 타겟이 부모 중심에서 수직으로 많이
+  // 떨어진 형제 하나만 포트가 top/bottom으로 뒤집혀 다른 형제 선을 가로질러 지나가
+  // 버리는 문제가 있었다(사용자가 export html 스크린샷으로 재지적: "선이 왜 깔끔하게
+  // 정리되지 않은 거지" — 첫 main topic만 깔끔하고 나머지는 선이 교차해 보임).
+  function horizontalPorts(sr,tr){
+    var scx=sr.x+sr.w/2, tcx=tr.x+tr.w/2;
+    return tcx>=scx ? {sp:'right',tp:'left'} : {sp:'left',tp:'right'};
+  }
+  function portXY(r,name){
+    if(name==='right') return [r.x+r.w,r.cy];
+    if(name==='left') return [r.x,r.cy];
+    if(name==='bottom') return [r.cx,r.y+r.h];
+    return [r.cx,r.y];
+  }
+
+  // 같은 source에서 나가거나 같은 target으로 모이는 백본(arrow) 엣지 분산 오프셋(합산).
+  // hop 자식(line)은 이제 라우팅 없는 고정 직선이라 분산이 필요 없음(에디터와 동일 이유).
   var spreadByIdx={};
   (function(){
     var bySrc={},byTgt={};
     EDGES.forEach(function(e,idx){
-      if(busDrawn[e.source+'-'+e.target]) return;
+      if(e.type!=='arrow') return;
       if(!rectById[e.source]||!rectById[e.target]) return;
       (bySrc[e.source]=bySrc[e.source]||[]).push(idx);
       (byTgt[e.target]=byTgt[e.target]||[]).push(idx);
@@ -1440,14 +1556,15 @@ function drawEdges(fast) {
     add(byTgt,function(i){return rectById[EDGES[i].source].cy;});
   })();
 
-  // 그리드 A* 전역 라우팅 — 드래그 중(fast)에는 스킵하고 경량 휴리스틱 사용.
+  // 그리드 A* 전역 라우팅 — main topic 백본(arrow) 엣지만 대상(hop 자식은 고정 직선이라
+  // 라우팅 대상 아님, 에디터와 동일). 드래그 중(fast)에는 스킵하고 경량 휴리스틱 사용.
   // 레이아웃이 바뀌지 않은 재호출(하이라이트 색만 변경 등)은 캐시를 재사용해 즉시 처리
   var gridRoutes=null;
   if(!fast){
     if(routesDirty||!cachedRoutes){
       var reqs=[];
       EDGES.forEach(function(e,idx){
-        if(busDrawn[e.source+'-'+e.target]) return;
+        if(e.type!=='arrow') return;
         var sr3=rectById[e.source],tr3=rectById[e.target];
         if(!sr3||!tr3) return;
         var ports3=getBestPorts(sr3,tr3);
@@ -1464,48 +1581,55 @@ function drawEdges(fast) {
     gridRoutes=cachedRoutes;
   }
 
-  // Remaining edges: obstacle-avoiding curves
   EDGES.forEach(function(edge,edgeIdx){
-    if(busDrawn[edge.source+'-'+edge.target]) return;
     var sr2=rectById[edge.source], tr2=rectById[edge.target];
     if(!sr2||!tr2) return;
-    var ports=getBestPorts(sr2,tr2);
-    if(!ports) return;
-    var sp=ports.sp.p,spD=DIR[ports.sp.name],tp=ports.tp.p,tpD=DIR[ports.tp.name];
-    var srcP={x:sp[0],y:sp[1]},tgtP={x:tp[0],y:tp[1]};
-    var ddl=dlen(srcP,tgtP)||1;
-    var nx=-(tgtP.y-srcP.y)/ddl, nyv=(tgtP.x-srcP.x)/ddl;
-    var spread=spreadByIdx[edgeIdx]||0;
-    var gridPts=gridRoutes?gridRoutes[String(edgeIdx)]:null;
-    var d;
-    if(gridPts&&gridPts.length>2){
-      // 그리드 A* 경로 (노드 회피 + congestion 분산) + 같은 소스/타겟 묶음 분산
-      d=ptsToPath(spreadPts(gridPts,spread));
-    } else if(gridPts){
-      // 직선 경로: 기존 bezier 모양 유지 (spread만큼 제어점을 법선 방향 이동)
-      var bend=Math.min(ddl*.45,150);
-      var cx1=sp[0]+spD[0]*bend+nx*spread,cy1=sp[1]+spD[1]*bend+nyv*spread;
-      var cx2=tp[0]+tpD[0]*bend+nx*spread,cy2=tp[1]+tpD[1]*bend+nyv*spread;
-      d='M'+sp[0]+','+sp[1]+' C'+cx1+','+cy1+' '+cx2+','+cy2+' '+tp[0]+','+tp[1];
+
+    var d, sp, tp, strokeColor;
+    var hl=genRootId&&(edge.source===genRootId||edge.target===genRootId);
+    strokeColor=hl?'#ef4444':'#666';
+
+    if(edge.type!=='arrow'){
+      // hop 자식: 라우팅/커브 없이 좌/우 포트 사이 직선 그대로
+      var hp=horizontalPorts(sr2,tr2);
+      sp=portXY(sr2,hp.sp); tp=portXY(tr2,hp.tp);
+      d='M'+sp[0]+','+sp[1]+' L'+tp[0]+','+tp[1];
     } else {
-      // 드래그 중(fast) 또는 A* 실패: 경량 우회 휴리스틱
-      var obstacles=[];
-      Object.keys(rectById).forEach(function(nid){
-        if(nid!==edge.source&&nid!==edge.target) obstacles.push(rectById[nid]);
-      });
-      var pts=routeAround(srcP,tgtP,obstacles);
-      if(pts.length===2){
-        var bend2=Math.min(ddl*.45,150);
-        var bx1=sp[0]+spD[0]*bend2+nx*spread,by1=sp[1]+spD[1]*bend2+nyv*spread;
-        var bx2=tp[0]+tpD[0]*bend2+nx*spread,by2=tp[1]+tpD[1]*bend2+nyv*spread;
-        d='M'+sp[0]+','+sp[1]+' C'+bx1+','+by1+' '+bx2+','+by2+' '+tp[0]+','+tp[1];
+      var ports=getBestPorts(sr2,tr2);
+      if(!ports) return;
+      sp=ports.sp.p; var spD=DIR[ports.sp.name]; tp=ports.tp.p; var tpD=DIR[ports.tp.name];
+      var srcP={x:sp[0],y:sp[1]},tgtP={x:tp[0],y:tp[1]};
+      var ddl=dlen(srcP,tgtP)||1;
+      var nx=-(tgtP.y-srcP.y)/ddl, nyv=(tgtP.x-srcP.x)/ddl;
+      var spread=spreadByIdx[edgeIdx]||0;
+      var gridPts=gridRoutes?gridRoutes[String(edgeIdx)]:null;
+      if(gridPts&&gridPts.length>2){
+        // 그리드 A* 경로 (노드 회피 + congestion 분산) + 같은 소스/타겟 묶음 분산
+        d=ptsToPath(spreadPts(gridPts,spread));
+      } else if(gridPts){
+        // 직선 경로: 기존 bezier 모양 유지 (spread만큼 제어점을 법선 방향 이동)
+        var bend=Math.min(ddl*.45,150);
+        var cx1=sp[0]+spD[0]*bend+nx*spread,cy1=sp[1]+spD[1]*bend+nyv*spread;
+        var cx2=tp[0]+tpD[0]*bend+nx*spread,cy2=tp[1]+tpD[1]*bend+nyv*spread;
+        d='M'+sp[0]+','+sp[1]+' C'+cx1+','+cy1+' '+cx2+','+cy2+' '+tp[0]+','+tp[1];
       } else {
-        d=ptsToPath(spreadPts(pts,spread));
+        // 드래그 중(fast) 또는 A* 실패: 경량 우회 휴리스틱
+        var obstacles=[];
+        Object.keys(rectById).forEach(function(nid){
+          if(nid!==edge.source&&nid!==edge.target) obstacles.push(rectById[nid]);
+        });
+        var pts=routeAround(srcP,tgtP,obstacles);
+        if(pts.length===2){
+          var bend2=Math.min(ddl*.45,150);
+          var bx1=sp[0]+spD[0]*bend2+nx*spread,by1=sp[1]+spD[1]*bend2+nyv*spread;
+          var bx2=tp[0]+tpD[0]*bend2+nx*spread,by2=tp[1]+tpD[1]*bend2+nyv*spread;
+          d='M'+sp[0]+','+sp[1]+' C'+bx1+','+by1+' '+bx2+','+by2+' '+tp[0]+','+tp[1];
+        } else {
+          d=ptsToPath(spreadPts(pts,spread));
+        }
       }
     }
-    // 세대 하이라이트: 루트 노드와 직접 연결된 wire는 빨간색
-    var hl=genRootId&&(edge.source===genRootId||edge.target===genRootId);
-    var strokeColor=hl?'#ef4444':'#666';
+
     var g=document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('class','ng-eg');
     var path=document.createElementNS('http://www.w3.org/2000/svg','path');

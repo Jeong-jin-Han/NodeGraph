@@ -1,17 +1,17 @@
-"use strict";var oe=Object.create;var B=Object.defineProperty;var ie=Object.getOwnPropertyDescriptor;var ae=Object.getOwnPropertyNames;var se=Object.getPrototypeOf,de=Object.prototype.hasOwnProperty;var le=(e,t)=>{for(var r in t)B(e,r,{get:t[r],enumerable:!0})},z=(e,t,r,n)=>{if(t&&typeof t=="object"||typeof t=="function")for(let o of ae(t))!de.call(e,o)&&o!==r&&B(e,o,{get:()=>t[o],enumerable:!(n=ie(t,o))||n.enumerable});return e};var T=(e,t,r)=>(r=e!=null?oe(se(e)):{},z(t||!e||!e.__esModule?B(r,"default",{value:e,enumerable:!0}):r,e)),ce=e=>z(B({},"__esModule",{value:!0}),e);var Se={};le(Se,{activate:()=>Ie,deactivate:()=>ke});module.exports=ce(Se);var h=T(require("vscode"));var c=T(require("vscode")),Q=T(require("path"));var I=T(require("vscode"));function Y(e){let t=I.Uri.joinPath(e,".."),r=e.path.split("/").pop()?.replace(/\.nodegraph\.json$/,"")??"graph";return I.Uri.joinPath(t,`.${r}-imgs`)}function pe(e,t,r){let n=I.Uri.joinPath(Y(t),r);return e.asWebviewUri(n).toString()}var q=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;function j(e,t,r){let n={},o=s=>{s&&!n[s]&&(n[s]=pe(e,t,s))};for(let s of r.nodes){q.lastIndex=0;let l;for(;(l=q.exec(s.content??""))!==null;)o(l[1])}for(let s of r.canvasImages??[])o(s.filename);return n}async function V(e,t,r,n="png"){let o=Y(t);try{await I.workspace.fs.createDirectory(o)}catch{}let s=`img_${Date.now()}.${n}`,l=I.Uri.joinPath(o,s);return await I.workspace.fs.writeFile(l,Buffer.from(r,"base64")),{filename:s,webviewUri:e.asWebviewUri(l).toString()}}async function K(e,t){let r=I.Uri.joinPath(Y(e),t);try{await I.workspace.fs.delete(r)}catch{}}function x(e){return e.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function ue(e){let t=e.trim().replace("#",""),r=t.length===3?t.split("").map(n=>n+n).join(""):t;return/^[0-9a-fA-F]{6}$/.test(r)?{r:255-parseInt(r.slice(0,2),16),g:255-parseInt(r.slice(2,4),16),b:255-parseInt(r.slice(4,6),16)}:null}var he=e=>e.replace(/[^a-zA-Z0-9_-]/g,"_");function $(e){return/^\s*\|/.test(e)&&e.indexOf("|",1)!==-1}function X(e){return/^\s*\|[\s\-:|]+\|\s*$/.test(e)&&!/[a-zA-Z0-9]/.test(e)}function J(e){return e.replace(/^\s*\|/,"").replace(/\|\s*$/,"").split("|").map(t=>t.trim())}function ge(e){if(!e)return[{type:"text",text:"",startChar:0,endChar:0}];let t=e.split(`
-`),r=[],n=0,o=0,s=l=>t[l].length+(l<t.length-1?1:0);for(;n<t.length;)if($(t[n])&&n+1<t.length&&X(t[n+1])){let u=o,i=[];for(;n<t.length&&$(t[n]);)i.push(t[n]),o+=s(n),n++;i.length>=3?r.push({type:"table",headers:J(i[0]),rows:i.slice(2).map(J),startChar:u,endChar:o}):r.push({type:"text",text:i.join(`
-`),startChar:u,endChar:o})}else{let u=o,i=[];for(;n<t.length&&!($(t[n])&&n+1<t.length&&X(t[n+1]));)i.push(t[n]),o+=s(n),n++;r.push({type:"text",text:i.join(`
-`),startChar:u,endChar:o})}return r}function G(e){let t=e.split(`
-`);for(let r=0;r+1<t.length;r++)if($(t[r])&&X(t[r+1]))return!0;return!1}function fe(e){return x(e).replace(/\\\$/g,()=>'<span class="ng-cur">$</span>')}function L(e){return fe(e).replace(/\*\*(.+?)\*\*/g,'<strong style="font-size:1.1em">$1</strong>')}function H(e,t){let r=/\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g,n="",o=0,s;for(;(s=r.exec(e))!==null;){s.index>o&&(n+=L(e.slice(o,s.index)));let l=s[1],u=s[2],i=s[3],d=u&&i?` width="${u}" height="${i}"`:"",p=t[l];n+=p?`<img class="ng-img${d?" ng-img-sized":""}" src="${p}"${d} alt="${x(l)}" onclick="showLightbox(this.src)" title="Click to enlarge">`:`<span class="ng-img-missing">${x(l)}</span>`,o=s.index+s[0].length}return o<e.length&&(n+=L(e.slice(o))),n}function ve(e,t){let r=e.headers.map(o=>`<th>${H(o,t)}</th>`).join(""),n=e.rows.map(o=>`<tr>${o.map(s=>`<td>${H(s,t)}</td>`).join("")}</tr>`).join("");return`<div class="ng-table-wrap"><table class="ng-table"><thead><tr>${r}</tr></thead><tbody>${n}</tbody></table></div>`}function me(e,t,r,n,o){let s=t?.color??"#888",l=t?.shape==="rounded"?"22px":"2px",u=x(t?.label??e.template),i=Math.round(e.position.x+r),d=Math.round(e.position.y+n),p="",a=e.content??"";if(G(a)){let v=ge(a);p+='<div class="ng-content">';for(let C of v)C.type==="table"?p+=ve(C,o):C.text&&(p+=`<div class="ng-seg">${H(C.text,o).replace(/\n/g,"<br>")}</div>`);p+="</div>"}else a&&(p+=`<div class="ng-content">${H(a,o).replace(/\n/g,"<br>")}</div>`);if(e.original){let v=x(e.original.title??"Original"),C=e.originalExpanded?" open":"";p+=`<details class="ng-original"${C}><summary>${v}${e.original.location?` <span class="ng-loc">${x(e.original.location)}</span>`:""}</summary>
-<div class="ng-orig-text">${L(e.original.text).replace(/\n/g,"<br>")}</div></details>`}for(let v of e.toggleItems??[])p+=`<details class="ng-toggle" data-toggle-id="${x(v.id)}"${v.expanded?" open":""}><summary>${x(v.title||"(untitled)")}</summary>
-<div class="ng-toggle-body">${L(v.content).replace(/\n/g,"<br>")}</div></details>`;e.links.length&&(p+=`<div class="ng-links">${e.links.map(v=>{let C=v.type==="url"?"\u{1F517}":v.type==="pdf"?"\u{1F4C4}":v.type==="obsidian"?"\u{1F7E3}":"\u2B21";return`<a class="ng-link"${v.type==="url"||v.type==="pdf"?` href="${x(v.target)}" target="_blank"`:""}>${C} ${x(v.label||v.target)}</a>`}).join("")}</div>`);let f=!!p,m=e.contentExpanded?"":' style="display:none"',k=e.children.length?` data-children="${e.children.join(",")}"`:"",S=G(a)?" ng-has-table":"",M=/\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g,w=0,A;for(;(A=M.exec(a))!==null;)w=Math.max(w,Number(A[1]));let g=w>0?G(a)?w+280:w+32:0,D=Math.max(e.nodeWidth??0,432,g),R=[D>432?`min-width:${D}px`:"",e.nodeHeight&&e.contentExpanded?`min-height:${e.nodeHeight}px`:""].filter(Boolean).join(";"),O=e.nodeHeight?` data-min-h="${e.nodeHeight}"`:"";return`<div class="ng-node${S}" id="node-${x(e.id)}"${k}${O} style="--color:${s};border-radius:${l};left:${i}px;top:${d}px${R?";"+R:""}">
+"use strict";var oe=Object.create;var B=Object.defineProperty;var ie=Object.getOwnPropertyDescriptor;var ae=Object.getOwnPropertyNames;var se=Object.getPrototypeOf,de=Object.prototype.hasOwnProperty;var le=(e,t)=>{for(var r in t)B(e,r,{get:t[r],enumerable:!0})},z=(e,t,r,n)=>{if(t&&typeof t=="object"||typeof t=="function")for(let o of ae(t))!de.call(e,o)&&o!==r&&B(e,o,{get:()=>t[o],enumerable:!(n=ie(t,o))||n.enumerable});return e};var C=(e,t,r)=>(r=e!=null?oe(se(e)):{},z(t||!e||!e.__esModule?B(r,"default",{value:e,enumerable:!0}):r,e)),ce=e=>z(B({},"__esModule",{value:!0}),e);var Se={};le(Se,{activate:()=>Ie,deactivate:()=>ke});module.exports=ce(Se);var u=C(require("vscode"));var c=C(require("vscode")),Q=C(require("path"));var I=C(require("vscode"));function U(e){let t=I.Uri.joinPath(e,".."),r=e.path.split("/").pop()?.replace(/\.nodegraph\.json$/,"")??"graph";return I.Uri.joinPath(t,`.${r}-imgs`)}function pe(e,t,r){let n=I.Uri.joinPath(U(t),r);return e.asWebviewUri(n).toString()}var q=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g;function X(e,t,r){let n={},o=s=>{s&&!n[s]&&(n[s]=pe(e,t,s))};for(let s of r.nodes){q.lastIndex=0;let l;for(;(l=q.exec(s.content??""))!==null;)o(l[1])}for(let s of r.canvasImages??[])o(s.filename);return n}async function V(e,t,r,n="png"){let o=U(t);try{await I.workspace.fs.createDirectory(o)}catch{}let s=`img_${Date.now()}.${n}`,l=I.Uri.joinPath(o,s);return await I.workspace.fs.writeFile(l,Buffer.from(r,"base64")),{filename:s,webviewUri:e.asWebviewUri(l).toString()}}async function K(e,t){let r=I.Uri.joinPath(U(e),t);try{await I.workspace.fs.delete(r)}catch{}}function x(e){return e.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function he(e){let t=e.trim().replace("#",""),r=t.length===3?t.split("").map(n=>n+n).join(""):t;return/^[0-9a-fA-F]{6}$/.test(r)?{r:255-parseInt(r.slice(0,2),16),g:255-parseInt(r.slice(2,4),16),b:255-parseInt(r.slice(4,6),16)}:null}var ue=e=>e.replace(/[^a-zA-Z0-9_-]/g,"_");function $(e){return/^\s*\|/.test(e)&&e.indexOf("|",1)!==-1}function G(e){return/^\s*\|[\s\-:|]+\|\s*$/.test(e)&&!/[a-zA-Z0-9]/.test(e)}function J(e){return e.replace(/^\s*\|/,"").replace(/\|\s*$/,"").split("|").map(t=>t.trim())}function fe(e){if(!e)return[{type:"text",text:"",startChar:0,endChar:0}];let t=e.split(`
+`),r=[],n=0,o=0,s=l=>t[l].length+(l<t.length-1?1:0);for(;n<t.length;)if($(t[n])&&n+1<t.length&&G(t[n+1])){let h=o,i=[];for(;n<t.length&&$(t[n]);)i.push(t[n]),o+=s(n),n++;i.length>=3?r.push({type:"table",headers:J(i[0]),rows:i.slice(2).map(J),startChar:h,endChar:o}):r.push({type:"text",text:i.join(`
+`),startChar:h,endChar:o})}else{let h=o,i=[];for(;n<t.length&&!($(t[n])&&n+1<t.length&&G(t[n+1]));)i.push(t[n]),o+=s(n),n++;r.push({type:"text",text:i.join(`
+`),startChar:h,endChar:o})}return r}function j(e){let t=e.split(`
+`);for(let r=0;r+1<t.length;r++)if($(t[r])&&G(t[r+1]))return!0;return!1}function ge(e){return x(e).replace(/\\\$/g,()=>'<span class="ng-cur">$</span>')}function H(e){return ge(e).replace(/\*\*(.+?)\*\*/g,'<strong style="font-size:1.1em">$1</strong>')}function L(e,t){let r=/\[\[IMG:([^:\]]+)(?::(\d+)x(\d+))?\]\]/g,n="",o=0,s;for(;(s=r.exec(e))!==null;){s.index>o&&(n+=H(e.slice(o,s.index)));let l=s[1],h=s[2],i=s[3],d=h&&i?` width="${h}" height="${i}"`:"",p=t[l];n+=p?`<img class="ng-img${d?" ng-img-sized":""}" src="${p}"${d} alt="${x(l)}" onclick="showLightbox(this.src)" title="Click to enlarge">`:`<span class="ng-img-missing">${x(l)}</span>`,o=s.index+s[0].length}return o<e.length&&(n+=H(e.slice(o))),n}function me(e,t){let r=e.headers.map(o=>`<th>${L(o,t)}</th>`).join(""),n=e.rows.map(o=>`<tr>${o.map(s=>`<td>${L(s,t)}</td>`).join("")}</tr>`).join("");return`<div class="ng-table-wrap"><table class="ng-table"><thead><tr>${r}</tr></thead><tbody>${n}</tbody></table></div>`}function ve(e,t,r,n,o){let s=t?.color??"#888",l=t?.shape==="rounded"?"22px":"2px",h=x(t?.label??e.template),i=Math.round(e.position.x+r),d=Math.round(e.position.y+n),p="",a=e.content??"";if(j(a)){let m=fe(a);p+='<div class="ng-content">';for(let M of m)M.type==="table"?p+=me(M,o):M.text&&(p+=`<div class="ng-seg">${L(M.text,o).replace(/\n/g,"<br>")}</div>`);p+="</div>"}else a&&(p+=`<div class="ng-content">${L(a,o).replace(/\n/g,"<br>")}</div>`);if(e.original){let m=x(e.original.title??"Original"),M=e.originalExpanded?" open":"";p+=`<details class="ng-original"${M}><summary>${m}${e.original.location?` <span class="ng-loc">${x(e.original.location)}</span>`:""}</summary>
+<div class="ng-orig-text">${H(e.original.text).replace(/\n/g,"<br>")}</div></details>`}for(let m of e.toggleItems??[])p+=`<details class="ng-toggle" data-toggle-id="${x(m.id)}"${m.expanded?" open":""}><summary>${x(m.title||"(untitled)")}</summary>
+<div class="ng-toggle-body">${H(m.content).replace(/\n/g,"<br>")}</div></details>`;e.links.length&&(p+=`<div class="ng-links">${e.links.map(m=>{let M=m.type==="url"?"\u{1F517}":m.type==="pdf"?"\u{1F4C4}":m.type==="obsidian"?"\u{1F7E3}":"\u2B21";return`<a class="ng-link"${m.type==="url"||m.type==="pdf"?` href="${x(m.target)}" target="_blank"`:""}>${M} ${x(m.label||m.target)}</a>`}).join("")}</div>`);let g=!!p,v=e.contentExpanded?"":' style="display:none"',k=e.children.length?` data-children="${e.children.join(",")}"`:"",S=j(a)?" ng-has-table":"",N=/\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g,w=0,A;for(;(A=N.exec(a))!==null;)w=Math.max(w,Number(A[1]));let f=w>0?j(a)?w+280:w+32:0,D=Math.max(e.nodeWidth??0,432,f),R=[D>432?`min-width:${D}px`:"",e.nodeHeight&&e.contentExpanded?`min-height:${e.nodeHeight}px`:""].filter(Boolean).join(";"),O=e.nodeHeight?` data-min-h="${e.nodeHeight}"`:"";return`<div class="ng-node${S}" id="node-${x(e.id)}"${k}${O} style="--color:${s};border-radius:${l};left:${i}px;top:${d}px${R?";"+R:""}">
   <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
-    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,${s} 20%,transparent);color:${s}">${u}</span>
-    ${f?`<span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">${x(e.title)}</span>`:`<span class="ng-title">${x(e.title)}</span>`}
+    <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,${s} 20%,transparent);color:${s}">${h}</span>
+    ${g?`<span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">${x(e.title)}</span>`:`<span class="ng-title">${x(e.title)}</span>`}
   </div>
-  ${f?`<div class="ng-body"${m}${e.fontSize?` style="font-size:${e.fontSize}px"`:""}>${p}</div>`:""}
-</div>`}function Z(e,t={}){let r=1/0,n=1/0;for(let a of e.nodes)r=Math.min(r,a.position.x),n=Math.min(n,a.position.y);isFinite(r)||(r=0,n=0);let o=-r+100,s=-n+100,l=e.nodes.map(a=>me(a,e.nodeTemplates[a.template],o,s,t)).join(`
-`),u=JSON.stringify(e.nodes.map(a=>({id:a.id,lx:Math.round(a.position.x+o),ly:Math.round(a.position.y+s),children:a.children??[],template:a.template,contentExpanded:a.contentExpanded,isMain:a.template==="main_topic",nodeHeight:a.nodeHeight??null,naturalY:Math.round((a.nodeNaturalY??a.position.y)+s),title:a.title,content:a.content??"",originalTitle:a.original?.title??"",originalText:a.original?.text??"",toggles:(a.toggleItems??[]).map(f=>({id:f.id,title:f.title,content:f.content}))}))),i=JSON.stringify(e.edges.map(a=>({source:a.source,target:a.target,type:a.type,label:a.label||""}))),d=JSON.stringify(Object.fromEntries(Object.entries(e.nodeTemplates).map(([a,f])=>[a,f.label]))),p=Object.entries(e.nodeTemplates).map(([a,f])=>{let m=ue(f.color),k=m?`rgb(${m.r},${m.g},${m.b})`:"#ff3b30",S=m?`rgba(${m.r},${m.g},${m.b},0.18)`:"rgba(255,59,48,0.18)";return`::highlight(ng-hit-${he(a)}){color:${k};background-color:${S};text-decoration:underline}`}).join(`
+  ${g?`<div class="ng-body"${v}${e.fontSize?` style="font-size:${e.fontSize}px"`:""}>${p}</div>`:""}
+</div>`}function Z(e,t={}){let r=1/0,n=1/0;for(let a of e.nodes)r=Math.min(r,a.position.x),n=Math.min(n,a.position.y);isFinite(r)||(r=0,n=0);let o=-r+100,s=-n+100,l=e.nodes.map(a=>ve(a,e.nodeTemplates[a.template],o,s,t)).join(`
+`),h=JSON.stringify(e.nodes.map(a=>({id:a.id,lx:Math.round(a.position.x+o),ly:Math.round(a.position.y+s),children:a.children??[],template:a.template,contentExpanded:a.contentExpanded,isMain:a.template==="main_topic",nodeHeight:a.nodeHeight??null,naturalY:Math.round((a.nodeNaturalY??a.position.y)+s),title:a.title,content:a.content??"",originalTitle:a.original?.title??"",originalText:a.original?.text??"",toggles:(a.toggleItems??[]).map(g=>({id:g.id,title:g.title,content:g.content}))}))),i=JSON.stringify(e.edges.map(a=>({source:a.source,target:a.target,type:a.type,label:a.label||""}))),d=JSON.stringify(Object.fromEntries(Object.entries(e.nodeTemplates).map(([a,g])=>[a,g.label]))),p=Object.entries(e.nodeTemplates).map(([a,g])=>{let v=he(g.color),k=v?`rgb(${v.r},${v.g},${v.b})`:"#ff3b30",S=v?`rgba(${v.r},${v.g},${v.b},0.18)`:"rgba(255,59,48,0.18)";return`::highlight(ng-hit-${ue(a)}){color:${k};background-color:${S};text-decoration:underline}`}).join(`
 `);return`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -155,7 +155,7 @@ ${p}
   <span id="lightbox-close" onclick="closeLightbox()">\u2715</span>
 </div>
 <script>
-var NODES_DATA = ${u};
+var NODES_DATA = ${h};
 var EDGES = ${i};
 var NODE_TEMPLATES = ${d};
 var HEADER_H = 36;
@@ -451,6 +451,67 @@ function doCollapse() {
   }
 }
 
+// \uB4DC\uB86D\uB41C \uB178\uB4DC\uC758 raw \uC704\uCE58(lx/ly)\uB97C \uD615\uC81C\uB4E4 \uC0AC\uC774\uC5D0\uC11C \uC2E4\uC81C\uB85C \uC5B4\uB514 \uB5A8\uC5B4\uC84C\uB294\uC9C0\uC5D0 \uB9DE\uCDB0 \uB2E4\uC2DC
+// \uACC4\uC0B0\uD55C\uB2E4. onUp\uC774 \uADF8\uB0E5 "\uB4DC\uB86D\uB41C \uB80C\uB354 \uC88C\uD45C\uB97C \uADF8\uB300\uB85C \uC800\uC7A5"\uD558\uBA74, \uADF8 \uB80C\uB354 \uC88C\uD45C\uB294 raw \uC88C\uD45C\uC640
+// \uC804\uD600 \uB2E4\uB978 \uC88C\uD45C\uACC4(\uB808\uC774\uC544\uC6C3 \uC54C\uACE0\uB9AC\uC998\uC774 raw\uB97C \uB300\uD3ED \uC7AC\uBC30\uCE58\uD558\uB294 \uAC8C \uC774 \uC54C\uACE0\uB9AC\uC998\uC758 \uC874\uC7AC
+// \uC774\uC720)\uB77C \uD615\uC81C\uB4E4\uC758 raw ly \uBC94\uC704\uB97C \uC644\uC804\uD788 \uBC97\uC5B4\uB098\uB294 \uACBD\uC6B0\uAC00 \uD754\uD558\uACE0, \uADF8 \uACB0\uACFC \uB2E4\uC74C \uC7AC\uBC30\uCE58 \uB54C
+// \uD56D\uC0C1 \uB9E8 \uC704/\uB9E8 \uC544\uB798\uB85C \uD295\uAE30\uB294 \uAC83\uCC98\uB7FC \uBCF4\uC778\uB2E4(\uC5D0\uB514\uD130\uC5D0\uC11C\uB3C4 \uAC19\uC740 \uBC84\uADF8\uAC00 \uC788\uC5C8\uC74C). \uB4DC\uB86D \uC2DC\uC810\uC758
+// DOM \uC704\uCE58(\uD615\uC81C\uB4E4\uC740 \uC774 \uB4DC\uB798\uADF8 \uB3D9\uC548 \uD55C \uBC88\uB3C4 \uC548 \uC6C0\uC9C1\uC600\uC73C\uBBC0\uB85C \uC5EC\uC804\uD788 \uC815\uD655\uD55C \uBC30\uCE58 \uC0C1\uD0DC\uB97C
+// \uBC18\uC601\uD568)\uB97C \uAE30\uC900\uC73C\uB85C \uC5B4\uB290 \uB450 \uD615\uC81C \uC0AC\uC774\uC5D0 \uB193\uC600\uB294\uC9C0 \uCC3E\uC544 \uADF8 \uC0AC\uC774 \uAC12\uC73C\uB85C raw ly\uB97C \uB9DE\uCD98\uB2E4.
+function reconcileDroppedPosition(nodeId, nodeDatum) {
+  var nodeMap = {};
+  NODES_DATA.forEach(function(n) { nodeMap[n.id] = n; });
+  var tree = buildHopTreeJs();
+  var parentId = tree.parentOf[nodeId];
+  if (!parentId) return;
+
+  function findRootId(fromId) {
+    var cur = fromId, visited = {};
+    while (!visited[cur]) {
+      visited[cur] = true;
+      var n = nodeMap[cur];
+      if (!n) return cur;
+      if (n.isMain) return cur;
+      var p = tree.parentOf[cur];
+      if (!p) return cur;
+      cur = p;
+    }
+    return cur;
+  }
+  var root = nodeMap[findRootId(nodeId)];
+  function sideOfNode(n) { return (root && n.lx >= root.lx) ? 1 : -1; }
+  var draggedSide = sideOfNode(nodeDatum);
+
+  var sameSideSiblings = [];
+  NODES_DATA.forEach(function(n) {
+    if (n.id === nodeId) return;
+    if (tree.parentOf[n.id] === parentId && sideOfNode(n) === draggedSide) sameSideSiblings.push(n.id);
+  });
+  if (sameSideSiblings.length === 0) return;
+
+  var draggedRenderY = nodeDatum.ly;
+  var ordered = sameSideSiblings.map(function(sid) {
+    var el = document.getElementById('node-' + sid);
+    var ry = el ? (parseFloat(el.style.top) || 0) : nodeMap[sid].ly;
+    return { id: sid, renderY: ry };
+  }).sort(function(a, b) { return a.renderY - b.renderY; });
+
+  var belowIdx = -1;
+  for (var i = 0; i < ordered.length; i++) {
+    if (ordered[i].renderY > draggedRenderY) { belowIdx = i; break; }
+  }
+  var newY;
+  if (belowIdx === -1) newY = nodeMap[ordered[ordered.length - 1].id].ly + 1;
+  else if (belowIdx === 0) newY = nodeMap[ordered[0].id].ly - 1;
+  else newY = (nodeMap[ordered[belowIdx - 1].id].ly + nodeMap[ordered[belowIdx].id].ly) / 2;
+
+  // lx\uB3C4 \uB4DC\uB798\uADF8 \uC911 \uB80C\uB354 \uC88C\uD45C\uAC00 raw\uC5D0 \uC11E\uC5EC \uB4E4\uC5B4\uAC00 \uC624\uC5FC\uB410\uC744 \uC218 \uC788\uC73C\uBBC0\uB85C, \uAC19\uC740 side \uD615\uC81C\uC758
+  // raw lx\uB97C \uBE4C\uB824 \uBC14\uB85C\uC7A1\uB294\uB2E4(side \uC804\uD658\uCC98\uB7FC \uD615\uC81C\uAC00 \uC5C6\uB294 \uACBD\uC6B0\uB294 \uAC74\uB4DC\uB9AC\uC9C0 \uC54A\uC74C).
+  nodeDatum.lx = nodeMap[sameSideSiblings[0]].lx;
+  nodeDatum.ly = newY;
+  nodeDatum.naturalY = newY;
+}
+
 // Tag drag handle
 function onNodeTagMousedown(e, nodeEl) {
   e.stopPropagation();
@@ -480,8 +541,17 @@ function onNodeTagMousedown(e, nodeEl) {
     window.removeEventListener('mousemove', onMove);
     window.removeEventListener('mouseup', onUp);
     nodeEl.classList.remove('ng-dragging');
-    // \uB4DC\uB86D\uB41C \uB80C\uB354 \uC88C\uD45C\uB97C \uADF8\uB300\uB85C \uC800\uC7A5 \u2014 \uBC00\uB824\uC788\uB358 \uB178\uB4DC\uC5D0 delta\uB97C \uB354\uD558\uBA74 \uB4DC\uB86D \uC704\uCE58\uC640 \uC5B4\uAE0B\uB0A8
-    if (moved) { lastWasDrag = true; if (nodeDatum) { nodeDatum.lx = left0 + finalDX; nodeDatum.ly = top0 + finalDY; nodeDatum.naturalY = nodeDatum.ly; } setTimeout(recomputePositions, 0); }
+    // \uB4DC\uB86D\uB41C \uB80C\uB354 \uC88C\uD45C\uB97C \uC77C\uB2E8 \uADF8\uB300\uB85C \uC800\uC7A5\uD55C \uB4A4, \uD615\uC81C\uB4E4 \uC0AC\uC774 \uC2E4\uC81C \uC704\uCE58\uC5D0 \uB9DE\uCDB0 raw\uB85C
+    // \uC7AC\uD574\uC11D\uD55C\uB2E4(reconcileDroppedPosition \u2014 \uC704 \uCC38\uACE0, \uB80C\uB354 \uC88C\uD45C\uB97C raw\uC5D0 \uADF8\uB300\uB85C \uC4F0\uBA74 \uC548
+    // \uB418\uB294 \uC774\uC720).
+    if (moved) {
+      lastWasDrag = true;
+      if (nodeDatum) {
+        nodeDatum.lx = left0 + finalDX; nodeDatum.ly = top0 + finalDY; nodeDatum.naturalY = nodeDatum.ly;
+        reconcileDroppedPosition(nodeId, nodeDatum);
+      }
+      setTimeout(recomputePositions, 0);
+    }
   }
   window.addEventListener('mousemove', onMove);
   window.addEventListener('mouseup', onUp);
@@ -509,6 +579,15 @@ function recomputePositions() {
 
   var tree = buildHopTreeJs();
 
+  // main topic(\uBC31\uBCF8) \uAE30\uC900 \uC88C/\uC6B0 \u2014 \uC138\uB85C \uBC30\uCE58(\uC544\uB798)\uC640 \uAC00\uB85C \uC815\uB82C(Pass 4) \uC591\uCABD\uC5D0\uC11C \uC67C\uCABD/\uC624\uB978\uCABD
+  // \uC790\uC2DD\uC744 \uB3C5\uB9BD\uC801\uC73C\uB85C \uB2E4\uB8E8\uAE30 \uC704\uD574 \uBA3C\uC800 \uACC4\uC0B0\uD574\uB454\uB2E4.
+  var sideOf = {};
+  NODES_DATA.forEach(function(n) {
+    if (tree.depthOf[n.id] === 0) { sideOf[n.id] = 0; return; }
+    var root = nodeMap[tree.rootOf[n.id]];
+    sideOf[n.id] = n.lx >= root.lx ? 1 : -1;
+  });
+
   // \uAC01 \uBD80\uBAA8\uC758 \uC790\uC2DD\uB4E4\uC744 \uC800\uC7A5\uB41C \uC0C1\uB300 Y(\uB514\uC790\uC778 \uC758\uB3C4\uC0C1 \uC21C\uC11C) \uAE30\uC900\uC73C\uB85C \uC815\uB82C
   var childrenOf = {};
   NODES_DATA.forEach(function(n) {
@@ -523,13 +602,20 @@ function recomputePositions() {
     });
   });
 
-  // \uD615\uC81C \uADF8\uB8F9\uC744 \uBD80\uBAA8\uC758 \uC6D0\uB798 Y \uAE30\uC900 \uC704/\uC544\uB798\uB85C \uBD84\uB9AC
-  function splitByOriginalSide(parentId) {
+  // \uD615\uC81C \uADF8\uB8F9\uC744 \uBD80\uBAA8\uC758 \uC6D0\uB798 Y \uAE30\uC900 \uC704/\uC544\uB798\uB85C, \uADF8\uB9AC\uACE0 \uC88C/\uC6B0(side)\uB85C \uBD84\uB9AC\uD55C\uB2E4. \uC67C\uCABD/\uC624\uB978\uCABD
+  // \uC790\uC2DD\uC740 \uC11C\uB85C \uB2E4\uB978 X\uC5D0 \uADF8\uB824\uC838 \uC138\uB85C \uACF5\uAC04\uC744 \uC808\uB300 \uACF5\uC720\uD558\uC9C0 \uC54A\uC73C\uBBC0\uB85C \uB3C5\uB9BD\uC801\uC73C\uB85C \uACC4\uC0B0\uD574\uC57C
+  // \uD55C\uCABD\uC774 \uCEE4\uC9C8 \uB54C \uBC18\uB300\uCABD \uBD84\uAE30\uC810\uAE4C\uC9C0 \uAC19\uC774 \uBC00\uB9AC\uB294 \uAC78 \uB9C9\uB294\uB2E4. above \uBC30\uC5F4\uC740 reverse\uD574\uC11C
+  // "\uBD80\uBAA8\uC640 \uAC00\uC7A5 \uAC00\uAE4C\uC6B4 \uAC83\uBD80\uD130" \uC21C\uC11C\uB85C \uB9DE\uCD98\uB2E4 \u2014 kids\uB294 \uC0C1\uB300 Y \uC624\uB984\uCC28\uC21C \uC815\uB82C\uC774\uB77C below
+  // \uADF8\uB8F9(\uBD80\uBAA8\uC5D0\uC11C \uBA40\uC5B4\uC9C0\uB294 \uBC29\uD5A5\uC73C\uB85C \uC21C\uC11C\uB300\uB85C \uC9C4\uD589)\uC5D4 \uADF8\uB300\uB85C \uB9DE\uC9C0\uB9CC, above \uADF8\uB8F9\uC740 \uAC19\uC740
+  // \uC9C4\uD589 \uBC29\uD5A5(\uC704\uB85C \uBA40\uC5B4\uC9D0)\uC778\uB370 \uC624\uB984\uCC28\uC21C\uC774\uBA74 \uAC00\uC7A5 \uBA3C \uC790\uC2DD\uC774 \uBC30\uC5F4 \uB9E8 \uC55E\uC774\uB77C \uC624\uD788\uB824 \uBD80\uBAA8\uC640
+  // \uAC00\uC7A5 \uAC00\uAE5D\uAC8C \uBC30\uCE58\uB418\uACE0 \uADF8\uB2E4\uC74C\uC774 \uB354 \uBA40\uB9AC \uBC00\uB9AC\uB294 \uC2DD\uC73C\uB85C \uC2DC\uAC01\uC801 \uC21C\uC11C\uAC00 \uB4A4\uC9D1\uD78C\uB2E4.
+  function splitByOriginalSide(parentId, side) {
     var parent = nodeMap[parentId];
-    var kids = childrenOf[parentId] || [];
+    var kids = (childrenOf[parentId] || []).filter(function(k) { return sideOf[k] === side; });
+    var above = kids.filter(function(k) { return nodeMap[k].ly < parent.ly; }).reverse();
     return {
       below: kids.filter(function(k) { return nodeMap[k].ly >= parent.ly; }),
-      above: kids.filter(function(k) { return nodeMap[k].ly < parent.ly; }),
+      above: above,
     };
   }
 
@@ -553,18 +639,49 @@ function recomputePositions() {
     }
     return total;
   }
+
+  // above+below \uBE14\uB85D\uC744 \uBD80\uBAA8 \uC911\uC2EC\uC5D0 \uB9DE\uCD94\uAE30 \uC704\uD55C \uBD84\uAE30\uC810 \uC774\uB3D9\uB7C9(shift). \uC774\uC0C1\uC801\uC73C\uB85C\uB294
+  // (belowSize-aboveSize)/2\uB9CC\uD07C \uC62E\uAE30\uBA74 \uBE14\uB85D \uC804\uCCB4\uAC00 \uC815\uD655\uD788 \uBD80\uBAA8 \uC911\uC2EC\uC5D0 \uC624\uC9C0\uB9CC, \uC591\uCABD\uC5D0 \uB2E4
+  // \uD615\uC81C\uAC00 \uC788\uB294 \uC0C1\uD0DC\uC5D0\uC11C \uB450 \uADF8\uB8F9 \uD06C\uAE30 \uCC28\uC774\uAC00 \uD06C\uBA74(\uC608: 3:1 \uC774\uC0C1) \uADF8 \uC774\uB3D9\uB7C9\uC774 \uD070 \uCABD \uADF8\uB8F9\uC758
+  // "\uBD80\uBAA8\uC640 \uAC00\uC7A5 \uAC00\uAE4C\uC6B4 \uC790\uC2DD"\uC744 \uBD80\uBAA8 \uC911\uC2EC \uBC18\uB300\uD3B8\uC73C\uB85C \uBC00\uC5B4\uBC84\uB9B0\uB2E4(below\uC758 \uCCAB \uC790\uC2DD\uC774 \uBD80\uBAA8
+  // \uBCF4\uB2E4 \uC704\uC5D0 \uB80C\uB354\uB418\uB294 \uB4F1, \uC790\uC2DD\uC774 \uBD80\uBAA8\uB97C \uC2DC\uAC01\uC801\uC73C\uB85C \uB6F0\uC5B4\uB118\uB294 \uBC84\uADF8). \uB450 \uADF8\uB8F9\uC774 \uB2E4 \uC788\uC744
+  // \uB54C\uB9CC, "\uB354 \uD070 \uCABD\uC758 \uCCAB \uC790\uC2DD\uC774 \uBD80\uBAA8 \uC911\uC2EC\uC744 \uB118\uC9C0 \uC54A\uB294 \uD55C\uB3C4"\uB85C \uC774\uB3D9\uB7C9\uC744 clamp\uD55C\uB2E4.
+  function splitShift(id, side) {
+    var node = nodeMap[id];
+    var split = splitByOriginalSide(id, side);
+    var above = split.above, below = split.below;
+    var belowSize = stackSize(below, node);
+    var aboveSize = stackSize(above, node);
+    var shift = (belowSize - aboveSize) / 2;
+    if (above.length > 0 && below.length > 0) {
+      if (shift > 0) {
+        var firstBelow = nodeMap[below[0]];
+        var firstBelowInfo = layoutInfo(below[0]);
+        shift = Math.min(shift, gapFor(node, firstBelow) + firstBelowInfo.above);
+      } else if (shift < 0) {
+        var firstAbove = nodeMap[above[0]];
+        var firstAboveInfo = layoutInfo(above[0]);
+        shift = Math.max(shift, -(gapFor(node, firstAbove) + firstAboveInfo.below));
+      }
+    }
+    return { above: above, below: below, belowSize: belowSize, aboveSize: aboveSize, shift: shift };
+  }
+
   function layoutInfo(id) {
     if (infoCache[id]) return infoCache[id];
     var node = nodeMap[id];
     var ownHalf = getH(node) / 2;
-    var split = splitByOriginalSide(id);
-    var belowSize = stackSize(split.below, node);
-    var aboveSize = stackSize(split.above, node);
-    var oneSidedBelow = split.below.length > 0 && split.above.length === 0;
-    var oneSidedAbove = split.above.length > 0 && split.below.length === 0;
-    var aboveNeed = oneSidedBelow ? belowSize / 2 : oneSidedAbove ? aboveSize / 2 : aboveSize;
-    var belowNeed = oneSidedBelow ? belowSize / 2 : oneSidedAbove ? aboveSize / 2 : belowSize;
-    var info = { above: Math.max(ownHalf, aboveNeed), below: Math.max(ownHalf, belowNeed) };
+    // side\uBCC4\uB85C \uB3C5\uB9BD\uC801\uC73C\uB85C above+below \uBE14\uB85D\uC744 \uC7AC\uC13C\uD130\uB9C1\uD558\uBBC0\uB85C, \uC774 \uB178\uB4DC\uAC00 \uC790\uAE30 \uBD80\uBAA8\uC5D0\uAC8C
+    // \uBCF4\uACE0\uD558\uB294 "\uD544\uC694 \uACF5\uAC04"\uB3C4 side\uBCC4\uB85C \uB530\uB85C \uAD6C\uD574\uC11C(\uC67C\uCABD\xB7\uC624\uB978\uCABD\uC740 \uC138\uB85C \uACF5\uAC04\uC744 \uC548 \uACB9\uCE58\uBBC0\uB85C
+    // \uB354\uD558\uC9C0 \uC54A\uACE0 \uB354 \uB9CE\uC774 \uD544\uC694\uD55C \uCABD \uAE30\uC900) splitShift\uAC00 clamp\uD55C \uC2E4\uC81C shift\uB97C \uBC18\uC601\uD55C\uB2E4 \u2014
+    // \uC548 \uADF8\uB7EC\uBA74 assign()\uC774 \uC2E4\uC81C\uB85C \uB9CC\uB4DC\uB294 \uC704\uCE58\uC640 \uC5B4\uAE0B\uB098 \uB2E4\uB978 \uD074\uB7EC\uC2A4\uD130\uC640 \uACB9\uCE60 \uC218 \uC788\uB2E4.
+    var aboveReach = 0, belowReach = 0;
+    [1, -1].forEach(function(side) {
+      var s = splitShift(id, side);
+      aboveReach = Math.max(aboveReach, s.aboveSize + s.shift);
+      belowReach = Math.max(belowReach, s.belowSize - s.shift);
+    });
+    var info = { above: Math.max(ownHalf, aboveReach), below: Math.max(ownHalf, belowReach) };
     infoCache[id] = info;
     return info;
   }
@@ -574,30 +691,32 @@ function recomputePositions() {
   function assign(id, cy) {
     var node = nodeMap[id];
     centerY[id] = cy;
-    var split = splitByOriginalSide(id);
-    var below = split.below, above = split.above;
-    // hop-2+\uCC98\uB7FC \uC790\uC2DD\uC774 \uD55C\uCABD\uC5D0\uB9CC \uC788\uC73C\uBA74 \uADF8 \uC2A4\uD0DD \uC804\uCCB4\uB97C \uBD80\uBAA8 \uC911\uC2EC\uC5D0 \uB300\uCE6D\uC73C\uB85C \uBC30\uCE58
-    var belowStart = (below.length > 0 && above.length === 0) ? cy - stackSize(below, node) / 2 : cy;
-    var aboveStart = (above.length > 0 && below.length === 0) ? cy + stackSize(above, node) / 2 : cy;
+    // \uC67C\uCABD/\uC624\uB978\uCABD\uC744 \uC644\uC804\uD788 \uB3C5\uB9BD\uC801\uC73C\uB85C \uBC30\uCE58\uD55C\uB2E4 \u2014 stackSize\uAC00 \uAC19\uC740 side\uC758 \uD615\uC81C\uB07C\uB9AC\uB9CC
+    // \uB354\uD574\uC9C0\uBBC0\uB85C \uD55C\uCABD \uD06C\uAE30\uAC00 \uBC18\uB300\uCABD \uBD84\uAE30\uC810\uC5D0 \uC601\uD5A5\uC744 \uC8FC\uC9C0 \uC54A\uB294\uB2E4.
+    [1, -1].forEach(function(side) {
+      var s = splitShift(id, side);
+      var below = s.below, above = s.above;
+      var split = cy - s.shift;
 
-    var cursor = belowStart;
-    for (var i = 0; i < below.length; i++) {
-      var kid = nodeMap[below[i]];
-      var kInfo = layoutInfo(below[i]);
-      var prev = i === 0 ? node : nodeMap[below[i - 1]];
-      cursor += gapFor(prev, kid) + kInfo.above;
-      assign(below[i], cursor);
-      cursor += kInfo.below;
-    }
-    cursor = aboveStart;
-    for (var j = 0; j < above.length; j++) {
-      var kid2 = nodeMap[above[j]];
-      var kInfo2 = layoutInfo(above[j]);
-      var prev2 = j === 0 ? node : nodeMap[above[j - 1]];
-      cursor -= gapFor(prev2, kid2) + kInfo2.below;
-      assign(above[j], cursor);
-      cursor -= kInfo2.above;
-    }
+      var cursor = split;
+      for (var i = 0; i < below.length; i++) {
+        var kid = nodeMap[below[i]];
+        var kInfo = layoutInfo(below[i]);
+        var prev = i === 0 ? node : nodeMap[below[i - 1]];
+        cursor += gapFor(prev, kid) + kInfo.above;
+        assign(below[i], cursor);
+        cursor += kInfo.below;
+      }
+      cursor = split;
+      for (var j = 0; j < above.length; j++) {
+        var kid2 = nodeMap[above[j]];
+        var kInfo2 = layoutInfo(above[j]);
+        var prev2 = j === 0 ? node : nodeMap[above[j - 1]];
+        cursor -= gapFor(prev2, kid2) + kInfo2.below;
+        assign(above[j], cursor);
+        cursor -= kInfo2.above;
+      }
+    });
   }
 
   // \u2500\u2500 \uB8E8\uD2B8 \uC2DC\uD000\uC2F1: X \uBC94\uC704\uAC00 \uACB9\uCE58\uB294 \uB8E8\uD2B8\uB07C\uB9AC\uB9CC \uADF8\uB8F9\uC73C\uB85C \uBB36\uC5B4 \uC6D0\uB798 \uC21C\uC11C(Y)\uB300\uB85C \uBC30\uCE58 \u2500\u2500
@@ -646,19 +765,34 @@ function recomputePositions() {
 
   // \u2500\u2500 hop tier(\uAE4A\uC774)\uBCC4 X \uC815\uB82C \u2014 \uAC19\uC740 depth\uC758 \uBAA8\uB4E0 \uB178\uB4DC\uAC00 \uD56D\uC0C1 \uAC19\uC740 X\uC5D0\uC11C \uC2DC\uC791 \u2500\u2500
   var MIN_HOP_GAP = 750, COL_PAD = 60;
-  var sideOf = {};
-  NODES_DATA.forEach(function(n) {
-    if (tree.depthOf[n.id] === 0) { sideOf[n.id] = 0; return; }
-    var root = nodeMap[tree.rootOf[n.id]];
-    sideOf[n.id] = n.lx >= root.lx ? 1 : -1;
-  });
+  // main topic(\uBC31\uBCF8)\uB3C4 hop1/hop2\uCC98\uB7FC \uD558\uB098\uC758 \uC138\uB85C\uC904\uB85C \uC790\uB3D9 \uC815\uB82C \u2014 depth 0 \uB178\uB4DC\uB294 raw
+  // \uC88C\uD45C\uB97C \uADF8\uB300\uB85C \uC4F0\uC9C0 \uC54A\uACE0, main topic\uB4E4 \uC911 \uAC00\uC7A5 \uC67C\uCABD(raw x \uCD5C\uC18C\uAC12)\uC73C\uB85C \uC804\uBD80 \uD1B5\uC77C\uD55C\uB2E4.
+  // depth 0\uC5D0\uB294 main topic \uC678\uC5D0 \uC5F0\uACB0 \uB04A\uAE34 \uACE0\uC544 \uB178\uB4DC\uB3C4 \uC11E\uC774\uBBC0\uB85C n.isMain\uC73C\uB85C \uD544\uD130\uB9C1
+  // (\uACE0\uC544 \uB178\uB4DC\uB294 \uC6D0\uB798 \uC790\uC720 \uC88C\uD45C \uC720\uC9C0).
+  var mainTopicAnchorX = 0;
+  var mainTopicXs = NODES_DATA.filter(function(n) { return n.isMain; }).map(function(n) { return n.lx; });
+  if (mainTopicXs.length > 0) mainTopicAnchorX = Math.min.apply(null, mainTopicXs);
+
   var maxDepth = 0;
   NODES_DATA.forEach(function(n) { maxDepth = Math.max(maxDepth, tree.depthOf[n.id] || 0); });
+  // \uC804\uC5ED\uC5D0\uC11C \uAC00\uC7A5 \uB113\uC740 main topic \uD3ED \u2014 \uC5B4\uB290 main topic \uD558\uB098\uAC00 \uD45C \uB4F1\uC73C\uB85C \uB113\uC5B4\uC9C0\uBA74, \uADF8
+  // main topic \uC790\uC2E0\uC758 \uC67C\uCABD\xB7\uC624\uB978\uCABD hop1 \uAC04\uACA9\uC774 \uB611\uAC19\uC774 \uC720\uC9C0\uB418\uB294 \uAC83\uC740 \uBB3C\uB860(\uC624\uB978\uCABD \uBCC0\uB9CC
+  // \uB113\uC5B4\uC9C0\uBBC0\uB85C \uC624\uB978\uCABD \uACC4\uC0B0\uC5D0\uB9CC \uD544\uC694), \uB2E4\uB978(\uC548 \uB113\uC5B4\uC9C4) main topic\uB4E4\uC758 hop1\uB3C4 \uC804\uBD80 \uAC19\uC740
+  // \uB9CC\uD07C \uAC19\uC774 \uBC00\uB824\uC11C hop1 \uC5F4\uC774 \uBB38\uC11C \uC804\uCCB4\uC5D0\uC11C \uACC4\uC18D \uB098\uB780\uD788 \uC815\uB82C\uB3FC\uC57C \uD55C\uB2E4. "\uC774 \uBE0C\uB79C\uCE58 \uC790\uC2E0\uC758
+  // \uD3ED"\uC774 \uC544\uB2C8\uB77C "\uC804\uC5ED\uC5D0\uC11C \uC81C\uC77C \uB113\uC740 main topic\uC758 \uD3ED"\uC744 \uBAA8\uB4E0 \uBE0C\uB79C\uCE58\uC758 \uC624\uB978\uCABD \uC624\uD504\uC14B\uC5D0
+  // \uB611\uAC19\uC774 \uB354\uD55C\uB2E4 \u2014 \uD45C\uAC00 \uC5C6\uB294 \uBCF4\uD1B5 \uC0C1\uD669(\uBAA8\uB4E0 main topic \uD3ED\uC774 \uAC19\uC74C)\uC5D0\uC11C\uB294 \uC774 \uAC12\uC774 \uACE7 \uC790\uAE30
+  // \uD3ED\uACFC \uAC19\uC544\uC11C \uC88C\uC6B0 \uAC04\uACA9\uC774 \uC815\uD655\uD788 MIN_HOP_GAP\uC73C\uB85C \uB300\uCE6D\uC774\uB2E4. \uC67C\uCABD\uC740 main topic\uC774 \uC544\uBB34\uB9AC
+  // \uB113\uC5B4\uC838\uB3C4 \uC67C\uCABD \uBCC0 \uC790\uCCB4\uB294 \uC6C0\uC9C1\uC774\uC9C0 \uC54A\uC73C\uBBC0\uB85C \uD56D\uC0C1 \uACE0\uC815 MIN_HOP_GAP.
+  var globalWidestMainTopic = 0;
+  NODES_DATA.forEach(function(n) {
+    if (tree.depthOf[n.id] === 0) globalWidestMainTopic = Math.max(globalWidestMainTopic, getW(n));
+  });
   var colOffset = {};
   [1, -1].forEach(function(side) {
-    var offset = 0, prevMaxWidth = 0;
-    for (var d = 0; d <= maxDepth; d++) {
-      if (d > 0) offset += Math.max(MIN_HOP_GAP, prevMaxWidth + COL_PAD);
+    var offset = side === 1 ? globalWidestMainTopic + MIN_HOP_GAP : MIN_HOP_GAP;
+    var prevMaxWidth = 0;
+    for (var d = 1; d <= maxDepth; d++) {
+      if (d > 1) offset += Math.max(MIN_HOP_GAP, prevMaxWidth + COL_PAD);
       colOffset[d + ':' + side] = offset;
       var widest = 0;
       NODES_DATA.forEach(function(n) {
@@ -670,12 +804,22 @@ function recomputePositions() {
   var renderX = {};
   NODES_DATA.forEach(function(n) {
     var depth = tree.depthOf[n.id] || 0;
-    if (depth === 0) { renderX[n.id] = n.lx; return; }
+    if (depth === 0) { renderX[n.id] = n.isMain ? mainTopicAnchorX : n.lx; return; }
     var side = sideOf[n.id] || 1;
     var root = nodeMap[tree.rootOf[n.id]];
+    // root\uAC00 main topic\uC774\uBA74(\uD56D\uC0C1 \uADF8\uB807\uC9C4 \uC54A\uC74C \u2014 \uC5F0\uACB0 \uB04A\uAE34 \uACE0\uC544 \uB178\uB4DC\uB3C4 \uC790\uAE30 \uC790\uC190\uC758 root\uAC00
+    // \uB420 \uC218 \uC788\uC74C) raw \uC88C\uD45C\uAC00 \uC544\uB2C8\uB77C \uC704\uC5D0\uC11C \uD1B5\uC77C\uD55C mainTopicAnchorX\uB97C \uAE30\uC900 \uC0BC\uC544\uC57C, main
+    // topic \uC790\uC2E0\uC758 \uB80C\uB354 \uC704\uCE58\uC640 \uADF8 hop \uC790\uC2DD\uB4E4\uC758 \uB80C\uB354 \uC704\uCE58\uAC00 \uC11C\uB85C \uC5B4\uAE0B\uB098\uC9C0 \uC54A\uB294\uB2E4.
+    var rootX = root.isMain ? mainTopicAnchorX : root.lx;
     var offset = colOffset[depth + ':' + side];
     if (offset === undefined) offset = depth * MIN_HOP_GAP;
-    renderX[n.id] = root.lx + side * offset;
+    // offset\uC740 "root\uC640 \uAC00\uC7A5 \uAC00\uAE4C\uC6B4 \uCABD \uBAA8\uC11C\uB9AC"\uAE4C\uC9C0\uC758 \uAC70\uB9AC\uB2E4. side=1(\uC624\uB978\uCABD)\uC740 \uADF8 \uBAA8\uC11C\uB9AC\uAC00
+    // \uACE7 CSS left(\uCE74\uB4DC\uC758 \uC67C\uCABD \uBCC0)\uB77C \uADF8\uB300\uB85C \uC4F0\uBA74 \uB418\uC9C0\uB9CC, side=-1(\uC67C\uCABD)\uC740 root\uC640 \uAC00\uC7A5 \uAC00\uAE4C\uC6B4
+    // \uBAA8\uC11C\uB9AC\uAC00 \uCE74\uB4DC\uC758 \uC624\uB978\uCABD \uBCC0\uC774\uBBC0\uB85C, CSS left\uB97C \uAD6C\uD558\uB824\uBA74 \uAC70\uAE30\uC11C \uCE74\uB4DC \uB108\uBE44\uB9CC\uD07C \uB354 \uBE7C\uC57C
+    // \uD55C\uB2E4(\uC67C\uCABD \uD615\uC81C\uB4E4\uC758 "\uC67C\uCABD \uBCC0"\uB9CC \uC815\uB82C\uB418\uACE0 main topic\uACFC \uAC00\uAE4C\uC6B4 "\uC624\uB978\uCABD \uBCC0"\uC740 \uCE74\uB4DC
+    // \uB108\uBE44\uC5D0 \uB530\uB77C \uB4E4\uCB49\uB0A0\uCB49\uD574\uC9C0\uB294 \uAC78 \uB9C9\uAE30 \uC704\uD568).
+    var nearRootEdge = rootX + side * offset;
+    renderX[n.id] = side === 1 ? nearRootEdge : nearRootEdge - getW(n);
   });
 
   NODES_DATA.forEach(function(n) {
@@ -708,7 +852,16 @@ function buildHopTreeJs() {
     if (byChildren) return byChildren;
     var byEdge = null;
     EDGES.forEach(function(e) { if (!byEdge && e.target === nodeId) byEdge = e.source; });
-    return byEdge;
+    if (byEdge) return byEdge;
+    // \uD3EC\uD2B8\uB97C \uBC18\uB300 \uBC29\uD5A5(\uC0C8 \uB178\uB4DC \u2192 \uAE30\uC874 \uB178\uB4DC)\uC73C\uB85C \uB04C\uC5B4 \uB9CC\uB4E0 \uC5E3\uC9C0\uB294 source/target\uC774 \uB4A4\uBC14\uB010
+    // \uCC44\uB85C \uC800\uC7A5\uB3FC \uC788\uC744 \uC218 \uC788\uB2E4(source=\uC774 \uB178\uB4DC, target=main topic) \u2014 Canvas.tsx\uC758
+    // buildHopTree\uC640 \uB3D9\uC77C\uD558\uAC8C, \uC774\uB7F0 \uAE30\uC874 \uB370\uC774\uD130\uB3C4 \uC5EC\uAE30\uC11C \uC778\uC2DD\uD574\uC918\uC57C \uC5D0\uB514\uD130\uC640 \uAC19\uC740
+    // \uD2B8\uB9AC \uAD6C\uC870\uAC00 \uB098\uC628\uB2E4(\uC548 \uADF8\uB7EC\uBA74 \uC774 \uB178\uB4DC\uAC00 \uC798\uBABB \uB3C5\uB9BD \uB8E8\uD2B8\uB85C \uCDE8\uAE09\uB428).
+    var reversedToMain = null;
+    EDGES.forEach(function(e) {
+      if (!reversedToMain && e.source === nodeId && nodeById[e.target] && nodeById[e.target].isMain) reversedToMain = e.target;
+    });
+    return reversedToMain;
   }
   var isRoot = {}, parentOf = {};
   NODES_DATA.forEach(function(n) {
@@ -1060,8 +1213,6 @@ function routeEdgesGrid(reqs,rects){
   });
   return out;
 }
-function svgLine(x1,y1,x2,y2,stroke,sw){var l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('stroke',stroke);l.setAttribute('data-base-sw',sw);return l;}
-function svgCirc(cx,cy,r,fill){var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',cx);c.setAttribute('cy',cy);c.setAttribute('r',r);c.setAttribute('fill',fill);return c;}
 // \uD655\uB300(zoom>=100%)\uBA74 \uAE30\uBCF8 \uB450\uAED8, \uCD95\uC18C(zoom<100%)\uBA74 \uD654\uBA74\uC0C1 \uB450\uAED8\uAC00 \uC720\uC9C0\uB418\uB3C4\uB85D \uBC18\uBE44\uB840\uB85C
 // \uD0A4\uC6C0(\uC5D0\uB514\uD130\uC758 WireLayer.tsx\uC758 zc = zoom<1 ? 1/zoom : 1 \uACFC \uB3D9\uC77C \uADDC\uCE59). \uB808\uC774\uC544\uC6C3\uC774
 // \uC548 \uBC14\uB00C\uB294 \uC21C\uC218 \uC90C \uC870\uC791(wheel)\uC5D0\uC11C\uB294 \uACBD\uB85C\uB97C \uB2E4\uC2DC \uADF8\uB9AC\uC9C0 \uC54A\uACE0 \uC774\uBBF8 \uADF8\uB824\uC9C4 \uC694\uC18C\uB4E4\uC758
@@ -1081,61 +1232,6 @@ function drawEdges(fast) {
   var svg=document.getElementById('wire-svg');
   svg.querySelectorAll('.ng-eg').forEach(function(el){el.remove();});
 
-  // Group line edges by source for bus routing
-  var lineBySource={};
-  EDGES.forEach(function(e){
-    if(e.type!=='line') return;
-    if(!lineBySource[e.source]) lineBySource[e.source]=[];
-    lineBySource[e.source].push(e);
-  });
-
-  var busDrawn={};
-
-  // Bus routing: one source \u2192 multiple line targets all on the same side (right)
-  Object.keys(lineBySource).forEach(function(srcId){
-    var group=lineBySource[srcId];
-    if(group.length<2) return;
-    var srcEl=document.getElementById('node-'+srcId);
-    if(!srcEl) return;
-    var sr=getNodeRect(srcEl);
-    var targets=[];
-    group.forEach(function(e){
-      var tEl=document.getElementById('node-'+e.target);
-      if(!tEl) return;
-      targets.push({e:e,r:getNodeRect(tEl)});
-    });
-    if(targets.length<2) return;
-    // \uBAA8\uB4E0 \uD0C0\uAC9F\uC758 \uC67C\uCABD \uB05D\uC774 source \uC624\uB978\uCABD \uB05D + 40px \uC774\uC0C1\uC77C \uB54C\uB9CC bus (\uC5D0\uB514\uD130\uC640 \uC870\uAC74 \uD1B5\uC77C)
-    var allRight=targets.every(function(t){return t.r.x>sr.x+sr.w+40;});
-    if(!allRight) return;
-
-    var busX=sr.x+sr.w+Math.min.apply(null,targets.map(function(t){return t.r.x-(sr.x+sr.w);})) * 0.5;
-    var srcAnchorY=sr.cy;
-    var minTY=Math.min.apply(null,targets.map(function(t){return t.r.cy;}));
-    var maxTY=Math.max.apply(null,targets.map(function(t){return t.r.cy;}));
-    var busMinY=Math.min(srcAnchorY,minTY);
-    var busMaxY=Math.max(srcAnchorY,maxTY);
-
-    // \uC138\uB300 \uD558\uC774\uB77C\uC774\uD2B8: \uB8E8\uD2B8\uAC00 source\uAC70\uB098 \uD0C0\uAC9F \uC911 \uD558\uB098\uBA74 \uD2B8\uB801\uD06C(\uACF5\uC6A9 \uAD6C\uAC04)\uB3C4 \uBE68\uAC04\uC0C9
-    var srcSel=srcId===genRootId;
-    var groupHl=srcSel||targets.some(function(t){return t.e.target===genRootId;});
-    var trunkColor=groupHl?'#ef4444':'#888', trunkW=groupHl?'2.5':'1.5';
-
-    var g=document.createElementNS('http://www.w3.org/2000/svg','g');
-    g.setAttribute('class','ng-eg');
-    g.appendChild(svgLine(sr.x+sr.w,srcAnchorY,busX,srcAnchorY,trunkColor,trunkW));
-    g.appendChild(svgLine(busX,busMinY,busX,busMaxY,trunkColor,trunkW));
-    g.appendChild(svgCirc(sr.x+sr.w,srcAnchorY,4,trunkColor));
-    targets.forEach(function(t){
-      var tHl=srcSel||t.e.target===genRootId;
-      var branchColor=tHl?'#ef4444':'#888';
-      g.appendChild(svgLine(busX,t.r.cy,t.r.x,t.r.cy,branchColor,tHl?'2.5':'1.5'));
-      g.appendChild(svgCirc(t.r.x,t.r.cy,4,branchColor));
-      busDrawn[t.e.source+'-'+t.e.target]=true;
-    });
-    svg.appendChild(g);
-  });
-
   // \uB178\uB4DC rect \uCE90\uC2DC (\uC5E3\uC9C0 \uB77C\uC6B0\uD305 \uC7A5\uC560\uBB3C \uAC80\uC0AC\uC6A9 \u2014 drawEdges 1\uD68C\uB2F9 1\uD68C\uB9CC DOM \uC870\uD68C)
   var rectById={};
   NODES_DATA.forEach(function(n){
@@ -1143,12 +1239,32 @@ function drawEdges(fast) {
     if(el) rectById[n.id]=getNodeRect(el);
   });
 
-  // \uAC19\uC740 source\uC5D0\uC11C \uB098\uAC00\uAC70\uB098 \uAC19\uC740 target\uC73C\uB85C \uBAA8\uC774\uB294 \uBE44-\uBC84\uC2A4 \uC5E3\uC9C0 \uBD84\uC0B0 \uC624\uD504\uC14B (\uD569\uC0B0)
+  // hop \uC790\uC2DD(line) \uC5E3\uC9C0: \uBC84\uC2A4 \uB77C\uC6B0\uD305\uB3C4, A*/\uCEE4\uBE0C \uB77C\uC6B0\uD305\uB3C4 \uC5C6\uC774 \uADF8\uB0E5 \uD3C9\uBC94\uD55C \uC9C1\uC120
+  // (\uC5D0\uB514\uD130 WireLayer.tsx\uC640 \uB3D9\uC77C \u2014 \uC608\uC804\uC5D4 "\uAC19\uC740 source\uC5D0\uC11C \uB098\uAC00\uB294 line \uC5E3\uC9C0 \uC5EC\uB7FF\uC744
+  // \uC138\uB85C \uD2B8\uB801\uD06C\uB85C \uBB36\uB294 \uBC84\uC2A4 \uB77C\uC6B0\uD305"\uC774 \uC788\uC5C8\uB294\uB370, \uC5D0\uB514\uD130\uAC00 \uC774\uBBF8 \uADF8\uAC78 \uBC84\uB9AC\uACE0 \uC21C\uC218 \uC9C1\uC120\uC73C\uB85C
+  // \uBC14\uAFBC \uC9C0 \uC624\uB798\uB77C \uC5EC\uAE30\uB9CC \uC548 \uB530\uB77C\uC640 \uC788\uC5C8\uC74C). \uD3EC\uD2B8\uB294 \uD56D\uC0C1 \uC88C/\uC6B0\uB9CC \uAC15\uC81C \u2014 getBestPorts\uCC98\uB7FC
+  // top/bottom\uAE4C\uC9C0 \uC720\uD074\uB9AC\uB4DC \uCD5C\uC19F\uAC12\uC73C\uB85C \uACE0\uB974\uBA74, \uD0C0\uAC9F\uC774 \uBD80\uBAA8 \uC911\uC2EC\uC5D0\uC11C \uC218\uC9C1\uC73C\uB85C \uB9CE\uC774
+  // \uB5A8\uC5B4\uC9C4 \uD615\uC81C \uD558\uB098\uB9CC \uD3EC\uD2B8\uAC00 top/bottom\uC73C\uB85C \uB4A4\uC9D1\uD600 \uB2E4\uB978 \uD615\uC81C \uC120\uC744 \uAC00\uB85C\uC9C8\uB7EC \uC9C0\uB098\uAC00
+  // \uBC84\uB9AC\uB294 \uBB38\uC81C\uAC00 \uC788\uC5C8\uB2E4(\uC0AC\uC6A9\uC790\uAC00 export html \uC2A4\uD06C\uB9B0\uC0F7\uC73C\uB85C \uC7AC\uC9C0\uC801: "\uC120\uC774 \uC65C \uAE54\uB054\uD558\uAC8C
+  // \uC815\uB9AC\uB418\uC9C0 \uC54A\uC740 \uAC70\uC9C0" \u2014 \uCCAB main topic\uB9CC \uAE54\uB054\uD558\uACE0 \uB098\uBA38\uC9C0\uB294 \uC120\uC774 \uAD50\uCC28\uD574 \uBCF4\uC784).
+  function horizontalPorts(sr,tr){
+    var scx=sr.x+sr.w/2, tcx=tr.x+tr.w/2;
+    return tcx>=scx ? {sp:'right',tp:'left'} : {sp:'left',tp:'right'};
+  }
+  function portXY(r,name){
+    if(name==='right') return [r.x+r.w,r.cy];
+    if(name==='left') return [r.x,r.cy];
+    if(name==='bottom') return [r.cx,r.y+r.h];
+    return [r.cx,r.y];
+  }
+
+  // \uAC19\uC740 source\uC5D0\uC11C \uB098\uAC00\uAC70\uB098 \uAC19\uC740 target\uC73C\uB85C \uBAA8\uC774\uB294 \uBC31\uBCF8(arrow) \uC5E3\uC9C0 \uBD84\uC0B0 \uC624\uD504\uC14B(\uD569\uC0B0).
+  // hop \uC790\uC2DD(line)\uC740 \uC774\uC81C \uB77C\uC6B0\uD305 \uC5C6\uB294 \uACE0\uC815 \uC9C1\uC120\uC774\uB77C \uBD84\uC0B0\uC774 \uD544\uC694 \uC5C6\uC74C(\uC5D0\uB514\uD130\uC640 \uB3D9\uC77C \uC774\uC720).
   var spreadByIdx={};
   (function(){
     var bySrc={},byTgt={};
     EDGES.forEach(function(e,idx){
-      if(busDrawn[e.source+'-'+e.target]) return;
+      if(e.type!=='arrow') return;
       if(!rectById[e.source]||!rectById[e.target]) return;
       (bySrc[e.source]=bySrc[e.source]||[]).push(idx);
       (byTgt[e.target]=byTgt[e.target]||[]).push(idx);
@@ -1165,14 +1281,15 @@ function drawEdges(fast) {
     add(byTgt,function(i){return rectById[EDGES[i].source].cy;});
   })();
 
-  // \uADF8\uB9AC\uB4DC A* \uC804\uC5ED \uB77C\uC6B0\uD305 \u2014 \uB4DC\uB798\uADF8 \uC911(fast)\uC5D0\uB294 \uC2A4\uD0B5\uD558\uACE0 \uACBD\uB7C9 \uD734\uB9AC\uC2A4\uD2F1 \uC0AC\uC6A9.
+  // \uADF8\uB9AC\uB4DC A* \uC804\uC5ED \uB77C\uC6B0\uD305 \u2014 main topic \uBC31\uBCF8(arrow) \uC5E3\uC9C0\uB9CC \uB300\uC0C1(hop \uC790\uC2DD\uC740 \uACE0\uC815 \uC9C1\uC120\uC774\uB77C
+  // \uB77C\uC6B0\uD305 \uB300\uC0C1 \uC544\uB2D8, \uC5D0\uB514\uD130\uC640 \uB3D9\uC77C). \uB4DC\uB798\uADF8 \uC911(fast)\uC5D0\uB294 \uC2A4\uD0B5\uD558\uACE0 \uACBD\uB7C9 \uD734\uB9AC\uC2A4\uD2F1 \uC0AC\uC6A9.
   // \uB808\uC774\uC544\uC6C3\uC774 \uBC14\uB00C\uC9C0 \uC54A\uC740 \uC7AC\uD638\uCD9C(\uD558\uC774\uB77C\uC774\uD2B8 \uC0C9\uB9CC \uBCC0\uACBD \uB4F1)\uC740 \uCE90\uC2DC\uB97C \uC7AC\uC0AC\uC6A9\uD574 \uC989\uC2DC \uCC98\uB9AC
   var gridRoutes=null;
   if(!fast){
     if(routesDirty||!cachedRoutes){
       var reqs=[];
       EDGES.forEach(function(e,idx){
-        if(busDrawn[e.source+'-'+e.target]) return;
+        if(e.type!=='arrow') return;
         var sr3=rectById[e.source],tr3=rectById[e.target];
         if(!sr3||!tr3) return;
         var ports3=getBestPorts(sr3,tr3);
@@ -1189,48 +1306,55 @@ function drawEdges(fast) {
     gridRoutes=cachedRoutes;
   }
 
-  // Remaining edges: obstacle-avoiding curves
   EDGES.forEach(function(edge,edgeIdx){
-    if(busDrawn[edge.source+'-'+edge.target]) return;
     var sr2=rectById[edge.source], tr2=rectById[edge.target];
     if(!sr2||!tr2) return;
-    var ports=getBestPorts(sr2,tr2);
-    if(!ports) return;
-    var sp=ports.sp.p,spD=DIR[ports.sp.name],tp=ports.tp.p,tpD=DIR[ports.tp.name];
-    var srcP={x:sp[0],y:sp[1]},tgtP={x:tp[0],y:tp[1]};
-    var ddl=dlen(srcP,tgtP)||1;
-    var nx=-(tgtP.y-srcP.y)/ddl, nyv=(tgtP.x-srcP.x)/ddl;
-    var spread=spreadByIdx[edgeIdx]||0;
-    var gridPts=gridRoutes?gridRoutes[String(edgeIdx)]:null;
-    var d;
-    if(gridPts&&gridPts.length>2){
-      // \uADF8\uB9AC\uB4DC A* \uACBD\uB85C (\uB178\uB4DC \uD68C\uD53C + congestion \uBD84\uC0B0) + \uAC19\uC740 \uC18C\uC2A4/\uD0C0\uAC9F \uBB36\uC74C \uBD84\uC0B0
-      d=ptsToPath(spreadPts(gridPts,spread));
-    } else if(gridPts){
-      // \uC9C1\uC120 \uACBD\uB85C: \uAE30\uC874 bezier \uBAA8\uC591 \uC720\uC9C0 (spread\uB9CC\uD07C \uC81C\uC5B4\uC810\uC744 \uBC95\uC120 \uBC29\uD5A5 \uC774\uB3D9)
-      var bend=Math.min(ddl*.45,150);
-      var cx1=sp[0]+spD[0]*bend+nx*spread,cy1=sp[1]+spD[1]*bend+nyv*spread;
-      var cx2=tp[0]+tpD[0]*bend+nx*spread,cy2=tp[1]+tpD[1]*bend+nyv*spread;
-      d='M'+sp[0]+','+sp[1]+' C'+cx1+','+cy1+' '+cx2+','+cy2+' '+tp[0]+','+tp[1];
+
+    var d, sp, tp, strokeColor;
+    var hl=genRootId&&(edge.source===genRootId||edge.target===genRootId);
+    strokeColor=hl?'#ef4444':'#666';
+
+    if(edge.type!=='arrow'){
+      // hop \uC790\uC2DD: \uB77C\uC6B0\uD305/\uCEE4\uBE0C \uC5C6\uC774 \uC88C/\uC6B0 \uD3EC\uD2B8 \uC0AC\uC774 \uC9C1\uC120 \uADF8\uB300\uB85C
+      var hp=horizontalPorts(sr2,tr2);
+      sp=portXY(sr2,hp.sp); tp=portXY(tr2,hp.tp);
+      d='M'+sp[0]+','+sp[1]+' L'+tp[0]+','+tp[1];
     } else {
-      // \uB4DC\uB798\uADF8 \uC911(fast) \uB610\uB294 A* \uC2E4\uD328: \uACBD\uB7C9 \uC6B0\uD68C \uD734\uB9AC\uC2A4\uD2F1
-      var obstacles=[];
-      Object.keys(rectById).forEach(function(nid){
-        if(nid!==edge.source&&nid!==edge.target) obstacles.push(rectById[nid]);
-      });
-      var pts=routeAround(srcP,tgtP,obstacles);
-      if(pts.length===2){
-        var bend2=Math.min(ddl*.45,150);
-        var bx1=sp[0]+spD[0]*bend2+nx*spread,by1=sp[1]+spD[1]*bend2+nyv*spread;
-        var bx2=tp[0]+tpD[0]*bend2+nx*spread,by2=tp[1]+tpD[1]*bend2+nyv*spread;
-        d='M'+sp[0]+','+sp[1]+' C'+bx1+','+by1+' '+bx2+','+by2+' '+tp[0]+','+tp[1];
+      var ports=getBestPorts(sr2,tr2);
+      if(!ports) return;
+      sp=ports.sp.p; var spD=DIR[ports.sp.name]; tp=ports.tp.p; var tpD=DIR[ports.tp.name];
+      var srcP={x:sp[0],y:sp[1]},tgtP={x:tp[0],y:tp[1]};
+      var ddl=dlen(srcP,tgtP)||1;
+      var nx=-(tgtP.y-srcP.y)/ddl, nyv=(tgtP.x-srcP.x)/ddl;
+      var spread=spreadByIdx[edgeIdx]||0;
+      var gridPts=gridRoutes?gridRoutes[String(edgeIdx)]:null;
+      if(gridPts&&gridPts.length>2){
+        // \uADF8\uB9AC\uB4DC A* \uACBD\uB85C (\uB178\uB4DC \uD68C\uD53C + congestion \uBD84\uC0B0) + \uAC19\uC740 \uC18C\uC2A4/\uD0C0\uAC9F \uBB36\uC74C \uBD84\uC0B0
+        d=ptsToPath(spreadPts(gridPts,spread));
+      } else if(gridPts){
+        // \uC9C1\uC120 \uACBD\uB85C: \uAE30\uC874 bezier \uBAA8\uC591 \uC720\uC9C0 (spread\uB9CC\uD07C \uC81C\uC5B4\uC810\uC744 \uBC95\uC120 \uBC29\uD5A5 \uC774\uB3D9)
+        var bend=Math.min(ddl*.45,150);
+        var cx1=sp[0]+spD[0]*bend+nx*spread,cy1=sp[1]+spD[1]*bend+nyv*spread;
+        var cx2=tp[0]+tpD[0]*bend+nx*spread,cy2=tp[1]+tpD[1]*bend+nyv*spread;
+        d='M'+sp[0]+','+sp[1]+' C'+cx1+','+cy1+' '+cx2+','+cy2+' '+tp[0]+','+tp[1];
       } else {
-        d=ptsToPath(spreadPts(pts,spread));
+        // \uB4DC\uB798\uADF8 \uC911(fast) \uB610\uB294 A* \uC2E4\uD328: \uACBD\uB7C9 \uC6B0\uD68C \uD734\uB9AC\uC2A4\uD2F1
+        var obstacles=[];
+        Object.keys(rectById).forEach(function(nid){
+          if(nid!==edge.source&&nid!==edge.target) obstacles.push(rectById[nid]);
+        });
+        var pts=routeAround(srcP,tgtP,obstacles);
+        if(pts.length===2){
+          var bend2=Math.min(ddl*.45,150);
+          var bx1=sp[0]+spD[0]*bend2+nx*spread,by1=sp[1]+spD[1]*bend2+nyv*spread;
+          var bx2=tp[0]+tpD[0]*bend2+nx*spread,by2=tp[1]+tpD[1]*bend2+nyv*spread;
+          d='M'+sp[0]+','+sp[1]+' C'+bx1+','+by1+' '+bx2+','+by2+' '+tp[0]+','+tp[1];
+        } else {
+          d=ptsToPath(spreadPts(pts,spread));
+        }
       }
     }
-    // \uC138\uB300 \uD558\uC774\uB77C\uC774\uD2B8: \uB8E8\uD2B8 \uB178\uB4DC\uC640 \uC9C1\uC811 \uC5F0\uACB0\uB41C wire\uB294 \uBE68\uAC04\uC0C9
-    var hl=genRootId&&(edge.source===genRootId||edge.target===genRootId);
-    var strokeColor=hl?'#ef4444':'#666';
+
     var g=document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('class','ng-eg');
     var path=document.createElementNS('http://www.w3.org/2000/svg','path');
@@ -1616,7 +1740,7 @@ window.addEventListener('load', function() {
 });
 </script>
 </body>
-</html>`}var xe={main_topic:{label:"Main topic",color:"#4B8BBE",icon:"file-text",shape:"sharp"},method:{label:"Method",color:"#5C9E6E",icon:"cpu",shape:"sharp"},result:{label:"Result",color:"#9B59B6",icon:"bar-chart-2",shape:"sharp"},claim:{label:"Claim",color:"#E74C3C",icon:"alert-circle",shape:"sharp"},question:{label:"Question",color:"#E5A835",icon:"help-circle",shape:"rounded"},gap:{label:"Gap / Idea",color:"#1ABC9C",icon:"lightbulb",shape:"rounded"},reference:{label:"Reference",color:"#95A5A6",icon:"book-open",shape:"rounded"},memo:{label:"Memo",color:"#BDC3C7",icon:"edit-3",shape:"rounded"}};function F(e="New Graph"){let t=new Date().toISOString();return{version:"1.0.0",title:e,created:t,modified:t,nodeTemplates:xe,nodes:[],edges:[],viewport:{x:0,y:0,zoom:1}}}function _(){let e="",t="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";for(let r=0;r<32;r++)e+=t.charAt(Math.floor(Math.random()*t.length));return e}var b=T(require("vscode"));var U=class e{static{this.panels=new Map}static async openAndSearch(t,r,n,o){let s=r.toString(),l=e.panels.get(s);if(l){l.panel.reveal(b.ViewColumn.Beside,!0),l.ready?l.panel.webview.postMessage({type:"search",query:n,pageHint:o}):l.pending={query:n,pageHint:o};return}let u;try{u=await b.workspace.fs.readFile(r)}catch{b.window.showErrorMessage(`PDF\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4: ${r.fsPath}`);return}let i=b.window.createWebviewPanel("nodegraph.pdfViewer",r.path.split("/").pop()??"PDF",{viewColumn:b.ViewColumn.Beside,preserveFocus:!1},{enableScripts:!0,retainContextWhenHidden:!0,localResourceRoots:[b.Uri.joinPath(t.extensionUri,"dist")]}),d={panel:i,ready:!1,pending:{query:n,pageHint:o}};e.panels.set(s,d),i.iconPath=b.Uri.joinPath(t.extensionUri,"resources","icon-hires.png"),i.webview.html=e._getHtml(t,i.webview);let p=Buffer.from(u).toString("base64");i.webview.onDidReceiveMessage(a=>{a.type==="ready"&&(d.ready=!0,i.webview.postMessage({type:"load",pdfData:p,query:d.pending?.query,pageHint:d.pending?.pageHint}),d.pending=null)}),i.onDidDispose(()=>{e.panels.delete(s)})}static _getHtml(t,r){let n=r.asWebviewUri(b.Uri.joinPath(t.extensionUri,"dist","pdfviewer.js")),o=r.asWebviewUri(b.Uri.joinPath(t.extensionUri,"dist","pdfviewer.css")),s=r.asWebviewUri(b.Uri.joinPath(t.extensionUri,"dist","pdf.worker.min.mjs")),l=_();return`<!DOCTYPE html>
+</html>`}var xe={main_topic:{label:"Main topic",color:"#4B8BBE",icon:"file-text",shape:"sharp"},method:{label:"Method",color:"#5C9E6E",icon:"cpu",shape:"sharp"},result:{label:"Result",color:"#9B59B6",icon:"bar-chart-2",shape:"sharp"},claim:{label:"Claim",color:"#E74C3C",icon:"alert-circle",shape:"sharp"},question:{label:"Question",color:"#E5A835",icon:"help-circle",shape:"rounded"},gap:{label:"Gap / Idea",color:"#1ABC9C",icon:"lightbulb",shape:"rounded"},reference:{label:"Reference",color:"#95A5A6",icon:"book-open",shape:"rounded"},memo:{label:"Memo",color:"#BDC3C7",icon:"edit-3",shape:"rounded"}};function _(e="New Graph"){let t=new Date().toISOString();return{version:"1.0.0",title:e,created:t,modified:t,nodeTemplates:xe,nodes:[],edges:[],viewport:{x:0,y:0,zoom:1}}}function F(){let e="",t="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";for(let r=0;r<32;r++)e+=t.charAt(Math.floor(Math.random()*t.length));return e}var b=C(require("vscode"));var Y=class e{static{this.panels=new Map}static async openAndSearch(t,r,n,o){let s=r.toString(),l=e.panels.get(s);if(l){l.panel.reveal(b.ViewColumn.Beside,!0),l.ready?l.panel.webview.postMessage({type:"search",query:n,pageHint:o}):l.pending={query:n,pageHint:o};return}let h;try{h=await b.workspace.fs.readFile(r)}catch{b.window.showErrorMessage(`PDF\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4: ${r.fsPath}`);return}let i=b.window.createWebviewPanel("nodegraph.pdfViewer",r.path.split("/").pop()??"PDF",{viewColumn:b.ViewColumn.Beside,preserveFocus:!1},{enableScripts:!0,retainContextWhenHidden:!0,localResourceRoots:[b.Uri.joinPath(t.extensionUri,"dist")]}),d={panel:i,ready:!1,pending:{query:n,pageHint:o}};e.panels.set(s,d),i.iconPath=b.Uri.joinPath(t.extensionUri,"resources","icon-hires.png"),i.webview.html=e._getHtml(t,i.webview);let p=Buffer.from(h).toString("base64");i.webview.onDidReceiveMessage(a=>{a.type==="ready"&&(d.ready=!0,i.webview.postMessage({type:"load",pdfData:p,query:d.pending?.query,pageHint:d.pending?.pageHint}),d.pending=null)}),i.onDidDispose(()=>{e.panels.delete(s)})}static _getHtml(t,r){let n=r.asWebviewUri(b.Uri.joinPath(t.extensionUri,"dist","pdfviewer.js")),o=r.asWebviewUri(b.Uri.joinPath(t.extensionUri,"dist","pdfviewer.css")),s=r.asWebviewUri(b.Uri.joinPath(t.extensionUri,"dist","pdf.worker.min.mjs")),l=F();return`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -1655,7 +1779,7 @@ window.addEventListener('load', function() {
   <script nonce="${l}">window.__PDF_WORKER_URI__ = "${s}";</script>
   <script nonce="${l}" type="module" src="${n}"></script>
 </body>
-</html>`}};var N=class e{constructor(t){this.context=t;this._pendingSaves=new Set}static register(t){let r=new e(t);return c.window.registerCustomEditorProvider("nodegraph.editor",r,{webviewOptions:{retainContextWhenHidden:!0}})}static{this._activeWebview=null}static postToActive(t){e._activeWebview?.postMessage(t)}async resolveCustomTextEditor(t,r,n){r.iconPath=c.Uri.joinPath(this.context.extensionUri,"resources","icon-hires.png");let o=c.Uri.joinPath(t.uri,"..");r.webview.options={enableScripts:!0,localResourceRoots:[this.context.extensionUri,o]},r.webview.html=this._getHtmlForWebview(r.webview);let s=i=>{let d=t.getText();try{let p=d.trim()===""?F():JSON.parse(d),a=j(r.webview,t.uri,p);r.webview.postMessage({type:i,data:p,imageUris:a})}catch{}},l=r.webview.onDidReceiveMessage(async i=>{if(i.type==="ready")s("load");else if(i.type==="save"){let d=t.uri.toString();this._pendingSaves.add(d);try{let p=new c.WorkspaceEdit,a=new c.Range(t.positionAt(0),t.positionAt(t.getText().length));p.replace(t.uri,a,JSON.stringify(i.data,null,2)),await c.workspace.applyEdit(p),await t.save()}finally{this._pendingSaves.delete(d)}}else if(i.type==="openLink"){let d=i.link;if(d.type==="url")c.env.openExternal(c.Uri.parse(d.target));else if(d.type==="pdf"){let p=c.Uri.joinPath(c.Uri.joinPath(t.uri,".."),d.target);c.env.openExternal(p)}else d.type==="obsidian"&&c.env.openExternal(c.Uri.parse(d.target))}else if(i.type==="searchInPdf"){let d=c.Uri.joinPath(c.Uri.joinPath(t.uri,".."),i.pdfTarget);U.openAndSearch(this.context,d,i.query,i.pageHint)}else if(i.type==="exportHtml")try{let d=i.data,p=c.Uri.joinPath(t.uri,".."),a=Q.basename(t.uri.fsPath,".nodegraph.json"),f=c.Uri.joinPath(p,`.${a}-imgs`),m={},k=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g,S=async g=>{if(!(!g||m[g]))try{let D=c.Uri.joinPath(f,g),R=await c.workspace.fs.readFile(D),O=g.split(".").pop()?.toLowerCase()??"png",v=O==="jpg"||O==="jpeg"?"image/jpeg":O==="gif"?"image/gif":O==="webp"?"image/webp":"image/png";m[g]=`data:${v};base64,${Buffer.from(R).toString("base64")}`}catch{}};for(let g of d.nodes){k.lastIndex=0;let D;for(;(D=k.exec(g.content??""))!==null;)await S(D[1])}let M=Z(d,m),w=c.Uri.joinPath(p,`${a}.html`);await c.workspace.fs.writeFile(w,Buffer.from(M,"utf-8"));let A=await c.window.showInformationMessage(`HTML exported: ${a}.html`,"Open in Browser","Show in Explorer");A==="Open in Browser"?c.env.openExternal(w):A==="Show in Explorer"&&c.commands.executeCommand("revealFileInOS",w)}catch(d){c.window.showErrorMessage(`HTML export failed: ${d}`)}else if(i.type==="saveImage")try{let{filename:d,webviewUri:p}=await V(r.webview,t.uri,i.data,i.ext??"png");r.webview.postMessage({type:"imageSaved",nodeId:i.nodeId,filename:d,webviewUri:p})}catch(d){c.window.showErrorMessage(`Failed to save image: ${d}`)}else if(i.type==="deleteImageFile")await K(t.uri,i.filename);else if(i.type==="reload")try{let d=await c.workspace.fs.readFile(t.uri),p=Buffer.from(d).toString("utf-8"),a=JSON.parse(p),f=j(r.webview,t.uri,a);r.webview.postMessage({type:"load",data:a,imageUris:f})}catch{s("load")}else if(i.type==="openHelp"){let d=c.Uri.joinPath(this.context.extensionUri,"README.md");c.commands.executeCommand("markdown.showPreviewToSide",d.with({fragment:"features"}))}}),u=c.workspace.onDidChangeTextDocument(i=>{i.document.uri.toString()===t.uri.toString()&&(this._pendingSaves.has(t.uri.toString())||s("externalChange"))});e._activeWebview=r.webview,r.onDidChangeViewState(i=>{i.webviewPanel.active&&(e._activeWebview=r.webview,r.webview.postMessage({type:"focusCanvas"}))}),r.onDidDispose(()=>{l.dispose(),u.dispose(),e._activeWebview===r.webview&&(e._activeWebview=null)})}_getHtmlForWebview(t){let r=t.asWebviewUri(c.Uri.joinPath(this.context.extensionUri,"dist","webview.js")),n=t.asWebviewUri(c.Uri.joinPath(this.context.extensionUri,"dist","katex","katex.min.css")),o=_();return`<!DOCTYPE html>
+</html>`}};var T=class e{constructor(t){this.context=t;this._pendingSaves=new Set}static register(t){let r=new e(t);return c.window.registerCustomEditorProvider("nodegraph.editor",r,{webviewOptions:{retainContextWhenHidden:!0}})}static{this._activeWebview=null}static postToActive(t){e._activeWebview?.postMessage(t)}async resolveCustomTextEditor(t,r,n){r.iconPath=c.Uri.joinPath(this.context.extensionUri,"resources","icon-hires.png");let o=c.Uri.joinPath(t.uri,"..");r.webview.options={enableScripts:!0,localResourceRoots:[this.context.extensionUri,o]},r.webview.html=this._getHtmlForWebview(r.webview);let s=i=>{let d=t.getText();try{let p=d.trim()===""?_():JSON.parse(d),a=X(r.webview,t.uri,p);r.webview.postMessage({type:i,data:p,imageUris:a})}catch{}},l=r.webview.onDidReceiveMessage(async i=>{if(i.type==="ready")s("load");else if(i.type==="save"){let d=t.uri.toString();this._pendingSaves.add(d);try{let p=new c.WorkspaceEdit,a=new c.Range(t.positionAt(0),t.positionAt(t.getText().length));p.replace(t.uri,a,JSON.stringify(i.data,null,2)),await c.workspace.applyEdit(p),await t.save()}finally{this._pendingSaves.delete(d)}}else if(i.type==="openLink"){let d=i.link;if(d.type==="url")c.env.openExternal(c.Uri.parse(d.target));else if(d.type==="pdf"){let p=c.Uri.joinPath(c.Uri.joinPath(t.uri,".."),d.target);c.env.openExternal(p)}else d.type==="obsidian"&&c.env.openExternal(c.Uri.parse(d.target))}else if(i.type==="searchInPdf"){let d=c.Uri.joinPath(c.Uri.joinPath(t.uri,".."),i.pdfTarget);Y.openAndSearch(this.context,d,i.query,i.pageHint)}else if(i.type==="exportHtml")try{let d=i.data,p=c.Uri.joinPath(t.uri,".."),a=Q.basename(t.uri.fsPath,".nodegraph.json"),g=c.Uri.joinPath(p,`.${a}-imgs`),v={},k=/\[\[IMG:([^:\]]+)(?::[^\]]+)?\]\]/g,S=async f=>{if(!(!f||v[f]))try{let D=c.Uri.joinPath(g,f),R=await c.workspace.fs.readFile(D),O=f.split(".").pop()?.toLowerCase()??"png",m=O==="jpg"||O==="jpeg"?"image/jpeg":O==="gif"?"image/gif":O==="webp"?"image/webp":"image/png";v[f]=`data:${m};base64,${Buffer.from(R).toString("base64")}`}catch{}};for(let f of d.nodes){k.lastIndex=0;let D;for(;(D=k.exec(f.content??""))!==null;)await S(D[1])}let N=Z(d,v),w=c.Uri.joinPath(p,`${a}.html`);await c.workspace.fs.writeFile(w,Buffer.from(N,"utf-8"));let A=await c.window.showInformationMessage(`HTML exported: ${a}.html`,"Open in Browser","Show in Explorer");A==="Open in Browser"?c.env.openExternal(w):A==="Show in Explorer"&&c.commands.executeCommand("revealFileInOS",w)}catch(d){c.window.showErrorMessage(`HTML export failed: ${d}`)}else if(i.type==="saveImage")try{let{filename:d,webviewUri:p}=await V(r.webview,t.uri,i.data,i.ext??"png");r.webview.postMessage({type:"imageSaved",nodeId:i.nodeId,filename:d,webviewUri:p})}catch(d){c.window.showErrorMessage(`Failed to save image: ${d}`)}else if(i.type==="deleteImageFile")await K(t.uri,i.filename);else if(i.type==="reload")try{let d=await c.workspace.fs.readFile(t.uri),p=Buffer.from(d).toString("utf-8"),a=JSON.parse(p),g=X(r.webview,t.uri,a);r.webview.postMessage({type:"load",data:a,imageUris:g})}catch{s("load")}else if(i.type==="openHelp"){let d=c.Uri.joinPath(this.context.extensionUri,"README.md");c.commands.executeCommand("markdown.showPreviewToSide",d.with({fragment:"features"}))}}),h=c.workspace.onDidChangeTextDocument(i=>{i.document.uri.toString()===t.uri.toString()&&(this._pendingSaves.has(t.uri.toString())||s("externalChange"))});e._activeWebview=r.webview,r.onDidChangeViewState(i=>{i.webviewPanel.active&&(e._activeWebview=r.webview,r.webview.postMessage({type:"focusCanvas"}))}),r.onDidDispose(()=>{l.dispose(),h.dispose(),e._activeWebview===r.webview&&(e._activeWebview=null)})}_getHtmlForWebview(t){let r=t.asWebviewUri(c.Uri.joinPath(this.context.extensionUri,"dist","webview.js")),n=t.asWebviewUri(c.Uri.joinPath(this.context.extensionUri,"dist","katex","katex.min.css")),o=F();return`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -1680,5 +1804,5 @@ window.addEventListener('load', function() {
   <div id="root"></div>
   <script nonce="${o}" src="${r}"></script>
 </body>
-</html>`}};var E=T(require("vscode")),ee=T(require("child_process"));function P(e){try{return ee.execSync(e,{timeout:5e3,stdio:["pipe","pipe","pipe"]}).toString().trim()}catch{return""}}function y(e){return P(e)!==""}function be(){let e=[],t=new Date().toISOString(),r=process.platform,n=r==="win32"?"Windows":r==="darwin"?"macOS":"Linux",o=process.arch,s=P("python3 --version 2>&1")||P("python --version 2>&1"),l=y("python3 --version 2>&1")?"python3":y("python --version 2>&1")?"python":"",u=l!=="",i=u&&y(`${l} -c "import fitz" 2>&1 && echo ok`),d=i?P(`${l} -c "import fitz; print(fitz.__version__)"`):"",p=u&&y(`${l} -c "import pdfplumber" 2>&1 && echo ok`),a=u&&y(`${l} -c "import pdfminer" 2>&1 && echo ok`),f=u&&y(`${l} -c "from PIL import Image" 2>&1 && echo ok`),m=f?P(`${l} -c "from PIL import __version__; print(__version__)"`):"",k=u&&y(`${l} -c "import cv2" 2>&1 && echo ok`),S=y("pdftotext -v 2>&1 && echo ok")||y("pdftotext --help 2>&1 && echo ok"),M=y("convert --version 2>&1 && echo ok"),w=y("magick --version 2>&1 && echo ok"),A=y("gs --version 2>&1 && echo ok")||y("gswin64c --version 2>&1 && echo ok"),g=D=>D?"\u2705":"\u274C";return e.push("# NodeGraph \u2014 Agent Environment Report"),e.push(""),e.push("> Auto-generated by the NodeGraph extension at activation."),e.push("> **AI agents: read this file to understand what tools are available on this machine.**"),e.push("> Re-generated each time a `.nodegraph.json` file is opened."),e.push(""),e.push(`Generated: \`${t}\``),e.push(""),e.push("---"),e.push(""),e.push("## System"),e.push(""),e.push("| | |"),e.push("|---|---|"),e.push(`| OS | ${n} (\`${r}\`) |`),e.push(`| Architecture | \`${o}\` |`),e.push(`| Python | ${u?`${g(!0)} \`${s}\``:`${g(!1)} not found`} |`),e.push(`| Python command | ${u?`\`${l}\``:"N/A"} |`),e.push(""),e.push("---"),e.push(""),e.push("## PDF Reading Capabilities"),e.push(""),e.push("| Tool | Available | Notes |"),e.push("|------|:---------:|-------|"),e.push(`| PyMuPDF (\`fitz\`) | ${g(i)} | ${i?`v${d} \u2014 recommended`:"Install: `pip install pymupdf`"} |`),e.push(`| pdfplumber | ${g(p)} | ${p?"available":"Install: `pip install pdfplumber`"} |`),e.push(`| pdfminer | ${g(a)} | ${a?"available":"Install: `pip install pdfminer.six`"} |`),e.push(`| poppler (\`pdftotext\`) | ${g(S)} | ${S?"CLI tool available":r==="win32"?"Install: download poppler for Windows":r==="darwin"?"Install: `brew install poppler`":"Install: `apt install poppler-utils`"} |`),e.push(`| Ghostscript (\`gs\`) | ${g(A)} | ${A?"available":"optional"} |`),e.push(""),e.push("---"),e.push(""),e.push("## Image Processing Capabilities"),e.push(""),e.push("| Tool | Available | Notes |"),e.push("|------|:---------:|-------|"),e.push(`| Pillow (\`PIL\`) | ${g(f)} | ${f?`v${m} \u2014 recommended`:"Install: `pip install Pillow`"} |`),e.push(`| OpenCV (\`cv2\`) | ${g(k)} | ${k?"available":"Install: `pip install opencv-python`"} |`),e.push(`| ImageMagick (\`convert\`) | ${g(M||w)} | ${M||w?"CLI tool available":r==="win32"?"Install: imagemagick.org":r==="darwin"?"Install: `brew install imagemagick`":"Install: `apt install imagemagick`"} |`),e.push(""),e.push("---"),e.push(""),e.push("## Agent Recommendations"),e.push(""),u||(e.push("> \u26A0\uFE0F **Python not found.** PDF reading and image processing via Python are not available."),e.push("> Install Python from https://python.org, then reopen a `.nodegraph.json` file to re-run this check."),e.push("")),e.push("### Reading a PDF"),i?(e.push("Use PyMuPDF (recommended \u2014 fastest and most accurate):"),e.push("```python"),e.push("import fitz"),e.push('doc = fitz.open("paper.pdf")'),e.push('text = "\\n".join(page.get_text() for page in doc)'),e.push("```")):p?(e.push("Use pdfplumber:"),e.push("```python"),e.push("import pdfplumber"),e.push('with pdfplumber.open("paper.pdf") as pdf:'),e.push('    text = "\\n".join(p.extract_text() or "" for p in pdf.pages)'),e.push("```")):S?(e.push("Use poppler CLI:"),e.push("```bash"),e.push("pdftotext paper.pdf -"),e.push("```")):e.push("\u274C No PDF reading tool available. Ask the user to install PyMuPDF: `pip install pymupdf`"),e.push(""),e.push("### Extracting images from a PDF"),i?(e.push("```python"),e.push("import fitz"),e.push('doc = fitz.open("paper.pdf")'),e.push("for i, page in enumerate(doc):"),e.push("    for img in page.get_images():"),e.push("        xref = img[0]"),e.push("        pix = fitz.Pixmap(doc, xref)"),e.push('        pix.save(f"fig_{i}_{xref}.png")'),e.push("```")):f?e.push("Pillow is available but cannot extract from PDF directly. Use PyMuPDF for extraction."):e.push("\u274C No image extraction tool available."),e.push(""),e.push("---"),e.push(""),e.push("*To refresh this report, reopen any `.nodegraph.json` file.*"),e.join(`
-`)}async function W(e){let t=E.Uri.joinPath(e,".agent"),r=E.Uri.joinPath(t,"ENVIRONMENT.md");try{return await E.workspace.fs.createDirectory(t),await E.workspace.fs.writeFile(r,Buffer.from(be(),"utf-8")),!0}catch{return!1}}async function te(e){if(!(!e||e.length===0))for(let t of e)await W(t.uri)}async function re(e,t){let r=E.Uri.joinPath(e,".agent","NODEGRAPH_SPEC.md"),n;try{n=await E.workspace.fs.readFile(r)}catch{return!1}let o=E.Uri.joinPath(t,".agent"),s=E.Uri.joinPath(o,"NODEGRAPH_SPEC.md");try{return await E.workspace.fs.createDirectory(o),await E.workspace.fs.writeFile(s,n),!0}catch{return!1}}var ye=[{id:"tomoki1207.pdf",name:"vscode-pdf (PDF Viewer)"}];async function we(){for(let e of ye)if(!h.extensions.getExtension(e.id))try{await h.commands.executeCommand("workbench.extensions.installExtension",e.id)}catch{}}async function ne(e){if(e)return e;let t=h.workspace.workspaceFolders??[];return t.length===0?void 0:t.length===1?t[0].uri:(await h.window.showWorkspaceFolderPick({placeHolder:"Select a folder for NodeGraph"}))?.uri}async function Ee(e){let t=await ne(e),r=t?h.Uri.joinPath(t,"untitled.nodegraph.json"):void 0,n=await h.window.showSaveDialog({defaultUri:r,filters:{NodeGraph:["nodegraph.json"]},title:"Create New NodeGraph"});if(!n)return;let o=n.fsPath.endsWith(".nodegraph.json")?n:n.with({path:n.path.replace(/(\.nodegraph)?(\.json)?$/,"")+".nodegraph.json"}),s=F();await h.workspace.fs.writeFile(o,Buffer.from(JSON.stringify(s,null,2),"utf-8")),await h.commands.executeCommand("vscode.openWith",o,"nodegraph.editor")}function Ie(e){e.subscriptions.push(N.register(e)),e.subscriptions.push(h.commands.registerCommand("nodegraph.search",()=>{N.postToActive({type:"openSearch"})}),h.commands.registerCommand("nodegraph.fitView",()=>{N.postToActive({type:"fitView"})}),h.commands.registerCommand("nodegraph.collapseAll",()=>{N.postToActive({type:"collapseAll"})}),h.commands.registerCommand("nodegraph.expandAll",()=>{N.postToActive({type:"expandAll"})}),h.commands.registerCommand("nodegraph.new",t=>Ee(t))),te(h.workspace.workspaceFolders??[]),e.subscriptions.push(h.commands.registerCommand("nodegraph.copyAgentSpec",async t=>{let r=await ne(t);if(!r){h.window.showWarningMessage("NodeGraph: open or select a folder first \u2014 there is no workspace to copy the spec into.");return}let n=await re(e.extensionUri,r),o=await W(r);n&&o?h.window.showInformationMessage(`NodeGraph: wrote .agent/NODEGRAPH_SPEC.md and .agent/ENVIRONMENT.md in ${r.fsPath}.`):h.window.showErrorMessage("NodeGraph: failed to write the agent files \u2014 check that the folder is writable and try again.")})),we()}function ke(){}0&&(module.exports={activate,deactivate});
+</html>`}};var E=C(require("vscode")),ee=C(require("child_process"));function P(e){try{return ee.execSync(e,{timeout:5e3,stdio:["pipe","pipe","pipe"]}).toString().trim()}catch{return""}}function y(e){return P(e)!==""}function be(){let e=[],t=new Date().toISOString(),r=process.platform,n=r==="win32"?"Windows":r==="darwin"?"macOS":"Linux",o=process.arch,s=P("python3 --version 2>&1")||P("python --version 2>&1"),l=y("python3 --version 2>&1")?"python3":y("python --version 2>&1")?"python":"",h=l!=="",i=h&&y(`${l} -c "import fitz" 2>&1 && echo ok`),d=i?P(`${l} -c "import fitz; print(fitz.__version__)"`):"",p=h&&y(`${l} -c "import pdfplumber" 2>&1 && echo ok`),a=h&&y(`${l} -c "import pdfminer" 2>&1 && echo ok`),g=h&&y(`${l} -c "from PIL import Image" 2>&1 && echo ok`),v=g?P(`${l} -c "from PIL import __version__; print(__version__)"`):"",k=h&&y(`${l} -c "import cv2" 2>&1 && echo ok`),S=y("pdftotext -v 2>&1 && echo ok")||y("pdftotext --help 2>&1 && echo ok"),N=y("convert --version 2>&1 && echo ok"),w=y("magick --version 2>&1 && echo ok"),A=y("gs --version 2>&1 && echo ok")||y("gswin64c --version 2>&1 && echo ok"),f=D=>D?"\u2705":"\u274C";return e.push("# NodeGraph \u2014 Agent Environment Report"),e.push(""),e.push("> Auto-generated by the NodeGraph extension at activation."),e.push("> **AI agents: read this file to understand what tools are available on this machine.**"),e.push("> Re-generated each time a `.nodegraph.json` file is opened."),e.push(""),e.push(`Generated: \`${t}\``),e.push(""),e.push("---"),e.push(""),e.push("## System"),e.push(""),e.push("| | |"),e.push("|---|---|"),e.push(`| OS | ${n} (\`${r}\`) |`),e.push(`| Architecture | \`${o}\` |`),e.push(`| Python | ${h?`${f(!0)} \`${s}\``:`${f(!1)} not found`} |`),e.push(`| Python command | ${h?`\`${l}\``:"N/A"} |`),e.push(""),e.push("---"),e.push(""),e.push("## PDF Reading Capabilities"),e.push(""),e.push("| Tool | Available | Notes |"),e.push("|------|:---------:|-------|"),e.push(`| PyMuPDF (\`fitz\`) | ${f(i)} | ${i?`v${d} \u2014 recommended`:"Install: `pip install pymupdf`"} |`),e.push(`| pdfplumber | ${f(p)} | ${p?"available":"Install: `pip install pdfplumber`"} |`),e.push(`| pdfminer | ${f(a)} | ${a?"available":"Install: `pip install pdfminer.six`"} |`),e.push(`| poppler (\`pdftotext\`) | ${f(S)} | ${S?"CLI tool available":r==="win32"?"Install: download poppler for Windows":r==="darwin"?"Install: `brew install poppler`":"Install: `apt install poppler-utils`"} |`),e.push(`| Ghostscript (\`gs\`) | ${f(A)} | ${A?"available":"optional"} |`),e.push(""),e.push("---"),e.push(""),e.push("## Image Processing Capabilities"),e.push(""),e.push("| Tool | Available | Notes |"),e.push("|------|:---------:|-------|"),e.push(`| Pillow (\`PIL\`) | ${f(g)} | ${g?`v${v} \u2014 recommended`:"Install: `pip install Pillow`"} |`),e.push(`| OpenCV (\`cv2\`) | ${f(k)} | ${k?"available":"Install: `pip install opencv-python`"} |`),e.push(`| ImageMagick (\`convert\`) | ${f(N||w)} | ${N||w?"CLI tool available":r==="win32"?"Install: imagemagick.org":r==="darwin"?"Install: `brew install imagemagick`":"Install: `apt install imagemagick`"} |`),e.push(""),e.push("---"),e.push(""),e.push("## Agent Recommendations"),e.push(""),h||(e.push("> \u26A0\uFE0F **Python not found.** PDF reading and image processing via Python are not available."),e.push("> Install Python from https://python.org, then reopen a `.nodegraph.json` file to re-run this check."),e.push("")),e.push("### Reading a PDF"),i?(e.push("Use PyMuPDF (recommended \u2014 fastest and most accurate):"),e.push("```python"),e.push("import fitz"),e.push('doc = fitz.open("paper.pdf")'),e.push('text = "\\n".join(page.get_text() for page in doc)'),e.push("```")):p?(e.push("Use pdfplumber:"),e.push("```python"),e.push("import pdfplumber"),e.push('with pdfplumber.open("paper.pdf") as pdf:'),e.push('    text = "\\n".join(p.extract_text() or "" for p in pdf.pages)'),e.push("```")):S?(e.push("Use poppler CLI:"),e.push("```bash"),e.push("pdftotext paper.pdf -"),e.push("```")):e.push("\u274C No PDF reading tool available. Ask the user to install PyMuPDF: `pip install pymupdf`"),e.push(""),e.push("### Extracting images from a PDF"),i?(e.push("```python"),e.push("import fitz"),e.push('doc = fitz.open("paper.pdf")'),e.push("for i, page in enumerate(doc):"),e.push("    for img in page.get_images():"),e.push("        xref = img[0]"),e.push("        pix = fitz.Pixmap(doc, xref)"),e.push('        pix.save(f"fig_{i}_{xref}.png")'),e.push("```")):g?e.push("Pillow is available but cannot extract from PDF directly. Use PyMuPDF for extraction."):e.push("\u274C No image extraction tool available."),e.push(""),e.push("---"),e.push(""),e.push("*To refresh this report, reopen any `.nodegraph.json` file.*"),e.join(`
+`)}async function W(e){let t=E.Uri.joinPath(e,".agent"),r=E.Uri.joinPath(t,"ENVIRONMENT.md");try{return await E.workspace.fs.createDirectory(t),await E.workspace.fs.writeFile(r,Buffer.from(be(),"utf-8")),!0}catch{return!1}}async function te(e){if(!(!e||e.length===0))for(let t of e)await W(t.uri)}async function re(e,t){let r=E.Uri.joinPath(e,".agent","NODEGRAPH_SPEC.md"),n;try{n=await E.workspace.fs.readFile(r)}catch{return!1}let o=E.Uri.joinPath(t,".agent"),s=E.Uri.joinPath(o,"NODEGRAPH_SPEC.md");try{return await E.workspace.fs.createDirectory(o),await E.workspace.fs.writeFile(s,n),!0}catch{return!1}}var ye=[{id:"tomoki1207.pdf",name:"vscode-pdf (PDF Viewer)"}];async function we(){for(let e of ye)if(!u.extensions.getExtension(e.id))try{await u.commands.executeCommand("workbench.extensions.installExtension",e.id)}catch{}}async function ne(e){if(e)return e;let t=u.workspace.workspaceFolders??[];return t.length===0?void 0:t.length===1?t[0].uri:(await u.window.showWorkspaceFolderPick({placeHolder:"Select a folder for NodeGraph"}))?.uri}async function Ee(e){let t=await ne(e),r=t?u.Uri.joinPath(t,"untitled.nodegraph.json"):void 0,n=await u.window.showSaveDialog({defaultUri:r,filters:{NodeGraph:["nodegraph.json"]},title:"Create New NodeGraph"});if(!n)return;let o=n.fsPath.endsWith(".nodegraph.json")?n:n.with({path:n.path.replace(/(\.nodegraph)?(\.json)?$/,"")+".nodegraph.json"}),s=_();await u.workspace.fs.writeFile(o,Buffer.from(JSON.stringify(s,null,2),"utf-8")),await u.commands.executeCommand("vscode.openWith",o,"nodegraph.editor")}function Ie(e){e.subscriptions.push(T.register(e)),e.subscriptions.push(u.commands.registerCommand("nodegraph.search",()=>{T.postToActive({type:"openSearch"})}),u.commands.registerCommand("nodegraph.fitView",()=>{T.postToActive({type:"fitView"})}),u.commands.registerCommand("nodegraph.collapseAll",()=>{T.postToActive({type:"collapseAll"})}),u.commands.registerCommand("nodegraph.expandAll",()=>{T.postToActive({type:"expandAll"})}),u.commands.registerCommand("nodegraph.new",t=>Ee(t))),te(u.workspace.workspaceFolders??[]),e.subscriptions.push(u.commands.registerCommand("nodegraph.copyAgentSpec",async t=>{let r=await ne(t);if(!r){u.window.showWarningMessage("NodeGraph: open or select a folder first \u2014 there is no workspace to copy the spec into.");return}let n=await re(e.extensionUri,r),o=await W(r);n&&o?u.window.showInformationMessage(`NodeGraph: wrote .agent/NODEGRAPH_SPEC.md and .agent/ENVIRONMENT.md in ${r.fsPath}.`):u.window.showErrorMessage("NodeGraph: failed to write the agent files \u2014 check that the folder is writable and try again.")})),we()}function ke(){}0&&(module.exports={activate,deactivate});

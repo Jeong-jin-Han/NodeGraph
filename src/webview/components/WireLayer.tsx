@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { GraphEdge, GraphNode } from '../types/graph'
 import {
-  getNearestPorts, getPortPosition, getRoutedPath,
+  getNearestPorts, getHorizontalPorts, getPortPosition, getRoutedPath,
   routeEdgesOnGrid, pointsToPath, spreadPoints, RouteRequest,
   Rect, Port,
 } from '../utils/wireGeometry'
@@ -189,7 +189,9 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
         const srcRect: Rect = { x: srcPos.x, y: srcPos.y, width: srcSize.width, height: srcSize.height }
         const tgtRect: Rect = { x: tgtPos.x, y: tgtPos.y, width: tgtSize.width, height: tgtSize.height }
 
-        const { sourcePort, targetPort } = getNearestPorts(srcRect, tgtRect)
+        const { sourcePort, targetPort } = edge.type !== 'arrow'
+          ? getHorizontalPorts(srcRect, tgtRect)
+          : getNearestPorts(srcRect, tgtRect)
         const srcPt = getPortPosition(srcRect, sourcePort)
         const tgtPt = getPortPosition(tgtRect, targetPort)
         let d: string
