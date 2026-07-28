@@ -1117,10 +1117,10 @@ function buildHopTreeJs() {
 }
 
 // ── 디버그 격자 — Canvas.tsx의 computeGridLines와 동일한 규칙(가로선: main topic
-// 클러스터 경계, 세로선: hop depth별 X 경계). 레이아웃 알고리즘 자체는 에디터와
-// 다르지만(README에 명시된 대로 HTML export는 예전 컬럼 패킹 방식), 격자는 현재
-// DOM에 실제로 그려진 위치(el.style.left/top + offsetWidth/offsetHeight)를 그대로
-// 읽어서 계산하므로 어떤 배치 알고리즘을 쓰든 항상 실제 렌더 결과와 일치한다.
+// 클러스터 경계, 세로선: hop depth별 X 경계). recomputePositions()가 이제 에디터와
+// 동일한 hop-tree 레이아웃 알고리즘을 쓰지만, 격자 자체는 그 계산 결과에 의존하지
+// 않고 현재 DOM에 실제로 그려진 위치(el.style.left/top + offsetWidth/offsetHeight)를
+// 그대로 읽어서 계산하므로 어떤 배치 알고리즘을 쓰든 항상 실제 렌더 결과와 일치한다.
 var showGrid = false;
 function computeGridLinesJs() {
   var tree = buildHopTreeJs();

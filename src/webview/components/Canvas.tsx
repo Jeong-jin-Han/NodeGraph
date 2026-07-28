@@ -752,11 +752,6 @@ export function Canvas({
         const ordered = sameSideSiblings
           .map(s => ({ node: s, renderY: renderPositionsRef.current[s.id]?.y ?? s.position.y }))
           .sort((a, b) => a.renderY - b.renderY)
-        // eslint-disable-next-line no-console
-        console.log('[DEBUG dragEnd] ' + JSON.stringify({
-          id, rawY: node.position.y, draggedRenderY,
-          siblings: ordered.map(o => ({ id: o.node.id, rawY: o.node.position.y, renderY: o.renderY })),
-        }))
         const belowIdx = ordered.findIndex(s => s.renderY > draggedRenderY)
         let newY: number
         if (belowIdx === -1) newY = ordered[ordered.length - 1].node.position.y + 1

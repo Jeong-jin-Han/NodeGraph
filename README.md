@@ -4,13 +4,22 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-0.5.4-orange" alt="Version 0.5.4" />
+  <img src="https://img.shields.io/badge/version-0.5.5-orange" alt="Version 0.5.5" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="MIT License" />
 </p>
 
 ---
 
 A VS Code extension for building node-based knowledge graphs from research papers and documents. Open any `.nodegraph.json` file to get an interactive canvas with rich content nodes, wires, and an exportable HTML viewer.
+
+---
+
+## Perfect for
+
+- **Actually understanding a paper**, not skimming it, by pulling the argument back into the ideas it converged from
+- **AI-assisted notes without the hallucination risk**, since every claim traces back to the exact source quote
+- **Papers full of math and tables**, where other note tools garble LaTeX inside a table and this one does not
+- **Sharing notes outside VS Code**, since every graph exports to one self-contained HTML file, no extension needed
 
 ---
 
@@ -22,6 +31,8 @@ Existing tools weren't quite it. Obsidian-style Markdown notes are great for lin
 
 It's also built around **working with an agent rather than a mouse**. Hand-placing every node as you read is tedious enough to break the flow of thought. Point an agent at the shipped `.agent/NODEGRAPH_SPEC.md` instead, and (based on the question you're currently asking it) it can decide where in the graph a new idea belongs and write the node there itself, so a conversation with an agent turns directly into structure instead of stopping to file each note by hand.
 
+An agent writing your notes raises an obvious concern: hallucination. That's exactly what the **Original tag** exists to guard against. Every claim can carry the exact source-text quote it's grounded in, and clicking it jumps straight into the source PDF and highlights the matching sentence, so you can **verify the agent's claim against the paper in one click** instead of trusting it blindly.
+
 And since you don't always want to be inside VS Code to revisit your own notes, every graph **exports to a single self-contained HTML file**. Open it in any browser, no extension required.
 
 ---
@@ -31,17 +42,17 @@ And since you don't always want to be inside VS Code to revisit your own notes, 
 <p align="center">
   <img src="resources/screenshot-html-export.png" width="100%" alt="Editor on the left and the exported standalone HTML on the right, rendering the same node tree identically" />
 </p>
-<p align="center"><sub>Editor and exported HTML side by side — same layout, same content</sub></p>
+<p align="center"><b>Editor and exported HTML side by side — same layout, same content</b></p>
 
 <p align="center">
   <img src="resources/screenshot-debug-grid.png" width="100%" alt="Debug grid overlay in the editor and exported HTML, marking hop-level and main-topic-cluster boundaries, with the Ctrl+F search panel open and matching nodes highlighted in red" />
 </p>
-<p align="center"><sub>Debug grid and Ctrl+F search — hop-level/main-topic-cluster boundaries, plus in-canvas search with matching nodes highlighted, in both the editor and the export</sub></p>
+<p align="center"><b>Debug grid and Ctrl+F search<br/>hop-level/main-topic-cluster boundaries, plus in-canvas search with matching nodes highlighted, in both the editor and the export</b></p>
 
 <p align="center">
   <img src="resources/screenshot-pdf-jump.png" width="100%" alt="An original-text quote outlined in a red box in the editor, connected by a red arrow to the matching highlighted sentence in the source PDF on the right" />
 </p>
-<p align="center"><sub>PDF quote-jump — right-click an original-text quote to open the source PDF and highlight the matching sentence (red box/arrow added for illustration)</sub></p>
+<p align="center"><b>PDF quote-jump<br/>right-click an original-text quote to open the source PDF and highlight the matching sentence (red box/arrow added for illustration)</b></p>
 
 ---
 
@@ -51,56 +62,14 @@ And since you don't always want to be inside VS Code to revisit your own notes, 
 |---|---|
 | **Rich node content** | Markdown (GFM) tables, LaTeX via KaTeX, inline images, and collapsible toggle sections — all with the same rich renderer |
 | **Overlap-free hop layout** | Bottom-up/top-down auto-layout keyed to each main-topic's hop tree — expanding a node only grows its own branch, never disturbs siblings |
-| **Smart wire routing** | A*-routed wires that keep clear of node borders and bundle into a single trunk when several targets share a source |
+| **Smart wire routing** | A*-routed backbone wires that keep clear of node borders and spread apart when several share an endpoint; hop-child wires are direct straight lines anchored to the correct side |
 | **PDF quote-jump** | Right-click an original-text quote to open the source PDF, jump to the page, and highlight the matching sentence |
 | **Ctrl+F search** | BFS-ordered dropdown over titles, content, original text, and toggle sections, with inline match highlighting |
 | **Debug grid** | One-click overlay of hop-level and main-topic-cluster boundaries for visually spotting layout issues |
 | **HTML export** | A self-contained, interactive standalone viewer — search, highlighting, and layout included |
 | **Agent-friendly** | A machine-readable spec (`.agent/NODEGRAPH_SPEC.md`) so AI agents can read and write graphs directly |
 
-<details>
-<summary><b>Full feature list</b></summary>
-
-### Editing
-- **Custom editor** for `.nodegraph.json` files — pan (left-drag), zoom (scroll wheel, 0.05×–8×, centered on the cursor), box-select (right-drag)
-- **Rich node content** — Markdown (GFM) tables, LaTeX via KaTeX, `**bold**`, inline images; click any text to edit it in place (`Esc` cancels, clicking elsewhere commits)
-- **Content height cap** — a node's main content (not toggles) is capped at a default max-height with a vertical scrollbar past that; a table or image that needs more room raises the cap to fit it fully instead of clipping it. A `▼ More` / `▲ Less` button appears whenever there's more to see, to view the full content uncapped — this state is per-session (resets on reload)
-- **Node types** — 8 templates: Main topic, Method, Result, Claim (sharp = from the paper) and Question, Gap/Idea, Reference, Memo (rounded = your own notes); change a selected node's type from the toolbar dropdown
-- **Fold / Unfold** — click the node title; toolbar `📁 Collapse` / `📂 Expand` act on the selected node's whole subtree (expand stops at other main-topic nodes), or on every node when nothing is selected; a node-type filter dropdown next to these buttons restricts them to one template — `Collapse` always closes everything, `Expand` opens only nodes of that type (ignoring parent/child relationships) and closes the rest. Collapsing *everything* (nothing selected) also auto-runs Fit View, since the graph just got much smaller
-- **Toggle sections** — collapsible sub-sections inside a node (`+ Toggle` button); same rich rendering as the main content (GFM tables, LaTeX, inline images)
-- **Original text** — verbatim source quote with an editable label and `§, p.` location (`+ Original` button); rendered in italics below the content; right-click the quote to jump to and highlight it in the source PDF (see **Find & focus**)
-- **Links** — attach `url` / `pdf` / `obsidian` links to a node (`+ Link` button); click to open — PDFs are resolved relative to the JSON file
-- **Edges** — drag from a port dot (appears on hover) onto any node body to connect two nodes, in either direction; the type is chosen automatically (an arrow only between two Main topic nodes — the backbone sequence — a plain line otherwise); duplicates are ignored; click a wire to select it (blue) and press `Delete` to remove it (transitively redundant A→C edges are expected to be avoided when the graph is written — see Agent / AI Editing). Connecting a node that doesn't have a parent yet also gives it an initial hop-based position: a direct child of a main-topic node fans out to that node's right (or left, once the right side has 4) around its vertical center, and anything deeper keeps extending the same direction its parent already went
-- **Resize & typography** — drag an expanded node's right/bottom/corner handles (min 160×60); nodes widen automatically to fit tables and sized images; per-node font size 8–72px via the toolbar combo (with multiple nodes selected, sizes shift together preserving differences)
-- **Undo / Redo** — full history with `Ctrl+Z` / `Ctrl+Y` (or `Ctrl+Shift+Z`)
-
-### Layout & wires
-- **Overlap-free layout** — saved positions are never rewritten by the layout; at render time each main-topic node and its whole hop tree is treated as one group, laid out bottom-up (each subtree's needed space computed from its leaves first) then positioned top-down in one pass, so expanding a node only grows its own group's space — other main-topic groups shift down to make room instead of every node individually re-packing against its neighbors. Horizontally, every node at the same hop level (hop-1, hop-2, ...) stays aligned to the same X across the whole graph — if one branch needs a wider column (e.g. a table), the whole hop-level column shifts out together rather than drifting out of alignment with sibling branches. Nodes also push apart sideways (60px minimum) when widened by a table, and everything returns to place when folded. The exported HTML viewer uses this same layout algorithm.
-- **Smart wire routing** — wires are planned on a 24px cost grid (A*): node interiors are heavily penalized (crossed only when a node is fully enclosed), wires keep clearance from node borders and spread into free space instead of stacking; while dragging a node a light heuristic keeps rendering smooth and the precise routes return 150ms after the layout settles
-- **Zoom-stable line weight** — wires, arrowheads, and the debug grid keep their base thickness once you're zoomed in (≥100%), but thicken as you zoom out below 100% so they stay readable instead of fading to hairlines
-- **Layout debug grid (`Grid`)** — toggles an overlay of dashed boundary lines: vertical lines mark hop-level boundaries (main topic / hop-1 / hop-2 / ...), horizontal lines mark each main-topic cluster's extent. Useful for visually spotting layout/spacing issues
-
-### Find & focus
-- **Ctrl+F search** — live dropdown over title, content, original text (including its custom label), and toggle-section titles/content, ordered by main-topic BFS (each main topic in backbone order, then all of its hop-1 matches, then all of its hop-2 matches, and so on, before moving to the next main topic); `↑`/`↓` flies the viewport to each match, `Enter` expands the chosen node (and its Original section / any toggle sections the match falls inside) and collapses the other matches; the matched text itself is marked inside the node in the inverse of its template color
-- **Generation highlight** — click a node's tag badge to outline the node, its parents/children, and the connecting wires in red; background clicks keep it pinned, `Esc` clears it
-- **Search original text in the source PDF** — right-click an expanded node's original-text quote to open (or reuse) a built-in PDF viewer tab for the graph's `source.pdf`, jump to the page from the quote's `p.N` location, and highlight the matching sentence in **yellow** (exact match first, word-overlap fuzzy match as a fallback for OCR/hyphenation drift); if no text match is found nearby it still lands on the hinted page. Requires `source.pdf` to be set on the graph. `Esc` inside the PDF tab clears the highlight.
-- **Find and zoom inside the PDF viewer** — the built-in PDF tab has its own toolbar: `−`/`+` zoom (50%–400%, re-renders at the new scale without losing your scroll position), and a magnifying-glass find button (or `Ctrl+F`/`Cmd+F` inside the tab) that opens a find bar to search the whole document — `↑`/`↓` (or `Enter`/`Shift+Enter`) step through matches, a counter shows `N of M`, and matches highlight in **orange** so they're never confused with the yellow quote-jump highlight. `Esc` closes the find bar.
-
-### Images
-- **Paste into a node** — copy any image and press `Ctrl+V` with a node selected or hovered (or inside the content editor or a toggle's editor, at the cursor); the file is saved as `img_<timestamp>.<ext>` in `.<name>-imgs/` and referenced as an `[[IMG:filename:WxH]]` token; pasting right after a table row's closing `|` drops the image below the table instead of corrupting the row
-- **Canvas images** — paste on the background to get a floating, draggable, aspect-preserving-resizable image; drop it onto a node (or a specific table cell) to move it into that content; `Ctrl+C`/`X`/`V` copies, cuts, and clones canvas images
-- **Lightbox** — click any image to zoom it full-screen; `Esc` or a click closes
-
-### Files & export
-- **Empty file → empty graph** — opening a blank (0-byte) or otherwise unparsable `.nodegraph.json` shows an empty, editable graph instead of a blank screen; no need to pre-populate the JSON (via an agent or `NodeGraph: New Graph`) before the editor works
-- **HTML export** — writes a self-contained `<name>.html` next to the JSON with all referenced images inlined as base64 and offers *Open in Browser / Show in Explorer*; the viewer reproduces the same hop-tree layout algorithm as the editor (overlap-free, hop-level X alignment), the content height cap with its `▼ More` / `▲ Less` toggle, zoom-stable wire/grid line weight, Ctrl+F search (BFS-ordered, matching title/content/original/toggles, auto-expanding the Original section or toggle a match falls inside) with inline marks, generation highlight, wire routing, the debug grid, the fold layout (Collapse/Expand, with the same node-type filter and collapse-everything-auto-fits-view behavior as the editor toolbar), node dragging, and window-resize recentering (KaTeX loads from a CDN, so formulas need internet; floating canvas images are not exported)
-- **Save** — `Ctrl+S` writes pretty-printed JSON to disk immediately; image insertion saves automatically
-- **External edits** — when the file changes outside the webview the graph reloads automatically; `Reload` force-re-reads from disk (useful after an AI agent edits the JSON)
-- **Slidable toolbar** — on narrow windows the toolbar keeps its button positions and slides horizontally (`Shift`+wheel on desktop, swipe on touch)
-- **Theme-independent canvas** — canvas background, node colors, text, links, and inputs are all snapshotted from the active VSCode theme when the webview first loads, and stay fixed after that even if you switch themes
-- **Help** — the `Help` toolbar button opens the extension's bundled README, scrolled to the Features section
-
-</details>
+See **[FEATURES.md](docs/FEATURES.md)** for the complete feature list, organized by Editing / Layout & wires / Find & focus / Images / Files & export.
 
 ---
 
@@ -176,7 +145,7 @@ end to end without asking me anything. Tell me when done.
 | Box-select nodes & images | Right-drag on background |
 | Select node | Left-click anywhere on the node |
 | Add to selection | `Shift`/`Ctrl`+click |
-| **Drag node** | **Left-drag the tag badge** (e.g. "Gap / Idea"); with a multi-selection, all selected nodes move together |
+| **Drag node** | **Left-drag the tag badge** (e.g. "Gap / Idea") — dropping it reorders it among same-parent, same-side siblings based on where it lands, rather than just placing it at a free-form position; with a multi-selection, all selected nodes move together (without the single-node drop reordering) |
 | Pin generation highlight | Click the tag badge — node + parents + children + wires turn red |
 | Clear highlight / selection | `Escape` (background clicks keep the highlight) |
 | Delete selection | `Delete` or `Backspace` — canvas images first, then a selected wire, then nodes |
@@ -286,7 +255,7 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
   "title": "My Research Graph",
   "created": "2026-07-06T00:00:00.000Z",
   "modified": "2026-07-06T00:00:00.000Z",
-  "source": {
+  "source": {                             // optional — omit entirely if there's no source PDF
     "pdf": "paper.pdf",
     "authors": "Author et al.",
     "venue": "NeurIPS 2017",
@@ -303,8 +272,8 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
       "template": "main_topic",
       "title": "Introduction",
       "content": "Summary text with $\\LaTeX$ and\n[[IMG:figure1.png:500x300]]",
-      "original": { "text": "Exact quote from paper.", "location": "§1, p.1" },
-      "toggleItems": [
+      "original": { "title": "Optional custom label", "text": "Exact quote from paper.", "location": "§1, p.1" },
+      "toggleItems": [                    // optional — omit if the node has no toggle sections
         { "id": "toggle_001", "title": "Table 1", "content": "| Col | Val |\n|-----|-----|\n| A | 1 |", "expanded": false }
       ],
       "contentExpanded": true,
@@ -312,13 +281,19 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
       "childrenExpanded": false,
       "position": { "x": 0, "y": 0 },
       "children": ["node_002"],
-      "links": []
+      "links": [],                        // { type: 'url'|'pdf'|'obsidian'|'internal', target, label }[]
+      "fontSize": 14,                     // optional — per-node title font size override
+      "nodeWidth": 432,                   // optional — persisted card width after a manual resize
+      "nodeHeight": 220,                  // optional — persisted card height after a manual resize
+      "nodeNaturalY": 0                   // optional — Y position as last set by dragging; leave this to the editor
     }
   ],
   "edges": [
-    { "id": "edge_001", "source": "node_001", "target": "node_002", "type": "arrow", "label": "" }
+    { "id": "edge_001", "source": "node_001", "target": "node_002", "type": "arrow", "label": "" },
+    { "id": "edge_002", "source": "node_002", "target": "node_003", "type": "line", "label": "" }
   ],
-  "viewport": { "x": 0, "y": 0, "zoom": 1 }
+  "viewport": { "x": 0, "y": 0, "zoom": 1 },
+  "canvasImages": []                      // optional — floating images pasted onto the background, not into a node
 }
 ```
 
