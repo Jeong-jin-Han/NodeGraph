@@ -4,22 +4,17 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white&style=for-the-badge" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-0.6.1-orange?style=for-the-badge" alt="Version 0.6.1" />
+  <img src="https://img.shields.io/badge/version-0.6.2-orange?style=for-the-badge" alt="Version 0.6.2" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=for-the-badge" alt="MIT License" />
 </p>
 
 ---
 
-A VS Code extension for building node-based knowledge graphs from research papers and documents. Open any `.nodegraph.json` file to get an interactive canvas with rich content nodes, wires, and an exportable HTML viewer.
+<p align="center"><b>Turn research papers into verifiable knowledge graphs with AI.</b></p>
 
----
+Point an AI agent (Claude Code, Codex, Cursor, Antigravity) at a PDF and it reads the paper and builds the whole graph itself, linking every claim back to the exact quote it came from. Prefer to build it yourself? Create a blank `.nodegraph.json` file and use the exact same interactive canvas by hand, no agent required.
 
-## Perfect for
-
-- **Actually understanding a paper**, not skimming it, by pulling the argument back into the ideas it converged from
-- **AI-assisted notes without the hallucination risk**, since every claim traces back to the exact source quote
-- **Papers full of math and tables**, where other note tools garble LaTeX inside a table and this one does not
-- **Sharing notes outside VS Code**, since every graph exports to one self-contained HTML file, no extension needed
+<p align="center"><b>Don't trust AI summaries. Verify every claim against the original paper in one click.</b></p>
 
 ---
 
@@ -29,6 +24,21 @@ A VS Code extension for building node-based knowledge graphs from research paper
   <img src="resources/demo-ex3.webp" width="100%" alt="Full agent run building the demo/ex3 nodegraph from the Mooncake paper, sped up, looping" />
 </p>
 <p align="center"><b>An agent reading a paper it had never seen before and building the full nodegraph end to end, sped up — see Benchmark below for the real numbers</b></p>
+
+**Getting there takes four steps:**
+1. Install **NodeGraph** from the VS Code Marketplace
+2. Right-click your paper's folder and run `NodeGraph: Copy Agent Spec to Workspace`
+3. Paste the generated `.prompt/english.md` (or `korean.md`) into your agent, filling in the PDF's path
+4. Open the finished `.nodegraph.json`
+
+---
+
+## Perfect for
+
+- **Actually understanding a paper**, not skimming it, by pulling the argument back into the ideas it converged from
+- **AI-assisted notes without the hallucination risk**, since every claim traces back to the exact source quote
+- **Papers full of math and tables**, where other note tools garble LaTeX inside a table and this one does not
+- **Sharing notes outside VS Code**, since every graph exports to one self-contained HTML file, no extension needed
 
 ---
 
@@ -101,7 +111,7 @@ See **[FEATURES.md](https://github.com/Jeong-jin-Han/NodeGraph/blob/main/docs/FE
 
 The file `.agent/NODEGRAPH_SPEC.md` (included in the extension) is a machine-readable specification for AI agents. It documents the full JSON schema, ID conventions, KaTeX/Markdown syntax rules, rendering support per field, and a step-by-step workflow for generating a nodegraph from a PDF.
 
-A worked example is included at `demo/ex1/attention-is-all-you-need.nodegraph.json` — the full "Attention Is All You Need" paper rendered as a nodegraph with KaTeX formulas, Markdown tables, toggle sections, and deep question nodes.
+Three fully agent-built graphs ship with the extension, so you can open a finished result before building your own: `demo/ex1` ("Attention Is All You Need"), `demo/ex2` ("Point Transformer"), and `demo/ex3` ("Mooncake") — all with KaTeX formulas, Markdown tables, toggle sections, and deep question nodes.
 
 **Typical agent workflow:**
 1. Right-click the project folder in the Explorer and run `NodeGraph: Copy Agent Spec to Workspace` (one-time per folder)
