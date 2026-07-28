@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 import { NodeGraphEditorProvider } from './NodeGraphEditorProvider'
-import { writeEnvironmentReport, writeEnvironmentReportToFolder, syncAgentSpec } from './environmentChecker'
+import { writeEnvironmentReport, writeEnvironmentReportToFolder, syncAgentSpec, syncPromptTemplates } from './environmentChecker'
 import { createEmptyGraph } from './defaultGraph'
 
 const RECOMMENDED_EXTENSIONS = [
@@ -98,8 +98,9 @@ export function activate(context: vscode.ExtensionContext): void {
       // whatever subfolder was right-clicked here.
       const specOk = await syncAgentSpec(context.extensionUri, target)
       const envOk = await writeEnvironmentReportToFolder(target)
-      if (specOk && envOk) {
-        vscode.window.showInformationMessage(`NodeGraph: wrote .agent/NODEGRAPH_SPEC.md and .agent/ENVIRONMENT.md in ${target.fsPath}.`)
+      const promptOk = await syncPromptTemplates(context.extensionUri, target)
+      if (specOk && envOk && promptOk) {
+        vscode.window.showInformationMessage(`NodeGraph: wrote .agent/NODEGRAPH_SPEC.md, .agent/ENVIRONMENT.md, and .prompt/{korean,english}.md in ${target.fsPath}.`)
       } else {
         vscode.window.showErrorMessage('NodeGraph: failed to write the agent files — check that the folder is writable and try again.')
       }

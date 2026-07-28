@@ -1,0 +1,1003 @@
+{
+  "version": "1.0.0",
+  "title": "Mooncake: A KVCache-centric Disaggregated Architecture for LLM Serving",
+  "created": "2026-07-28T08:30:00.000Z",
+  "modified": "2026-07-28T08:40:00.000Z",
+  "source": {
+    "pdf": "Mooncake - Trading More Storage for Less Computation - A KVCache-centric Architecture for Serving LLM Chatbot.pdf",
+    "authors": "Ruoyu Qin, Zheming Li, Weiran He, Mingxing Zhang, Yongwei Wu, Weimin Zheng, Xinran Xu (Moonshot AI, Tsinghua University)",
+    "venue": "Preprint Tech Report by Moonshot AI and MadSys @ Tsinghua",
+    "doi": "arXiv:2407.00079",
+    "pages": 23
+  },
+  "nodeTemplates": {
+    "main_topic": {
+      "label": "Main topic",
+      "color": "#4B8BBE",
+      "icon": "file-text",
+      "shape": "sharp"
+    },
+    "method": {
+      "label": "Method",
+      "color": "#2E86AB",
+      "icon": "tool",
+      "shape": "sharp"
+    },
+    "result": {
+      "label": "Result",
+      "color": "#1B998B",
+      "icon": "chart-bar",
+      "shape": "sharp"
+    },
+    "claim": {
+      "label": "Claim",
+      "color": "#3A506B",
+      "icon": "quote",
+      "shape": "sharp"
+    },
+    "question": {
+      "label": "Question",
+      "color": "#E5A835",
+      "icon": "help-circle",
+      "shape": "rounded"
+    },
+    "reference": {
+      "label": "Ext. reference",
+      "color": "#9C6ADE",
+      "icon": "external-link",
+      "shape": "rounded"
+    },
+    "gap": {
+      "label": "Gap / Idea",
+      "color": "#E24B4A",
+      "icon": "flame",
+      "shape": "rounded"
+    },
+    "memo": {
+      "label": "Memo",
+      "color": "#6B7280",
+      "icon": "note",
+      "shape": "rounded"
+    }
+  },
+  "nodes": [
+    {
+      "id": "node_001",
+      "template": "main_topic",
+      "title": "Killer Application",
+      "content": "Mooncake is the production serving platform behind **Kimi**, Moonshot AI's LLM service. Its remarkable claim is not a new model or a faster kernel: it is that **the KVCache, not the GPU, is the thing you should schedule around**. Four contributions carry that claim.\n\n**1. Turn idle cluster memory into a KVCache pool.** Every GPU node already ships with CPU, DRAM, SSD and RDMA NICs that inference barely touches. Mooncake groups them into a disaggregated prefix cache, so a prompt already computed once is *loaded* rather than *recomputed*. This is the \"trade more storage for less computation\" bargain in the title, and the paper stresses it costs nothing extra: the hardware is already in the rack.\n\n**2. Disaggregate prefill from decoding, then schedule both through one cache-aware policy.** The prefill pool maximizes cache reuse under a TTFT SLO; the decoding pool maximizes batch throughput under a TBT SLO. A global scheduler named **Conductor** picks the (prefill, decoding) instance pair for every request based on where the reusable cache blocks currently live.\n\n**3. Chunked Pipeline Parallelism (CPP) for long-context prefill.** One request's prompt is split into chunks that different nodes process as pipeline stages, so cross-node communication happens only at stage boundaries. The paper states this pipeline-based acceleration has been explored in training systems but that this is, to their knowledge, the first application in the inference stage.\n\n**4. Treat rejection as a first-class scheduling decision.** Essentially every other serving paper assumes all requests get processed. Kimi is routinely overloaded, so Mooncake predicts near-future decoding load and rejects early, before the prefill compute has been spent.\n\nMeasured payoff: up to **525%** more throughput in simulated long-context scenarios while adhering to SLOs, and **75%** more requests served on the real Kimi workload.",
+      "original": {
+        "text": "It features a KVCache-centric disaggregated architecture that separates the prefill and decoding clusters. It also leverages the underutilized CPU, DRAM, and SSD resources of the GPU cluster to implement a disaggregated cache of KVCache.",
+        "location": "Abstract, p.1"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "children": [
+        "node_006",
+        "node_007",
+        "node_008",
+        "node_009"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_002",
+      "template": "main_topic",
+      "title": "Why It's Needed",
+      "content": "**The two stages of inference are two different machines wearing one uniform.**\n\nPrefill processes all input tokens in parallel and is compute-bound. Attention cost grows quadratically with input length while the MLP grows linearly, so prefill time rises **superlinearly**:\n\n$$T_{\\text{prefill}}(n) \\;\\sim\\; \\underbrace{O(n^2)}_{\\text{attention}} + \\underbrace{O(n)}_{\\text{MLP}}$$\n\nDecoding emits one token per request per step and is memory-bound, so its time rises only **sublinearly** with batch size. Put both on the same instance and one long prefill stalls everyone else's decoding — precisely the damage the paper later measures against vLLM, where only 57% of requests meet the TBT SLO.\n\n**The two throughput levers each detonate a different SLO.** There are only two general ways to raise throughput: (1) reuse KVCache so you compute less, (2) grow the batch so Model FLOPs Utilization rises. But reusable KVCache usually lives on *another* node, and fetching it inflates **TTFT**; a larger batch inflates **TBT**. Both throughput-oriented optimizations are latency bombs, which is why the scheduler has to reason about the cache rather than about instance load.\n\n**And the resource assumption everyone else makes is false.** Prior work optimizes utilization assuming every arriving request will be served. Kimi's request growth outruns GPU supply, so overload is the normal state — and a request rejected *after* its prefill has already burned compute that counts for nothing, because only fully completed requests count toward goodput.",
+      "original": {
+        "text": "More importantly, existing research on LLM serving assumes sufficient resources and focuses on improving resource utilization. In contrast, the current GPU/accelerator supply is limited, and many MaaS providers face severe overload problems, especially during peak times.",
+        "location": "§1.1, p.2"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 300
+      },
+      "children": [
+        "node_010",
+        "node_011",
+        "node_012",
+        "node_013",
+        "node_014"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_003",
+      "template": "main_topic",
+      "title": "Solution",
+      "content": "[[IMG:fig01_mooncake_architecture.png:820x473]]\n\n**Three pools and one scheduler.**\n\n- **Prefill pool** — instances with a local chunked-prefill scheduler. Goal: maximize cache reuse, subject to the TTFT SLO, a minimum MFU, and KVCache fitting in DRAM.\n- **KVCache pool** — the CPU / DRAM / SSD of every node, stitched together over RDMA into one distributed paged cache. A separate GPUDirect-RDMA process called **Messenger** moves blocks between machines.\n- **Decoding pool** — goal: maximize throughput, subject to the TBT SLO and KVCache fitting in VRAM.\n- **Conductor** — the global scheduler; picks a (prefill, decoding) pair per request and replicates or swaps cache blocks when it helps future inference.\n\n**Four mechanisms make the pools work as one system:**\n\n1. **Prefix-hash paged cache** — each block's hash folds in all preceding blocks, so a prefix match is exact and blocks deduplicate globally (Fig. 3).\n2. **Cache-aware prefill scheduling** — Conductor assigns the instance with the smallest *predicted TTFT*, not the lightest load, and migrates hot blocks as a side effect (Alg. 1).\n3. **CPP + layer-wise prefill** — long prompts parallelize across nodes with communication only at stage boundaries, and KVCache transfer hides behind computation so VRAM stops being a scheduling constraint.\n4. **Prediction-based early rejection** — under overload, decide before prefill whether the decoding pool will have room.\n\nRead the diagram this way: the two dashed boxes at the top and bottom are the disaggregated compute pools, and the green box in the middle is the thing that connects them. Making that middle box a first-class, cluster-wide resource — rather than a per-instance side effect of inference — is what \"KVCache-centric\" means operationally. Every other decision (which node, whether to accept at all) falls out of where the cache already is.",
+      "original": {
+        "text": "According to the above guidelines, we propose a disaggregated design that is centered around KVCache for scheduling and optimization.",
+        "location": "§1.1, p.2"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 600
+      },
+      "children": [
+        "node_015",
+        "node_016",
+        "node_017",
+        "node_018",
+        "node_019",
+        "node_020",
+        "node_021"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_004",
+      "template": "main_topic",
+      "title": "Results",
+      "content": "Every number below comes from replayed traces run against a **dummy model with the LLaMA2-70B architecture** — the compute profile is real, the weights and user content are not. That is a deliberate trade for reproducibility and privacy, and it is stated twice in the paper.\n\n| Setting | Baseline | Mooncake | Result |\n|---|---|---|---|\n| ArXiv Summarization | vLLM-[4M] | Mooncake-[3P+1D] | +20% throughput under SLO |\n| L-Eval (>80% cache ratio) | vLLM-[4M] | Mooncake-[3P+1D] | +40% throughput under SLO |\n| Simulated 16k–128k prompts | vLLM-[4M] | Mooncake-[3P+1D] / [2P+2D] | +50% to **+525%** |\n| Real Kimi trace | vLLM-[20M] | Mooncake-[10P+10D] | approx. **75%** more requests under SLO |\n| Prefill scheduling, 8P+8D | random | KVCache-centric | mean TTFT 92.07 s to 6.26 s |\n| Overload, 2x replay speed | reject at both stages | prediction-based early reject | 4183 to 3589 rejections |\n\n[[IMG:fig13_real_workload_cdf.png:820x350]]\n\nThe real-workload CDF is the load-bearing result, and it is worth reading carefully because the interesting part is what *doesn't* differ. The TTFT curves (left) for Mooncake-[10P+10D] and vLLM-[20M] are nearly identical — both put almost 100% of requests inside the 30 s budget. The entire difference is in TBT (right): roughly **100%** of Mooncake requests meet the 0.1 s/token SLO versus **57%** for vLLM, whose tail runs out past 3 s/token.\n\nThat is the disaggregation thesis in one plot. Splitting the pools does not make prefill faster; it stops a long prefill from poisoning everybody else's decoding. Since a request only counts toward goodput if it finishes *fully* under SLO, converting that 43% of TBT-violating requests into compliant ones is exactly where the extra 75% of served requests comes from.",
+      "original": {
+        "text": "Mooncake demonstrates significantly higher throughput, with enhancements ranging from 50% to 525%, while adhering to the same TTFT and TBT SLO constraints compared to vLLM.",
+        "location": "§8.1.2, p.16"
+      },
+      "toggleItems": [
+        {
+          "id": "toggle_001",
+          "title": "Table 2 — the four evaluation workloads",
+          "content": "| Dataset | Avg input length | Avg output length | Cache ratio | Arrival pattern |\n|---|---|---|---|---|\n| ArXiv Summarization | 8088 | 229 | approx. 0% | Poisson Process |\n| L-Eval | 19019 | 72 | >80% | Poisson Process |\n| Simulated Data | 16k, 32k, 64k, 128k | 512 | 50% | Poisson Process |\n| Real Data | 7955 | 194 | approx. 50% | Timestamp-based |\n\nThe cache-ratio column is the one that decides the story. ArXiv Summarization has essentially no reuse, so Mooncake's +20% there is earned purely by disaggregation. L-Eval has over 80% reuse, and the gain rises to +40% — the extra 20 points are the prefix cache doing its job. The two mechanisms are separable, and this table is what separates them.",
+          "expanded": false
+        },
+        {
+          "id": "toggle_002",
+          "title": "Table 3 — overload experiment (8P+8D, 23,000 requests, 2x replay)",
+          "content": "| Strategy | Number of rejected requests |\n|---|---|\n| Baseline (reject at each stage) | 4183 |\n| Early Rejection | 3771 |\n| Early Rejection based on Prediction | 3589 |\n\nEach step removes wasted work rather than adding capacity. Early Rejection saves 412 requests' worth of admissions by checking the decoding pool's load *before* paying for prefill; prediction adds another 182 by damping the anti-phase load oscillation that plain Early Rejection introduces. A 14% reduction in rejections on fixed hardware is a scheduling win, not a hardware win — which is the whole point of the overload-oriented framing.",
+          "expanded": false
+        },
+        {
+          "id": "toggle_003",
+          "title": "Testbed",
+          "content": "| Component | Configuration |\n|---|---|\n| GPUs per node | 8 $\\times$ NVIDIA-A800-SXM4-80GB, 80GB HBM, NVLINK |\n| Interconnect | RDMA NICs, up to 800 Gbps between nodes |\n| Node role | one prefill instance *or* one decoding instance, set at startup |\n| SLO thresholds (§8.1) | $\\text{TTFT}_{P90} = 10\\times$, $\\text{TBT}_{P90} = 5\\times$ |\n\nThe 800 Gbps RDMA number is not incidental. The entire architecture is a bet that moving a KVCache block across the cluster is cheaper than recomputing it, and that bet is only solvent at this bandwidth.",
+          "expanded": false
+        }
+      ],
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 900
+      },
+      "children": [
+        "node_024",
+        "node_025",
+        "node_026",
+        "node_027",
+        "node_028",
+        "node_029",
+        "node_030"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_005",
+      "template": "main_topic",
+      "title": "Conclusion",
+      "content": "Mooncake's thesis is a resource claim, not an algorithmic one: in long-context LLM serving **storage is cheap and computation is not**, so the serving architecture should be organized around where the KVCache lives. Everything else in the paper is a consequence — the pools, the hash-chained blocks, the scheduler, even the rejection policy.\n\n**What this enables**\n- Long-context serving where one 128k-token prefill no longer wrecks every concurrent request's decode latency.\n- Prefix caching as a *cluster-level* resource rather than a per-instance one. The paper notes vLLM already implements similar reuse logic, but only locally — making it global is what turns it into a scheduling primitive.\n- Overload treated as the normal operating condition rather than an error case, with an admission policy that measures load as *SLO satisfaction* rather than as a request count.\n- A context-caching API exposed to external users, which raises reuse further because callers can deliberately share prefixes.\n\n**Limits the paper is explicit about**\n- **Reuse ceiling.** Even assuming infinite cache capacity *and* an infinite TTFT budget, only about 50% of KVCache is theoretically reusable on Kimi's current workload — though it can reach 90% in narrow scenarios such as their chat-to-paper service.\n- **Prediction is coarse.** The shipped predictor is system-level and assumes every request's decoding stage takes a uniform time $t_d$. Request-level output-length prediction is left as future work.\n- **The pool ratio is preset.** Mooncake-[2P+2D] visibly loses TTFT to [3P+1D] because of prefill/decoding imbalance; the paper defers dynamic conversion between roles.\n- **One hand-tuned knob.** $\\text{kvcache\\_balancing\\_threshold}$ is currently adjusted manually.\n\n**Where it goes next**: heterogeneous accelerators (GDDR/LPDDR bandwidth-per-dollar is an order of magnitude better than flagship parts), separating the attention operator from the linear operators since its arithmetic intensity cannot be raised by batching, KVCache compression as an orthogonal multiplier, and priority-aware scheduling for mixed SLO classes.",
+      "original": {
+        "text": "This paper presents Mooncake, a KVCache-centric disaggregated architecture designed for efficiently serving LLMs, particularly in handling long contexts and overloaded scenarios.",
+        "location": "§11, p.19"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 1200
+      },
+      "children": [
+        "node_031",
+        "node_032",
+        "node_033",
+        "node_034"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_006",
+      "template": "method",
+      "title": "Figure 1 — the whole system in one picture",
+      "content": "[[IMG:fig01_mooncake_architecture.png:800x462]]\n\nThree horizontal bands, read top to bottom: the **Prefill Pool** (blue dashes), the **KVCache Pool** (green dashes, spanning CPU/DRAM/SSD on *every* node), and the **Decoding Pool** (orange dashes). The grey column on the left is Conductor, split into three schedulers — cache-aware prefill, KVCache balance, load-balance decoding — one per band.\n\nThe right margin states the two optimization problems the system is actually solving:\n\n$$\\max\\;\\text{Cache Reuse}\\quad \\text{s.t.}\\;\\; \\text{TTFT SLO},\\; \\text{minimum MFU},\\; \\text{KVCache} < \\text{DRAM}$$\n\n$$\\max\\;\\text{Throughput}\\quad \\text{s.t.}\\;\\; \\text{TBT SLO},\\; \\text{KVCache} < \\text{VRAM}$$\n\nTwo details in this diagram carry the Killer Application. First, the KVCache pool sits *between* the two compute pools and is drawn across both — it is shared infrastructure, not a per-instance buffer, which is what makes cluster-wide reuse possible at all. Second, the two objectives are genuinely different functions with different constraints; a single fused instance would have to optimize their sum, which is exactly the compromise disaggregation refuses to make.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": -120
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_007",
+      "template": "result",
+      "title": "The three headline numbers, and what each one is measuring",
+      "content": "The abstract advertises three figures that are easy to conflate. They measure different things.\n\n| Number | Where it comes from | What it means |\n|---|---|---|\n| **up to 525%** | simulated data, 16k–128k prompts, vs vLLM-[4M] | best case in a long-context, 50%-cache-ratio synthetic workload; the range is 50%–525% |\n| **75% more requests** | real Kimi trace, Mooncake-[10P+10D] vs vLLM-[20M] | production-shaped workload, same instance count, requests that fully meet SLO |\n| **20% / 40%** | ArXiv Summarization / L-Eval, [3P+1D] vs vLLM-[4M] | public-dataset throughput under SLO |\n\nThe 525% is the headline but the 75% is the honest one: same hardware budget (20 instances either way), a trace with real arrival timing and roughly 50% cache ratio, and a strict definition of success — a request counts only if it completes *fully* within both the TTFT and TBT SLOs.\n\nThe spread between 50% and 525% is itself informative. Mooncake's advantage grows with prompt length, because that is where vLLM's coupled design is forced to choose between stalling decode and refusing to batch.",
+      "original": {
+        "text": "Compared to the baseline method, Mooncake can achieve up to a 525% increase in throughput in certain simulated scenarios while adhering to SLOs. Under real workloads, Mooncake's innovative architecture enables Kimi to handle 75% more requests.",
+        "location": "Abstract, p.1"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 0
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_008",
+      "template": "gap",
+      "title": "\"Trading more storage for less computation\" — what is actually being traded",
+      "content": "The title frames this as a trade, so it is worth naming both sides precisely.\n\n**What is spent:** CPU DRAM and SSD capacity across the cluster, plus RDMA bandwidth to move blocks between nodes, plus the DRAM that prefill nodes must reserve for the global pool (which the paper notes constrains prefill scheduling in its own right).\n\n**What is bought:** the prefill FLOPs for every token whose KVCache already exists somewhere. Since prefill cost is superlinear in prompt length, a hit on a long prefix is worth disproportionately more than a hit on a short one.\n\nThe trade is only favourable because of an asymmetry the paper leans on: the CPU, DRAM, SSD and RDMA on a GPU node are *already paid for and mostly idle*. So the storage side of the ledger is close to free, while the computation side is the binding constraint on revenue.\n\n**The load-bearing assumption is that transfer beats recomputation.** That holds at 800 Gbps RDMA over short prefixes and long prompts — and the paper is candid that it does not always hold. Algorithm 1 explicitly prefers to *recompute* tokens locally when the remote prefix match is not enough longer than the local one, and §6.1 admits that predicting transfer time is harder than predicting prefill time because it depends on network congestion, not just data size. The trade is conditional, and the scheduler is where the condition gets evaluated.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 120
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_009",
+      "template": "reference",
+      "title": "The open-source trace and the code",
+      "content": "A contribution that is easy to overlook: Mooncake ships a **sampled real-world request trace** and claims it is the first open-source dataset usable for real-world *reuse* analysis.\n\n- 23,608 entries drawn from a 1-hour window of live Kimi traffic\n- fields: `timestamp`, `input_length`, `output_length`, `hash_ids`\n- requests within the same session were prioritized so caching relationships survive sampling\n- no text or tokens; block hashes are remapped to globally unique IDs\n\nWhy the `hash_ids` field matters: earlier public traces (Splitwise-style) give only lengths, which lets you simulate load but not reuse. With prefix-block hashes at block size 512, a simulator can replay *which* blocks would have hit. The cache-policy comparison in Table 1 is only possible because of this field, and so is any future work on eviction and replication policy.\n\nThis is what allows an outside reader to check the \"less computation\" half of the title without access to Kimi.",
+      "original": {
+        "text": "To the best of our knowledge, this is the first open-source dataset that can be used for real-world reuse analysis.",
+        "location": "§4, p.7"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 0
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://github.com/kvcache-ai/Mooncake",
+          "label": "Trace + code (stated in the paper)"
+        },
+        {
+          "type": "url",
+          "target": "https://arxiv.org/abs/2407.00079",
+          "label": "arXiv:2407.00079"
+        }
+      ]
+    },
+    {
+      "id": "node_010",
+      "template": "method",
+      "title": "Figure 2 — prefill and decoding scale in opposite directions",
+      "content": "[[IMG:fig02_prefill_decoding_scaling.png:780x319]]\n\n**Left panel (batch size = 1, sequence length 8k to 128k):** the blue prefill-latency curve bends *upward*. That is the superlinear growth predicted by $O(n^2)$ attention plus $O(n)$ MLP. The green bars — throughput — fall steadily as sequences lengthen.\n\n**Right panel (sequence length = 8k, batch size 1 to 16):** the red decoding-latency curve is almost flat, rising only slightly, while throughput climbs nearly linearly with batch size. Decoding is memory-bound; adding requests to the batch is close to free until VRAM runs out.\n\nThis figure is the quantitative justification for the entire architecture. Two workloads with opposite scaling curves want opposite things: prefill wants to spread one request across many nodes, decoding wants to pack many requests onto one. Any system that runs them on the same instance has to pick a compromise batch policy that is wrong for one of them — which is why Mooncake keeps the pools separate even though chunked prefill would let it merge them.",
+      "original": {
+        "text": "the computational complexity of attention networks scales quadratically with input length while the complexity of MLP scales linearly, computation time in the prefill stage generally increases superlinearly with input length",
+        "location": "§2, p.4"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 240
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_011",
+      "template": "method",
+      "title": "TTFT, TBT, and why goodput is the real objective",
+      "content": "Three definitions the rest of the paper depends on.\n\n**TTFT** (time to first token) — arrival to first output token. Owned by prefill.\n**TBT** (time between tokens) — gap between successive tokens of the *same* request. Owned by decoding.\n\nSLOs are expressed as multiples of an uncontended single-request run. $\\text{TTFT}_{P90}=4\\times$ means 90% of requests finish their prefill within 4x the latency of that request running alone. The end-to-end experiments use:\n\n$$\\text{TTFT}_{P90} = 10\\times, \\qquad \\text{TBT}_{P90} = 5\\times$$\n\n**Goodput** is where Mooncake departs from the literature. Other work counts tokens processed; Mooncake counts only requests that complete *fully* under SLO:\n\n$$\\text{goodput} = \\sum_{r \\,\\in\\, \\text{completed under SLO}} \\text{tokens}(r)$$\n\nEverything consumed by a request that is later dropped counts as zero. That single accounting choice is what makes early rejection worth building: if a partially-served request scored partial credit, the cheapest policy would be to admit everything and degrade gracefully. Because it scores zero, admitting a request you cannot finish is strictly worse than refusing it at the door — so the system returns HTTP 429 rather than starting work it will have to discard.",
+      "original": {
+        "text": "Our approach differs in that only requests that fully complete their execution are counted in the measure of goodput. Otherwise, all previously consumed/generated tokens are not counted, and the corresponding resources are wasted.",
+        "location": "§2, p.4"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 360
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_012",
+      "template": "gap",
+      "title": "Chunked prefill already exists — so why keep two pools?",
+      "content": "This is the paper's most contested design decision, and it argues against itself before committing.\n\n**The case for merging** (chunked prefill, as in SARATHI): split the prompt into small chunks that join the continuous decoding batch. Then (1) every node is identical, so scheduling is trivial, and (2) inlining prefill chunks raises the computational intensity of the decoding batch, improving MFU. Both are real benefits, and the paper concedes them.\n\n**Why Mooncake still separates.** Two reasons:\n\n1. **Prefill nodes need different cross-node parallelism.** Long contexts want several nodes on one request; decoding never does. Merging forces one parallelism setting on two workloads that want different ones.\n2. **Separation is what makes the VRAM saving possible.** With prefill isolated, layer-wise KVCache transfer can overlap with computation, and VRAM stops being a prefill scheduling constraint entirely.\n\nThe compromise they actually ship is worth noting: a request's prefill *is* inlined into the decoding batch when it can be forwarded **without chunking and without breaking the TBT SLO**. So short requests take the merged path and long ones take the disaggregated path. The disaggregation is not dogma — it is what long context specifically requires.",
+      "original": {
+        "text": "However, after careful consideration, we decided to maintain Mooncake's disaggregated architecture. A request's prefill is inlined into the decoding batch only when it can be forwarded without chunking and without compromising the TBT SLO.",
+        "location": "§5, p.8"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 480
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_013",
+      "template": "question",
+      "title": "If reuse is the whole idea, why is only about 50% of it reusable?",
+      "content": "The paper's most self-critical number is buried in Related Work: on Kimi's online traces, **at most 50% of the KVCache is theoretically reusable** — and that is the ceiling assuming *both* infinite storage capacity and an infinite TTFT budget. Table 1 shows the same ceiling empirically: LRU converges to 0.51 and stays there no matter how large the cache grows.\n\nTwo consequences follow.\n\n**Storage is not the binding constraint.** Going from 50,000 to infinite blocks buys one percentage point. The paper says so directly and then, honestly, cautions against over-reading it — the sample trace is a subset, and required capacity should scale with real workloads. But within this trace, capacity is not where the remaining gains are.\n\n**Reusability is a property of the application, not the system.** The paper reports it can reach **90%** for scenarios like their chat-to-paper service (papers.cool), where many users query the same documents. Kimi's general chat traffic simply has fewer shared prefixes.\n\nSo the honest framing is: prefix caching halves the prefill bill in the best case, and the other half of Mooncake's benefit has to come from disaggregation and scheduling. The evaluation supports this — ArXiv Summarization has approximately 0% cache ratio and still gains 20%.",
+      "original": {
+        "text": "Theoretically, up to only 50% of the KVCache can be reused in our current workloads, even if we assume both the capacity of storage and the TTFT SLO are infinite. However, this reusability highly depends on the application scenario and can be as large as 90% for certain scenarios, such as our chat-to-paper service",
+        "location": "§9, p.18"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 300
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_014",
+      "template": "reference",
+      "title": "The disaggregation lineage the paper places itself in",
+      "content": "Mooncake is explicit that prefill/decoding separation is not its invention, and names who got there first.\n\n- **Splitwise** — phase splitting for generative LLM inference. The paper says its arXiv publication landed early in Mooncake's development and motivated their progress.\n- **DistServe** — disaggregates prefill and decoding, optimizing resource allocation and parallel strategy per stage for GPU goodput. Described as concurrent work.\n- **TetriInfer** — combines chunked prefill, two-stage disaggregation, and predictive two-stage scheduling. Also concurrent.\n- **vLLM** — the baseline, and the codebase Mooncake builds on; the paper thanks its open-source community explicitly.\n\nWhat Mooncake claims as its own on top of this lineage: the KVCache pool as *shared cluster storage* built from idle CPU/DRAM/SSD, the cache-aware (not load-aware) global scheduling in Algorithm 1, and overload-oriented scheduling — which it says none of these works address, since they all assume every request gets processed.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 420
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://arxiv.org/abs/2311.18677",
+          "label": "Splitwise — arXiv:2311.18677"
+        },
+        {
+          "type": "url",
+          "target": "https://arxiv.org/abs/2401.09670",
+          "label": "DistServe — arXiv:2401.09670"
+        },
+        {
+          "type": "url",
+          "target": "https://arxiv.org/abs/2401.11181",
+          "label": "TetriInfer — arXiv:2401.11181"
+        },
+        {
+          "type": "url",
+          "target": "https://arxiv.org/abs/2403.02310",
+          "label": "SARATHI-Serve — arXiv:2403.02310"
+        }
+      ]
+    },
+    {
+      "id": "node_015",
+      "template": "method",
+      "title": "Figure 3 — prefix hashing turns KVCache into a deduplicated paged pool",
+      "content": "[[IMG:fig03_kvcache_pool_hashing.png:800x395]]\n\nTokens are grouped into blocks (block size 512 in the released trace). Each block gets a hash that **folds in its predecessor's hash**:\n\n$$h_i = \\text{Hash}(h_{i-1} \\,\\Vert\\, b_i), \\qquad h_1 = \\text{Hash}(b_1)$$\n\nIn the figure, blocks `a` through `e` match (green checks) and `f` mismatches (red cross) — and everything after the first mismatch is necessarily a miss too. That is the property the chaining buys: because each hash depends on the whole prefix, equal hash implies equal *prefix*, so a match is safe to reuse without comparing tokens, and the match length is found by a single left-to-right scan.\n\nThe bottom row shows the transfer path: the prefill instance stores incremental blocks, **Messenger** (a separate GPUDirect-RDMA process, one per instance) ships them cross-machine, and the decoding instance loads the full cache. Eviction on the pool is pluggable — LRU, LFU, or request-characteristic-aware.\n\nThis is the data structure the entire Killer Application rests on. Without prefix chaining, \"reuse the KVCache\" would require token-level comparison against every cached request; with it, reuse becomes a hash lookup, which is cheap enough for Conductor to evaluate against *every* prefill instance on every request.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 540
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_016",
+      "template": "method",
+      "title": "Figure 4 — the four-step request workflow",
+      "content": "[[IMG:fig04_request_workflow.png:780x419]]\n\nAfter tokenization, Conductor selects a prefill node (or group) and a decoding node, then:\n\n1. **KVCache Reuse** — the prefill node loads the matching prefix blocks from remote CPU memory into GPU memory. Skipped when there is no prefix cache. The choice of node balances three goals at once: maximize reuse, balance prefill load, meet the TTFT SLO.\n2. **Incremental Prefill** — compute only the uncached tail, writing new KVCache back to CPU memory. If the uncached input exceeds $\\text{prefill\\_chunk}$ (chosen to saturate the GPU, typically above 1000 tokens), the stage is split into pipelined chunks.\n3. **KVCache Transfer** — Messenger streams each layer's KVCache to the decoding node's CPU memory, asynchronously and overlapped with step 2.\n4. **Decoding** — once the cache has landed, the request joins the continuous batch.\n\nTwo annotations in the figure carry real weight. The `*` on the prefill side marks **layer-wise load and store**, executed in parallel with the prefill computation. The `†` on the decoding side marks **async load**, concurrent with GPU decoding to prevent idle time. Both exist for the same reason: KVCache movement is the price of disaggregation, and the design pays that price with overlap rather than with latency.\n\nOne honest wrinkle: step 4 re-checks the TBT SLO locally, because the decoding node's load may have shifted since Conductor pre-selected it. If that check fails the request is dropped and **the prefill cost is wasted** — which is precisely the failure mode early rejection exists to prevent.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 660
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_017",
+      "template": "method",
+      "title": "Algorithm 1 — schedule by predicted TTFT, not by load",
+      "content": "[[IMG:alg01_kvcache_centric_scheduling.png:780x690]]\n\nFor each incoming request, Conductor hashes the prompt into block keys, finds the best prefix match across the whole pool, then evaluates **every** prefill instance under one of two branches:\n\n$$\\text{if}\\quad \\frac{\\text{best\\_prefix\\_len}}{\\text{prefix\\_len}} < \\text{kvcache\\_balancing\\_threshold}: \\quad \\text{TTFT} = T_{\\text{queue}} + T_{\\text{prefill}}$$\n\n$$\\text{else}: \\quad \\text{TTFT} = T_{\\text{transfer}} + T_{\\text{queue}} + T_{\\text{prefill}}$$\n\nThe instance minimizing predicted TTFT wins. If even the best option violates the SLO, Conductor returns **HTTP 429 Too Many Requests** immediately.\n\nThe branch condition is the clever part. When an instance's *local* prefix match is within a threshold factor of the global best, Mooncake prefers to **recompute locally** rather than fetch — computation is sometimes cheaper than transfer, and this is where the title's trade is actually evaluated per request. When the gap is large enough, it pays the transfer and, at line 29, **also copies the block to the new instance**.\n\nThat last line is why the algorithm is titled KVCache-*centric* rather than cache-aware: hot-block replication is not a separate background process, it is a side effect of normal scheduling. The blocks that get copied are exactly the ones that repeatedly cause a big local/global gap — that is, the popular ones.",
+      "original": {
+        "text": "If the SLO is not achievable, Conductor directly returns the HTTP 429 Too Many Requests response status code to the upper layers.",
+        "location": "§6.1, p.11"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 780
+      },
+      "children": [
+        "node_023"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_018",
+      "template": "method",
+      "title": "Chunked Pipeline Parallelism (CPP) for long-context prefill",
+      "content": "Context lengths have gone from 8k to 128k and beyond, and for such requests input can be 10–100x larger than output — so TTFT is the metric that matters and one node is not enough. The paper rules out the two obvious options:\n\n| Approach | Cross-node cost | Verdict |\n|---|---|---|\n| Tensor parallelism across nodes | two RDMA all-reduces **per layer** | MFU collapses |\n| Sequence parallelism (Ring / Striped Attention) | at least one communication **per layer** | better, but still worse MFU than single-node TP, and it competes with KVCache transfer for the network |\n| **Chunked pipeline parallelism** | only at **pipeline stage boundaries** | overlappable with computation |\n\nCPP groups every $X$ prefill nodes into a pipelined group. A request's tokens are partitioned into chunks no longer than $\\text{prefill\\_chunk}$, and different chunks of the *same* request run simultaneously on different nodes — which is legal precisely because decoder-only transformers are autoregressive, so chunk $k$ only ever needs chunks $1..k-1$.\n\nTwo properties make it deployable rather than merely fast. Communication sits at stage boundaries, so it hides behind compute and stops fighting KVCache transfer for RDMA bandwidth. And it degrades gracefully: short contexts pass through with no significant overhead, so there is no need to keep re-partitioning the cluster into TP and SP groups as the traffic mix shifts. The paper claims this is the first application of pipeline-based acceleration in the inference stage.",
+      "original": {
+        "text": "This pipeline-based acceleration method has been explored in training systems [24], but to our knowledge, this is the first application in the inference stage, as long context inference has only recently emerged.",
+        "location": "§5.1, p.9"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 420
+      },
+      "children": [
+        "node_022"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_019",
+      "template": "method",
+      "title": "Layer-wise prefill — buying VRAM back with overlap",
+      "content": "[[IMG:fig07_layerwise_prefill_latency.png:560x374]]\n\nVRAM occupancy has a cost model. For a request whose KVCache is $S$ and whose processing time is $T$:\n\n$$\\text{Cost}_{\\text{VRAM}} = S \\times T$$\n\nChunking a request and inlining its chunks with other decoding work *stretches* $T$, so it raises this cost — another argument against merging the pools.\n\nBecause prefill is computation-bound and proceeds layer by layer, transfers can hide inside it. Before layer $\\ell$'s attention, the model waits for layer $\\ell$'s async KVCache load and launches layer $\\ell+1$'s; after the attention completes, it launches layer $\\ell$'s async store. Net effect: prefill wall-time is roughly $\\max$(KVCache load time, plain prefill time) rather than their sum.\n\nThe bar chart is the evidence. At 8000 tokens serialized and layer-wise storing cost about the same. By 128000 tokens the serialized bar has grown past 0.8 s while the layer-wise bar has stayed flat near 0.1 s — the overlap absorbs essentially all the growth, and it absorbs more the longer the request gets.\n\nWhy this matters for the Killer Application: once transfer is free, **VRAM stops being a prefill scheduling constraint**. Conductor only has to consider KVCache distribution and available DRAM (exactly what Figure 1's prefill-stage constraint list says). The freed VRAM is what the paper wants to spend on batch-API-style offline work later.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 540
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_020",
+      "template": "memo",
+      "title": "Hot-spot migration — replication without a prediction model",
+      "content": "The straw-man solution to cache load balancing is to collect global block-usage statistics, forecast future usage, and place replicas accordingly. The paper rejects it for a specific reason: for a provider whose user base is growing rapidly, workloads shift faster than any forecast can track. It is not that prediction is hard — it is that the distribution is non-stationary.\n\nThe heuristic that replaces it has no model at all:\n\n1. A request whose best prefix match lives on a busy instance is sent elsewhere when the estimated extra prefill time beats the transfer time.\n2. That instance **pulls the block from the holder and keeps a local copy**.\n3. If the remote match is not longer than the local match times a threshold, recompute locally instead of transferring.\n\nReplication therefore happens exactly as often as a block causes contention, and hot blocks spread across machines automatically — no usage counters, no forecast. The measure of \"hot\" is emergent: a block is hot precisely when scheduling pressure keeps routing around it.\n\nThe honest caveat, in the paper's own footnote: the threshold is currently tuned by hand, with adaptive adjustment left for future work. Also note the asymmetry with §6.1 — prefill time is predictable from offline data because Transformer compute is regular, but *transfer* time depends on live network congestion. The heuristic exists in the gap where a predictor would not have been trustworthy.",
+      "original": {
+        "text": "However, unlike the estimation of prefill time, workloads are highly dynamic and change significantly over time. Especially for a MaaS provider experiencing rapid growth in its user base, it is impossible to accurately predict future usage. Thus, we propose a heuristic-based automated hot-spot migration scheme to enhance cache load balancing.",
+        "location": "§6.2, p.11"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 660
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_021",
+      "template": "method",
+      "title": "Figure 10 — early rejection, the oscillation it causes, and the fix",
+      "content": "[[IMG:fig10_early_rejection_prediction.png:560x706]]\n\n**The problem.** If the decoding pool refuses a request *after* prefill has run, that compute is gone. So move the admission check earlier: on arrival, Conductor accepts based on the **greater** of the prefill and decoding pool loads. In a disaggregated system, load is measured directly as SLO satisfaction — predicted max TTFT against $l_{ttft}$, predicted max TBT against $l_{tbt}$ — rather than as a request count, because the two stages no longer interfere.\n\n**The new problem it creates.** Panel (a): Stage 1 both pools are idle, so Conductor accepts until prefill saturates. Stage 2 those requests reach decoding, decoding load spikes, Conductor rejects, prefill empties. Stage 3 decoding drains, Conductor accepts again. The two pools oscillate in **anti-phase**, and both are idle half the time. The root cause is a time lag: the scheduler reads the decoding load as it is *now*, but the request it is admitting will arrive there one prefill later.\n\n**The fix.** Panel (b): predict what the decoding load will be *after* this request's prefill, and admit against that. All four stages read \"Accept\" and both curves flatten. The shipped predictor is deliberately coarse — system-level, assuming a uniform decoding time $t_d$ per request: add requests the prefill instances will have finished by time $t$, remove those whose execution exceeds $t_d$, then average the TBT ratio against $l_{tbt}$.\n\nThis is the mechanism behind the third headline claim. It does not add capacity; it stops the cluster from wasting the capacity it has.",
+      "toggleItems": [
+        {
+          "id": "toggle_004",
+          "title": "Figure 9 — the oscillation is real, not just theoretical",
+          "content": "[[IMG:fig09_load_fluctuation.png:800x292]]\n\nTwenty minutes of measured instance load across a 20-machine cluster **before** prediction-based rejection was enabled. Green is prefill, yellow is decoding. The two traces are visibly out of phase: prefill dives to near 0% while decoding sits at 80%, then they swap.\n\nThis is Figure 10a happening on real hardware, and it is what makes prediction worth building. The paper notes the effect gets worse in clusters with fewer prefill machines and where prefill takes longer — i.e. exactly the long-context regime Mooncake targets.",
+          "expanded": false
+        }
+      ],
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 780
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_022",
+      "template": "question",
+      "title": "Why not sequence parallelism, which everyone else uses?",
+      "content": "SP is the standard answer to long-context parallelism, with a substantial literature behind it (DeepSpeed Ulysses, Ring Attention, Striped Attention, LightSeq, USP). The paper's rejection is worth reading closely, because it is an operational argument rather than a performance one.\n\n**The performance part:** SP still trails single-node TP on MFU, and it needs cross-node communication at least once per layer, which contends with KVCache transfer for the same RDMA bandwidth. In a system whose central premise is moving KVCache around the cluster, spending network on parallelism competes with the main event.\n\n**The operational part, which is the real objection:** the sensible SP deployment is two groups — one TP-only, one SP — routing to SP only when TTFT demands it. But then the split ratio has to track a shifting traffic mix. Elastic sequence parallelism (LoongServe) exists for exactly this, and the paper acknowledges it works. It rejects it anyway because it requires establishing a global communication group in advance and complicates Conductor's decisions, which must simultaneously weigh cache reuse and SLO violation *during* the adjustment.\n\nThat is a revealing trade. Mooncake gives up some theoretical parallel efficiency to keep the scheduler simple enough to also be cache-aware. CPP wins here not because it parallelizes better, but because it needs no reconfiguration when the workload changes.",
+      "original": {
+        "text": "This makes it challenging for our situations that require frequent on-the-fly scalability during deployment.",
+        "location": "§5.1, p.8"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 1500,
+        "y": 420
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_023",
+      "template": "memo",
+      "title": "The two estimators Algorithm 1 quietly depends on",
+      "content": "Algorithm 1 reads like clean pseudocode, but three of its lines are calls into predictors, and the paper is unusually frank about how well each works.\n\n**`EstimatePrefillExecutionTime`** — a predictive model fit to offline test data, taking request length and prefix hit length. The paper argues the error bound is small *because Transformer computation is regular*, given enough offline data. This is the easy one.\n\n**`EstimatePrefillQueueTime`** — the sum of queued requests' prefill times. Trivially derived from the first.\n\n**`EstimateKVCacheTransferTime`** — the hard one. It depends not only on data size but on live network status, particularly whether the *sending* node is congested. The paper says so plainly and then draws the right conclusion: since you cannot predict transfer time well, you must reduce the need for transfers — which is what hot-block replication (§6.2) is for.\n\nThere is a nice structural point here. The one quantity that is easy to predict (compute) is handled with a model; the one that is not (network) is handled with a heuristic that makes the prediction matter less. Cost: TTFTs must be computed against *every* prefill instance for every request — the paper notes this is done in parallel and is negligible against inference time.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 1500,
+        "y": 780
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_024",
+      "template": "result",
+      "title": "Figure 11 — public datasets separate the two mechanisms",
+      "content": "[[IMG:fig11_e2e_public_datasets.png:800x427]]\n\nFour instances either way: vLLM-[4M] against Mooncake-[3P+1D] and [2P+2D]. Axes are normalized so 1.0 is the SLO limit; the useful reading is the request rate at which each curve crosses it.\n\n| Dataset | Cache ratio | Mooncake-[3P+1D] gain over vLLM-[4M] |\n|---|---|---|\n| ArXiv Summarization | approx. 0% | +20% throughput under SLO |\n| L-Eval | >80% | +40% throughput under SLO |\n\nThe pairing is what makes this experiment informative. ArXiv Summarization has essentially no reusable prefix, so its 20% is bought entirely by disaggregation. L-Eval's extra 20 points are the prefix cache, which cuts prefill time directly. The two halves of the \"trade storage for computation\" thesis are visible separately.\n\n**The awkward result they report anyway:** Mooncake-[2P+2D] has *lower* TBT but worse TTFT than both [3P+1D] and vLLM. Two prefill instances are not enough for these workloads, so requests queue in prefill. The paper's answer is that real clusters have stable prefill/decoding demand over meaningful periods so the ratio can be preset — and concedes that flexible deployment and role conversion is future work. It is a genuine limitation of static disaggregation, and worth noting they published the losing configuration.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 900
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_025",
+      "template": "result",
+      "title": "Figure 12 — where the 525% actually comes from",
+      "content": "[[IMG:fig12_e2e_simulated_data.png:820x277]]\n\nFour prompt lengths — 16k, 32k, 64k, 128k — at 50% cache ratio. Note the x-axes: the sustainable request rate falls from about 1.5 req/s at 16k to about 0.14 req/s at 128k. These are the workloads Kimi is actually built for.\n\nThe pattern to read is in the bottom (TBT) row. vLLM's red curve saturates at 1.0 — the SLO ceiling — while Mooncake's curves stay flat and low across the whole rate range. The paper says outright that Mooncake's two-stage disaggregation \"never breaks the TBT SLO\" here.\n\nThere is a caveat that makes the comparison more honest, not less: long-context requests disrupt vLLM's decoding stage so badly that vLLM had to be run **processing requests individually rather than in batches**. So the baseline is vLLM in its degraded-but-functional mode. Mooncake batches normally and still wins by 50%–525%.\n\nThat range is the real finding. The gain is not a constant factor — it grows with context length, because that is where a coupled architecture is forced to choose between stalling decode and refusing to batch. Disaggregation is worth the least on short prompts and the most on the long ones the system was built for.",
+      "original": {
+        "text": "Although Mooncake employs batch processing, its two-stage disaggregation design effectively minimizes the impact of the prefill stage on the decoding stage, ensuring it never breaks the TBT SLO.",
+        "location": "§8.1.2, p.16"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1020
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_026",
+      "template": "result",
+      "title": "Figure 13 — the real-workload result, at equal hardware",
+      "content": "[[IMG:fig13_real_workload_cdf.png:800x341]]\n\nMooncake-[10P+10D] versus vLLM-[20M]: twenty instances each, replaying real Kimi traces at their recorded arrival times. Limits are TTFT 30 s and TBT 0.1 s/token.\n\n| Metric | Mooncake-[10P+10D] | vLLM-[20M] |\n|---|---|---|\n| Requests meeting TTFT SLO | approx. 100% | approx. 100% |\n| Requests meeting TBT SLO | approx. 100% | **57%** |\n\nThe left panel is nearly a tie and that is the point — Mooncake does not make prefill faster. The right panel is where the systems separate: vLLM's TBT distribution has a long tail stretching past 3 s/token, because a long prefill entering the batch stalls every request already decoding on that instance.\n\nCombined with the goodput definition (a request scores zero unless it completes fully under *both* SLOs), converting that 43% of TBT-violating requests into compliant ones is exactly where the **75% more requests** comes from. This is the most credible number in the paper: production-shaped arrivals, equal instance counts, no synthetic favouring of long contexts.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1140
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_027",
+      "template": "result",
+      "title": "Figure 8 — the ablation that isolates the scheduler",
+      "content": "[[IMG:fig08_prefill_scheduling_ttft.png:620x454]]\n\nEight prefill and eight decoding instances, 23,000 real requests replayed, four prefill-scheduling policies. Box plots of TTFT; the annotated triangles are the means and the dashed line is the SLO.\n\n| Policy | Mean TTFT |\n|---|---|\n| KVCache-centric (cache-aware + balancing) | **6.26 s** |\n| cache-aware only | 14.36 s |\n| load-balancing | 60.41 s |\n| random | 92.07 s |\n\nRead it as two separate jumps. From load-balancing (60.41) to cache-aware (14.36) is a **4.2x** improvement from routing by prefix match instead of by instance load — that is the value of knowing where the cache is. From cache-aware (14.36) to KVCache-centric (6.26) is a further **2.3x** from adding hot-spot migration — that is the value of not letting every request pile onto whichever node happens to hold the popular blocks.\n\nBoth jumps matter for the thesis. The first says cache-awareness beats load-awareness; the second says cache-awareness *alone* creates its own hot-spot contention, so the balancing half is not optional. Note also the box widths: only the two rightmost policies have whiskers running past 200 s, and only the two leftmost keep their medians under the SLO line at all.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 900
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_028",
+      "template": "result",
+      "title": "Table 1 and Figure 6 — how much reuse exists, and how skewed it is",
+      "content": "[[IMG:fig06_block_hit_cdf.png:460x392]]\n\n**Cache hit rate by policy and capacity** (single global pool, block size 512):\n\n| Block capacity | Inf | 100000 | 50000 | 30000 | 10000 | 1000 |\n|---|---|---|---|---|---|---|\n| LRUCache | 0.51 | 0.51 | 0.50 | 0.48 | 0.40 | 0.30 |\n| LFUCache | 0.51 | 0.51 | 0.49 | 0.43 | 0.35 | 0.30 |\n| LengthAwareCache | 0.51 | 0.50 | 0.48 | 0.42 | 0.35 | 0.30 |\n\nTwo readings. **Capacity saturates early**: 1,000 to 50,000 blocks takes the hit rate from 0.30 to 0.50, and everything beyond that buys one point. **LRU wins**, which the paper attributes to temporal proximity in request usage — recency, not frequency, predicts reuse in chat traffic.\n\nThe CDF beside it is the more consequential plot. Over **50% of cache blocks are never reused at all** (the curve starts above 0.5 at a hit count of 1), while a thin tail is accessed tens of thousands of times. Popularity is extremely skewed.\n\nThat skew is the direct justification for hot-spot migration. If reuse were uniform, one copy per block would suffice and scheduling could just route to the holder. Because a handful of blocks — system prompts, shared documents — carry most of the hits, routing everything to their holder would create a hot node and destroy TTFT. Replicating the tail is not an optimization; it is what keeps cache-aware scheduling from defeating itself.",
+      "original": {
+        "text": "Additionally, we observed a notable imbalance in cache block popularity, with over 50% of cache blocks remaining unused while certain blocks are accessed tens of thousands of times, as shown in Figure 6. Replicating these hot blocks is essential to avoid transfer congestion.",
+        "location": "§4.2, p.8"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 1020
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_029",
+      "template": "result",
+      "title": "Figure 5 — the workload shape that justifies the whole design",
+      "content": "[[IMG:fig05_trace_length_distribution.png:760x375]]\n\nThe trace's input and output length distributions, both on log-frequency axes.\n\n| Statistic | Value |\n|---|---|\n| Average input length | 7,590 tokens |\n| Average output length | 182 tokens |\n| Trace size | 23,608 requests over 1 hour |\n| Input tail | past 120,000 tokens |\n\nInputs run out to 120k+ tokens; outputs almost never exceed 2,000. An average request reads roughly forty times more than it writes.\n\nThis asymmetry is the premise every design decision rests on. Prefill dominates the compute bill, so caching prefixes pays; TTFT is the metric users feel, so multi-node prefill (CPP) is worth building; and decoding, being short, can be packed densely for MFU. Reverse the ratio — short prompts, long generations — and Mooncake's architecture would be solving the wrong problem, with the decoding pool as the bottleneck and prefix caching nearly worthless.\n\nThe paper is careful here: it flags this as a representative pattern rather than a universal one, reflecting Kimi's particular long-context user base. Read Mooncake as an architecture for *this* shape of traffic, not as a universal serving design.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 1140
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_030",
+      "template": "memo",
+      "title": "The dummy-model caveat, and why it is defensible",
+      "content": "Every experiment in this paper runs on a **dummy model that follows the LLaMA2-70B architecture** — not LLaMA2-70B itself, and not Kimi's real model. The trace carries only arrival timestamps, input length, output length, and remapped block hashes. No user content exists anywhere in the evaluation.\n\nThe stated reasons are protecting proprietary information and enabling reproducibility, and the constraint is announced twice: once in a boxed note in §1.2 and again in §8.1.\n\n**Why this is largely fine for the claims being made.** Every metric here — TTFT, TBT, MFU, cache hit rate, queueing — is determined by tensor shapes, arrival timing, and prefix-sharing structure. None of them depend on weight values. A dummy model with matching architecture reproduces the compute and memory profile exactly.\n\n**What it does cost.** Output lengths are replayed from the trace rather than generated, so the system never faces genuine output-length uncertainty. That matters specifically for §7.4: the paper argues request-level output-length prediction is too unreliable to use, and settles for a system-level predictor assuming uniform $t_d$. In a replay harness, the true lengths are known to the trace but not used by the predictor — a reasonable simulation, though not the same as facing the uncertainty live.\n\nWorth stating plainly: publishing an evaluation that cannot use the real model, and saying so twice, is the honest version of this constraint.",
+      "original": {
+        "text": "To protect proprietary information and facilitate reproducibility, all the experimental results reported in this paper are based on replayed traces of real workloads, but using a dummy model that follows the same architecture as LLaMA2-70B.",
+        "location": "§1.2, p.3"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1260
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_031",
+      "template": "gap",
+      "title": "Heterogeneous accelerators — disaggregation taken one level down",
+      "content": "The stated next step generalizes the paper's own move. Mooncake disaggregated *stages*; the future-work section proposes disaggregating *operators* onto different silicon.\n\nThe argument starts from a hardware observation: flagship accelerators balance compute, bandwidth, and capacity, and so are optimal at none of them. On bandwidth per dollar or bandwidth per watt, GDDR and even LPDDR can be **an order of magnitude better**. The paper is also watching process-in-memory and hybrid-bonding work as a route to devices with both high bandwidth and high capacity.\n\nThen the specific opening. In the decoding phase, the attention operator's arithmetic intensity is proportional to\n\n$$\\frac{\\text{number of attention heads}}{\\text{number of key/value heads}}$$\n\nand — unlike every linear operator — **it cannot be raised by increasing the batch size**. So attention stays memory-bound while the rest of the layer becomes compute-bound at large batch. Running both on the same device guarantees one of them is on the wrong hardware. Splitting attention onto bandwidth-oriented parts and the linear operators onto compute-oriented ones would let each run where it belongs; the authors cite their own preliminary simulation of attention offloading as evidence of the potential.\n\nThey also note DeepSeek-v2's MLA operator attacks the same problem from the algorithm side by raising arithmetic intensity directly, and call it promising — a fair acknowledgment that the hardware route is not the only one.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1320
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_032",
+      "template": "gap",
+      "title": "KVCache compression as an orthogonal multiplier",
+      "content": "The paper flags a whole research direction as *orthogonal* — meaning it multiplies with Mooncake rather than competing with it. Smaller KVCache helps in two independent ways:\n\n1. **Bigger decoding batches** — decoding batch size is capped by KVCache fitting in VRAM (see Figure 1's decoding constraint). Halve the cache and the batch grows, raising MFU.\n2. **Higher hit ratio** — a fixed DRAM/SSD pool holds more blocks, and Table 1 shows hit rate is capacity-sensitive below 50,000 blocks.\n\nThe survey it gives spans four families: quantization and compression of the cache; selecting important tokens by various metrics; sharing KVCache across layers; and hybrid architectures with operators that need no KVCache at all (Mamba, RWKV, Jamba, YOCO).\n\nThe fourth family is the interesting one to sit with. Mooncake's entire value proposition assumes KVCache is large, expensive, and worth storing and moving. An architecture that eliminates it does not make Mooncake faster — it makes the KVCache pool unnecessary. The paper lists these works without treating them as a threat, which is fair while Transformers dominate deployment, but it does mark the boundary of the design's usefulness.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1440
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_033",
+      "template": "question",
+      "title": "What the paper does not show",
+      "content": "Reading the evaluation for what is absent rather than what is reported:\n\n**No CPP ablation.** Chunked pipeline parallelism is a headline contribution and claimed as the first pipeline-based acceleration in inference, but no experiment isolates it against SP or single-node TP. Its case rests entirely on the qualitative argument in §5.1.\n\n**No cache-capacity sweep on the real system.** Table 1's capacity analysis is a simulation over the trace with a single global pool, not a measurement of the deployed hierarchical DRAM/SSD pool. What the real system's SSD tier costs in TTFT is not shown.\n\n**No failure or recovery discussion.** The KVCache pool is now a cluster-wide dependency spanning CPU, DRAM, and SSD on every node. What happens when a node holding hot replicas dies mid-request is not addressed.\n\n**Scale of the reported experiments.** The largest configurations here are 20 instances (8P+8D for scheduling and overload, 10P+10D for the real workload). Mooncake serves Kimi at production scale, but the published numbers come from these small clusters — reasonable, since the traces are replayed, but the scaling behaviour of Conductor evaluating every prefill instance per request is not measured.\n\n**Eviction policy in deployment.** LRU/LFU/LengthAware are compared offline; which one runs in production, and how partial hits and expiration are handled, is listed under future work.\n\nNone of these sink the paper's claims — they mark where an independent reader would have to take the architecture on trust.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1560
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_034",
+      "template": "reference",
+      "title": "The concurrent work Mooncake positions itself against",
+      "content": "Beyond the disaggregation lineage, the paper names three works on the caching side and states carefully what is different.\n\n**AttentionStore** — described as concurrent, and the closest neighbour: a hierarchical KVCache system using cost-effective memory and storage tiers to hold KVCache for all requests. The paper concedes the architectures \"share many design choices\" and draws the distinction on two grounds: long-context KVCache is large enough to demand high capacity *and* efficient transfer plus global scheduling, and Mooncake is not a standalone cache service — it couples cache storage with cache-aware scheduling.\n\n**SGLang / RadixAttention** — an LRU cache in a radix tree, enabling automatic sharing across reuse patterns. The structural cousin of Mooncake's prefix-hash chain.\n\n**Prompt Cache** — precomputes and stores frequently used text KVCache on inference servers.\n\n**Preble** — distributed prompt scheduling, which the paper calls \"essentially KVCache-centric scheduling\" and says it corroborates. It adds a pointed caveat: **real reusability in their online traces is much smaller than what open-source benchmarks reproduce** — the gap between benchmark reuse and production reuse is itself a finding.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 1200
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://arxiv.org/abs/2403.19708",
+          "label": "AttentionStore — arXiv:2403.19708"
+        },
+        {
+          "type": "url",
+          "target": "https://arxiv.org/abs/2312.07104",
+          "label": "SGLang — arXiv:2312.07104"
+        },
+        {
+          "type": "url",
+          "target": "https://arxiv.org/abs/2311.04934",
+          "label": "Prompt Cache — arXiv:2311.04934"
+        },
+        {
+          "type": "url",
+          "target": "https://escholarship.org/uc/item/1bm0k1w0",
+          "label": "Preble (link given in the paper)"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_001",
+      "source": "node_001",
+      "target": "node_002",
+      "type": "arrow",
+      "label": ""
+    },
+    {
+      "id": "edge_002",
+      "source": "node_002",
+      "target": "node_003",
+      "type": "arrow",
+      "label": ""
+    },
+    {
+      "id": "edge_003",
+      "source": "node_003",
+      "target": "node_004",
+      "type": "arrow",
+      "label": ""
+    },
+    {
+      "id": "edge_004",
+      "source": "node_004",
+      "target": "node_005",
+      "type": "arrow",
+      "label": ""
+    },
+    {
+      "id": "edge_005",
+      "source": "node_001",
+      "target": "node_006",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_006",
+      "source": "node_001",
+      "target": "node_007",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_007",
+      "source": "node_001",
+      "target": "node_008",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_008",
+      "source": "node_001",
+      "target": "node_009",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_009",
+      "source": "node_002",
+      "target": "node_010",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_010",
+      "source": "node_002",
+      "target": "node_011",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_011",
+      "source": "node_002",
+      "target": "node_012",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_012",
+      "source": "node_002",
+      "target": "node_013",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_013",
+      "source": "node_002",
+      "target": "node_014",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_014",
+      "source": "node_003",
+      "target": "node_015",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_015",
+      "source": "node_003",
+      "target": "node_016",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_016",
+      "source": "node_003",
+      "target": "node_017",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_017",
+      "source": "node_003",
+      "target": "node_018",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_018",
+      "source": "node_003",
+      "target": "node_019",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_019",
+      "source": "node_003",
+      "target": "node_020",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_020",
+      "source": "node_003",
+      "target": "node_021",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_021",
+      "source": "node_018",
+      "target": "node_022",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_022",
+      "source": "node_017",
+      "target": "node_023",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_023",
+      "source": "node_004",
+      "target": "node_024",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_024",
+      "source": "node_004",
+      "target": "node_025",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_025",
+      "source": "node_004",
+      "target": "node_026",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_026",
+      "source": "node_004",
+      "target": "node_027",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_027",
+      "source": "node_004",
+      "target": "node_028",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_028",
+      "source": "node_004",
+      "target": "node_029",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_029",
+      "source": "node_004",
+      "target": "node_030",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_030",
+      "source": "node_005",
+      "target": "node_031",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_031",
+      "source": "node_005",
+      "target": "node_032",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_032",
+      "source": "node_005",
+      "target": "node_033",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_033",
+      "source": "node_005",
+      "target": "node_034",
+      "type": "line",
+      "label": ""
+    }
+  ],
+  "viewport": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "canvasImages": []
+}
