@@ -8,7 +8,7 @@ export function App() {
   const {
     graph, imageUris,
     updateNodePosition, autoSaveNodePosition, toggleContent, toggleOriginal,
-    updateNodeField, addNode, deleteNodes, addEdge, deleteEdge,
+    updateNodeField, addNode, addChildNode, deleteNodes, addEdge, deleteEdge,
     addToggle, updateToggle, deleteToggle, expandToggle, deleteOriginal,
     saveImage,
     addCanvasImage, addFilenameToNode, saveCanvasImage, updateCanvasImage, removeCanvasImage, moveCanvasImageToNode,
@@ -85,6 +85,7 @@ export function App() {
       onAutoSaveNodePosition={autoSaveNodePosition}
       onUpdateNode={updateNodeField}
       onAddNode={(x, y, t) => addNode(x, y, t)}
+      onAddChildNode={addChildNode}
       onDeleteNodes={deleteNodes}
       onSetNodeWidth={setNodeWidth}
       onSetNodeHeight={setNodeHeight}

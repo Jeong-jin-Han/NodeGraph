@@ -25,6 +25,7 @@ interface CanvasProps {
   onAutoSaveNodePosition: (id: string, x: number, y: number) => void
   onUpdateNode: (id: string, field: string, value: string) => void
   onAddNode: (x: number, y: number, template?: string) => void
+  onAddChildNode: (parentId: string, template?: string) => void
   onDeleteNodes: (ids: string[]) => void
   onSetNodeWidth: (id: string, width: number) => void
   onSetNodeHeight: (id: string, height: number) => void
@@ -336,12 +337,27 @@ function computeRenderPositions(
     sideOf.set(n.id, n.position.x >= root.position.x ? 1 : -1)
   }
   const maxDepth = nodes.reduce((m, n) => Math.max(m, tree.depthOf.get(n.id) ?? 0), 0)
+  // 전역에서 가장 넓은 main topic 폭 — 어느 main topic 하나가 표 등으로 넓어지면, 그
+  // main topic 자신의 왼쪽·오른쪽 hop1 간격이 똑같이 유지되는 것은 물론(오른쪽 변만
+  // 넓어지므로 오른쪽 계산에만 필요), 다른 (안 넓어진) main topic들의 hop1도 전부 같은
+  // 만큼 같이 밀려서 hop1 열이 문서 전체에서 계속 나란히 정렬돼야 한다(사용자 리포트:
+  // "모든 hop1과 hop2가 다 같이 밀려야 하는데 지금은 같은 main topic의 hop1, hop2에
+  // 대해서만 밀려서"). 그래서 "이 브랜치 자신의 폭"이 아니라 "전역에서 제일 넓은 main
+  // topic의 폭"을 모든 브랜치의 오른쪽 오프셋에 똑같이 더한다 — 표가 없는 보통 상황(모든
+  // main topic 폭이 같음)에서는 이 값이 곧 자기 자신의 폭과 같아서 좌우 간격이 정확히
+  // MIN_HOP_GAP으로 대칭이고, 표로 넓어진 그 main topic 자신도 좌우가 대칭을 유지한다.
+  // 왼쪽은 main topic이 아무리 넓어져도 왼쪽 변 자체는 움직이지 않으므로 폭 보정이
+  // 필요 없다 — 그래서 왼쪽은 항상 고정 MIN_HOP_GAP.
+  let globalWidestMainTopic = 0
+  for (const n of nodes) {
+    if (tree.depthOf.get(n.id) === 0) globalWidestMainTopic = Math.max(globalWidestMainTopic, nw(n))
+  }
   const colOffset = new Map<string, number>() // `${depth}:${side}` -> root 기준 누적 X 오프셋
   for (const side of [1, -1] as const) {
-    let offset = 0
+    let offset = side === 1 ? globalWidestMainTopic + MIN_HOP_GAP : MIN_HOP_GAP
     let prevMaxWidth = 0
-    for (let d = 0; d <= maxDepth; d++) {
-      if (d > 0) offset += Math.max(MIN_HOP_GAP, prevMaxWidth + COL_PAD)
+    for (let d = 1; d <= maxDepth; d++) {
+      if (d > 1) offset += Math.max(MIN_HOP_GAP, prevMaxWidth + COL_PAD)
       colOffset.set(`${d}:${side}`, offset)
       let widest = 0
       for (const n of nodes) {
@@ -350,6 +366,13 @@ function computeRenderPositions(
       prevMaxWidth = widest
     }
   }
+  // offset은 "root와 가장 가까운 쪽 모서리"까지의 거리다. side=1(오른쪽)은 그 모서리가
+  // 곧 CSS left(카드의 왼쪽 변)라 그대로 쓰면 되지만, side=-1(왼쪽)은 root와 가장 가까운
+  // 모서리가 카드의 오른쪽 변이므로, CSS left를 구하려면 거기서 카드 너비만큼 더 빼야
+  // 한다. 이걸 안 하면(예전 코드) 왼쪽 변이 열 기준으로 정렬되고 반대로 main topic과
+  // 가까운 오른쪽 변은 카드 너비에 따라 들쭉날쭉해져서, 커넥터가 main topic으로 모이는
+  // 지점이 노드마다 제각각이 되는 문제가 있었음(사용자 리포트: "hop1 시작점에 대해서
+  // 왼쪽 정렬이 아니라 오른쪽 정렬을 하라는 것").
   const renderX: Record<string, number> = {}
   for (const n of nodes) {
     if (n.id === draggingNodeId) { renderX[n.id] = n.position.x; continue }
@@ -358,7 +381,8 @@ function computeRenderPositions(
     const side = sideOf.get(n.id) ?? 1
     const root = nodeById.get(tree.rootOf.get(n.id)!)!
     const offset = colOffset.get(`${depth}:${side}`) ?? depth * MIN_HOP_GAP
-    renderX[n.id] = root.position.x + side * offset
+    const nearRootEdge = root.position.x + side * offset
+    renderX[n.id] = side === 1 ? nearRootEdge : nearRootEdge - nw(n)
   }
 
   return Object.fromEntries(nodes.map(n => [n.id, {
@@ -531,7 +555,7 @@ export function Canvas({
   focusCanvasSignal,
   viewport, cursor, nativeWheelHandler,
   onMouseDown, onMouseMove, onMouseUp, onMouseLeave, onContextMenu,
-  onSetViewport, graph, onUpdateNodePosition, onAutoSaveNodePosition, onUpdateNode, onAddNode, onDeleteNodes,
+  onSetViewport, graph, onUpdateNodePosition, onAutoSaveNodePosition, onUpdateNode, onAddNode, onAddChildNode, onDeleteNodes,
   onSetFontSize, onBumpFontSize, onSetFontSizeExact,
   onSetNodeWidth, onSetNodeHeight,
   onPushHistory, onUndo, onRedo, canUndo, canRedo,
@@ -1312,8 +1336,16 @@ export function Canvas({
     onMouseLeave(e)
   }, [onMouseLeave])
 
-  // 툴바: 노드 추가 — 현재 화면 중앙 근처의 빈 공간을 찾아 배치 (렌더 위치 기준 충돌 검사)
+  // 툴바: 노드 추가 — 노드 하나가 선택되어 있으면 그 노드의 자식으로 추가해서
+  // hop 배치(computeHopPosition)에 바로 편입되게 한다. 선택이 없거나 여러 개면
+  // (붙일 부모가 애매하므로) 예전처럼 화면 중앙 근처의 빈 공간에 독립 노드로 놓는다
+  // — 사용자 리포트: "새로운 노드를 추가했을 때 grid 선이 추가되고 자동으로 정렬되는
+  // 기능이 없어", 정렬은 새 로직을 만들지 않고 기존 hop 배치 방식 하나만 재사용.
   const handleAddNode = useCallback(() => {
+    if (selectedIds.size === 1) {
+      onAddChildNode([...selectedIds][0], selectedTemplate)
+      return
+    }
     const el = divRef.current
     if (!el) return
     const { width: W, height: H } = el.getBoundingClientRect()
@@ -1347,7 +1379,7 @@ export function Canvas({
     }
     // 빈 공간을 못 찾으면 그냥 화면 중앙에 (기존 동작)
     onAddNode(baseX, baseY, selectedTemplate)
-  }, [viewport, graph.nodes, onAddNode, selectedTemplate])
+  }, [viewport, graph.nodes, onAddNode, onAddChildNode, selectedIds, selectedTemplate])
 
   // 툴바: 선택된 노드 모두 삭제
   const handleDeleteSelected = useCallback(() => {

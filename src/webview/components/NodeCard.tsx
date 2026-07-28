@@ -96,6 +96,7 @@ export function NodeCard({
   onNodeDragActivate, onNodeDragDeactivate,
 }: NodeCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLDivElement>(null)
   const tableBodyRef = useRef<HTMLDivElement>(null)
   const [editingField, setEditingField] = useState<EditingField>(null)
   const [editValue, setEditValue] = useState('')
@@ -111,6 +112,18 @@ export function NodeCard({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [contentMoreExpanded, setContentMoreExpanded] = useState(false)
   const [contentMaxHeight, setContentMaxHeight] = useState(DEFAULT_CONTENT_MAX)
+
+  // content 안의 [[IMG:...:WxH]] 토큰에서 필요한 최소 너비 자동 계산
+  const autoMinWidth = useMemo(() => {
+    const content = node.content ?? ''
+    const IMG_SIZE_RE = /\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g
+    let maxW = 0
+    let m: RegExpExecArray | null
+    while ((m = IMG_SIZE_RE.exec(content)) !== null) maxW = Math.max(maxW, Number(m[1]))
+    if (maxW === 0) return 432
+    // 표 모드: 이미지 열 외에 다른 열 여유분 추가
+    return hasTable(content) ? maxW + 280 : maxW + 32
+  }, [node.content])
   const [contentNeedsMoreBtn, setContentNeedsMoreBtn] = useState(false)
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -173,6 +186,21 @@ export function NodeCard({
     const current = node.nodeWidth ?? 0
     if (needed > current) onSetNodeWidth(node.id, needed)
   }, [node.content, node.contentExpanded, node.nodeWidth, node.id, onSetNodeWidth])
+
+  // 제목이 길면 카드 폭 밖으로 삐져나가던 문제 — 위 표 너비 확장과 같은 방식으로,
+  // 헤더가 실제로 필요로 하는 폭(scrollWidth)이 지금 카드 폭(clientWidth)보다 크면
+  // 그 초과분만큼 nodeWidth를 늘린다. 헤더 자식(뱃지/제목)은 whiteSpace:'nowrap'+
+  // 기본 min-width:auto라 줄어들지 못하고 카드 밖으로 넘치기만 할 뿐 카드 자체의
+  // width(고정값, 위 참고)를 밀어 넓히지는 않아서 별도로 반영해줘야 함.
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el) return
+    const overflow = el.scrollWidth - el.clientWidth
+    if (overflow <= 0) return
+    const current = Math.max(node.nodeWidth ?? 0, 432, autoMinWidth)
+    const needed = current + overflow + 4
+    if (needed > (node.nodeWidth ?? 0)) onSetNodeWidth(node.id, needed)
+  }, [node.title, node.fontSize, node.nodeWidth, node.id, autoMinWidth, onSetNodeWidth])
 
   // 본문 높이 상한 계산: 표/이미지가 있으면 그게 전부 보일 만큼(마지막 표/이미지 하단까지)
   // 상한을 넓히고, 없으면 DEFAULT_CONTENT_MAX로 폴백. overflow:auto라 실제 measure는
@@ -360,18 +388,6 @@ export function NodeCard({
     width: '100%',
   }
 
-  // content 안의 [[IMG:...:WxH]] 토큰에서 필요한 최소 너비 자동 계산
-  const autoMinWidth = useMemo(() => {
-    const content = node.content ?? ''
-    const IMG_SIZE_RE = /\[\[IMG:[^:\]]+:(\d+)x\d+\]\]/g
-    let maxW = 0
-    let m: RegExpExecArray | null
-    while ((m = IMG_SIZE_RE.exec(content)) !== null) maxW = Math.max(maxW, Number(m[1]))
-    if (maxW === 0) return 432
-    // 표 모드: 이미지 열 외에 다른 열 여유분 추가
-    return hasTable(content) ? maxW + 280 : maxW + 32
-  }, [node.content])
-
   return (
     <>
       <div
@@ -437,6 +453,7 @@ export function NodeCard({
 
         {/* Header */}
         <div
+          ref={headerRef}
           onMouseDown={(e) => {
             e.stopPropagation()
             onSelect(node.id, e.shiftKey || e.ctrlKey || e.metaKey)

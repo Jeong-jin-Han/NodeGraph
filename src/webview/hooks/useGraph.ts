@@ -73,6 +73,21 @@ export function isMainTopicNode(g: NodeGraph, node: GraphNode): boolean {
   return node.template === 'main_topic'
 }
 
+function nextNodeId(g: NodeGraph): string {
+  const nums = g.nodes.map(n => parseInt(n.id.replace('node_', ''), 10)).filter(n => !isNaN(n))
+  const nextNum = nums.length > 0 ? Math.max(...nums) + 1 : 1
+  return `node_${String(nextNum).padStart(3, '0')}`
+}
+
+// 화살표는 main topic(백본) 사이의 순서 연결에만 쓰고, 그 외(부모→hop 자식) 연결은
+// 전부 화살표 없는 평범한 직선으로 — 사용자 요청: "main topic 간에 대해서만 화살표를
+// 사용하게 하고, 그 자식간에 대해서는 그냥 평범한 직선으로".
+function edgeTypeFor(g: NodeGraph, sourceId: string, targetId: string): 'arrow' | 'line' {
+  const src = g.nodes.find(n => n.id === sourceId)
+  const tgt = g.nodes.find(n => n.id === targetId)
+  return (src && tgt && isMainTopicNode(g, src) && isMainTopicNode(g, tgt)) ? 'arrow' : 'line'
+}
+
 export function childIdsOf(g: NodeGraph, nodeId: string): string[] {
   return [...new Set([
     ...(g.nodes.find(n => n.id === nodeId)?.children ?? []),
@@ -340,9 +355,7 @@ export function useGraph() {
 
   const addNode = useCallback((x: number, y: number, templateKey?: string) => {
     setGraph(g => {
-      const nums = g.nodes.map(n => parseInt(n.id.replace('node_', ''), 10)).filter(n => !isNaN(n))
-      const nextNum = nums.length > 0 ? Math.max(...nums) + 1 : 1
-      const id = `node_${String(nextNum).padStart(3, '0')}`
+      const id = nextNodeId(g)
       const resolved = (templateKey && g.nodeTemplates[templateKey]) ? templateKey : Object.keys(g.nodeTemplates)[0] ?? 'memo'
       return {
         ...g,
@@ -351,6 +364,33 @@ export function useGraph() {
           contentExpanded: false, originalExpanded: false, childrenExpanded: false,
           position: { x, y }, children: [], links: [],
         }],
+      }
+    }, true)
+  }, [setGraph])
+
+  // 선택된 노드의 자식으로 새 노드를 추가 — 위치 계산은 addEdge가 기존 노드를 처음
+  // 연결할 때 쓰는 computeHopPosition을 그대로 재사용해서, "새 노드를 추가해도 grid에
+  // 맞춰 자동 정렬되지 않는다"는 문제를 별도 정렬 로직 없이 기존 hop 배치 방식 하나로만
+  // 해결한다(사용자 요청: "정렬 방식은 이전에 내가 언급했던 방식만으로"). 노드 생성과
+  // 엣지 생성을 하나의 setGraph 호출로 묶어 undo가 한 번에 되도록 함.
+  const addChildNode = useCallback((parentId: string, templateKey?: string) => {
+    setGraph(g => {
+      const parent = g.nodes.find(n => n.id === parentId)
+      if (!parent) return g
+      const id = nextNodeId(g)
+      const resolved = (templateKey && g.nodeTemplates[templateKey]) ? templateKey : Object.keys(g.nodeTemplates)[0] ?? 'memo'
+      const pos = computeHopPosition(g, parentId) ?? { x: parent.position.x + HOP_X_OFFSET, y: parent.position.y }
+      const newNode: GraphNode = {
+        id, template: resolved, title: 'New Node', content: '',
+        contentExpanded: false, originalExpanded: false, childrenExpanded: false,
+        position: pos, children: [], links: [],
+      }
+      const edgeId = `edge_${Date.now()}`
+      const edgeType = edgeTypeFor({ ...g, nodes: [...g.nodes, newNode] }, parentId, id)
+      return {
+        ...g,
+        nodes: [...g.nodes, newNode],
+        edges: [...g.edges, { id: edgeId, source: parentId, target: id, type: edgeType, label: '' }],
       }
     }, true)
   }, [setGraph])
@@ -364,11 +404,12 @@ export function useGraph() {
     }), true)
   }, [setGraph])
 
-  const addEdge = useCallback((sourceId: string, targetId: string, type: 'arrow' | 'line' = 'arrow') => {
+  const addEdge = useCallback((sourceId: string, targetId: string, type?: 'arrow' | 'line') => {
     setGraph(g => {
       if (g.edges.some(e => e.source === sourceId && e.target === targetId)) return g
       const id = `edge_${Date.now()}`
-      const edges = [...g.edges, { id, source: sourceId, target: targetId, type, label: '' }]
+      const resolvedType = type ?? edgeTypeFor(g, sourceId, targetId)
+      const edges = [...g.edges, { id, source: sourceId, target: targetId, type: resolvedType, label: '' }]
       // Reposition the target using hop-based placement, as if it's a fresh child of source —
       // only meaningful the first time a node gets a parent; leave it alone if it already has one.
       // Also skip if the target is itself a main_topic (backbone) node — connecting two backbone
@@ -710,7 +751,7 @@ export function useGraph() {
   return {
     graph, imageUris,
     updateNodePosition, autoSaveNodePosition, toggleContent, toggleOriginal,
-    updateNodeField, addNode, deleteNodes, addEdge, deleteEdge,
+    updateNodeField, addNode, addChildNode, deleteNodes, addEdge, deleteEdge,
     addToggle, updateToggle, deleteToggle, expandToggle, deleteOriginal,
     saveImage,
     setNodeWidth, setNodeHeight, setNodeFontSize, bumpFontSize, setFontSizeExact, pushHistory,

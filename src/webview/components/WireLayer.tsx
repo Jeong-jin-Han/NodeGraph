@@ -55,36 +55,8 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
   // 화살표 크기도 자동으로 같이 커진다(별도 처리 불필요).
   const zc = zoom < 1 ? 1 / zoom : 1
   // 지오메트리 모델 — 선택/하이라이트와 무관하게 노드·엣지 배치가 바뀔 때만 재계산
-  const { nodeMap, busGroups, busEdgeIds, allRects, spreadMap } = useMemo(() => {
+  const { nodeMap, allRects, spreadMap } = useMemo(() => {
     const nodeMap = new Map(nodes.map((n) => [n.id, n]))
-
-    // line 엣지를 source별로 grouping
-    const lineBySource = new Map<string, GraphEdge[]>()
-    for (const edge of edges) {
-      if (edge.type !== 'line') continue
-      if (!lineBySource.has(edge.source)) lineBySource.set(edge.source, [])
-      lineBySource.get(edge.source)!.push(edge)
-    }
-
-    // bus 라우팅 대상 엣지 ID 집합
-    const busEdgeIds = new Set<string>()
-    const busGroups: Array<{ srcId: string; edgeGroup: GraphEdge[] }> = []
-    lineBySource.forEach((group, srcId) => {
-      if (group.length < 2) return
-      if (!nodeMap.has(srcId)) return
-      const sr = getRect(srcId, renderPositions, nodeSizes, nodes)
-      // 모든 타겟의 왼쪽 끝이 source 오른쪽 끝 + 40px 이상일 때만 bus.
-      // 중심 기준 비교는 폭이 넓은 타겟에서 트렁크 X가 source보다 왼쪽으로 계산되어
-      // 허공을 지나는 퇴화 버스를 만들었음 (HTML과 조건 통일)
-      const valid = group.every((e) => {
-        if (!nodeMap.has(e.target)) return false
-        const tr = getRect(e.target, renderPositions, nodeSizes, nodes)
-        return tr.x > sr.x + sr.width + 40
-      })
-      if (!valid) return
-      busGroups.push({ srcId, edgeGroup: group })
-      group.forEach((e) => busEdgeIds.add(e.id))
-    })
 
     // 라우팅 장애물: 모든 노드 rect (각 엣지에서 자기 양 끝 노드는 제외)
     const allRects = new Map<string, Rect>()
@@ -94,8 +66,9 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
       allRects.set(n.id, { x: pos.x, y: pos.y, width: sz.width, height: sz.height })
     }
 
-    // 같은 source에서 나가거나 같은 target으로 모이는 비-버스 엣지들은
-    // 겹치지 않게 분산(spread) 오프셋 부여 — 두 그룹 오프셋 합산
+    // main topic 백본(arrow) 엣지끼리 같은 source/target에 몰릴 때만 겹치지 않게 분산.
+    // hop 자식(line) 엣지는 이제 라우팅 없는 고정 직선이라(아래 렌더 참고) spread가
+    // 필요 없음 — 형제마다 target Y가 달라서 자연히 부채꼴로 갈라진다.
     const spreadMap = new Map<string, number>()
     const addSpread = (groups: Map<string, GraphEdge[]>, rectOf: (e: GraphEdge) => Rect) => {
       groups.forEach((group) => {
@@ -111,7 +84,7 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
     const bySrc = new Map<string, GraphEdge[]>()
     const byTgt = new Map<string, GraphEdge[]>()
     for (const e of edges) {
-      if (busEdgeIds.has(e.id)) continue
+      if (e.type !== 'arrow') continue
       if (!nodeMap.has(e.source) || !nodeMap.has(e.target)) continue
       if (!bySrc.has(e.source)) bySrc.set(e.source, [])
       bySrc.get(e.source)!.push(e)
@@ -121,13 +94,14 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
     addSpread(bySrc, (e) => allRects.get(e.target)!)
     addSpread(byTgt, (e) => allRects.get(e.source)!)
 
-    return { nodeMap, busGroups, busEdgeIds, allRects, spreadMap }
+    return { nodeMap, allRects, spreadMap }
   }, [nodes, edges, nodeSizes, renderPositions])
 
-  // 그리드 A* 전역 라우팅 — 렌더 경로 밖에서 비동기로 실행.
-  // 레이아웃이 바뀌면(fold/unfold 등) 일단 경량 휴리스틱으로 즉시 그리고,
-  // 변경이 잦아든 150ms 후 A* 정밀 경로로 교체 → fold/unfold 지연 없음.
-  // 드래그 중(fastRoute)에는 아예 스킵.
+  // 그리드 A* 전역 라우팅 — 렌더 경로 밖에서 비동기로 실행. main topic 백본(arrow) 엣지만
+  // 대상으로 한다 — hop 자식(line) 엣지는 라우팅 없는 고정 직선이라 대상에서 제외
+  // (사용자 요청: "그 자식간에 대해서는 그냥 평범한 직선으로"). 레이아웃이 바뀌면
+  // (fold/unfold 등) 일단 경량 휴리스틱으로 즉시 그리고, 변경이 잦아든 150ms 후
+  // A* 정밀 경로로 교체 → fold/unfold 지연 없음. 드래그 중(fastRoute)에는 아예 스킵.
   const [gridRoutes, setGridRoutes] = useState<Record<string, Array<{ x: number; y: number }> | null> | null>(null)
   useEffect(() => {
     if (fastRoute) { setGridRoutes(null); return }
@@ -135,7 +109,7 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
     const t = setTimeout(() => {
       const reqs: RouteRequest[] = []
       for (const edge of edges) {
-        if (busEdgeIds.has(edge.id)) continue
+        if (edge.type !== 'arrow') continue
         const srcR = allRects.get(edge.source), tgtR = allRects.get(edge.target)
         if (!srcR || !tgtR) continue
         const { sourcePort, targetPort } = getNearestPorts(srcR, tgtR)
@@ -151,7 +125,7 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
       setGridRoutes(routeEdgesOnGrid(reqs, rectList))
     }, 150)
     return () => clearTimeout(t)
-  }, [edges, busEdgeIds, allRects, fastRoute])
+  }, [edges, allRects, fastRoute])
 
   return (
     <svg
@@ -201,61 +175,8 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
         )
       })()}
 
-      {/* Bus 라우팅 그룹 */}
-      {busGroups.map(({ srcId, edgeGroup }) => {
-        const sr = getRect(srcId, renderPositions, nodeSizes, nodes)
-        const targets = edgeGroup
-          .filter((e) => nodeMap.has(e.target))
-          .map((e) => ({ edge: e, r: getRect(e.target, renderPositions, nodeSizes, nodes) }))
-        if (targets.length < 2) return null
-
-        const srcAnchorX = sr.x + sr.width
-        const srcAnchorY = sr.cy
-        const targetLeftX = Math.min(...targets.map((t) => t.r.x))
-        const busX = srcAnchorX + (targetLeftX - srcAnchorX) * 0.5
-        const allCY = [srcAnchorY, ...targets.map((t) => t.r.cy)]
-        const busMinY = Math.min(...allCY)
-        const busMaxY = Math.max(...allCY)
-
-        // 세대 하이라이트: 그룹 내 하이라이트 엣지가 있으면 트렁크(공용 구간)도 빨간색
-        const groupGen = edgeGroup.some((e) => highlightEdgeIds.has(e.id))
-        const trunkColor = groupGen ? '#ef4444' : '#888'
-        const trunkW = (groupGen ? 2.5 : 1.5) * zc
-        return (
-          <g key={`bus-${srcId}`}>
-            {/* source → bus 수평선 */}
-            <line x1={srcAnchorX} y1={srcAnchorY} x2={busX} y2={srcAnchorY}
-              stroke={trunkColor} strokeWidth={trunkW} style={{ pointerEvents: 'none' }} />
-            {/* 수직 버스 */}
-            <line x1={busX} y1={busMinY} x2={busX} y2={busMaxY}
-              stroke={trunkColor} strokeWidth={trunkW} style={{ pointerEvents: 'none' }} />
-            {/* source 끝점 circle */}
-            <circle cx={srcAnchorX} cy={srcAnchorY} r={4 * zc} fill={trunkColor} />
-            {/* 각 타겟으로 수평 분기 + 클릭 히트 영역 */}
-            {targets.map(({ edge, r }) => {
-              const isSel = selectedEdgeId === edge.id
-              const isGen = !isSel && highlightEdgeIds.has(edge.id)
-              const branchColor = isSel ? '#007acc' : isGen ? '#ef4444' : '#888'
-              return (
-                <g key={edge.id}>
-                  <line x1={busX} y1={r.cy} x2={r.x} y2={r.cy}
-                    stroke="transparent" strokeWidth={12 * zc}
-                    style={{ pointerEvents: 'stroke' as any, cursor: 'pointer' }}
-                    onMouseDown={(e) => { e.stopPropagation(); onSelectEdge(edge.id) }} />
-                  <line x1={busX} y1={r.cy} x2={r.x} y2={r.cy}
-                    stroke={branchColor} strokeWidth={(isSel || isGen ? 2.5 : 1.5) * zc}
-                    style={{ pointerEvents: 'none' }} />
-                  <circle cx={r.x} cy={r.cy} r={4 * zc} fill={branchColor} />
-                </g>
-              )
-            })}
-          </g>
-        )
-      })}
-
-      {/* 개별 엣지 (Bezier / L자) */}
+      {/* 개별 엣지 — main topic 백본(arrow)만 라우팅, 그 외(line)는 고정 직선 */}
       {edges.map((edge) => {
-        if (busEdgeIds.has(edge.id)) return null
         const srcNode = nodeMap.get(edge.source)
         const tgtNode = nodeMap.get(edge.target)
         if (!srcNode || !tgtNode) return null
@@ -271,21 +192,27 @@ export function WireLayer({ nodes, edges, nodeSizes, renderPositions, wirePrevie
         const { sourcePort, targetPort } = getNearestPorts(srcRect, tgtRect)
         const srcPt = getPortPosition(srcRect, sourcePort)
         const tgtPt = getPortPosition(tgtRect, targetPort)
-        const spread = spreadMap.get(edge.id) ?? 0
-        const gridPts = gridRoutes ? gridRoutes[edge.id] : null
-        const obstacles: Rect[] = []
-        allRects.forEach((r, id) => { if (id !== edge.source && id !== edge.target) obstacles.push(r) })
         let d: string
-        if (gridPts && gridPts.length > 2) {
-          // 그리드 A* 경로 (노드 회피 + congestion 분산) + 같은 소스/타겟 묶음 분산
-          // blockers를 넘겨서 장애물 근처 경유점은 둥글리지 않고 직선으로 꺾음(코너 부풀림 방지)
-          d = pointsToPath(spreadPoints(gridPts, spread), obstacles)
-        } else if (gridPts) {
-          // 직선 경로: 기존 bezier 모양 유지
-          d = getRoutedPath(srcPt, tgtPt, sourcePort, targetPort, [], spread)
+        if (edge.type !== 'arrow') {
+          // hop 자식 연결: 라우팅/베지어 없이 포트-포트 직선 그대로
+          // (사용자 요청: "그 자식간에 대해서는 그냥 평범한 직선으로")
+          d = `M ${srcPt.x} ${srcPt.y} L ${tgtPt.x} ${tgtPt.y}`
         } else {
-          // 드래그 중(fast) 또는 A* 실패: 경량 우회 휴리스틱
-          d = getRoutedPath(srcPt, tgtPt, sourcePort, targetPort, obstacles, spread)
+          const spread = spreadMap.get(edge.id) ?? 0
+          const gridPts = gridRoutes ? gridRoutes[edge.id] : null
+          const obstacles: Rect[] = []
+          allRects.forEach((r, id) => { if (id !== edge.source && id !== edge.target) obstacles.push(r) })
+          if (gridPts && gridPts.length > 2) {
+            // 그리드 A* 경로 (노드 회피 + congestion 분산) + 같은 소스/타겟 묶음 분산
+            // blockers를 넘겨서 장애물 근처 경유점은 둥글리지 않고 직선으로 꺾음(코너 부풀림 방지)
+            d = pointsToPath(spreadPoints(gridPts, spread), obstacles)
+          } else if (gridPts) {
+            // 직선 경로: 기존 bezier 모양 유지
+            d = getRoutedPath(srcPt, tgtPt, sourcePort, targetPort, [], spread)
+          } else {
+            // 드래그 중(fast) 또는 A* 실패: 경량 우회 휴리스틱
+            d = getRoutedPath(srcPt, tgtPt, sourcePort, targetPort, obstacles, spread)
+          }
         }
         const isSel = selectedEdgeId === edge.id
         const isGen = !isSel && highlightEdgeIds.has(edge.id)

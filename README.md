@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-0.4.4-orange" alt="Version 0.4.4" />
+  <img src="https://img.shields.io/badge/version-0.4.5-orange" alt="Version 0.4.5" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="MIT License" />
 </p>
 
