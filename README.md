@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-0.5.2-orange" alt="Version 0.5.2" />
+  <img src="https://img.shields.io/badge/version-0.5.3-orange" alt="Version 0.5.3" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="MIT License" />
 </p>
 
@@ -22,14 +22,14 @@ A VS Code extension for building node-based knowledge graphs from research paper
 <p align="center"><sub>Editor and exported HTML side by side — same layout, same content</sub></p>
 
 <p align="center">
-  <img src="resources/screenshot-debug-grid.png" width="100%" alt="Debug grid overlay in the editor and exported HTML, marking hop-level and main-topic-cluster boundaries" />
+  <img src="resources/screenshot-debug-grid.png" width="100%" alt="Debug grid overlay in the editor and exported HTML, marking hop-level and main-topic-cluster boundaries, with the Ctrl+F search panel open and matching nodes highlighted in red" />
 </p>
-<p align="center"><sub>Debug grid — hop-level and main-topic-cluster boundaries, in both the editor and the export</sub></p>
+<p align="center"><sub>Debug grid and Ctrl+F search — hop-level/main-topic-cluster boundaries, plus in-canvas search with matching nodes highlighted, in both the editor and the export</sub></p>
 
 <p align="center">
-  <img src="resources/screenshot-pdf-jump.png" width="100%" alt="Right-clicking an original-text quote opens the source PDF and highlights the matching sentence" />
+  <img src="resources/screenshot-pdf-jump.png" width="100%" alt="An original-text quote outlined in a red box in the editor, connected by a red arrow to the matching highlighted sentence in the source PDF on the right" />
 </p>
-<p align="center"><sub>PDF quote-jump — right-click an original-text quote to open the source PDF and highlight the matching sentence</sub></p>
+<p align="center"><sub>PDF quote-jump — right-click an original-text quote to open the source PDF and highlight the matching sentence (red box/arrow added for illustration)</sub></p>
 
 ---
 
