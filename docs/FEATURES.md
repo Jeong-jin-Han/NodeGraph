@@ -38,7 +38,7 @@
 - **Save** — `Ctrl+S` writes pretty-printed JSON to disk immediately; moving a canvas image onto a node auto-saves, but a fresh clipboard paste just marks the graph dirty until the next `Ctrl+S`
 - **External edits** — when the file changes outside the webview the graph reloads automatically; `Reload` force-re-reads from disk (useful after an AI agent edits the JSON)
 - **Slidable toolbar** — on narrow windows the toolbar keeps its button positions and slides horizontally (`Shift`+wheel on desktop, swipe on touch)
-- **Theme-independent canvas** — canvas background, node colors, text, links, and inputs are all snapshotted from the active VSCode theme when the webview first loads, and stay fixed after that even if you switch themes
+- **Theme-independent canvas** — canvas background, node colors, text, links, inputs, and the scrollbar all use a fixed palette (the same one the HTML export uses), regardless of which VSCode theme is active
 - **Help** — the `Help` toolbar button opens the extension's bundled README, scrolled to the Features section
 
 ---

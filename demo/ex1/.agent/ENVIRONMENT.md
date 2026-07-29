@@ -4,7 +4,7 @@
 > **AI agents: read this file to understand what tools are available on this machine.**
 > Re-generated each time a `.nodegraph.json` file is opened.
 
-Generated: `2026-07-27T15:38:09.833Z`
+Generated: `2026-07-28T11:13:20.278Z`
 
 ---
 
@@ -36,7 +36,7 @@ Generated: `2026-07-27T15:38:09.833Z`
 | Tool | Available | Notes |
 |------|:---------:|-------|
 | Pillow (`PIL`) | ✅ | v12.2.0 — recommended |
-| OpenCV (`cv2`) | ❌ | Install: `pip install opencv-python` |
+| OpenCV (`cv2`) | ✅ | available |
 | ImageMagick (`convert`) | ✅ | CLI tool available |
 
 ---
