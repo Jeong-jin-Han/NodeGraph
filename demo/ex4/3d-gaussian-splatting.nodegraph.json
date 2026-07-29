@@ -1,0 +1,1022 @@
+{
+  "version": "1.0.0",
+  "title": "3D Gaussian Splatting for Real-Time Radiance Field Rendering",
+  "created": "2026-07-29T04:46:36.000Z",
+  "modified": "2026-07-29T04:46:36.000Z",
+  "source": {
+    "pdf": "2308.04079v1.pdf",
+    "authors": "Bernhard Kerbl, Georgios Kopanas, Thomas Leimkühler, George Drettakis",
+    "venue": "ACM Transactions on Graphics 42, 4 (SIGGRAPH 2023)",
+    "doi": "10.1145/3592433",
+    "pages": 14
+  },
+  "nodeTemplates": {
+    "main_topic": {
+      "label": "Main topic",
+      "color": "#4B8BBE",
+      "icon": "file-text",
+      "shape": "sharp"
+    },
+    "method": {
+      "label": "Method",
+      "color": "#5C9E6E",
+      "icon": "cpu",
+      "shape": "sharp"
+    },
+    "result": {
+      "label": "Result",
+      "color": "#9B59B6",
+      "icon": "bar-chart-2",
+      "shape": "sharp"
+    },
+    "claim": {
+      "label": "Claim",
+      "color": "#E74C3C",
+      "icon": "alert-circle",
+      "shape": "sharp"
+    },
+    "question": {
+      "label": "Question",
+      "color": "#E5A835",
+      "icon": "help-circle",
+      "shape": "rounded"
+    },
+    "gap": {
+      "label": "Gap / Idea",
+      "color": "#1ABC9C",
+      "icon": "lightbulb",
+      "shape": "rounded"
+    },
+    "reference": {
+      "label": "Reference",
+      "color": "#95A5A6",
+      "icon": "book-open",
+      "shape": "rounded"
+    },
+    "memo": {
+      "label": "Memo",
+      "color": "#BDC3C7",
+      "icon": "edit-3",
+      "shape": "rounded"
+    }
+  },
+  "nodes": [
+    {
+      "id": "node_001",
+      "template": "main_topic",
+      "title": "Killer Application",
+      "content": "**Real-time ($\\geq$ 30 fps), 1080p novel-view synthesis at state-of-the-art radiance-field quality — the first method to deliver both at the same time.**\n\nUntil this paper the field had a hard trade-off. The quality leader, Mip-NeRF360, needed **48 h** of training and rendered at **0.06 fps**. The speed leaders, InstantNGP and Plenoxels, trained in minutes but rendered at **9–17 fps** at visibly lower quality. This work reports **0.815 SSIM / 27.21 PSNR at 134 fps** on the Mip-NeRF360 dataset after **41 min** of training — matching or beating the 48-hour method while rendering roughly **2000$\\times$ faster**.\n\nThree contributions get it there, and each is remarkable on its own:\n\n**1. Anisotropic 3D Gaussians as the scene representation.** A primitive that is simultaneously a differentiable *volumetric* element (so it optimizes like a radiance field) and an *explicit, unstructured* one (so it rasterizes like a point cloud). No voxel grid, no hash table, no space compaction — and no wasted compute in empty space.\n\n**2. Optimization interleaved with adaptive density control.** The set of Gaussians is not fixed: it is cloned, split and pruned during training based on the view-space positional gradient, so the representation grows exactly where the reconstruction is wrong. 1–5 million Gaussians covers every scene tested.\n\n**3. A visibility-aware differentiable tile rasterizer.** Sorting is done once per frame with a single GPU radix sort over (tile, depth) keys instead of once per pixel, and the backward pass places **no limit** on how many splats receive gradients. The same kernel makes training fast *and* rendering real-time.\n\n**A fourth thing worth naming**: there is no neural network anywhere in the pipeline. Geometry is explicit Gaussians, view-dependent color is spherical-harmonic coefficients, rendering is rasterization. The paper states outright that this contradicts the accepted wisdom that a continuous (implicit) representation is needed for quality.\n\n[[IMG:fig01_teaser.png:700x144]]\n\nFig. 1 is the claim in one strip: same scene, same held-out view. InstantNGP reaches 22.1 PSNR at 9.2 fps, Mip-NeRF360 reaches 24.3 PSNR after 48 h at 0.071 fps, and this method reaches 23.6 PSNR in **6 minutes** at 135 fps, or 25.2 PSNR in 51 minutes at 93 fps. The left half of the figure is the old trade-off; the right half is the point of the paper.",
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "children": [
+        "node_006",
+        "node_007",
+        "node_008",
+        "node_009"
+      ],
+      "links": [],
+      "original": {
+        "text": "We introduce three key elements that allow us to achieve state-of-the-art visual quality while maintaining competitive training times and importantly allow high-quality real-time ($\\geq$ 30 fps) novel-view synthesis at 1080p resolution.",
+        "location": "Abstract, p.1"
+      }
+    },
+    {
+      "id": "node_002",
+      "template": "main_topic",
+      "title": "Why It's Needed",
+      "content": "Every prior family of methods fails on one axis of the (quality, training time, render speed) triangle, and the failure is structural rather than an implementation detail.\n\n**NeRF-style implicit fields.** Color along a ray is accumulated by volumetric ray-marching:\n\n$$C = \\sum_{i=1}^{N} T_i\\,\\bigl(1 - \\exp(-\\sigma_i \\delta_i)\\bigr)\\,\\mathbf{c}_i \\quad\\text{with}\\quad T_i = \\exp\\!\\left(-\\sum_{j=1}^{i-1} \\sigma_j \\delta_j\\right)$$\n\nBecause the field is continuous and implicitly encodes where matter is, the samples $i$ have to be **found by stochastic sampling** — expensive, and a source of noise. Quality-optimal Mip-NeRF360 pays 48 h of training and 10 s per frame for this.\n\n**Fast grid-based fields (InstantNGP, Plenoxels).** These shrink or delete the MLP by storing features in voxel or hash grids. But they still ray-march, so many samples per ray are still required, and the accelerating grid is itself a structured prior: the paper notes they struggle to represent empty space and that image quality is limited by that grid.\n\n**Point-based rendering.** Explicit and fast, but prior neural point methods depend on Multi-View Stereo geometry and therefore inherit its over- and under-reconstruction artifacts on featureless, shiny or thin regions, and their CNN rendering stage causes temporal flickering. Pulsar rasterizes fast but is order-independent and caps how many splats receive gradients.\n\n**The gap this creates.** Nobody had an explicit representation that could be *optimized* as well as a volumetric one. That is the hole the paper walks into.",
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 300
+      },
+      "children": [
+        "node_010",
+        "node_011",
+        "node_012",
+        "node_013",
+        "node_014",
+        "node_015"
+      ],
+      "links": [],
+      "original": {
+        "text": "While the continuous nature of these methods helps optimization, the stochastic sampling required for rendering is costly and can result in noise.",
+        "location": "§1, p.1"
+      }
+    },
+    {
+      "id": "node_003",
+      "template": "main_topic",
+      "title": "Solution",
+      "content": "Input is exactly what a NeRF pipeline already needs: photos of a static scene plus SfM-calibrated cameras. The **sparse point cloud SfM produces as a by-product** — normally discarded — becomes the initialization.\n\n[[IMG:fig02_pipeline.png:700x141]]\n\nFig. 2 shows why the three contributions are one system rather than three tricks. The differentiable tile rasterizer sits on the *gradient* path (blue), not just the display path: it is what makes the projection, the Gaussian parameters and the density-control decisions all trainable from an image loss. Take it out and neither the optimization nor the real-time rendering survives.\n\n**Component 1 — the primitive.** A 3D Gaussian with mean $\\mu$ and full covariance $\\Sigma$:\n\n$$G(x) = e^{-\\frac{1}{2}(x-\\mu)^{T}\\Sigma^{-1}(x-\\mu)}$$\n\nIt projects to a 2D splat in camera space by $\\Sigma' = J W \\Sigma W^{T} J^{T}$, and $\\Sigma$ is stored not directly but as a scale vector $s$ and a rotation quaternion $q$, so gradient descent can never produce an invalid (non positive semi-definite) covariance:\n\n$$\\Sigma = R S S^{T} R^{T}$$\n\n**Component 2 — optimization with adaptive density control.** SGD on position, opacity $\\alpha$, covariance and SH coefficients against\n\n$$\\mathcal{L} = (1-\\lambda)\\mathcal{L}_1 + \\lambda \\mathcal{L}_{\\text{D-SSIM}}, \\qquad \\lambda = 0.2$$\n\nevery 100 iterations Gaussians whose view-space positional gradient exceeds $\\tau_{\\text{pos}} = 0.0002$ are **cloned** (if small: under-reconstruction) or **split** (if large: over-reconstruction), and near-transparent or oversized ones are pruned.\n\n**Component 3 — the tile rasterizer.** Screen is cut into $16 \\times 16$ tiles; Gaussians are frustum-culled at 99% confidence, duplicated once per overlapped tile, given a 64-bit key packing tile ID in the high bits and depth in the low bits, and sorted **once** by a single GPU radix sort. Each tile is then one thread block blending front-to-back out of shared memory until $\\alpha$ saturates. The backward pass re-walks the same sorted lists back-to-front, so gradients reach an unbounded number of splats at constant per-pixel memory cost.",
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 600
+      },
+      "children": [
+        "node_016",
+        "node_017",
+        "node_018",
+        "node_019",
+        "node_020",
+        "node_021",
+        "node_022",
+        "node_023"
+      ],
+      "links": [],
+      "original": {
+        "text": "The input to our method is a set of images of a static scene, together with the corresponding cameras calibrated by SfM [Schönberger and Frahm 2016] which produces a sparse point cloud as a side-effect.",
+        "location": "§3, p.4"
+      }
+    },
+    {
+      "id": "node_004",
+      "template": "main_topic",
+      "title": "Results",
+      "content": "13 real scenes (all 9 Mip-NeRF360 scenes, 2 from Tanks&Temples, 2 from Deep Blending) plus the synthetic Blender set, **one hyperparameter configuration for everything**, all timings on a single A6000.\n\n**Table 1 — Mip-NeRF360 dataset** ($\\dagger$ = numbers copied from the original publication):\n\n| Method | SSIM $\\uparrow$ | PSNR $\\uparrow$ | LPIPS $\\downarrow$ | Train | FPS | Mem |\n|---|---|---|---|---|---|---|\n| Plenoxels | 0.626 | 23.08 | 0.463 | 25m49s | 6.79 | 2.1GB |\n| INGP-Base | 0.671 | 25.30 | 0.371 | 5m37s | 11.7 | 13MB |\n| INGP-Big | 0.699 | 25.59 | 0.331 | 7m30s | 9.43 | 48MB |\n| Mip-NeRF360 | 0.792$\\dagger$ | 27.69$\\dagger$ | 0.237$\\dagger$ | 48h | 0.06 | 8.6MB |\n| **Ours-7K** | 0.770 | 25.60 | 0.279 | **6m25s** | **160** | 523MB |\n| **Ours-30K** | **0.815** | 27.21 | **0.214** | 41m33s | **134** | 734MB |\n\nRead the table against the Killer Application rather than column by column. **Ours-7K vs INGP-Big** is the speed claim: comparable training time, clearly better SSIM/LPIPS, and 17$\\times$ the frame rate. **Ours-30K vs Mip-NeRF360** is the quality claim: better SSIM and LPIPS, 0.5 dB behind on PSNR, at **1/70th the training time and 2000$\\times$ the frame rate**. No prior row in the table is simultaneously above 0.79 SSIM and above 30 fps; that empty quadrant is exactly what the paper set out to fill.\n\nOn Tanks&Temples and Deep Blending the margin is larger — Ours-30K wins SSIM, PSNR *and* LPIPS outright on both (see toggles), which matters because those captures are the messy, unbounded, real-world kind that grid methods handle worst.",
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 900
+      },
+      "children": [
+        "node_026",
+        "node_027",
+        "node_028",
+        "node_029",
+        "node_030"
+      ],
+      "links": [],
+      "original": {
+        "text": "The table shows that our fully converged model achieves quality that is on par and sometimes slightly better than the SOTA Mip-NeRF360 method; note that on the same hardware, their average training time was 48 hours, compared to our 35-45min, and their rendering time is 10s/frame.",
+        "location": "§7.2, p.9"
+      },
+      "toggleItems": [
+        {
+          "id": "toggle_001",
+          "title": "Table 1 (cont.) — Tanks&Temples and Deep Blending",
+          "content": "**Tanks&Temples**\n\n| Method | SSIM $\\uparrow$ | PSNR $\\uparrow$ | LPIPS $\\downarrow$ | Train | FPS | Mem |\n|---|---|---|---|---|---|---|\n| Plenoxels | 0.719 | 21.08 | 0.379 | 25m5s | 13.0 | 2.3GB |\n| INGP-Base | 0.723 | 21.72 | 0.330 | 5m26s | 17.1 | 13MB |\n| INGP-Big | 0.745 | 21.92 | 0.305 | 6m59s | 14.4 | 48MB |\n| Mip-NeRF360 | 0.759 | 22.22 | 0.257 | 48h | 0.14 | 8.6MB |\n| Ours-7K | 0.767 | 21.20 | 0.280 | 6m55s | 197 | 270MB |\n| **Ours-30K** | **0.841** | **23.14** | **0.183** | 26m54s | 154 | 411MB |\n\n**Deep Blending**\n\n| Method | SSIM $\\uparrow$ | PSNR $\\uparrow$ | LPIPS $\\downarrow$ | Train | FPS | Mem |\n|---|---|---|---|---|---|---|\n| Plenoxels | 0.795 | 23.06 | 0.510 | 27m49s | 11.2 | 2.7GB |\n| INGP-Base | 0.797 | 23.62 | 0.423 | 6m31s | 3.26 | 13MB |\n| INGP-Big | 0.817 | 24.96 | 0.390 | 8m | 2.79 | 48MB |\n| Mip-NeRF360 | 0.901 | 29.40 | 0.245 | 48h | 0.09 | 8.6MB |\n| Ours-7K | 0.875 | 27.78 | 0.317 | 4m35s | 172 | 386MB |\n| **Ours-30K** | **0.903** | **29.41** | **0.243** | 36m2s | 137 | 676MB |\n\nNote the Deep Blending row for Ours-7K: **27.78 PSNR in 4m35s**, already beating every non-Mip-NeRF360 baseline including ones that trained longer. The 30K column then matches the 48-hour method to within 0.01 dB.",
+          "expanded": false
+        },
+        {
+          "id": "toggle_002",
+          "title": "Table 2 — Synthetic NeRF (PSNR), from 100K random points",
+          "content": "| Method | Mic | Chair | Ship | Materials | Lego | Drums | Ficus | Hotdog | Avg. |\n|---|---|---|---|---|---|---|---|---|---|\n| Plenoxels | 33.26 | 33.98 | 29.62 | 29.14 | 34.10 | 25.35 | 31.83 | 36.81 | 31.76 |\n| INGP-Base | 36.22 | 35.00 | 31.10 | 29.78 | 36.39 | 26.02 | 33.51 | 37.40 | 33.18 |\n| Mip-NeRF | 36.51 | 35.14 | 30.41 | 30.71 | 35.70 | 25.48 | 33.29 | 37.48 | 33.09 |\n| Point-NeRF | 35.95 | 35.40 | 30.97 | 29.61 | 35.04 | 26.06 | 36.13 | 37.30 | 33.30 |\n| **Ours-30K** | 35.36 | 35.83 | 30.80 | 30.00 | 35.78 | 26.15 | 34.87 | 37.72 | **33.32** |\n\nThe interesting part is not the 0.02 dB average win — it is the starting condition. This run begins from **100K uniformly random Gaussians, no SfM points at all**, and adaptive density control prunes them to 6–10K meaningful ones before growing back to 200–500K. That is direct evidence that the density-control loop, not a good initialization, is what builds the representation. These scenes render at 180–300 FPS.",
+          "expanded": false
+        },
+        {
+          "id": "toggle_003",
+          "title": "Table 3 — Ablations (PSNR)",
+          "content": "| Variant | Truck-30K | Garden-30K | Bicycle-30K | Average-5K | Average-30K |\n|---|---|---|---|---|---|\n| Limited-BW | 13.84 | 22.88 | 20.87 | 19.16 | 19.19 |\n| Random Init | 18.02 | 22.19 | 21.05 | 19.17 | 20.42 |\n| No-Split | 20.59 | 26.11 | 25.02 | 21.50 | 23.90 |\n| No-SH | 24.39 | 26.59 | 25.08 | 23.48 | 25.35 |\n| No-Clone | 24.82 | 27.47 | 25.46 | 23.35 | 25.91 |\n| Isotropic | 23.89 | 27.00 | 24.81 | 23.56 | 25.23 |\n| **Full** | **24.81** | **27.70** | **25.65** | **23.90** | **26.05** |\n\nRanked by damage done, the load-bearing choices are: **Limited-BW** (capping gradients to the 10 front-most splats, $-6.9$ dB average, $-11$ dB on Truck), **Random Init** ($-5.6$ dB), **No-Split** ($-2.2$ dB), then anisotropy, SH and cloning at roughly $-0.1$ to $-0.8$ dB. Note that Random Init still produces a usable scene — the method degrades rather than collapses without SfM points, which is why the synthetic-scene experiment above works at all.",
+          "expanded": false
+        }
+      ]
+    },
+    {
+      "id": "node_005",
+      "template": "main_topic",
+      "title": "Conclusion",
+      "content": "**What it enables.** Radiance fields stop being an offline format. A capture can be optimized in tens of minutes and then navigated interactively at 1080p in a real viewer (the authors built one on the open-source SIBR framework and measured their frame rates through it). Because the output is an unstructured set of explicit primitives in ordinary Euclidean space — no space warping, no compaction, no network weights — it drops into a conventional GPU rasterization pipeline rather than requiring a bespoke one.\n\n**The conceptual result.** The paper's own framing is that it refutes a belief, not just a benchmark: a *continuous* representation is not strictly necessary for fast, high-quality radiance-field training. What volumetric rendering actually needed was differentiability and the ability to create/destroy/move matter — not continuity. 3D Gaussians supply both while remaining rasterizable.\n\n**Honest limitations the authors state.** Artifacts in poorly observed regions; elongated or splotchy Gaussians; popping when large Gaussians switch blending order, caused by the guard-band culling and the approximate per-tile visibility ordering; no regularization at all; the position learning rate may need lowering for very large (urban) scenes; and peak training memory above 20 GB with several hundred MB per trained scene — far heavier than a NeRF's 8.6–48 MB.\n\n**Where the headroom is.** About 80% of training time is still Python/PyTorch — only rasterization is CUDA. And the authors flag mesh reconstruction from the Gaussians as the interesting open question, since it would locate the method precisely on the continuum between volumetric and surface representations.",
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 1200
+      },
+      "children": [
+        "node_031",
+        "node_032",
+        "node_033",
+        "node_034"
+      ],
+      "links": [],
+      "original": {
+        "text": "Our work demonstrates that – contrary to widely accepted opinion – a continuous representation is not strictly necessary to allow fast and high-quality radiance field training.",
+        "location": "§8, p.11"
+      }
+    },
+    {
+      "id": "node_006",
+      "template": "result",
+      "title": "The trade-off, broken in one table row",
+      "content": "Three rows from Table 1 (Mip-NeRF360 dataset) are the whole argument:\n\n| Method | SSIM $\\uparrow$ | Train | FPS |\n|---|---|---|---|\n| INGP-Big (speed leader) | 0.699 | 7m30s | 9.43 |\n| Mip-NeRF360 (quality leader) | 0.792 | 48h | 0.06 |\n| Ours-30K | **0.815** | **41m33s** | **134** |\n\nPrior work forced a choice between column 2 and column 3. This row wins column 1 outright while sitting closer to the *fast* end of column 2 and off the chart on column 3. The 48 h figure is itself normalized: Mip-NeRF360 was trained on a 4-GPU A100 node for 12 hours, which the authors report as 48 single-GPU hours, and A100s are faster than the A6000 used for everything else here — so the comparison is if anything generous to the baseline.\n\nThe threshold that matters is 30 fps, not \"faster\". Below it a viewer is a slideshow; above it, it is an interactive scene. Nothing before this crossed it at 1080p with this quality.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": -105
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "We achieve comparable quality to InstantNGP and Plenoxels after 5-10m of training, but additional training time allows us to achieve SOTA quality which is not the case for the other fast methods.",
+        "location": "§7.2, p.9"
+      }
+    },
+    {
+      "id": "node_007",
+      "template": "gap",
+      "title": "There is no neural network in this pipeline",
+      "content": "Worth stating plainly, because the paper sits in the middle of the NeRF literature and the name never appears in its own method:\n\n- **Geometry** — an explicit list of 3D Gaussians ($\\mu$, $\\Sigma$, $\\alpha$). Not an MLP, not a hash grid.\n- **View-dependent color** — spherical-harmonic coefficients per Gaussian, 4 bands, introduced one band at a time during training. A closed-form basis, not a learned decoder.\n- **Rendering** — $\\alpha$-blending of sorted 2D splats. No CNN post-process, which is also why the result has none of the temporal flickering that CNN-based point renderers suffer.\n\nSo \"training\" here means gradient descent on a few million *primitive parameters*, not on network weights. That is why the method has no capacity ceiling to tune and uses one hyperparameter set for all 13 scenes.\n\nPlenoxels also dropped the network, but kept a structured sparse voxel grid. Dropping **both** the network and the grid is what is new.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": -35
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "The unstructured, explicit GPU-friendly 3D Gaussians we use achieve faster rendering speed and better quality without neural components.",
+        "location": "§2.2, p.3"
+      }
+    },
+    {
+      "id": "node_008",
+      "template": "method",
+      "title": "Fig. 1 — the quality/speed frontier, drawn",
+      "content": "[[IMG:fig01_teaser.png:700x144]]\n\nOne held-out view of the Bicycle scene rendered five ways, with training time, PSNR and frame rate under each.\n\nWhat to look at: the two \"Ours\" panels are the *same method at two stopping points*. At 6 minutes it already matches InstantNGP's best quality (23.6 vs 22.1 PSNR) at 135 fps against InstantNGP's 9.2. At 51 minutes it passes Mip-NeRF360's 48-hour result (25.2 vs 24.3) while still running at 93 fps against 0.071.\n\nWhy this matters for the Killer Application: it shows the method does not occupy a *point* on the quality/speed curve — it dominates the entire prior curve. A user picks a training budget and gets real-time rendering either way, which is precisely the choice that was unavailable before.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 35
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "Our method achieves real-time rendering of radiance fields with quality that equals the previous method with the best quality [Barron et al. 2022], while only requiring optimization times competitive with the fastest previous methods [Fridovich-Keil and Yu et al. 2022; Müller et al. 2022].",
+        "location": "Fig. 1 caption, p.1"
+      }
+    },
+    {
+      "id": "node_009",
+      "template": "question",
+      "title": "What is the \"real-time\" number actually conditioned on?",
+      "content": "The paper is specific about the measurement setup, and the conditions are worth separating from the claim:\n\n- **Hardware**: a single NVIDIA A6000 for every reported number except Mip-NeRF360's own published figures.\n- **Measurement path**: frame rates were measured through the authors' interactive viewer built on SIBR, not from a synthetic benchmark loop.\n- **Resolution**: native input resolution of each dataset was kept for all renders; the 1080p claim refers to that class of resolution.\n- **Scene cost**: 411–734 MB of trained model plus 30–500 MB of rasterizer working memory, depending on scene size *and* image resolution.\n\nOpen questions the paper does not answer: how the frame rate scales on a consumer GPU with less bandwidth and VRAM; how it degrades as depth complexity rises, given that the rasterizer deliberately removes the cap on blended primitives per pixel; and whether the 16$\\times$16 tile size is near-optimal or simply a workable default.\n\nNone of this undercuts the result — it bounds what \"real-time\" has been demonstrated *for*.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 105
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "All results are reported running on an A6000 GPU, except for the Mip-NeRF360 method (see below).",
+        "location": "§7.2, p.8"
+      }
+    },
+    {
+      "id": "node_010",
+      "template": "method",
+      "title": "Eq. 1–3: NeRF and splatting already share one image formation model",
+      "content": "This is the hinge of the entire paper. Volumetric ray-marching in NeRF accumulates\n\n$$C = \\sum_{i=1}^{N} T_i\\,\\bigl(1 - \\exp(-\\sigma_i \\delta_i)\\bigr)\\,\\mathbf{c}_i, \\qquad T_i = \\exp\\!\\left(-\\sum_{j=1}^{i-1}\\sigma_j\\delta_j\\right)$$\n\nwhich rewrites exactly as\n\n$$C = \\sum_{i=1}^{N} T_i\\,\\alpha_i\\,\\mathbf{c}_i, \\qquad \\alpha_i = 1 - \\exp(-\\sigma_i\\delta_i),\\quad T_i = \\prod_{j=1}^{i-1}(1-\\alpha_j)$$\n\nwhile a neural point-based renderer blends the $\\mathcal{N}$ ordered points overlapping a pixel as\n\n$$C = \\sum_{i \\in \\mathcal{N}} \\mathbf{c}_i\\,\\alpha_i \\prod_{j=1}^{i-1}(1-\\alpha_j)$$\n\n**These are the same equation.** What differs is only how the ordered list $\\{i\\}$ is obtained: NeRF must *search* for it by stochastic sampling of a continuous field; a splatting renderer already *has* it, because the primitives are explicit and can be sorted.\n\nEverything else in the paper follows from taking that equivalence seriously — if the image formation model is identical, then the optimization quality of a volumetric method can be kept while paying only the rendering cost of a point method.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 195
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "From Eq. 2 and Eq. 3, we can clearly see that the image formation model is the same. However, the rendering algorithm is very different.",
+        "location": "§2.3, p.3"
+      }
+    },
+    {
+      "id": "node_011",
+      "template": "gap",
+      "title": "Why structured grids cap quality and speed at once",
+      "content": "The fast NeRF variants (voxel grids, hash tables, codebooks, sparse octrees) all buy speed by storing interpolatable features in an **accelerating data structure**. The paper's diagnosis is that this creates two coupled ceilings:\n\n1. **Quality ceiling** — the grid is a fixed, axis-aligned discretization. Scene detail that does not align with it costs cells, and empty space still consumes structure. The paper says image quality is limited in large part by the choice of grid.\n2. **Speed ceiling** — the grid accelerates *lookup*, but the algorithm is still ray-marching, so many samples per ray must still be queried. Removing the MLP does not remove the sampling.\n\nThe 3D Gaussian representation escapes both because it is **unstructured**: primitives sit wherever the optimization puts them, at whatever anisotropic scale fits the local geometry, and empty space is represented by the absence of primitives rather than by empty cells. Density control (not resolution) is the knob.\n\nTable 1 shows the price prior work pays for the structure: Plenoxels' voxel grid needs **2.1–2.7 GB** per scene while reaching the lowest SSIM in the table.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 265
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "In addition, image quality is limited in large part by the choice of the structured grids used for acceleration, and rendering speed is hindered by the need to query many samples for a given ray-marching step.",
+        "location": "§2.2, p.3"
+      }
+    },
+    {
+      "id": "node_012",
+      "template": "reference",
+      "title": "Mip-NeRF360 [Barron et al. 2022] — the quality bar",
+      "content": "The paper names Mip-NeRF360 as the current state of the art in novel-view-synthesis image quality and uses it as the quality benchmark throughout, adopting its dataset and its train/test protocol.\n\nIts role in the argument is to define the number that had to be matched: 0.792 SSIM / 27.69 PSNR on its own dataset, at **48 h** of training and **10 s per frame**. The paper is careful about that 48 h — it was measured as 12 hours on a 4-GPU A100 node and reported as the single-GPU equivalent.\n\nThe paper also uses it as a *fairness* anchor: for Table 1 the authors copied Mip-NeRF360's published numbers on its own dataset rather than their own re-run, explicitly to avoid any confusion about what the current SOTA is, and put their own re-run in Appendix D instead.\n\nNo DOI or arXiv identifier is given in this paper's bibliography for this entry, so no link is attached here; the bibliography line is quoted verbatim below.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 335
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "Jonathan T. Barron, Ben Mildenhall, Dor Verbin, Pratul P. Srinivasan, and Peter Hedman. 2022. Mip-NeRF 360: Unbounded Anti-Aliased Neural Radiance Fields. CVPR (2022).",
+        "location": "References, p.12"
+      }
+    },
+    {
+      "id": "node_013",
+      "template": "reference",
+      "title": "InstantNGP and Plenoxels — the speed bar",
+      "content": "The two baselines that define the *fast* end of the trade-off, both cited by the paper as the methods whose training times it had to stay competitive with:\n\n- **InstantNGP [Müller et al. 2022]** — multiresolution hash encoding plus an occupancy grid and a small MLP. In Table 1: 5m37s–7m30s training, 9.43–11.7 fps, 13–48 MB.\n- **Plenoxels [Fridovich-Keil and Yu et al. 2022]** — a sparse voxel grid interpolating a continuous density field, with **no neural network at all**, using spherical harmonics for directional appearance. In Table 1: 25m49s training, 6.79 fps, 2.1 GB.\n\nBoth rely on spherical harmonics, and this paper follows that standard practice for its own color model — so SH is inherited, not claimed as a contribution. Plenoxels is also the precedent for \"you can drop the network\"; what remained to be dropped was the grid.\n\nThe link below is the DOI printed in this paper's own bibliography for the InstantNGP entry.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 405
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://doi.org/10.1145/3528223.3530127",
+          "label": "InstantNGP DOI (from this paper's bibliography)"
+        }
+      ],
+      "original": {
+        "text": "Most notable of these methods are InstantNGP [Müller et al. 2022] which uses a hash grid and an occupancy grid to accelerate computation and a smaller MLP to represent density and appearance; and Plenoxels [Fridovich-Keil and Yu et al. 2022] that use a sparse voxel grid to interpolate a continuous density field, and are able to forgo neural networks altogether.",
+        "location": "§2.2, p.3"
+      }
+    },
+    {
+      "id": "node_014",
+      "template": "reference",
+      "title": "Pulsar [Lassner and Zollhofer 2021] — borrowed, then corrected",
+      "content": "The most directly inherited piece of prior work, and the paper is explicit about both the debt and the three changes:\n\n| Aspect | Pulsar | This paper |\n|---|---|---|\n| Rasterization | fast tile-based sphere rasterization | same idea, extended to anisotropic splats |\n| Visibility | order-independent | respects visibility order via depth sort |\n| Gradients | limited to the $N$ front-most splats | unbounded number of splats |\n\nEach correction maps to a measured effect. Anisotropy is worth $+0.8$ dB (Table 3, Isotropic vs Full). Unbounded gradients are worth $+6.9$ dB on average and $+11$ dB on Truck (Limited-BW vs Full) — and the paper notes it tested $N = 10$, *twice* Pulsar's default, and optimization still went unstable.\n\nSo the rasterizer is not merely \"inspired by\" Pulsar: the ablation shows that adopting Pulsar's gradient truncation would have destroyed the result outright.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 255
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "Pulsar [Lassner and Zollhofer 2021] achieves fast sphere rasterization which inspired our tile-based and sorting renderer. However, given the analysis above, we want to maintain (approximate) conventional $\\alpha$-blending on sorted splats to have the advantages of volumetric representations: Our rasterization respects visibility order in contrast to their order-independent method.",
+        "location": "§2.3, p.3"
+      }
+    },
+    {
+      "id": "node_015",
+      "template": "question",
+      "title": "Why can this method skip MVS when every prior point method needed it?",
+      "content": "Prior neural point-based renderers take Multi-View Stereo geometry as input and therefore inherit MVS failure modes: over-reconstruction (invented geometry), under-reconstruction (holes) in featureless, shiny or thin regions. This method takes only the **sparse SfM point cloud that camera calibration already produces for free**.\n\nThe reason it can is that the primitives are not assumed to be surface samples. Earlier point methods modelled each point as a small planar disc with a normal — and normals are exactly what you cannot estimate reliably from extremely sparse SfM points. A 3D Gaussian with a full covariance **needs no normal**; adaptive density control then creates whatever geometry the sparse initialization is missing.\n\nSo the dependency is inverted: instead of needing good geometry to start, the method needs only a plausible *seed distribution*, and the optimization builds the rest. The Random Init ablation is the test of that claim — it degrades (mainly in the background, with unremovable floaters) but does not fail, and on the synthetic dataset with well-constrained cameras and no background it succeeds outright from 100K random points.\n\nOpen: how sparse can the seed get before density control cannot recover? The paper measures two points (SfM and uniform random) but does not sweep between them.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 345
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "In contrast to most point-based solutions that require Multi-View Stereo (MVS) data [Aliev et al. 2020; Kopanas et al. 2021; Rückert et al. 2022], we achieve high-quality results with only SfM points as input.",
+        "location": "§1, p.2"
+      }
+    },
+    {
+      "id": "node_016",
+      "template": "method",
+      "title": "The primitive: a 3D Gaussian with full anisotropic covariance",
+      "content": "A Gaussian centered at mean $\\mu$ with world-space covariance $\\Sigma$:\n\n$$G(x) = e^{-\\frac{1}{2}(x-\\mu)^{T}\\,\\Sigma^{-1}\\,(x-\\mu)}$$\n\nmultiplied by a learned opacity $\\alpha$ during blending. To render, it is projected to camera space using the classic EWA splatting result:\n\n$$\\Sigma' = J\\,W\\,\\Sigma\\,W^{T}\\,J^{T}$$\n\nwhere $W$ is the viewing transform and $J$ the Jacobian of the affine approximation of the projective transform. Dropping the third row and column of $\\Sigma'$ leaves a $2 \\times 2$ matrix with the same structure as if one had started from planar points with normals — which is how a *volumetric* primitive becomes a 2D splat with no loss of machinery.\n\n[[IMG:fig03_anisotropic_gaussians.png:520x248]]\n\nFig. 3 makes the point that a rendered image cannot: the Gaussians are shrunk 60% so their shapes become visible. They are not blobs — they are long, thin, oriented ellipsoids that have aligned themselves with the slats of a vent. That alignment is the whole reason 1–5 million primitives suffice for a full unbounded scene: **one anisotropic Gaussian can represent what would take many isotropic ones or many voxels**, which is what keeps the representation both compact enough to fit in VRAM and small enough to sort every frame.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 495
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "Instead, we model the geometry as a set of 3D Gaussians that do not require normals. Our Gaussians are defined by a full 3D covariance matrix $\\Sigma$ defined in world space [Zwicker et al. 2001a] centered at point (mean) $\\mu$",
+        "location": "§4, p.4"
+      }
+    },
+    {
+      "id": "node_017",
+      "template": "method",
+      "title": "Sigma = R S S^T R^T: keeping covariance both valid and optimizable",
+      "content": "A covariance matrix is only physically meaningful if it is **positive semi-definite**, and plain gradient descent cannot be constrained to preserve that — a single update step can produce an invalid $\\Sigma$. Optimizing the 6 free entries directly would break within a few iterations.\n\nThe fix is to never store $\\Sigma$ at all. An ellipsoid is fully described by a scaling and a rotation, so the paper stores a 3-vector $s$ and a quaternion $q$, and composes\n\n$$\\Sigma = R S S^{T} R^{T}$$\n\nwith $R$ from the normalized $q$ and $S = \\text{diag}(s)$. Any real $s$ and any unit $q$ yield a valid $\\Sigma$ by construction, so the constraint is satisfied structurally rather than by penalty or projection. Activations reinforce this: sigmoid on $\\alpha$ to hold it in $[0,1)$, exponential on scale.\n\nOne further decision matters for speed rather than correctness: **the gradients for all parameters are derived explicitly** (Appendix A) instead of relying on automatic differentiation, specifically to avoid autodiff overhead in the inner loop. Given that the rasterizer is the training bottleneck, hand-deriving $\\partial\\Sigma'/\\partial s$ and $\\partial\\Sigma'/\\partial q$ is part of why 30K iterations fit in ~40 minutes.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 565
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "However, covariance matrices have physical meaning only when they are positive semi-definite. For our optimization of all our parameters, we use gradient descent that cannot be easily constrained to produce such valid matrices, and update steps and gradients can very easily create invalid covariance matrices.",
+        "location": "§4, p.4"
+      }
+    },
+    {
+      "id": "node_018",
+      "template": "method",
+      "title": "Adaptive density control: clone what's missing, split what's smeared",
+      "content": "The number of Gaussians is not a hyperparameter — it is an output. Every 100 iterations (after warm-up), the optimizer looks at the **average magnitude of view-space positional gradients** and densifies wherever it exceeds $\\tau_{\\text{pos}} = 0.0002$:\n\n[[IMG:fig04_densification.png:520x268]]\n\n- **Top row, under-reconstruction** — a small Gaussian sitting in a region with geometry it cannot cover. Response: **clone** it and displace the copy along the positional gradient. This *increases both* total volume and primitive count.\n- **Bottom row, over-reconstruction** — one large Gaussian smeared across detail it cannot resolve. Response: **split** it into two, dividing scale by $\\phi = 1.6$ and sampling the new positions using the original Gaussian as a PDF. This *conserves* volume while increasing count.\n\nPruning runs alongside: Gaussians below an opacity threshold $\\epsilon_\\alpha$, or too large in world space, or with too large a viewspace footprint, are removed.\n\nWhy this matters for the Killer Application: it is the mechanism that lets an *explicit* representation compete with a continuous one. A NeRF can put detail anywhere because it is a function over all space; a fixed point cloud cannot. Clone/split/prune gives the explicit representation the same freedom to create, move and destroy matter — which is exactly the property the paper identified as the real advantage of volumetric methods (see Eq. 1–3). Table 3 confirms it is load-bearing: disabling splitting costs $2.2$ dB.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 635
+      },
+      "children": [
+        "node_024"
+      ],
+      "links": [],
+      "original": {
+        "text": "Since both cases are good candidates for densification, we densify Gaussians with an average magnitude of view-space position gradients above a threshold $\\tau_{\\text{pos}}$, which we set to 0.0002 in our tests.",
+        "location": "§5.2, p.5"
+      }
+    },
+    {
+      "id": "node_019",
+      "template": "method",
+      "title": "Tile rasterizer: sort once per frame, not once per pixel",
+      "content": "The rendering algorithm, in the order it runs:\n\n1. **Tile** — split the screen into $16 \\times 16$ pixel tiles.\n2. **Cull** — keep only Gaussians whose 99% confidence interval intersects the frustum, and trivially reject extreme ones with a guard band (projected 2D covariance is numerically unstable near the near plane).\n3. **Instantiate** — duplicate each Gaussian once per tile it overlaps, assigning a 64-bit key: **high bits = tile ID, low 32 bits = projected depth**.\n4. **Sort** — one single GPU radix sort over all instances. Because tile ID is in the high bits and depth in the low bits, this simultaneously groups by tile *and* orders by depth. Per-tile ranges are then found in parallel by comparing each key's high bits with its neighbours'.\n5. **Blend** — one thread block per tile, collaboratively loading Gaussians into shared memory, accumulating front-to-back; a thread stops when its pixel's $\\alpha$ saturates, and the whole tile terminates when all its pixels have.\n\nThe design decision worth naming: **there is no per-pixel sorting and no per-pixel ordering pass.** Prior $\\alpha$-blending point renderers sorted per pixel, which is what made them slow. Blending here uses the single global sort, so it is *approximate* — but the paper argues (and measures) that the error vanishes as splats approach pixel size, and it is the only reason the same kernel can serve both a 30K-iteration training loop and a 134 fps viewer.\n\nDuplicating Gaussians per overlapped tile does increase the work, but the paper's position is that this is amortized by simpler control flow and the high parallelism of an optimized GPU radix sort.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 705
+      },
+      "children": [
+        "node_025"
+      ],
+      "links": [],
+      "original": {
+        "text": "Our method starts by splitting the screen into $16 \\times 16$ tiles, and then proceeds to cull 3D Gaussians against the view frustum and each tile.",
+        "location": "§6, p.6"
+      }
+    },
+    {
+      "id": "node_020",
+      "template": "method",
+      "title": "The loss: L1 plus D-SSIM, and nothing else",
+      "content": "$$\\mathcal{L} = (1-\\lambda)\\,\\mathcal{L}_1 + \\lambda\\,\\mathcal{L}_{\\text{D-SSIM}}, \\qquad \\lambda = 0.2$$\n\nPlain image-space supervision against the training views. Notably **absent**: any geometric regularizer, sparsity term, or opacity prior — the paper states explicitly in its limitations that no regularization is applied at all, and that adding some would help with both unseen-region artifacts and popping.\n\nSupporting schedule details, all image-space rather than model-space:\n\n| Element | Setting | Purpose |\n|---|---|---|\n| Resolution warm-up | start at $1/4$ resolution, upsample at iter 250 and 500 | stability early in training |\n| SH bands | start with band 0 only, add one band per 1000 iters up to 4 | prevents wrong diffuse color when angular coverage is incomplete |\n| Position LR | exponential decay (positions only) | follows Plenoxels practice |\n| Initial covariance | isotropic, axes = mean distance to 3 nearest points | scale-free seed from SfM density |\n\nThe SH schedule is the least obvious and the most necessary: with an \"inside-out\" capture that misses angular regions, optimizing all 4 bands from the start lets the zero-order (diffuse) component absorb view-dependent error and come out completely wrong. Fixing the low frequencies first prevents that.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 510
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "The loss function is $\\mathcal{L}_1$ combined with a D-SSIM term",
+        "location": "§5.1, p.5"
+      }
+    },
+    {
+      "id": "node_021",
+      "template": "claim",
+      "title": "Unlimited gradient depth complexity — the choice worth 11 dB",
+      "content": "Prior differentiable splatting renderers cap how many blended primitives per pixel receive gradients (Pulsar's approach), because the backward pass would otherwise need to store an arbitrarily long per-pixel list. This paper refuses the cap:\n\n> no limit on the number of blended primitives that receive gradient updates\n\nThe stated reason is generality: an arbitrary, varying depth complexity must be learnable **without scene-specific hyperparameter tuning** — which is what lets one configuration cover all 13 scenes.\n\nThe ablation is the most dramatic number in the paper. Setting $N = 10$ — already twice Pulsar's default — made optimization unstable because of the severe approximation in the gradient computation:\n\n| Config | Truck-30K PSNR | Average-30K PSNR |\n|---|---|---|\n| Limited-BW ($N=10$) | 13.84 | 19.19 |\n| **Full** | **24.81** | **26.05** |\n\nThat is $-11$ dB on Truck and $-6.9$ dB on average — larger than the effect of anisotropy, spherical harmonics, cloning and SfM initialization *combined*. Connecting it back to the Killer Application: the real-time claim rests on the tile rasterizer, and this ablation shows the rasterizer could not have been built the cheap way. The gradient-side design is not an optimization, it is a precondition.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 600
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "During rasterization, the saturation of $\\alpha$ is the only stopping criterion. In contrast to previous work, we do not limit the number of blended primitives that receive gradient updates.",
+        "location": "§6, p.6"
+      }
+    },
+    {
+      "id": "node_022",
+      "template": "memo",
+      "title": "The constants that look arbitrary: phi = 1.6, 0.0002, 100, 3000",
+      "content": "Four magic numbers, and what each is actually doing:\n\n| Constant | Where | Reason given |\n|---|---|---|\n| $\\phi = 1.6$ | scale divisor when splitting | \"determined experimentally\" — the paper offers no derivation |\n| $\\tau_{\\text{pos}} = 0.0002$ | densification threshold on view-space positional gradient | the value used in all tests |\n| every 100 iters | densification cadence | applied after optimization warm-up |\n| every $N = 3000$ iters | set $\\alpha$ close to zero for all Gaussians | floater control |\n\nThe $\\alpha$ reset at 3000 is the subtle one and deserves reading twice. Optimization tends to get stuck with **floaters close to the input cameras** — semi-transparent junk that explains the training images cheaply and inflates the Gaussian count. Periodically knocking every opacity to near zero forces the optimizer to re-earn each Gaussian: the ones that genuinely explain the images have their $\\alpha$ pushed back up, and everything else falls below $\\epsilon_\\alpha$ and gets culled on the next pruning pass.\n\nSo it is not a decay schedule — it is a **periodic garbage collection implemented through the loss**, and it is what keeps \"grow wherever the gradient is large\" from turning into unbounded growth.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 690
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "After optimization warm-up (see Sec. 7.1), we densify every 100 iterations and remove any Gaussians that are essentially transparent, i.e., with $\\alpha$ less than a threshold $\\epsilon_\\alpha$.",
+        "location": "§5.2, p.5"
+      }
+    },
+    {
+      "id": "node_023",
+      "template": "question",
+      "title": "When does per-tile (rather than per-pixel) sorting become visible?",
+      "content": "The rasterizer sorts splat *instances* once per frame by (tile, depth) and then blends every pixel in the tile in that one order. But the correct blending order is per-pixel: two splats can swap depth order across the width of a single 16-pixel tile, and a splat's depth key is its center's depth, not its depth at the pixel being shaded.\n\nThe paper's answer is explicitly an engineering trade, not a proof:\n\n- the approximation becomes **negligible as splats approach the size of individual pixels** — and adaptive density control drives splats toward exactly that regime;\n- no visible artifacts were found in *converged* scenes.\n\nBoth qualifiers matter. \"Converged\" excludes mid-training frames, and \"approach pixel size\" excludes the large Gaussians that survive in poorly observed regions — which is precisely where the paper reports its **popping artifacts**, attributed in part to Gaussians suddenly switching depth/blending order. So the known failure mode of the approximation is exactly the case its justification excludes.\n\nThe authors name antialiasing as the fix and leave it as future work. Open question: would a per-tile depth-range test, or splitting oversized splats at render time, remove popping without giving up the single-sort design?",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 780
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "As a consequence, our $\\alpha$-blending can be approximate in some configurations. However, these approximations become negligible as splats approach the size of individual pixels. We found that this choice greatly enhances training and rendering performance without producing visible artifacts in converged scenes.",
+        "location": "§6, p.6"
+      }
+    },
+    {
+      "id": "node_024",
+      "template": "question",
+      "title": "Why does one gradient signal flag both under- and over-reconstruction?",
+      "content": "It looks like a conflation: under-reconstruction (too little geometry) and over-reconstruction (one splat covering detail it cannot represent) are opposite defects, yet both are detected by the same test — a large average **view-space positional gradient** — and then separated only afterwards, by size.\n\nThe reasoning the paper gives is that the positional gradient measures neither \"missing\" nor \"smeared\" directly. It measures **\"the optimizer wants to move this primitive\"**. In both defects the residual is large and moving the Gaussian would reduce it — the optimizer is trying to fix a representational shortfall with a translation it cannot express. So the gradient is a proxy for *the primitive is being asked to do something it cannot do*, which both cases satisfy.\n\nThe size test then picks the right remedy: small primitive means the geometry it should cover does not exist yet, so **clone**; large primitive means the geometry exists but is under-resolved, so **split**.\n\nIt is an elegant reduction — one cheap scalar already computed by backprop replaces any explicit reconstruction-error analysis. The remaining question is where it misfires: a Gaussian in a genuinely ambiguous region (specular, poorly observed) will also show a large positional gradient with no representational fix available, and densifying there is presumably one source of the elongated, splotchy artifacts the paper reports in its limitations.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 1500,
+        "y": 635
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "We observe that both have large view-space positional gradients. Intuitively, this is likely because they correspond to regions that are not yet well reconstructed, and the optimization tries to move the Gaussians to correct this.",
+        "location": "§5.2, p.5"
+      }
+    },
+    {
+      "id": "node_025",
+      "template": "question",
+      "title": "Why recover opacities by division instead of storing per-pixel lists?",
+      "content": "The backward pass needs, for each pixel, the accumulated opacity at *every* step of the forward blend. The obvious implementation stores the per-pixel list of blended points in global memory — which is what prior work did, and which is impossible here because the whole point is that the list length is unbounded (see the 11 dB ablation).\n\nThe trick has two halves:\n\n1. **Re-traverse instead of store.** The sorted array of Gaussians and the per-tile ranges from the forward pass are reused, walked **back-to-front**. Nothing per-pixel is written; the cost is a constant overhead per pixel. Each pixel additionally skips (expensive) overlap testing for any point deeper than the last point that actually contributed to its color.\n\n2. **Recover $T_i$ by division.** Rather than a shrinking list of opacities, each point stores only the **final accumulated opacity** from the forward pass; dividing that by each point's own $\\alpha$ during the back-to-front walk reconstructs the intermediate coefficient needed at that step.\n\nThe numerical cost is real and the paper handles it explicitly: repeated division is prone to instability (division by zero), so blending updates with $\\alpha < \\epsilon$ (with $\\epsilon = \\tfrac{1}{255}$) are skipped in *both* passes, $\\alpha$ is clamped at 0.99 from above, and forward blending stops before accumulated opacity can exceed 0.9999.\n\nThis is the concrete mechanism behind \"unbounded gradient depth complexity at constant memory\" — the claim in the rasterizer node is only affordable because of this substitution.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 1500,
+        "y": 705
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "One solution would be to store arbitrarily long lists of blended points per-pixel in global memory [Kopanas et al. 2021]. To avoid the implied dynamic memory management overhead, we instead choose to traverse the per-tile lists again; we can reuse the sorted array of Gaussians and tile ranges from the forward pass.",
+        "location": "§6, p.6"
+      }
+    },
+    {
+      "id": "node_026",
+      "template": "result",
+      "title": "Ours-7K vs Ours-30K: two usable operating points",
+      "content": "[[IMG:fig06_7k_vs_30k.png:520x318]]\n\nThe same scenes at 7K iterations (left) and 30K (right). Top: the Train scene — at 7K ($\\sim$5 min) the train itself is already captured, and the 30K result mainly cleans up **background** artifacts. Bottom: the Garden scene — at 7K ($\\sim$8 min) the difference is barely visible at all.\n\n| Dataset | Ours-7K | Ours-30K | Mip-NeRF360 |\n|---|---|---|---|\n| Mip-NeRF360 SSIM / train | 0.770 / 6m25s | 0.815 / 41m33s | 0.792 / 48h |\n| Deep Blending PSNR / train | 27.78 / 4m35s | 29.41 / 36m2s | 29.40 / 48h |\n\nWhy this matters for the Killer Application: it shows the training budget is a **dial, not a threshold**. At 6 minutes the method is already at or above the quality of every fast baseline *and* already rendering above 160 fps; the remaining 35 minutes buy the SOTA crown. A user who wants a scene now and a user who wants the best possible scene run the same code and both get real-time rendering — the trade-off the paper broke does not reappear inside the method.\n\nThe failure pattern is also informative: extra iterations are spent on background and poorly observed regions, which is consistent with the limitations section and with the SfM-initialization ablation, where degradation also concentrated in the background.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 795
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "For some scenes (above) we can see that even at 7K iterations ($\\sim$5min for this scene), our method has captured the train quite well. At 30K iterations ($\\sim$35min) the background artifacts have been reduced significantly.",
+        "location": "Fig. 6 caption, p.8"
+      }
+    },
+    {
+      "id": "node_027",
+      "template": "result",
+      "title": "Ablations: which component is actually load-bearing",
+      "content": "Seven configurations, ranked by the damage removing each one does (Average-30K PSNR, full table in the Results node's toggle):\n\n| Removed | Avg-30K PSNR | Cost vs Full |\n|---|---|---|\n| Unlimited gradients (Limited-BW) | 19.19 | $-6.86$ |\n| SfM initialization (Random Init) | 20.42 | $-5.63$ |\n| Splitting (No-Split) | 23.90 | $-2.15$ |\n| Anisotropy (Isotropic) | 25.23 | $-0.82$ |\n| Spherical harmonics (No-SH) | 25.35 | $-0.70$ |\n| Cloning (No-Clone) | 25.91 | $-0.14$ |\n| **Full** | **26.05** | — |\n\n[[IMG:fig10_anisotropy_ablation.png:700x130]]\n\nFig. 10 shows why the anisotropy row understates its own importance. $-0.82$ dB sounds minor, but look at what changes: leaves, licence-plate lettering and wheel spokes survive with full covariance and dissolve into blobs with a single scalar radius — **at the same primitive count** (Ficus was capped at 5K Gaussians in both configurations to make that explicit). Anisotropy is not buying average pixel accuracy, it is buying *fine structure per primitive*, which is the compactness that makes 1–5 million Gaussians and a per-frame sort feasible.\n\nReading the ranking against the Killer Application: the two contributions that matter most are the ones that let the representation *grow correctly* (gradients everywhere, good seeds), not the ones that make each primitive prettier. And cloning's tiny average cost hides its actual role — the paper attributes it to better and faster convergence specifically where thin structures appear, which an averaged PSNR over three scenes will not surface.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 865
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "For the Truck scene, quality degraded by 11dB in PSNR (see Table 3, Limited-BW), and the visual outcome is shown in Fig. 9 for Garden.",
+        "location": "§7.3, p.10"
+      }
+    },
+    {
+      "id": "node_028",
+      "template": "result",
+      "title": "Fig. 5 — where the quality wins actually are",
+      "content": "[[IMG:fig05_qualitative_comparison.png:700x255]]\n\nHeld-out test views, Bicycle / Garden / Stump, with ground truth at the left and non-obvious differences marked by red arrows and insets.\n\nThe differences are deliberately unspectacular, and that is the point of including them. In Bicycle the arrows sit on Mip-NeRF360 and Plenoxels, not on this method. In Garden the insets compare the fine table-edge and background detail. In Stump the contrast is vegetation: the paper notes that even Mip-NeRF360 retains blurriness in vegetation (Bicycle, Stump) and on the walls in Room that this method avoids.\n\nWhy it matters for the Killer Application: **SSIM/PSNR/LPIPS could in principle be won by a smoother, blurrier reconstruction.** Fig. 5 is the check that the metric wins in Table 1 come from *more* recovered detail rather than less — high-frequency vegetation and thin structure being exactly what an anisotropic primitive is supposed to capture and a grid method is supposed to lose. The metric table and this figure are making the same claim from two directions.\n\nThe authors also report that their method preserves visual detail of well-covered regions when viewed from a distance, which previous methods do not always do — a property visible only in the supplemental video paths, not in these stills.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 935
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "We see that in some cases even Mip-NeRF360 has remaining artifacts that our method avoids (e.g., blurriness in vegetation – in Bicycle, Stump – or on the walls in Room).",
+        "location": "§7.2, p.9"
+      }
+    },
+    {
+      "id": "node_029",
+      "template": "memo",
+      "title": "The column the headline numbers skip: memory",
+      "content": "Table 1 has a Mem column, and it is the one place where this method loses decisively:\n\n| Method | Mip-NeRF360 dataset | Tanks&Temples | Deep Blending |\n|---|---|---|---|\n| Mip-NeRF360 | 8.6MB | 8.6MB | 8.6MB |\n| INGP-Base | 13MB | 13MB | 13MB |\n| INGP-Big | 48MB | 48MB | 48MB |\n| **Ours-30K** | **734MB** | **411MB** | **676MB** |\n| Plenoxels | 2.1GB | 2.3GB | 2.7GB |\n\nThat is **85$\\times$ Mip-NeRF360's footprint**, plus 30–500 MB of rasterizer working memory at render time and peak training memory above 20 GB. An implicit field compresses a scene into network weights; an explicit one stores every primitive, and that is the bill for dropping the network.\n\nTwo things keep it from undermining the result. Against the other *explicit/grid* methods it is a win, not a loss — Plenoxels needs 3–4$\\times$ more. And against the prior compact point-based model of Zhang et al. the paper matches reported PSNR using roughly **one quarter of their point count, 3.8 MB versus 9 MB**, within 2–4 minutes.\n\nThe authors are candid that the prototype is unoptimized and that point-cloud compression is a mature field they have not applied. Worth holding as the honest cost line: this trades storage for time, and storage is the axis nobody put in the abstract.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1005
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "Even though we are very compact compared to previous point-based approaches, our memory consumption is significantly higher than NeRF-based solutions. During training of large scenes, peak GPU memory consumption can exceed 20 GB in our unoptimized prototype.",
+        "location": "§7.4, p.11"
+      }
+    },
+    {
+      "id": "node_030",
+      "template": "question",
+      "title": "How much of the comparison is protocol, and what does it not control?",
+      "content": "What the evaluation does fix, credibly:\n\n- **Train/test split** — every 8th photo held out, following Mip-NeRF360's own methodology, so the quality leader's protocol is used rather than a favourable one.\n- **One hyperparameter set** across all 13 real scenes, which removes per-scene tuning as an explanation for the wins.\n- **Baselines re-run by the authors** from the original code, at native input resolution, rather than quoted — except Mip-NeRF360 on its own dataset, where published numbers were copied deliberately to avoid disputing the SOTA, with the authors' own re-run disclosed separately in Appendix D.\n- **All test renders published** on the project website for every method and scene.\n\nWhat it does not control:\n\n- **Hardware parity for the 48 h claim** — Mip-NeRF360 was trained on 4 A100s for 12 h and reported as 48 single-A6000-equivalent hours; the paper flags that A100s are faster than A6000s, so the conversion is an estimate.\n- **Metric choice** — SSIM, PSNR and LPIPS disagree here (Ours-30K wins SSIM and LPIPS on the Mip-NeRF360 dataset but trails on PSNR, 27.21 vs 27.69). The paper's own qualitative figures argue the detail case that PSNR misses, but the disagreement is real and worth stating.\n- **Temporal quality** — flicker and popping are the paper's known weaknesses and no still-frame metric measures them.\n\nAblations were also run on manually downsampled high-resolution inputs to avoid JPEG artifacts, so Table 3's absolute numbers are not directly comparable to Table 1's.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 900
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "We use a train/test split for datasets, using the methodology suggested by Mip-NeRF360, taking every 8th photo for test, for consistent and meaningful comparisons to generate the error metrics, using the standard PSNR, L-PIPS, and SSIM metrics used most frequently in the literature",
+        "location": "§7.2, p.8"
+      }
+    },
+    {
+      "id": "node_031",
+      "template": "gap",
+      "title": "Limitations, and the shared root under most of them",
+      "content": "The paper's own list:\n\n| Symptom | Cause given |\n|---|---|\n| Artifacts in poorly observed regions | insufficient observation; other methods struggle too |\n| Elongated / \"splotchy\" Gaussians | anisotropy has no shape prior |\n| Popping when large Gaussians appear | guard-band trivial rejection **and** simple visibility ordering |\n| Non-convergence on very large (urban) scenes | position learning rate may need lowering |\n| High memory | explicit representation (see the memory memo) |\n\nMost of these share one root: **the optimization is unconstrained**. There is no regularization at all — no shape prior on the covariance, no opacity sparsity, no smoothness term. In well-observed regions the images constrain everything and the freedom pays off as fine anisotropic structure. Where the images stop constraining, nothing else does, and the same freedom produces elongated splats and floaters.\n\nThe authors say as much: adding regularization would help with **both** the unseen-region artifacts and popping. It is the most obvious open thread in the paper and they leave it explicitly untried.\n\nPopping is the one with a second, independent cause — the per-tile approximate visibility ordering — which is why antialiasing is named as its fix rather than regularization alone.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1095
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "We also occasionally have popping artifacts when our optimization creates large Gaussians; this tends to happen in regions with view-dependent appearance. One reason for these popping artifacts is the trivial rejection of Gaussians via a guard band in the rasterizer.",
+        "location": "§7.4, p.10"
+      }
+    },
+    {
+      "id": "node_032",
+      "template": "gap",
+      "title": "80% of training is still Python — the speedup left on the table",
+      "content": "Only the rasterization routine is CUDA. Everything else — parameter updates, density control, the whole optimization loop — is PyTorch, and it accounts for roughly **80% of training time**. The choice was deliberate: PyTorch to make the method easy for others to use.\n\nThe arithmetic is worth doing. If 80% of a 41-minute run is Python overhead, the CUDA-bound portion is around 8 minutes. Porting the optimization to CUDA the way InstantNGP did — which the authors explicitly name as the comparison — would attack that 80%, not the rasterizer.\n\nThis reframes the Table 1 training-time column. **41m33s is not this method's floor; it is its PyTorch prototype's floor.** The 48-hour comparison against Mip-NeRF360 already holds with an unoptimized implementation, and the gap the paper reports is a lower bound on the gap the approach permits.\n\nIt also explains why the paper's speed claims sound stronger on the *rendering* side (134–197 fps) than the training side: rendering runs entirely through the CUDA path, training does not.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1165
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "The majority ($\\sim$80%) of our training time is spent in Python code, since we built our solution in PyTorch to allow our method to be easily used by others. Only the rasterization routine is implemented as optimized CUDA kernels.",
+        "location": "§8, p.11"
+      }
+    },
+    {
+      "id": "node_033",
+      "template": "gap",
+      "title": "The open question the authors name: can Gaussians give you a mesh?",
+      "content": "The single follow-up direction the paper singles out, and the framing is more interesting than the practical motivation.\n\nThe practical part is obvious: meshes are what every downstream tool — games, simulation, editing, physics — actually consumes, so a Gaussian scene that can be converted to one becomes usable outside a viewer.\n\nThe conceptual part is the authors' actual argument. This method's primitive is *neither* volumetric nor surface-based: it is a volumetric element that behaves enough like an oriented disc to be splatted, and Fig. 3 shows the optimization spontaneously flattening Gaussians onto surfaces without ever being told to. Whether a mesh can be recovered is therefore a **diagnostic**: it would reveal how far along the continuum from volume to surface these primitives have actually travelled.\n\nRelated open ends the paper leaves in the same region: antialiasing to fix popping, regularization for unobserved regions, point-cloud compression for the memory cost, and porting the remaining optimization to CUDA. The mesh question is the only one framed as understanding rather than engineering.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1235
+      },
+      "children": [],
+      "links": [],
+      "original": {
+        "text": "It would be interesting to see if our Gaussians can be used to perform mesh reconstructions of the captured scene. Aside from practical implications given the widespread use of meshes, this would allow us to better understand where our method stands exactly in the continuum between volumetric and surface representations.",
+        "location": "§8, p.11"
+      }
+    },
+    {
+      "id": "node_034",
+      "template": "reference",
+      "title": "Code, data and the interactive viewer are released",
+      "content": "The paper publishes its source, all its data, and the real-time viewer used to measure the reported frame rates. The viewer is built on **SIBR**, the open-source image-based-rendering framework from the same lab, and the fast radix sort comes from NVIDIA's CUB routines.\n\nThe project site also hosts every test-view render used to compute the statistics in Table 1 — for this method *and* for all the baselines, on all scenes — plus the supplemental video paths that show the distant-view and temporal behaviour that stills cannot.\n\nThis matters for reading Table 1 sceptically: the frame rates were measured through a real interactive application rather than an offline timing loop, and the renders behind every number are inspectable rather than asserted.\n\nBoth links below are printed in the paper itself — the repository URL in §7.1 and the ACM DOI on the title page.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1305
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/",
+          "label": "Project page, code and data (§7.1)"
+        },
+        {
+          "type": "url",
+          "target": "https://doi.org/10.1145/3592433",
+          "label": "ACM TOG DOI (title page)"
+        }
+      ],
+      "original": {
+        "text": "We also built an interactive viewer using the open-source SIBR [Bonopera et al. 2020], used for interactive viewing. We used this implementation to measure our achieved frame rates. The source code and all our data are available at: https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/",
+        "location": "§7.1, p.8"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_001",
+      "source": "node_001",
+      "target": "node_002",
+      "type": "arrow",
+      "label": ""
+    },
+    {
+      "id": "edge_002",
+      "source": "node_002",
+      "target": "node_003",
+      "type": "arrow",
+      "label": ""
+    },
+    {
+      "id": "edge_003",
+      "source": "node_003",
+      "target": "node_004",
+      "type": "arrow",
+      "label": ""
+    },
+    {
+      "id": "edge_004",
+      "source": "node_004",
+      "target": "node_005",
+      "type": "arrow",
+      "label": ""
+    },
+    {
+      "id": "edge_005",
+      "source": "node_001",
+      "target": "node_006",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_006",
+      "source": "node_001",
+      "target": "node_007",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_007",
+      "source": "node_001",
+      "target": "node_008",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_008",
+      "source": "node_001",
+      "target": "node_009",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_009",
+      "source": "node_002",
+      "target": "node_010",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_010",
+      "source": "node_002",
+      "target": "node_011",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_011",
+      "source": "node_002",
+      "target": "node_012",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_012",
+      "source": "node_002",
+      "target": "node_013",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_013",
+      "source": "node_002",
+      "target": "node_014",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_014",
+      "source": "node_002",
+      "target": "node_015",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_015",
+      "source": "node_003",
+      "target": "node_016",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_016",
+      "source": "node_003",
+      "target": "node_017",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_017",
+      "source": "node_003",
+      "target": "node_018",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_018",
+      "source": "node_003",
+      "target": "node_019",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_019",
+      "source": "node_003",
+      "target": "node_020",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_020",
+      "source": "node_003",
+      "target": "node_021",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_021",
+      "source": "node_003",
+      "target": "node_022",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_022",
+      "source": "node_003",
+      "target": "node_023",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_023",
+      "source": "node_004",
+      "target": "node_026",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_024",
+      "source": "node_004",
+      "target": "node_027",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_025",
+      "source": "node_004",
+      "target": "node_028",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_026",
+      "source": "node_004",
+      "target": "node_029",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_027",
+      "source": "node_004",
+      "target": "node_030",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_028",
+      "source": "node_005",
+      "target": "node_031",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_029",
+      "source": "node_005",
+      "target": "node_032",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_030",
+      "source": "node_005",
+      "target": "node_033",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_031",
+      "source": "node_005",
+      "target": "node_034",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_032",
+      "source": "node_018",
+      "target": "node_024",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_033",
+      "source": "node_019",
+      "target": "node_025",
+      "type": "line",
+      "label": ""
+    }
+  ],
+  "viewport": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  }
+}
