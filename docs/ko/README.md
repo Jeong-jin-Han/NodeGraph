@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white&style=for-the-badge" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-0.7.0-orange?style=for-the-badge" alt="Version 0.7.0" />
+  <img src="https://img.shields.io/badge/version-0.7.1-orange?style=for-the-badge" alt="Version 0.7.1" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=for-the-badge" alt="MIT License" />
 </p>
 
@@ -114,7 +114,7 @@ The file `.agent/NODEGRAPH_SPEC.md` (included in the extension) is a machine-rea
 Four fully agent-built graphs ship with the extension, so you can open a finished result before building your own: `demo/ex1` ("Attention Is All You Need"), `demo/ex2` ("Point Transformer"), `demo/ex3` ("Mooncake"), and `demo/ex4` ("3D Gaussian Splatting") — all with KaTeX formulas, Markdown tables, toggle sections, and deep question nodes.
 
 **Typical agent workflow:**
-1. Right-click the project folder in the Explorer and run `NodeGraph: Copy Agent Spec to Workspace` (one-time per folder)
+1. Right-click the project folder in the Explorer and run `NodeGraph: Copy Agent Spec to Workspace` (one-time per folder). If you opened that folder itself as the workspace root, VS Code won't show a right-click menu on it directly, right-click the empty space below the file list instead
 2. Tell your agent to read `.agent/NODEGRAPH_SPEC.md` and `.agent/ENVIRONMENT.md`
 3. Read or create the target `.nodegraph.json`
 4. Edit the JSON directly
