@@ -1,0 +1,939 @@
+{
+  "version": "1.0.0",
+  "title": "Mental Illness Terms and Hermeneutic Hijacking",
+  "created": "2026-07-30T08:10:00.000Z",
+  "modified": "2026-07-30T08:10:00.000Z",
+  "source": {
+    "pdf": "Mental Illness Terms and Hermeneutic Hijacking.pdf",
+    "authors": "Rachel Keith",
+    "venue": "Forthcoming in Ergo (preprint)",
+    "pages": 28
+  },
+  "nodeTemplates": {
+    "main_topic": {
+      "label": "Main topic",
+      "color": "#4B8BBE",
+      "icon": "file-text",
+      "shape": "sharp"
+    },
+    "method": {
+      "label": "Method",
+      "color": "#5C9E6E",
+      "icon": "cpu",
+      "shape": "sharp"
+    },
+    "result": {
+      "label": "Result",
+      "color": "#9B59B6",
+      "icon": "bar-chart-2",
+      "shape": "sharp"
+    },
+    "claim": {
+      "label": "Claim",
+      "color": "#E74C3C",
+      "icon": "alert-circle",
+      "shape": "sharp"
+    },
+    "question": {
+      "label": "Question",
+      "color": "#E5A835",
+      "icon": "help-circle",
+      "shape": "rounded"
+    },
+    "gap": {
+      "label": "Gap / Idea",
+      "color": "#1ABC9C",
+      "icon": "lightbulb",
+      "shape": "rounded"
+    },
+    "reference": {
+      "label": "Reference",
+      "color": "#95A5A6",
+      "icon": "book-open",
+      "shape": "rounded"
+    },
+    "memo": {
+      "label": "Memo",
+      "color": "#BDC3C7",
+      "icon": "edit-3",
+      "shape": "rounded"
+    }
+  },
+  "nodes": [
+    {
+      "id": "node_001",
+      "template": "main_topic",
+      "title": "Killer Application",
+      "content": "**The target**: nonliteral uses of mental illness terms (MITs) — \"you're bipolar\" about a moody coworker, \"that exam gave me PTSD\", \"thanks, I'm just OCD!\" about a tidy house. The existing consensus is that such talk is wrong **when it insults**. Keith argues that the insult is not the mechanism.\n\n**1. Positive mental illness metaphors are harmful too — and for exactly the same reason as pejorative ones.**\n\"He's bipolar\" (an insult) and \"I basically have ADHD\" (a boast) are treated by the literature as morally different cases: one denigrates, the other arguably destigmatizes. Keith collapses them. Both are nonliteral, both crowd the literal meaning out of circulation, and it is the crowding out — not the valence — that does the distinctive damage. This is the paper's central and most counterintuitive claim, and it is the one that changes what you are allowed to say.\n\n**2. A named linguistic mechanism: hermeneutic hijacking.**\nA term is hijacked when its nonliteral meaning eclipses its literal meaning so thoroughly that the literal term can no longer do its job. This gives the ethics-of-metaphor literature something it was missing: a **mechanism** linking an ordinary speech habit to a specific epistemic harm, rather than the bare intuition that some metaphors feel bad. The account has a linguistic half (semantic shift) and a social half (a group loses a concept it needs).\n\n**3. A portable diagnostic, not just a verdict about MITs.**\nBecause the mechanism is stated generally, it yields a two-condition test for which *other* terms are at risk — and, just as usefully, explains why \"he is a cancer on our society\" is **not** a comparable case even though it is also an illness metaphor. Mental illness terms are the clear case, not the only case.",
+      "original": {
+        "text": "On the contrary, as I argue in this paper, all nonliteral uses of mental illness terms are harmful, and they are harmful for the same reason.",
+        "location": "Abstract, p.1"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "children": [
+        "node_006",
+        "node_007",
+        "node_008"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_002",
+      "template": "main_topic",
+      "title": "Why It's Needed",
+      "content": "**The state of the debate**: recent pushback against mental illness metaphors, both social and philosophical, has been aimed at **pejoration**. Bolinger/Jorgensen (2021) treats derogatory uses of 'schizo' and 'psychopath' as general pejoratives that wrong the mentally ill directly (by deflating their credibility) and indirectly (by feeding the stereotype that mental illness makes one untrustworthy).\n\n**The intuition that account rests on** is easy to feel, and Keith builds it deliberately before knocking it down. Compare the early-2000s pejorative use of 'gay' (meaning \"lame\") with the affectionate one now heard on TikTok (\"I love your outfit — very gay\"). The first drew campaigns against it; the second seems harmless. That contrast suggests the pejorative use was bad **because it was pejorative, not because it was metaphorical** — and by analogy, that positive mental illness metaphors should be innocent, maybe even helpful against stigma.\n\n**What a pejoration-only account cannot explain**:\n- **The compliment cases.** \"Thanks, I am just OCD!\" insults no one, yet the paper argues it still damages the person who actually has OCD.\n- **The failure of renaming.** If the problem were the insult attached to a word, swapping the word would fix it. It does not — 'intellectually disabled' and 'special education' became pejoratives in turn.\n- **The sincere speaker.** Someone who genuinely believes that being bipolar just *is* being moody and unpredictable intends no slur at all, and still contributes to the problem.\n\n**Scope, stated up front.** The argument covers terms drawn from the DSM-5 and ICD-10-CM. Keith explicitly declines to defend current diagnostic practice — the DSM includes things that may be neurodivergences and things that arguably should not be medicalized at all. What matters is not that these are *illnesses* but that they are \"ways of classifying people that are often highly central to people's identities.\" She is equally explicit that hermeneutic hijacking is not meant to explain every epistemic injustice a diagnosis exposes someone to.",
+      "original": {
+        "text": "One might think that mental illness metaphors are similar—if they are harmful, it is only (or primarily) insofar they are pejorative; neutral and positive mental illness metaphors are innocent. In this paper, I argue that this bifurcated treatment of mental illness metaphors is a mistake.",
+        "location": "§1, p.4"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 300
+      },
+      "children": [
+        "node_009",
+        "node_010",
+        "node_011",
+        "node_012"
+      ],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://www.jstor.org/stable/26541887",
+          "label": "Fraser (2018), The Ethics of Metaphor — the literature this account complements"
+        }
+      ]
+    },
+    {
+      "id": "node_003",
+      "template": "main_topic",
+      "title": "Solution: Hermeneutic Hijacking",
+      "content": "**The definition**: hermeneutic hijacking occurs when the meaning of a term used nonliterally eclipses that term's meaning used literally.\n\nSchematically — this notation is a restatement for compactness, not the paper's own formalism:\n\n$$\\text{MIT}_{\\text{literal}} \\;\\xrightarrow{\\;\\text{nonliteral use becomes conventional}\\;}\\; \\text{MIT}_{\\text{nonliteral}} \\;\\Longrightarrow\\; \\text{linguistic gap}$$\n\n**Two components, and both are needed.**\n\n**Linguistic — a semantic shift.** The nonliteral meaning displaces the literal one. On its own this is morally neutral; semantic shift is just how languages move.\n\n**Social — a concept a group needs goes missing.** Fricker (2007) describes the harm of being unable to understand or communicate one's own experience for lack of a social concept. Hijacking produces that condition by a specific route: the concept is not merely absent, it is **evicted** by a shift. That is the paper's contribution to the epistemic-injustice literature — a causal story for how a hermeneutical gap gets manufactured out of ordinary joking.\n\n**Why the mechanism is invisible while it operates.** The nonliteral uses are more socially salient than the literal ones. Many people do not know what bipolar disorder is — how it is diagnosed, what its symptoms are, how it presents — but everyone knows what calling someone \"bipolar\" is supposed to convey. When the loud meaning is the only meaning most speakers have, there is nothing left to correct it against.\n\n**Hijacking is a matter of degree.** A term need not be wholly lost to be effectively hijacked; clinicians may keep the literal sense alive among themselves and the term is still hijacked, because experts can no longer use it to reach the public.",
+      "original": {
+        "text": "Hermeneutic hijacking occurs when the meaning of a particular term when used nonliterally eclipses the term’s meaning when used literally.",
+        "location": "§3, p.9"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 600
+      },
+      "children": [
+        "node_013",
+        "node_014",
+        "node_015",
+        "node_016",
+        "node_017",
+        "node_018"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_004",
+      "template": "main_topic",
+      "title": "Results: What the Gap Costs",
+      "content": "The linguistic gap is not an abstraction. Keith argues it is harmful in **two** distinct ways, and the order of exposition matters: she explains the burden first, because you cannot see what the loss costs until you see what fills the vacancy.\n\n**Harm 1 — the burden (baggage).** Nonliteral MITs never stop at the condition. They say something about the target's **character, personality, or personhood**, and thereby imply how that person may be treated — avoided, praised, excluded, dismissed. When someone complains about their \"bipolar\" coworker, it is the coworker being denigrated, not the mood swings. A person actually diagnosed with bipolar disorder inherits all of that.\n\n**Harm 2 — the loss.** MITs used literally carry diagnostic information for clinical and research purposes. Losing that capacity obstructs treatment, distorts the clinical encounter, and strips people of a label some of them use to make sense of themselves and find others like them.\n\n**Why the positive uses are not the safe half.** This is where the Killer Application is cashed out. Complimentary uses do not spare anyone; they impose a different burden — minimization of real distress and dysfunction, plus an expectation to perform the flattering stereotype. The tidiness compliment and the productivity boast reduce symptoms to personality traits, which is precisely what makes it hard for someone with OCD or ADHD to be believed when they describe what the condition actually costs them.\n\n**The self-sealing structure.** The sharpest step in the argument: part of how one is supposed to treat a person who is \"bipolar\" (pejorative) is to **dismiss what they say out of hand**. So the very tool needed to protest the confusion — saying \"I mean bipolar in the literal sense\" — is disarmed by the confusion. The victim is left, in Keith's phrase, \"without a way of contesting these implications.\" ",
+      "original": {
+        "text": "When it comes to MITs, this gap is harmful in at least two ways. The first is a loss: we lose the ability to effectively communicate important information. The second is a burden: individuals who are mentally ill come to bear the burden of what is conveyed by the nonliteral uses.",
+        "location": "§4, p.14"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 900
+      },
+      "children": [
+        "node_019",
+        "node_020",
+        "node_021",
+        "node_022",
+        "node_023",
+        "node_024"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_005",
+      "template": "main_topic",
+      "title": "Conclusion",
+      "content": "**What the paper establishes.** There is one unified reason not to use mental illness terms nonliterally, and it does not route through offence: doing so contributes to the hijacking of the term, leaving a linguistic gap and adding to the stigma the mentally ill already carry. The pejorative/nonpejorative split that organized the previous debate is not where the moral action is.\n\n**What it enables.** The account is a mechanism, so it travels. Section 5 extends it in three directions — retired DSM terms, mental-health-adjacent phrasing that names no diagnosis at all (\"hiking is my therapy\"), and, in principle, any term meeting two conditions: its literal meaning is not firmly grasped by most people, and we have strong reason to protect that meaning from dilution. Keith suggests this explains the care taken with a word like \"Holocaust\", and equally why \"he is a cancer on our society\" does not trigger the same worry.\n\n**Where the paper deliberately stops.**\n- It does not claim hermeneutic hijacking accounts for **all** epistemic injustice faced by the diagnosed, only that it overlaps with and reinforces other kinds.\n- It does not defend current diagnostic categories; the argument is compatible with those categories continuing to evolve.\n- It leaves the neutral nonliteral case open — no convincing example presents itself, but the argument would cover one if it became widespread.\n- It offers a reason not to speak this way rather than a program for repair. Renaming is argued to be a poor remedy, which sharpens the problem without dissolving it.\n\n**Sontag's line, restated.** The paper opens and closes with *Illness as Metaphor*: illness is not a metaphor. Keith declines Sontag's absolutism — \"I do not know if such a hard line is necessary\" — but insists on the weaker and harder-to-dodge claim that **not all terms are apt as metaphorical fodder**.",
+      "original": {
+        "text": "In this paper, I have provided one reason to not use mental illness terms metaphorically: doing so contributes to the hermeneutic hijacking of the term, leaving a linguistic gap and contributing to stigma faced by the mentally ill.",
+        "location": "§6, p.24"
+      },
+      "contentExpanded": true,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 0,
+        "y": 1200
+      },
+      "children": [
+        "node_025",
+        "node_026",
+        "node_027",
+        "node_028",
+        "node_029"
+      ],
+      "links": []
+    },
+    {
+      "id": "node_006",
+      "template": "method",
+      "title": "The four utterances the paper turns on",
+      "content": "Every case Keith uses, laid side by side. The **valence column varies; the mechanism column does not** — and that is the whole argument in one table.\n\n| Utterance | Where | What the speaker actually conveys | Valence |\n|---|---|---|---|\n| \"You now have obsessive-compulsive order!\" | Colbert monologue, Apr 2020 (§1) | pandemic hygiene rules are so far from normal that everyone now resembles the OCD stereotype | joking, pejorative-adjacent |\n| \"It is so hard to work with him—he's bipolar!\" | §2, loose-talk example | the coworker is temperamental and his moods hurt those around him | pejorative |\n| \"Thanks, I am just OCD!\" | §4, the OCD case | my tidiness is a charming personal quirk | positive |\n| \"I can just hyperfixate on my assignments for a few hours; I basically have ADHD.\" | §4, the ADHD case | I have a productivity superpower | positive |\n\n**What this shows.** In none of these does the speaker intend a diagnostic claim. Correct Colbert — \"what you are describing is not actually OCD\" — and he will say, rightly by his own lights, that you missed the point. That shared indifference to the literal meaning is the common factor across all four rows.\n\n**Why it matters for the Killer Application.** A pejoration-based theory has to draw a line through the middle of this table, and it has no principled place to draw it: rows 3 and 4 are complimentary, yet they lean on the same stereotype content as rows 1 and 2 and circulate it just as widely. Hermeneutic hijacking explains all four rows with one mechanism, which is why the paper does not need the pejorative/nonpejorative distinction at all.",
+      "original": {
+        "text": "Dr. Fauci wants compulsive handwashing to be the new normal, which is great news for anyone with obsessive-compulsive disorder. Congratulations! You now have obsessive-compulsive order! Also being recommended by the CDC: counting the tiles on your kitchen floor and making sure your shoes all face north",
+        "location": "§1, p.2"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": -150
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://www.youtube.com/watch?v=9RQ4f4nujT4",
+          "label": "The Late Show with Stephen Colbert (2020-04-09) — source of the joke"
+        },
+        {
+          "type": "url",
+          "target": "https://www.wsj.com/articles/we-all-need-ocd-now-11585672342",
+          "label": "Aboujaoude (2020), 'We All Need OCD Now', WSJ"
+        }
+      ]
+    },
+    {
+      "id": "node_007",
+      "template": "gap",
+      "title": "Is this an argument about language, or about manners?",
+      "content": "A natural first objection: this looks like a complaint that people should be more careful with their words, dressed in technical vocabulary.\n\n**Why it is not.** An etiquette complaint is addressed to the speaker's intention — be kinder, be more considerate — and it is discharged by sincerity. Keith's argument survives sincerity in both directions:\n- A speaker can mean the compliment wholeheartedly and still contribute to the hijacking.\n- A speaker can believe they are speaking **literally** and still contribute to it, because \"the speaker's attitude and intention about how they are using the word does not fully determine whether their usage is nonliteral.\"\n\nThe harm is aggregative and structural — a property of what happens to a term across a linguistic community, not of any one utterance's manners. No individual joke hijacks anything.\n\n**The open question this raises.** If no single utterance does the damage, what exactly is the obligation on any single speaker? The paper gives a reason not to use MITs metaphorically but does not take up the collective-action structure of the duty it implies, which is where an objector would push next.",
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 0
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_008",
+      "template": "memo",
+      "title": "The 'gay' analogy is a trap the paper sets for you",
+      "content": "Section 1 spends a full page developing an analogy it then declines to accept — worth flagging because on a first reading it looks like the author's own view.\n\n**The setup.** Pejorative 'gay' (meaning \"lame\") drew awareness campaigns; affectionate 'gay' (\"I love your outfit — very gay\") did not, and seems fine. Conclusion invited: the pejorative use was bad because pejorative, not because metaphorical.\n\n**Why Keith builds it.** To make the bifurcated treatment of mental illness metaphors feel obligatory rather than optional, so that rejecting it costs something. The reader should feel the pull before being told it misleads here.\n\n**Why the analogy breaks for MITs.** The disanalogy is supplied later, in the three vulnerability features (see the sibling node on why MITs specifically): 'gay' has a literal meaning that essentially every competent speaker grasps, so the nonliteral use is recognizable as nonliteral and cannot displace it. MITs have no such anchor. The analogy fails precisely on the condition that makes hijacking possible — which is a neat demonstration that the account is doing explanatory work rather than just condemning.",
+      "original": {
+        "text": "This gives us some reason to think that the pejorative metaphorical usage of ‘gay’ is harmful because it is pejorative and not because it is metaphorical.",
+        "location": "§1, p.4"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 150
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_009",
+      "template": "reference",
+      "title": "Bolinger/Jorgensen (2021) — the account being displaced",
+      "content": "The paper's principal foil, cited in §1 as representative of how the philosophical literature has handled mental illness metaphors.\n\n**The claim**: derogatory metaphorical uses of terms like 'schizo' and 'psychopath' function as **general pejoratives**, in the family of 'asshole' or 'jerk'. They wrong the mentally ill in two ways — **directly**, by illegitimately diminishing the credibility of a mentally ill person in a given conversation, and **indirectly**, by feeding the stereotype that mental illness makes one untrustworthy.\n\n**Relation to this paper.** Keith does not argue that this is wrong. She argues that it is **incomplete in a way that misidentifies the mechanism**: it explains the harm by the pejorative function, which predicts that nonpejorative uses are innocent. That prediction is what the hijacking account overturns. The two are compatible; a pejorative nonliteral use does both kinds of damage at once.\n\n*Note: the paper's in-text citation reads \"Renée Jorgensen (2021)\"; the Works Cited entry is under \"Bolinger, Renée Jorgenson\".* ",
+      "original": {
+        "text": "Renée Jorgensen (2021), for example, has argued that derogatory metaphorical uses of terms like ‘schizo’ and ‘psychopath’ function as general pejoratives (like ‘asshole’ or ‘jerk’), and that they can wrong those who are mentally ill in at least two ways: directly, by illegitimately diminishing their credibility in a given conversation, and indirectly, by contributing to the stereotype that a mental illness makes one untrustworthy.",
+        "location": "§1, p.3"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 300
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://doi.org/10.4324/9781003164869-29",
+          "label": "Bolinger (2021), 'The Language of Mental Illness'"
+        }
+      ]
+    },
+    {
+      "id": "node_010",
+      "template": "method",
+      "title": "What counts as a 'nonliteral use' — the scope machinery",
+      "content": "Before the argument can run, the target has to be delimited. Keith declines to pick one theory of nonliteral speech and instead specifies the feature that matters.\n\n| Form | How it works | The MIT instance |\n|---|---|---|\n| **Loose talk** | the speaker asserts a proposition $Q$ they do not believe, because the hearer can extract the intended implications $P_1 \\dots P_n$ from it and discard the rest | \"It is so hard to work with him—he's bipolar!\" |\n| **Metaphor** | the subject is likened to something whose salient features apply and are apt | calling a coworker \"bipolar\" to foreground extreme mood swings |\n| **Hyperbole** | exaggeration for effect; the account is intended to generalize here too | \"that exam gave me PTSD\" |\n\n**The illustrations.** For loose talk: \"Ryan's flight lands at noon\" when it lands at 11:50 — false, but it conveys what matters (I have to leave, I am not being rude) better than the true sentence, whose oddly precise specificity would imply more than intended. For metaphor: \"My pony is a big goofy dog\", said to convey friendly, lovable, gentle.\n\n**The operative criterion.** MITs used nonliterally may sit anywhere between these forms or in none of them cleanly. What matters is only that the term is **used to say something other than what it literally means**. Two consequences the paper draws out and needs later: a nonliteral use can be **true**, and the subject may in fact **have** the illness named — what makes the use nonliteral is that the speaker is trading on the stereotype rather than the condition.\n\n**Why this matters for the Killer Application.** Defining the target by function rather than by rhetorical form is what lets one mechanism cover the insult, the joke, the boast, and the sincere-but-mistaken assertion alike.",
+      "original": {
+        "text": "The best way of conveying this information may be to express the single proposition Q as long as the hearer has some way of selecting those of its logical and contextual implications that the speaker intends to convey, and ignoring the others.",
+        "location": "§2, p.7 (quoting Sperber & Wilson 1985: 162)"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 450
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://www.jstor.org/stable/4545042",
+          "label": "Sperber & Wilson (1985), 'Loose Talk'"
+        }
+      ]
+    },
+    {
+      "id": "node_011",
+      "template": "claim",
+      "title": "Speaker intention does not settle it — the load-bearing move",
+      "content": "**The claim**: a speaker need not be aware they are speaking nonliterally. Some metaphors are so common that speakers take them to be literally true; a speaker may believe that to be bipolar just *is* to be moody and unpredictable, and be using the term nonliterally all the same. Their attitude about how they are using the word neither settles whether the use is nonliteral nor whether it contributes to hijacking.\n\n**Why this is load-bearing.** Three parts of the paper depend on it:\n\n1. **It blocks the sincerity defence.** \"I wasn't being metaphorical, I meant it\" is not an exit.\n2. **It supplies the engine of hijacking.** A metaphor can become so common that the once-metaphorical meaning is **conventionalized** — at which point new speakers acquire the nonliteral meaning *as* the meaning. Keith flags this explicitly as \"part of the problem.\"\n3. **It explains the clinician cases.** If literal-versus-nonliteral use is not fixed by intent, then documented clinician bias against borderline personality disorder patients — bias tracking the nonliteral sense of 'borderline' — needs no accusation of bad faith to be explained.\n\n**The methodological point Keith makes of it.** Asked whether the expert is speaking literally, or whether hijacking or bias came first, she answers that it depends on the case and that this indeterminacy is \"a feature, not a bug\" — the blurring of the literal/nonliteral line *is* the phenomenon, so it should be expected to overlap with and reinforce other injustices rather than sit cleanly apart from them.",
+      "original": {
+        "text": "The speaker’s attitude and intention about how they are using the word does not fully determine whether their usage is nonliteral, nor does it bear on whether their usage contributes to hermeneutical hijacking.",
+        "location": "§2, p.9"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 300
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_012",
+      "template": "gap",
+      "title": "The missing third case: is there a neutral nonliteral use?",
+      "content": "The paper's taxonomy of nonliteral MIT uses has two populated cells — pejorative and positive — and one that Keith cannot fill.\n\n**Her position.** Neutral nonliteral uses are conceivable, but no example readily comes to mind, and one would have to do real work to show that a candidate is not simply a **false statement** rather than a nonliteral use. The argument requires the nonliteral use to be a *prevalent* way of using the term in a linguistic community, and nothing neutral seems to meet that bar. She leaves the possibility open: should such a use become widespread, the argument would apply to it.\n\n**Why the honesty costs her something.** The strongest form of the thesis is \"all nonliteral uses harm, whatever their valence\" — which is what the abstract asserts. The neutral cell is unfilled by concession rather than by argument, so the universal claim is at present supported over the two categories that actually exist.\n\n**The open question.** Is the emptiness of the neutral cell an accident of English usage, or is it predicted by the account? A case could be made that it is predicted: the three vulnerability features imply that MITs are borrowed *precisely* for their evaluative charge, so a genuinely neutral borrowing would have no reason to catch on. The paper does not make this argument, and it would strengthen the thesis if it did.",
+      "original": {
+        "text": "It is conceivable that there are neutral nonliteral uses of MITs, though examples of this kind do not readily come to mind.",
+        "location": "§4, p.15"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 450
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_013",
+      "template": "method",
+      "title": "Hijacking is reclamation run backwards",
+      "content": "The paper's most economical piece of theory-building: hermeneutic hijacking is defined by contrast with a process everyone already agrees is good.\n\n| | **Reclamation** | **Hermeneutic hijacking** |\n|---|---|---|\n| Direction of the semantic shift | pejorative meaning $\\rightarrow$ positive meaning | literal meaning $\\rightarrow$ nonliteral meaning |\n| Who drives it | the group the term targets | the linguistic community at large; **not necessarily intentional** |\n| The linguistic gap left behind | speakers can no longer use the term to derogate | speakers can no longer use the term to convey (just) its literal sense |\n| Verdict on that gap | **good** — the lost capacity was not worth having | **harmful** — the lost meaning was necessary for a particular social group |\n\n**What the contrast buys.** It isolates the actual source of the wrong. Semantic shift is not the problem; every reclaimed slur involves one. A linguistic gap is not the problem either; reclamation leaves one and we celebrate it. The wrong is located precisely in **which** capacity is lost and **who needed it** — a distinction that no purely linguistic description of the shift could deliver.\n\n**Why it matters for the Killer Application.** Positive nonliteral uses of MITs superficially resemble reclamation: an affectionate, in-group-flavoured redeployment of a stigmatized word. The table shows they are its mirror image. Reclamation is performed by the targeted group on a term aimed *at* them; \"I basically have ADHD\" is performed by people outside the group on a term that belongs to it, and it destroys rather than repairs the group's ability to speak.",
+      "original": {
+        "text": "We can thus think about hermeneutic hijacking as the opposite of reclamation.",
+        "location": "§3, p.10"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 600
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_014",
+      "template": "method",
+      "title": "Case study: 'retarded', a completed hijacking",
+      "content": "The paper's proof of concept. The mechanism is not speculative; one term has already run the full course, which lets Keith show each stage rather than argue for it.\n\n| Stage | What happened |\n|---|---|\n| **Original usage** | a diagnostic term classifying individuals with significant cognitive impairments |\n| **Pejorative usage emerges** | picks out someone \"stupid for failing to do something that should be easy and obvious\" |\n| **Widespread adoption** | being picked out by the term becomes a bad thing in itself |\n| **The gap** | no way remains to appropriately classify the original group |\n| **Repair attempt** | a new term is minted — 'intellectually disabled' |\n| **Outcome** | the term is used **exclusively** pejoratively today; its nonpejorative meaning is gone |\n\n**The uncomfortable conclusion Keith draws.** \"Although it may sound odd to say that we should still be using the term 'retarded' in the original way, this is because it was hijacked. It would have been better if it retained its use as a diagnostic term.\" The oddness of that sentence is itself evidence — our inability to hear the word neutrally *is* the completed hijacking, felt from inside.\n\n**Why the case matters for the Killer Application.** It converts a conceptual claim into a prediction about live terms. 'Retarded' is where 'bipolar' and 'OCD' are heading; the nonliteral uses are already more socially salient than the literal ones, to the point that the literal meaning is sometimes absent from cultural awareness entirely. And it sets up the repair problem: the replacement term was co-opted in turn, which is the strongest evidence in the paper that renaming does not work.",
+      "original": {
+        "text": "The term ‘retarded’ has been effectively hijacked. Current diagnostic terms are at serious risk of a similar fate.",
+        "location": "§3, p.11"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 750
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_015",
+      "template": "method",
+      "title": "Why MITs specifically: three vulnerability features",
+      "content": "Not every term can be hijacked. Keith isolates three properties that make mental illness terms unusually exposed — added, she notes, at a reviewer's urging — and each is drawn with an explicit contrast case.\n\n| # | Feature | Why it exposes the term | Contrast case |\n|---|---|---|---|\n| 1 | **The literal meaning is not widely understood** | laypeople have no baseline against which to recognize a use as nonliteral | 'cancer', 'genius' — obviously nonliteral when applied to someone who forgets their wallet |\n| 2 | **The nonliteral use is built out of stereotyped behaviour associated with the literal one** | the two meanings are made of the same material, so they cannot be prised apart | — |\n| 3 | **Nonliteral uses are extremely consistent** | one dominant nonliteral reading can consolidate into *the* meaning | 'genius' is used hyperbolically *and* sarcastically; 'borderline' is always used to mean roughly one thing |\n\n**The mechanism the three combine into.** Feature 1 removes the corrective, feature 2 guarantees the nonliteral sense stays entangled with the real condition rather than floating free, and feature 3 supplies the concentration a takeover needs — scattered nonliteral uses would dilute each other instead of pooling into a replacement meaning.\n\n**Why this is the most reusable part of the paper.** These features are stated as properties of terms, not of mental illness, which is what makes §5's generalization possible at all. They also explain the 'gay' disanalogy that §1 leaves hanging: 'gay' fails feature 1 decisively, and that is enough to protect it.",
+      "original": {
+        "text": "These three features (a lack of understanding of the literal term, the close association between the literal and nonliteral uses, and the consistency of the nonliteral uses) all contribute to the particular vulnerability MITs have to being hijacked.",
+        "location": "§3, p.14"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 900
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_016",
+      "template": "claim",
+      "title": "Hijacking comes in degrees — and partial survival is still a loss",
+      "content": "**The claim**: a term does not have to be entirely lost to be effectively hijacked. Mental health professionals may keep a clear, shared literal understanding among themselves, and the term is hijacked anyway.\n\n**Why partial survival does not rescue the term.**\n- **The expert enclave cannot export its meaning.** Clinicians retaining the literal sense are still limited in communicating it to laypeople or the general public — which is where patients, families, employers, and juries live.\n- **Experts are not sealed off.** They are subject to bias themselves: there is compelling evidence that many clinicians display bias against patients diagnosed with borderline personality disorder in ways consistent with the *nonliteral* usage of 'borderline'.\n- **Official retirement follows anyway.** Even where clinicians keep the two senses distinct, terms may still be changed or removed to spare patients the stereotypes attached to the nonliteral sense — exactly the 'retarded' $\\rightarrow$ 'intellectually disabled' path.\n\n**Why this matters for the Killer Application.** It closes the most attractive escape route. \"The doctors still know what it means, so nothing has been lost\" is the natural defence of ordinary joking, and the degree claim answers it: the value of a diagnostic term lies in a patient being able to *say* it to someone who is not their psychiatrist. That capacity is destroyed long before the clinical meaning is.",
+      "original": {
+        "text": "It is important to note that a term does not have to be entirely lost in order for the term to be effectively hijacked.",
+        "location": "§3, p.12"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 600
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://doi.org/10.1017/S109285291200020X",
+          "label": "Black et al. (2011), clinician attitudes toward BPD"
+        },
+        {
+          "type": "url",
+          "target": "https://doi.org/10.1080/09638237.2019.1581337",
+          "label": "Ring & Lawn (2025), stigma at the interface of mental health care"
+        }
+      ]
+    },
+    {
+      "id": "node_017",
+      "template": "reference",
+      "title": "Fricker (2007) — the injustice this is a species of",
+      "content": "**What Keith takes from Fricker**: the account of the harm suffered when one cannot understand or communicate one's own experience because the relevant social concept is missing — hermeneutical injustice.\n\n**What she adds.** Fricker's canonical cases involve a concept that has never existed or has not yet been articulated: the gap is an **absence**. Hermeneutic hijacking produces the same predicament by a different route — the concept existed, was in use, and was **displaced** by semantic shift. As Keith puts it, hijacking \"causes the loss of a social concept due to semantic shift.\"\n\n**Why the distinction earns its keep.** It changes what a remedy would look like. A Fricker-style gap is repaired by *coining* — articulate the concept, teach it, and the gap closes. A hijacking gap cannot be repaired that way, because the linguistic slot is occupied rather than empty; coin a replacement and the same forces act on it. That is why §3's discussion of renaming ends pessimistically, and it is a substantive consequence of treating hijacking as its own species rather than an instance of Fricker's.\n\n**Where the paper limits the claim.** Keith is explicit that hijacking does not account for all the epistemic injustice a diagnosis exposes someone to — receiving a diagnosis opens one to testimonial injustice in particular, even when aptly applied.",
+      "original": {
+        "text": "Miranda Fricker (2007) describes the harm of being unable to understand and communicate one’s experience caused by the lack of a social concept. Hermeneutic hijacking causes the loss of a social concept due to semantic shift.",
+        "location": "§3, p.10"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 750
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://doi.org/10.1093/acprof:oso/9780198237907.001.0001",
+          "label": "Fricker (2007), Epistemic Injustice"
+        }
+      ]
+    },
+    {
+      "id": "node_018",
+      "template": "reference",
+      "title": "Neighbouring concepts, and how hijacking differs",
+      "content": "Footnote 7 positions the new term against three recent neighbours. Worth surfacing, because the contribution is easy to mistake for a relabelling of existing work.\n\n| Concept | Author | Shared ground | How hermeneutic hijacking differs |\n|---|---|---|---|\n| **Hermeneutic pruning / dilution** | Sibbald (2023) | a mechanism by which marginalized groups lose the ability to use important terms with outsiders | Keith is \"equally concerned with cases where individuals do not have access to hermeneutic resources to recognize and understand **their own** experiences\" |\n| **Hermeneutical sabotage** | Edgoose (2024) | same loss of outward communicative capacity | hijacking is **not necessarily intentional**, and **not caused solely by members of dominant social groups** |\n| **Hermeneutical dissent** | Goetze (2017), fn. 18 | concerns the same gap | describes a **response** to the gap rather than its cause — e.g. holding onto 'Asperger's' or 'aspie' despite the loss of broader hermeneutic resources |\n\n**The two differentiating axes.** *Intentionality*: sabotage implies an agent doing it on purpose; hijacking is what a community does by accident, one joke at a time, which is why the account can indict speakers who mean well. *Direction*: the neighbouring concepts are about speaking outward to those who lack the concept; Keith is equally interested in the inward case — someone who cannot interpret their own experience because the only version of the term they have ever encountered is the hijacked one.\n\n**Why this matters for the Killer Application.** Both axes are needed for the central claim. Positive uses are typically well-intentioned, so an intention-requiring mechanism would exempt exactly the cases the paper exists to indict.",
+      "original": {
+        "text": "Unlike hermeneutic sabotage, hermeneutic hijacking is not necessarily intentional nor is it caused solely by members of dominant social groups.",
+        "location": "fn. 7, p.9"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 900
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://doi.org/10.1017/hyp.2023.90",
+          "label": "Sibbald (2023), 'Are Metaphors Ethically Bad Epistemic Practice?'"
+        },
+        {
+          "type": "url",
+          "target": "https://doi.org/10.1080/00048402.2024.2351210",
+          "label": "Edgoose (2024), 'Hermeneutical Sabotage'"
+        }
+      ]
+    },
+    {
+      "id": "node_019",
+      "template": "method",
+      "title": "Harm 1 — the baggage, and why it cannot be shrugged off",
+      "content": "**The key structural claim**: the evaluative implications of a nonliteral MIT are **not limited to the condition the term references**. They attach to the target's character, personality, or personhood — and they implicitly license certain treatment (avoidance, praise, exclusion). When someone complains about their \"bipolar\" coworker, it is the coworker being denigrated, not the mood swings.\n\n**What that does to someone actually diagnosed**, in three escalating steps:\n\n1. **From others.** She may reasonably worry that people will treat her as 'bipolar' (pejorative) — less trustworthy, a bad person, unable to make rational decisions.\n2. **From herself.** She might mistakenly come to see *herself* as 'bipolar' (pejorative), wrongly accepting the implications about who she is and how she deserves to be treated in virtue of her diagnosis.\n3. **No recourse.** She faces extreme difficulty communicating that she is 'bipolar' (literal) and not 'bipolar' (pejorative).\n\n**The trap in step 3.** Part of the treatment the pejorative sense licenses is to **dismiss what the person says out of hand**. So the one move that could undo the confusion — protesting it — is precisely the move the confusion disarms. She is \"saddled with the evaluative baggage... and left without a way of contesting these implications.\"\n\n**Two qualifications Keith insists on.** A person can be harmed this way **without realizing it** — the effects are subtle, especially for someone who has internalized that their condition means something bad about them. And the harm is unevenly distributed: those already marginalized face a disproportionate share.",
+      "original": {
+        "text": "She is effectively saddled with the evaluative baggage found in the nonliteral usage and is left without a way of contesting these implications.",
+        "location": "§4, p.16"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1050
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_020",
+      "template": "method",
+      "title": "Harm 2 — the loss, where it lands clinically",
+      "content": "Keith treats this harm briefly on the grounds that the need to accurately identify medical conditions is obvious to most readers, but the specific failure points are worth pulling out.\n\n| Where the loss bites | What goes wrong |\n|---|---|\n| **Diagnosis** | receiving one *should* be the first step toward effective treatment |\n| **The clinical conversation** | practitioners struggle to convey that the diagnosis does **not** mean what the patient is used to hearing the term mean |\n| **Help-seeking** | patients may internalize the baggage of the common nonliteral use, which becomes a barrier to seeking treatment at all |\n| **Treatment itself** | patients experience discrimination from health care professionals, especially where a disorder's name has been appropriated to mean 'abusive' — borderline personality disorder being the paper's example |\n\n**What these four rows have in common.** The literal term is not merely unavailable; it arrives **pre-loaded**. The clinician is not handing the patient a neutral label they can learn, but a word the patient already knows from a decade of jokes — so the first clinical task becomes undoing the term before it can be used.\n\n**Why it matters for the Killer Application.** This is the harm that the \"nonpejorative uses are innocent\" position cannot address, because a compliment loads the term just as effectively as an insult. A patient told they have OCD by a clinician meets a word whose public sense — quirky, tidy, secretly advantageous — is one that positive uses built. Keith supports each row with cited empirical work rather than asserting it, which is the strongest evidential footing in the paper.",
+      "original": {
+        "text": "Patients may internalize the baggage associated with the common (nonliteral) use of the term, serving as a barrier to seeking treatment.",
+        "location": "§4, p.18"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1200
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://doi.org/10.1192/bjp.bp.116.189464",
+          "label": "Schnyder et al. (2017), stigma and active help-seeking"
+        },
+        {
+          "type": "url",
+          "target": "https://doi.org/10.1016/j.socscimed.2010.09.030",
+          "label": "Livingston & Boyd (2010), internalized stigma"
+        },
+        {
+          "type": "url",
+          "target": "https://doi.org/10.1521/pedi.2023.37.2.177",
+          "label": "Stiles et al. (2023), stigma and discrimination in BPD"
+        }
+      ]
+    },
+    {
+      "id": "node_021",
+      "template": "claim",
+      "title": "The compliment is not the safe case",
+      "content": "**The claim under attack**: that the baggage carried by positive nonliteral uses of MITs is at worst harmless and at best beneficial against stigma. Keith: \"This is mistaken.\"\n\n**The burden is twofold.**\n\n**Minimization.** Positive uses reduce symptoms to personality traits — Spencer and Carel's **wrongful depathologization**. The result is a double bind: the person is *othered* because of their illness **and** thought to be *exaggerating* the difficulties it causes. Being simultaneously marked out and disbelieved is a worse position than either alone.\n\n**Unreasonable expectations.** The target is cast as someone with a special power. Someone with actual ADHD then has to explain why they cannot summon the productivity superpower that the term now advertises.\n\n**The media parallel Keith invokes.** The 'autistic savant' trope — *Rain Man*. It looks flattering, showing autistic people as highly capable, and the autistic community and disability scholars have pushed back precisely because it spreads misinformation about the realities of autism and burdens autistic individuals with the expectation of being geniuses. Same structure, different medium.\n\n**The bottom line and the payoff.** \"Positive nonliteral uses of MITs make it hard for individuals with mental illnesses to accurately describe their experience and advocate for their unique needs.\" That is the Killer Application discharged: the positive use does not merely fail to help, it attacks the same capacity the pejorative use attacks — the ability to be believed about one's own condition — and it does so while looking like an ally.",
+      "original": {
+        "text": "It may be tempting to think that the baggage that comes along with positive nonliteral uses of MITs is, at worst, harmless, and, at best, beneficial. This is mistaken.",
+        "location": "§4, p.16"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1350
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://doi.org/10.1163/25888803-bja10009",
+          "label": "Ressa (2021), autism in the media and false balance"
+        }
+      ]
+    },
+    {
+      "id": "node_022",
+      "template": "reference",
+      "title": "Spencer & Carel (2021) — four harms of positive stereotypes",
+      "content": "The paper's borrowed scaffolding for the positive cases, reproduced in condensed form from Spencer and Carel (2021: 5-6).\n\n| # | How a positive stereotype harms the group it flatters |\n|---|---|\n| 1 | Compromises members' well-being through an **increased expectation to live up to the stereotype** |\n| 2 | A positively stereotyped individual who **fails to live up** to the attributes may experience persecution |\n| 3 | **Emphasizes group differences** between marginalized and non-marginalized people |\n| 4 | **Draws attention to juxtaposing negative stereotypes** attached to the same marginalized group |\n\n**Keith's amplification argument.** She takes these four and argues hijacking makes each worse: \"When a term is hijacked, a person is more than stereotyped. The term adopts the nonliteral meaning (at least conventionally), amplifying the harms detailed by Spencer and Carel.\" The difference is between a stereotype *about* people picked out by a term, and a stereotype that has **become the term's meaning**. A stereotype can be contested with counter-evidence; a conventionalized meaning cannot, because producing counter-evidence requires using the word, and the word now says the stereotype.\n\n**Why it matters for the Killer Application.** This is the borrowed half of the argument, and marking the seam matters: rows 1–4 come from Spencer and Carel and would apply even without hijacking. Keith's own contribution is the amplification step. The paper's originality lies in the mechanism that converts a stereotype into a lexical fact, not in the catalogue of harms it produces.\n\n**Spencer and Carel's own formulation**, as the paper reproduces it on p.16: \"wrongful depathologization devalues the epistemic status of [mentally ill] people by reducing their symptoms to mere personality traits, thus denying them a dully recognized psychiatric identity.\" (\"dully\" is how the preprint transcribes it; \"duly\" appears to be intended.)",
+      "original": {
+        "text": "Those who have mental illnesses that have been wrongly depathologized experience both stigmatization—they are othered because of their illness—and the trivialization of their illness—they are thought to be exaggerating the difficulties they face because of their illness.",
+        "location": "§4, p.17"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 1050
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://doi.org/10.5195/philmed.2021.19",
+          "label": "Spencer & Carel (2021), 'Isn't Everyone a Little OCD?'"
+        }
+      ]
+    },
+    {
+      "id": "node_023",
+      "template": "result",
+      "title": "The Asperger's evidence — a diagnostic term as identity",
+      "content": "The paper's strongest piece of documented evidence, and the one that establishes the premise the whole harm argument needs: that MITs are not merely descriptive labels.\n\n**The claim.** Diagnostic terms serve as important aspects of some people's identity, in the way many cancer patients embrace 'cancer survivor' to make sense of their experience and find communities of similar people. Losing those terms to their nonliteral uses \"steals, or at least taints, the ability to determine if and how much one's mental illness fits into one's own self-conception.\"\n\n**The evidence.** When Asperger's Syndrome was removed from the DSM, many who had been diagnosed held onto the term because of the central role it played in how they understood themselves and their community; the cited qualitative work documents a reported loss of identity and a challenge to self-understanding following the reclassification.\n\n**Why this is a natural experiment rather than an illustration.** Removing Asperger's was an orderly, well-intentioned, clinically motivated reclassification — the best case a renaming could hope for. It still produced identity loss. That is what licenses the inference to the harder case: if a careful reclassification costs people that much, a term dragged out of use by a decade of jokes costs at least as much.\n\n**Two qualifications Keith supplies.** Not everyone who receives a diagnosis incorporates it into their identity, just as not everyone who has cancer finds it personally defining, and some diagnoses (autism) are more likely to be adopted this way than others (schizophrenia). She adds a subtler point: hijacking may itself influence whether someone internalizes a diagnosis, since some may be reluctant — consciously or not — because they have already internalized the baggage.",
+      "original": {
+        "text": "many people who were once diagnosed with (or who would have met the diagnostic criteria for) what was once called Asperger’s Syndrome have expressed feeling a loss of identity and a challenge to their own self-understanding since the classification was removed in recent editions of the DSM.",
+        "location": "§4, p.19"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 1200
+      },
+      "children": [],
+      "links": [
+        {
+          "type": "url",
+          "target": "https://doi.org/10.46743/2160-3715/2020.4122",
+          "label": "Huynh, McCrimmon & Strong (2020), effects on self-identity"
+        },
+        {
+          "type": "url",
+          "target": "https://doi.org/10.1007/s10803-019-04294-5",
+          "label": "Smith & Jones (2020), identity after DSM-5"
+        }
+      ]
+    },
+    {
+      "id": "node_024",
+      "template": "gap",
+      "title": "What would count as evidence against the account?",
+      "content": "The argument is conceptual, and its empirical support is load-bearing in one direction only. Worth marking, since it is where a critic would concentrate.\n\n**The dissent Keith anticipates and dismisses.** \"There will be people who claim to not be harmed by the process as I have described it, but this is not good reason to doubt the prevalence or severity of the harm in a generalized way.\" She has grounds — a person can be harmed without realizing it, and marginalization is unevenly distributed. But the move does insulate the thesis from testimony by members of the affected group, which is a notable posture for an argument about epistemic injustice to adopt.\n\n**What the cited evidence does and does not establish.** The empirical work supports the *harms of stigma* — clinician bias in BPD, self-stigma as a barrier to help-seeking, identity loss after the Asperger's reclassification. None of it measures the **hijacking mechanism** specifically: that the nonliteral meaning has displaced the literal one, and that this displacement is what produces the harm. The mechanism is argued for, illustrated by 'retarded', and left untested.\n\n**What a test might look like** — none of this is in the paper:\n- Whether laypeople can state literal diagnostic criteria correlates with how much they endorse nonliteral uses (feature 1 is a testable prediction).\n- Whether terms with *multiple divergent* nonliteral uses resist hijacking better than terms with one consistent use (feature 3, likewise).\n- Whether positive nonliteral exposure specifically predicts the trivialization response — which is the paper's distinctive claim, and the one that most needs a distinguishing test.",
+      "original": {
+        "text": "There will be people who claim to not be harmed by the process as I have described it, but this is not good reason to doubt the prevalence or severity of the harm in a generalized way.",
+        "location": "§4, p.20"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 1350
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_025",
+      "template": "method",
+      "title": "Expanding the account — three candidate categories",
+      "content": "Section 5 tests the mechanism's reach. Keith's verdicts are notably uneven, which is a point in the account's favour — a framework that swallowed all three would be too permissive to be informative.\n\n| Category | Examples | Verdict |\n|---|---|---|\n| **Retired DSM terms** | 'Asperger's', 'hysterical', 'multiple personality disorder' | **Depends on the term.** 'Asperger's' is still used literally by people who claim it as identity, so nonliteral use would do the same damage as with any current MIT. 'Hysterical' is so divorced from its original usage that it has **already been hijacked** — its present harms are explained by other things (pejorative speech), not by the risk of hijacking |\n| **Mental-health-adjacent phrasing, no diagnostic term** | \"he needs to be committed\" (pejorative), \"hiking is my therapy\" (positive) | **Not hijacking per se, but \"something akin to it.\"** 'Therapy' is not strictly enough defined to take on a new meaning, so nothing is displaced — but the boundary between clinical therapy and therapy broadly construed **blurs**. The effect is recognizable to \"anyone who has been asked 'Have you tried hiking?' in response to sharing a mental illness diagnosis\" |\n| **Everything else** | 'cancer', 'Holocaust' | **Yes in principle.** It \"would be utterly bizarre\" for the phenomenon to be limited to MITs; MITs are the clear case, not the only one. Which terms qualify is settled by the two-condition test in the sibling node |\n\n**Why the middle row is the interesting one.** It shows the mechanism has a graded analogue for terms too loosely defined to be captured outright. The harm survives even where the semantic shift does not — which suggests the operative variable is the **blurring of the literal/nonliteral boundary** rather than replacement of one meaning by another. That is a broader thesis than the one the paper defends, and it is left as an observation.",
+      "original": {
+        "text": "I take there to be three phenomena that my account potentially expands to: the nonliteral use of terms that were in former editions of the DSM (“hysterical”), metaphors that gesture at mental illness without using specific diagnostic terms (“go take your meds”), and the wide variety of nonliteral speech about things that have nothing to do with mental illness.",
+        "location": "§5, p.20"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1500
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_026",
+      "template": "method",
+      "title": "The generalization test, and why 'cancer' passes it",
+      "content": "**The two conditions.** Any term or phrase is at risk of hermeneutic hijacking when both hold:\n\n$$\\text{at risk} \\;\\Longleftrightarrow\\; \\underbrace{\\text{literal meaning not firmly grasped by most people}}_{(1)} \\;\\wedge\\; \\underbrace{\\text{strong reasons to protect that meaning}}_{(2)}$$\n\n*(the conjunction is written out for compactness; the paper states the two conditions in prose)*\n\n**Why \"he is a cancer on our society\" is not a problem case.** Keith gives two reasons, and they map onto the two conditions:\n- **Condition (1) fails.** The vast majority of people understand at least the basics of cancer, so the term's literal meaning \"has a more solid foundation to stand upon\" — there is a baseline the metaphor cannot dislodge. Awareness campaigns did this work.\n- **A further asymmetry.** The badness rooted in 'cancer' does not extend to people who *have* cancer the way the badness of 'bipolar' does. We can discuss how bad cancer is while implying nothing about the character of the cancer patient; \"our ability to distinguish between the badness of 'bipolar' and 'person with bipolar' is unreliable at best.\"\n\n**The footnote worth reading.** Keith concedes the contrast is not clean for diseases we take to be **caused by the sick person's own actions** — those illness terms probably do work the way MITs do. Her explanation for why we see it less often is disarmingly practical: it is \"just less poetic to metaphorically say that your disliked coworker has cirrhosis.\"\n\n**The positive case: 'Holocaust'.** Hijacking may explain the resistance to using the word without great care — \"we need to be able to maintain the ability to use the word to describe only the greatest of atrocities.\" A striking test of the framework's generality: no illness, no stigma, no diagnosis, and both conditions still hold.\n\n**Why this matters for the Killer Application.** The two conditions are what make the paper more than a rule about mental illness vocabulary. They also carry a corollary the paper does not spell out: **public understanding is protective**. If condition (1) can be defeated by awareness campaigns, as it apparently was for cancer, then teaching people what bipolar disorder actually is may be as effective a defence as asking them to stop joking.",
+      "original": {
+        "text": "it seems that any term or phrase (1) whose literal or intended meaning is not firmly grasped by a large percentage of people and (2) that we have strong reasons for protecting that literal or intended meaning from dilution or appropriation is at risk for hermeneutic hijacking.",
+        "location": "§5, p.23"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1650
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_027",
+      "template": "gap",
+      "title": "Renaming is ruled out — so what is the remedy?",
+      "content": "**The paper's argument against the obvious fix.** Hijacked terms could simply be replaced, renaming the diagnosis for which we now lack a word. Keith rejects it on three grounds:\n\n1. **The treadmill.** There is little reason to expect the new term would escape co-optation. 'Intellectually disabled' and 'special education' both became pejoratives after psychiatry moved away from 'retarded'.\n2. **The identity cost.** MITs can be touchstones for central aspects of a person's identity, so renaming is destabilizing to those who identify with the original term — the Asperger's case.\n3. **The ledger.** \"Renaming disorders when MITs are hijacked is an ineffective solution in which individuals with mental illnesses give up more than they get.\"\n\n**The gap this opens.** With renaming ruled out, the account is left offering a **prohibition on speakers** — do not use MITs metaphorically — as its only implication. That is a demand on a diffuse population which is, by the paper's own analysis, largely unaware it is doing anything nonliteral. Point 1 above is also uncomfortably general: whatever makes a new term vulnerable would presumably make abstention hard to sustain for the same reasons.\n\n**Directions the paper leaves unexplored.**\n- **Attack condition (1) instead of the speech.** If broad public understanding is what protects 'cancer', education targets the vulnerability rather than the symptom — and unlike a speech norm, it does not require universal compliance.\n- **Deliberate diversification.** Feature 3 says consistency of nonliteral use is a vulnerability, which implies that scattered, mutually inconsistent nonliteral uses are safer. An odd remedy, but it follows from the analysis.\n- **Who bears the duty.** Media, clinicians, and platforms shape usage far more than individual speakers, and none of them are addressed.",
+      "original": {
+        "text": "Renaming disorders when MITs are hijacked is an ineffective solution in which individuals with mental illnesses give up more than they get.",
+        "location": "§3, p.11"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": 750,
+        "y": 1800
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_028",
+      "template": "reference",
+      "title": "Sontag (1977), Illness as Metaphor — the frame",
+      "content": "The book supplies the paper's epigraph, its closing argument, and the tradition it works in. Cited without a DOI or URL in the paper's Works Cited, so no link is attached here.\n\n**The epigraph.** \"Yet it is hardly possible to take up one's residence in the kingdom of the ill unprejudiced by the lurid metaphors with which it has been landscaped.\"\n\n**What Keith takes from it.** Sontag's genealogy of illness metaphor is, in Keith's reading, structurally the same as her own account, run on tuberculosis and cancer: there is a disease, often already stigmatized $\\rightarrow$ its name is used metaphorically to convey a moral or normative message $\\rightarrow$ the name begins to **encode** the baggage of the nonliteral usage $\\rightarrow$ those with the disease have no escape from it. \"When health or disease terms and their nonliteral uses fit this pattern, they surely will fit my account.\"\n\n**Where she departs.** Sontag's thesis is absolute: illness is not a metaphor, and the healthiest way of being ill is the one most purified of metaphoric thinking. Keith declines the absolutism — \"I do not know if such a hard line is necessary, but certainly there is a line to be drawn.\"\n\n**Why the departure is the point.** Sontag's position is a stance; Keith's is a criterion. Because she has the two-condition test, she can say *where* the line falls and *why* — which is why she can allow \"he is a cancer on our society\" while forbidding \"he's bipolar\", a distinction Sontag's blanket prohibition has no way to draw. The paper is best read as supplying the mechanism Sontag's polemic asserted without one.",
+      "original": {
+        "text": "that illness is not a metaphor, and that the most truthful way of regarding illness—and the healthiest way of being ill—is one most purified of, most resistant to, metaphoric thinking.",
+        "location": "§6, p.23 (quoting Sontag 1977: 56)"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 1500
+      },
+      "children": [],
+      "links": []
+    },
+    {
+      "id": "node_029",
+      "template": "memo",
+      "title": "Reading note: the roadmap is numbered off by one",
+      "content": "A navigation hazard worth knowing before you follow the paper's own cross-references.\n\nThe roadmap paragraph on p.5 announces four sections, numbering them from the **Introduction as Section 0** in effect — but the printed section headings number the Introduction as **1**. The result is a consistent one-step offset:\n\n| Roadmap says | Actual heading | Content |\n|---|---|---|\n| \"In Section 1, I clarify which terms fit within the scope\" | **§2** (p.6) | Nonliteral Uses of Mental Illness Terms |\n| \"In Section 2, I introduce the concept of hermeneutic hijacking\" | **§3** (p.9) | Hermeneutic Hijacking |\n| \"In Section 3, I explain the harm\" | **§4** (p.14) | Harm |\n| \"In Section 4, I consider how my analysis may extend\" | **§5** (p.20) | Expanding the Account |\n\nThe offset propagates into the body text: a footnote on p.13 promises a fuller examination of terms like 'cancer' \"in Section 4\", which is in fact §5; the discussion of \"hiking is my therapy\" on p.22 refers back to \"what I describe in Section 3\", which is the hijacking section and correct under the heading numbering.\n\n**Convention used in this graph**: all `location` fields cite the **printed heading numbers** (§1 Introduction through §6 Conclusion) and the **PDF page numbers**, which run 1:1 with the printed page numbers throughout.",
+      "original": {
+        "text": "The paper proceeds as follows. In Section 1, I clarify which terms fit within the scope of the argument by giving a more detailed account of nonliteral uses of mental illness terms.",
+        "location": "§1, p.5"
+      },
+      "contentExpanded": false,
+      "originalExpanded": false,
+      "childrenExpanded": false,
+      "position": {
+        "x": -750,
+        "y": 1650
+      },
+      "children": [],
+      "links": []
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_001",
+      "source": "node_001",
+      "target": "node_002",
+      "type": "arrow",
+      "label": ""
+    },
+    {
+      "id": "edge_002",
+      "source": "node_002",
+      "target": "node_003",
+      "type": "arrow",
+      "label": ""
+    },
+    {
+      "id": "edge_003",
+      "source": "node_003",
+      "target": "node_004",
+      "type": "arrow",
+      "label": ""
+    },
+    {
+      "id": "edge_004",
+      "source": "node_004",
+      "target": "node_005",
+      "type": "arrow",
+      "label": ""
+    },
+    {
+      "id": "edge_005",
+      "source": "node_001",
+      "target": "node_006",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_006",
+      "source": "node_001",
+      "target": "node_007",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_007",
+      "source": "node_001",
+      "target": "node_008",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_008",
+      "source": "node_002",
+      "target": "node_009",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_009",
+      "source": "node_002",
+      "target": "node_010",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_010",
+      "source": "node_002",
+      "target": "node_011",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_011",
+      "source": "node_002",
+      "target": "node_012",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_012",
+      "source": "node_003",
+      "target": "node_013",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_013",
+      "source": "node_003",
+      "target": "node_014",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_014",
+      "source": "node_003",
+      "target": "node_015",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_015",
+      "source": "node_003",
+      "target": "node_016",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_016",
+      "source": "node_003",
+      "target": "node_017",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_017",
+      "source": "node_003",
+      "target": "node_018",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_018",
+      "source": "node_004",
+      "target": "node_019",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_019",
+      "source": "node_004",
+      "target": "node_020",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_020",
+      "source": "node_004",
+      "target": "node_021",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_021",
+      "source": "node_004",
+      "target": "node_022",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_022",
+      "source": "node_004",
+      "target": "node_023",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_023",
+      "source": "node_004",
+      "target": "node_024",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_024",
+      "source": "node_005",
+      "target": "node_025",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_025",
+      "source": "node_005",
+      "target": "node_026",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_026",
+      "source": "node_005",
+      "target": "node_027",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_027",
+      "source": "node_005",
+      "target": "node_028",
+      "type": "line",
+      "label": ""
+    },
+    {
+      "id": "edge_028",
+      "source": "node_005",
+      "target": "node_029",
+      "type": "line",
+      "label": ""
+    }
+  ],
+  "viewport": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  }
+}

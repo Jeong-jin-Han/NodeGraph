@@ -9,6 +9,10 @@ tmp/
 test/
 test-demo/
 
+# demo/ex5 is tracked in git and linked from the README Benchmark table,
+# but intentionally excluded from the packaged .vsix (unlike ex1-ex4)
+demo/ex5/
+
 # Packaged .vsix builds (kept in packages/, one per released version)
 *.vsix
 

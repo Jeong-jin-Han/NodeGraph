@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white&style=for-the-badge" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-0.7.1-orange?style=for-the-badge" alt="Version 0.7.1" />
+  <img src="https://img.shields.io/badge/version-0.7.2-orange?style=for-the-badge" alt="Version 0.7.2" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=for-the-badge" alt="MIT License" />
 </p>
 
@@ -111,7 +111,7 @@ See **[FEATURES.md](https://github.com/Jeong-jin-Han/NodeGraph/blob/main/docs/FE
 
 The file `.agent/NODEGRAPH_SPEC.md` (included in the extension) is a machine-readable specification for AI agents. It documents the full JSON schema, ID conventions, KaTeX/Markdown syntax rules, rendering support per field, and a step-by-step workflow for generating a nodegraph from a PDF.
 
-Four fully agent-built graphs ship with the extension, so you can open a finished result before building your own: `demo/ex1` ("Attention Is All You Need"), `demo/ex2` ("Point Transformer"), `demo/ex3` ("Mooncake"), and `demo/ex4` ("3D Gaussian Splatting") — all with KaTeX formulas, Markdown tables, toggle sections, and deep question nodes.
+Five fully agent-built graphs ship with the extension, so you can open a finished result before building your own: `demo/ex1` ("Attention Is All You Need"), `demo/ex2` ("Point Transformer"), `demo/ex3` ("Mooncake"), `demo/ex4` ("3D Gaussian Splatting"), and `demo/ex5` ("Mental Illness Terms and Hermeneutic Hijacking", a philosophy paper, not just CS/ML) — between them covering KaTeX formulas, Markdown tables, toggle sections, and deep question nodes.
 
 **Typical agent workflow:**
 1. Right-click the project folder in the Explorer and run `NodeGraph: Copy Agent Spec to Workspace` (one-time per folder). If you opened that folder itself as the workspace root, VS Code won't show a right-click menu on it directly, right-click the empty space below the file list instead
@@ -160,15 +160,13 @@ end to end without asking me anything. Tell me when done.
 | `demo/ex2` | [Point Transformer](https://arxiv.org/abs/2012.09164) | Opus 5 | ~16 minutes | ~65k |
 | `demo/ex3` | [Mooncake](https://arxiv.org/abs/2407.00079) | Opus 5 | ~10 minutes | ~40k |
 | `demo/ex4` | [3D Gaussian Splatting](https://arxiv.org/abs/2308.04079) | Opus 5 | ~11 minutes | ~45k |
+| `demo/ex5` | [Mental Illness Terms and Hermeneutic Hijacking](https://philarchive.org/rec/KEIMIT) | Opus 5 | ~11 minutes | ~40k |
+
+`demo/ex5` is a philosophy paper, not CS/ML, included to show the workflow isn't limited to empirical papers with a methods/results structure — the agent used the same default node templates and it held up fine.
 
 The `demo/ex4` run above was recorded on **v0.6.3**, using `NodeGraph: Copy Agent Spec to Workspace` exactly as described in the four steps above — no README copy-pasting, no manual setup.
 
-<details>
-<summary>Watch the full <code>demo/ex4</code> run (59s, no sound)</summary>
-<p align="center">
-  <a href="https://github.com/Jeong-jin-Han/NodeGraph/blob/main/resources/demo-ex4.mp4">▶ resources/demo-ex4.mp4</a> — opens GitHub's built-in video player (pause, seek, fullscreen)
-</p>
-</details>
+[Watch the full demo/ex4 run (59s, no sound)](https://github.com/Jeong-jin-Han/NodeGraph/blob/main/resources/demo-ex4.mp4)
 
 ---
 
