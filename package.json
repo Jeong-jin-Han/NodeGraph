@@ -16,6 +16,7 @@
     "Visualization",
     "Education"
   ],
+  
   "activationEvents": [
     "onCustomEditor:nodegraph.editor"
   ],
