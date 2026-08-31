@@ -63,7 +63,9 @@ export interface GraphNode {
 }
 
 export interface NodeLink {
-  type: 'pdf' | 'obsidian' | 'url' | 'internal'
+  type: 'pdf' | 'obsidian' | 'url' | 'internal' | 'code'
+  // for 'code': relative path from the graph JSON's own directory, optionally with a
+  // line spec, e.g. "src/foo/bar.ts:42" or "src/foo/bar.ts:42-58"
   target: string
   label: string
 }

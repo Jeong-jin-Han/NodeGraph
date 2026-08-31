@@ -6,6 +6,8 @@ import { generateHtml } from './htmlExporter'
 import { createEmptyGraph } from './defaultGraph'
 import { getNonce } from './nonce'
 import { PdfViewerPanel } from './PdfViewerPanel'
+import { parseCodeLinkTarget } from './codeLink'
+import { resolveGitHubBase, resolveRepoRelativePrefix } from './gitInfo'
 
 export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider {
   public static register(context: vscode.ExtensionContext): vscode.Disposable {
@@ -80,6 +82,23 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
           vscode.env.openExternal(pdfUri)
         } else if (link.type === 'obsidian') {
           vscode.env.openExternal(vscode.Uri.parse(link.target))
+        } else if (link.type === 'code') {
+          const { path: relPath, startLine, endLine } = parseCodeLinkTarget(link.target)
+          try {
+            const fileUri = vscode.Uri.joinPath(vscode.Uri.joinPath(document.uri, '..'), relPath)
+            const doc = await vscode.workspace.openTextDocument(fileUri)
+            const editor = await vscode.window.showTextDocument(doc, { preview: false })
+            if (startLine) {
+              const start = Math.max(0, startLine - 1)
+              const end = Math.max(start, (endLine ?? startLine) - 1)
+              const endLineLen = doc.lineAt(Math.min(end, doc.lineCount - 1)).text.length
+              const range = new vscode.Range(start, 0, end, endLineLen)
+              editor.selection = new vscode.Selection(range.start, range.end)
+              editor.revealRange(range, vscode.TextEditorRevealType.InCenter)
+            }
+          } catch {
+            vscode.window.showErrorMessage(`NodeGraph: couldn't open ${relPath}`)
+          }
         }
       } else if (msg.type === 'searchInPdf') {
         const pdfUri = vscode.Uri.joinPath(vscode.Uri.joinPath(document.uri, '..'), msg.pdfTarget)
@@ -113,7 +132,9 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
             while ((m = INLINE_IMG_RE.exec(node.content ?? '')) !== null) await loadImg(m[1])
           }
 
-          const htmlContent = generateHtml(data, imageData)
+          const githubBase = resolveGitHubBase(docDir.fsPath)
+          const repoPrefix = githubBase ? resolveRepoRelativePrefix(docDir.fsPath) : ''
+          const htmlContent = generateHtml(data, imageData, { githubBase, repoPrefix })
           const outUri = vscode.Uri.joinPath(docDir, `${baseName}.html`)
           await vscode.workspace.fs.writeFile(outUri, Buffer.from(htmlContent, 'utf-8'))
           const choice = await vscode.window.showInformationMessage(

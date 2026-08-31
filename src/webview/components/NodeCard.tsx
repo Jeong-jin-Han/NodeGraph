@@ -826,7 +826,7 @@ export function NodeCard({
                     onMouseLeave={() => setHoveredLinkIdx(null)}
                   >
                     <span style={{ fontSize: 10, opacity: 0.45, flexShrink: 0 }}>
-                      {link.type === 'url' ? '🔗' : link.type === 'pdf' ? '📄' : link.type === 'obsidian' ? '🟣' : '⬡'}
+                      {link.type === 'url' ? '🔗' : link.type === 'pdf' ? '📄' : link.type === 'obsidian' ? '🟣' : link.type === 'code' ? '💻' : '⬡'}
                     </span>
                     <span
                       onClick={() => onOpenLink(link)}
@@ -858,6 +858,7 @@ export function NodeCard({
                         <option value="url">URL</option>
                         <option value="pdf">PDF</option>
                         <option value="obsidian">Obsidian</option>
+                        <option value="code">Code</option>
                         <option value="internal">Internal</option>
                       </select>
                       <input

@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white&style=for-the-badge" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-0.7.2-orange?style=for-the-badge" alt="Version 0.7.2" />
+  <img src="https://img.shields.io/badge/version-0.7.3-orange?style=for-the-badge" alt="Version 0.7.3" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=for-the-badge" alt="MIT License" />
 </p>
 
@@ -28,7 +28,7 @@ Point an AI agent (Claude Code, Codex, Cursor, Antigravity) at a PDF and it read
 **Getting there takes four steps:**
 1. Install **NodeGraph** from the VS Code Marketplace
 2. Right-click your paper's folder and run `NodeGraph: Copy Agent Spec to Workspace`
-3. Paste the generated `.prompt/english.md` (or `korean.md`) into your agent, filling in the PDF's path
+3. Paste the generated `.prompt/paper/english.md` (or `korean.md`) into your agent, filling in the PDF's path
 4. Open the finished `.nodegraph.json`
 
 ---
@@ -94,7 +94,7 @@ See **[FEATURES.md](https://github.com/Jeong-jin-Han/NodeGraph/blob/main/docs/FE
 
 ## Agent / AI Editing
 
-> **Before pointing an AI agent at a project, run `NodeGraph: Copy Agent Spec to Workspace` once** — it writes `.agent/NODEGRAPH_SPEC.md` (copied from the extension bundle), `.agent/ENVIRONMENT.md` (freshly generated), and `.prompt/korean.md` / `.prompt/english.md` (ready-to-paste copies of the example prompt below, one per language) into one folder, so the agent can read all of it like any other file without needing to know the extension's install path. Right-click the target folder in the Explorer and pick it from the context menu (this is the reliable way in a multi-root workspace, or to target one specific subfolder — it writes into exactly the folder you clicked, nowhere else); running it from the Command Palette instead targets the workspace's only folder, or prompts you to pick one if there are several. It's opt-in rather than automatic on purpose: `.agent/NODEGRAPH_SPEC.md` is a large static doc identical across every install, and writing it into a folder automatically (the way `.agent/ENVIRONMENT.md` alone already does, silently, at every activation) would mean it could land in your own repo without you choosing that.
+> **Before pointing an AI agent at a project, run `NodeGraph: Copy Agent Spec to Workspace` once** — it writes `.agent/NODEGRAPH_SPEC.md` (copied from the extension bundle), `.agent/ENVIRONMENT.md` (freshly generated), and `.prompt/paper/{korean,english}.md` + `.prompt/code/{korean,english}.md` (ready-to-paste copies of the example prompts below, one pair per language — the `paper` prompt maps a PDF, the `code` prompt maps a codebase, see **Mapping a codebase instead of a paper** below) into one folder, so the agent can read all of it like any other file without needing to know the extension's install path. Right-click the target folder in the Explorer and pick it from the context menu (this is the reliable way in a multi-root workspace, or to target one specific subfolder — it writes into exactly the folder you clicked, nowhere else); running it from the Command Palette instead targets the workspace's only folder, or prompts you to pick one if there are several. It's opt-in rather than automatic on purpose: `.agent/NODEGRAPH_SPEC.md` is a large static doc identical across every install, and writing it into a folder automatically (the way `.agent/ENVIRONMENT.md` alone already does, silently, at every activation) would mean it could land in your own repo without you choosing that.
 >
 > **AI agents: read these two files before doing anything (both written by the command above, into the same folder):**
 > 1. `.agent/NODEGRAPH_SPEC.md` — full JSON schema, syntax rules, and constraints
@@ -124,7 +124,7 @@ Five fully agent-built graphs ship with the extension, so you can open a finishe
 
 <b>English</b> | <a href="https://github.com/Jeong-jin-Han/NodeGraph/blob/main/docs/ko/README.md#example-prompt">한국어</a>
 
-After running `NodeGraph: Copy Agent Spec to Workspace` on the folder that holds your PDF (step 1 above), paste this into your agent — fill in the path and it does the rest: reads the spec, reads the paper, and builds the graph without further back-and-forth. The same command also writes this out as `.prompt/english.md` (and a Korean version at `.prompt/korean.md`) in that folder, so you can open the file directly instead of copying it from here.
+After running `NodeGraph: Copy Agent Spec to Workspace` on the folder that holds your PDF (step 1 above), paste this into your agent — fill in the path and it does the rest: reads the spec, reads the paper, and builds the graph without further back-and-forth. The same command also writes this out as `.prompt/paper/english.md` (and a Korean version at `.prompt/paper/korean.md`) in that folder, so you can open the file directly instead of copying it from here.
 
 ```
 PDF_ABSOLUTE_PATH = <PDF_ABSOLUTE_PATH>
@@ -138,6 +138,29 @@ nodegraph you can build from it. This extension ships a worked example
 at demo/ex1/attention-is-all-you-need.nodegraph.json (inside its own
 install folder) as a reference for depth/structure — check it if
 useful, then build ours the same way for this paper.
+
+Write all node content in English.
+
+Follow the spec exactly, save the result inside PROJECT_FOLDER, and run
+end to end without asking me anything. Tell me when done.
+```
+
+### Mapping a codebase instead of a paper
+
+Point the same command at a codebase instead: run `NodeGraph: Copy Agent Spec to Workspace` on the project's root folder, then paste `.prompt/code/english.md` (or `.prompt/code/korean.md`) into your agent, filling in the project root's path. The agent walks the codebase instead of reading a PDF, and builds a graph around architecture, core implementation, and data/control flow instead of a paper's argument.
+
+The key difference from the paper workflow: every node that points at real code carries a `links` entry of type `code` (e.g. `src/foo/bar.ts:42-58`), and clicking it jumps straight to that file and line range in the editor, no PDF-style search needed. Export the graph to standalone HTML and those same links resolve to GitHub blob URLs (`.../blob/<commit>/path#L42-L58`) if the project has a `github.com` remote, so the graph stays clickable outside the editor too.
+
+```
+PROJECT_ROOT_ABSOLUTE_PATH = <PROJECT_ROOT_ABSOLUTE_PATH>
+PROJECT_FOLDER = PROJECT_ROOT_ABSOLUTE_PATH
+
+PROJECT_FOLDER/.agent/NODEGRAPH_SPEC.md and PROJECT_FOLDER/.agent/ENVIRONMENT.md
+are already prepared for you — read both in full. Follow the "Code →
+NodeGraph workflow" section specifically, not the PDF workflow.
+
+Based on this codebase and those two files, briefly explain what kind of
+nodegraph you can build from it, then build it.
 
 Write all node content in English.
 
@@ -347,7 +370,7 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
 |---------|----------|-------------|
 | `NodeGraph: New Graph` | — | Create a new empty graph. Right-click a folder in the Explorer to target it directly; from the Command Palette it targets the workspace's only folder, or prompts you to pick one if there are several |
 | `NodeGraph: Search Nodes` | `Ctrl+F` / `Cmd+F` | Open search dropdown |
-| `NodeGraph: Copy Agent Spec to Workspace` | — | Write `.agent/NODEGRAPH_SPEC.md`, `.agent/ENVIRONMENT.md`, and `.prompt/{korean,english}.md` into a folder so an AI agent can read them. Same folder-targeting as New Graph above |
+| `NodeGraph: Copy Agent Spec to Workspace` | — | Write `.agent/NODEGRAPH_SPEC.md`, `.agent/ENVIRONMENT.md`, and `.prompt/{paper,code}/{korean,english}.md` into a folder so an AI agent can read them. Same folder-targeting as New Graph above |
 
 ---
 

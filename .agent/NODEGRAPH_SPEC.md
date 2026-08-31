@@ -15,9 +15,11 @@ should read and edit `.nodegraph.json` files used by the NodeGraph VSCode extens
 
 ## Quick start
 
-When the user says **"apply NodeGraph"** (or the Korean equivalent, **"NodeGraph 적용해"**) and provides a PDF path, execute the full workflow below without asking for further clarification.
+When the user says **"apply NodeGraph"** (or the Korean equivalent, **"NodeGraph 적용해"**) and provides a PDF path or a codebase's root folder path, execute the matching workflow below — **PDF → NodeGraph workflow** for a paper, **Code → NodeGraph workflow** for a codebase — without asking for further clarification.
 
-**One-sentence goal**: Find what this paper does that no one did before, and structure it so a reader can grasp why it matters in under 5 minutes.
+**One-sentence goal (paper)**: Find what this paper does that no one did before, and structure it so a reader can grasp why it matters in under 5 minutes.
+
+**One-sentence goal (code)**: Find how this codebase actually works, and structure it so a new contributor can navigate it confidently in under 5 minutes.
 
 **Writing principles** (apply throughout):
 - **Bilingual glossing**: When writing content in Korean, include the English term alongside key technical expressions, so readers never have to guess what the original English term was (see **Language rules** below for the exact convention and example).
@@ -126,6 +128,82 @@ For every backbone node, add the verbatim quote from the PDF that best supports 
 
 ---
 
+## Code → NodeGraph workflow
+
+### Step 0 — Setup
+1. Identify the target file: `<repo-name>.nodegraph.json` (create it if it does not exist), saved directly inside the codebase's root folder (the same folder the user pointed you at — call it `PROJECT_FOLDER`). This matters because every `code`-type link (Step 6) resolves relative to wherever this JSON file lives, the same way `pdf`-type links already resolve relative to the JSON's own directory in the PDF workflow.
+2. If the JSON already exists, read it first so you don't clobber existing work.
+
+### Step 1 — Read the codebase
+- Walk the directory tree from `PROJECT_FOLDER` down, respecting `.gitignore` (skip `node_modules/`, build output, lockfiles, etc. — they're not architecture).
+- Find the entry point(s) (`main`/`index` file, `package.json`'s `main`/`bin`, a `src/` root, etc.) and read outward from there rather than reading every file exhaustively.
+- Identify the major modules/layers and how they depend on each other.
+
+### Step 2 — Find the core idea
+Answer this question: **"What does this codebase actually do, and what's the central approach that makes it work?"**
+
+This becomes the framing of the first backbone node. Not a generic description like "a web app for managing tasks." Specific: "a VS Code extension that renders documents as an editable node graph, using grid-based A* routing so wires never cross a node."
+
+### Step 3 — Build the backbone (5 nodes)
+
+Create exactly **5 backbone `main_topic` nodes** at `x: 0`, spaced `y: 300` apart:
+
+| # | Node title (Korean file) | Node title (English file) | What to put in `content` |
+|---|---------------------------------------|-----------------------------------|--------------------------|
+| 1 | **개요 (Overview)** | **Overview** | What this project does and the core idea that makes it work, in a sentence or two. Be concrete and specific, not a generic tagline. |
+| 2 | **구조 (Architecture)** | **Architecture** | The major components/layers and how they fit together (e.g. extension host vs. webview, frontend vs. backend). A short table of components is welcome here. |
+| 3 | **핵심 구현 (Core Implementation)** | **Core Implementation** | The specific mechanisms that make the system work — the interesting algorithms, data structures, or protocols. Most `code`-type `links` (Step 6) belong on the sub-nodes under this backbone node. |
+| 4 | **데이터/제어 흐름 (Data & Control Flow)** | **Data & Control Flow** | How a request/event/action actually moves through the system end to end — e.g. "user clicks X → message posted to extension host → file written → webview re-rendered." |
+| 5 | **설계 결정과 주의사항 (Design Decisions & Gotchas)** | **Design Decisions & Gotchas** | Non-obvious choices and constraints a new contributor needs to know before touching the code — the things that aren't written in any single file's comments. |
+
+**Graph language**: same rule as the PDF workflow — write the whole graph in Korean or entirely in English, following the user's request (default to Korean with English terms alongside per **Language rules** if unspecified).
+
+Connect backbone nodes in sequence with `arrow` edges (1→2→3→4→5).
+
+### Step 4 — Add sub-nodes (x: 500–550)
+
+For each backbone node, add **sub-nodes branching to the right**. Use the appropriate template:
+
+| What | Template | When to add |
+|------|----------|--------------|
+| A specific module/file worth understanding on its own | `module` (sharp) | Every module central to the architecture deserves its own node |
+| A step in a data/control flow | `flow` (sharp) | Each meaningful hop in a request/event pipeline |
+| A non-obvious design decision | `decision` (sharp) | Choices that look arbitrary but have a real reason — code's equivalent of the paper workflow's most valuable node type |
+| Deep question or open issue | `question` (rounded) | "Why is this cached instead of recomputed?", "What happens if this call fails?" |
+| Known limitation / improvement idea | `gap` (rounded) | TODOs, things that could be refactored, known rough edges |
+| Related external doc/dependency | `reference` (rounded) | Library docs, RFCs, or upstream projects this code actually depends on or cites (in comments, README, package.json) — never something recalled from general knowledge that the codebase itself doesn't reference |
+| Misc note | `memo` (rounded) | Anything else worth remembering |
+
+Space sub-nodes at ~`y: 150` intervals around their parent's y-center, at `x: 500`. Same **hop-based positioning rule** as the PDF workflow — see **Position guidelines** below.
+
+Connect each sub-node to its parent backbone node with a `line` edge.
+
+### Step 5 — Tables and diagrams (optional)
+
+KaTeX and Markdown tables (see **Content syntax** below) still apply where relevant — algorithmic complexity, an API/props table, a benchmark. Most code graphs won't need them as heavily as a paper graph does; don't force it.
+
+### Step 6 — Write `original` snippets and `code` links
+
+For nodes describing a specific piece of code, add the verbatim snippet the same way the PDF workflow quotes the paper:
+
+```jsonc
+"original": {
+  "text": "Exact verbatim code snippet. Never paraphrase.",
+  "location": "src/webview/utils/wireGeometry.ts:152-206"   // free-text caption only — NOT clickable by itself
+},
+"links": [
+  { "type": "code", "target": "src/webview/utils/wireGeometry.ts:152-206", "label": "wireGeometry.ts:152" }
+]
+```
+
+**Unlike the PDF workflow, `original.location` alone does not drive navigation for code** — there is no page-search mechanism to parse it. One-click navigation comes entirely from a `links` entry of `"type": "code"` (see **NodeLink schema** below). Add one to every node that references a real location in the code, with `target` as a path relative to this JSON file's own directory, in the form `path/to/file.ts`, `path/to/file.ts:42` (a single line), or `path/to/file.ts:42-58` (an inclusive range).
+
+### Step 7 — Finalize
+- Update `"modified"` to the current ISO 8601 timestamp.
+- Tell the user: **"Click Reload in the editor toolbar to see the updated graph."**
+
+---
+
 ## Top-level schema (`NodeGraph`)
 
 ```jsonc
@@ -134,7 +212,7 @@ For every backbone node, add the verbatim quote from the PDF that best supports 
   "title": "Paper Title",       // display name shown in the UI
   "created": "2026-07-06T00:00:00.000Z",   // ISO 8601; set once on creation, never change again
   "modified": "2026-07-06T12:00:00.000Z",  // ISO 8601; UPDATE after EVERY edit session
-  "source": {                   // optional — paper / document metadata
+  "source": {                   // optional — paper / document metadata (PDF workflow only)
     "pdf": "paper.pdf",
     "authors": "Vaswani et al.",
     "venue": "NeurIPS 2017",
@@ -149,6 +227,8 @@ For every backbone node, add the verbatim quote from the PDF that best supports 
 }
 ```
 
+`source` is specific to the PDF workflow (`source.pdf` is what makes right-click-to-jump-to-page work — see Step 6 of that workflow). Code graphs have no equivalent top-level field to set and should just omit `source` entirely — `code`-type links (see **NodeLink schema**) carry their own path, so no top-level pointer is needed.
+
 Required top-level fields: `version`, `title`, `created`, `modified`, `nodeTemplates`, `nodes`, `edges`, `viewport`.
 Optional: `source`, `canvasImages`.
 
@@ -159,6 +239,7 @@ Optional: `source`, `canvasImages`.
 A map of template key → template definition. Every node's `"template"` field must match one of these keys.
 
 ```jsonc
+// PDF workflow default set
 "nodeTemplates": {
   "main_topic": { "label": "Main topic",  "color": "#4B8BBE", "icon": "file-text",    "shape": "sharp"   },
   "method":     { "label": "Method",      "color": "#5C9E6E", "icon": "cpu",           "shape": "sharp"   },
@@ -171,10 +252,26 @@ A map of template key → template definition. Every node's `"template"` field m
 }
 ```
 
+```jsonc
+// Code workflow default set (see Step 4 of Code → NodeGraph workflow)
+"nodeTemplates": {
+  "main_topic": { "label": "Main topic",  "color": "#4B8BBE", "icon": "file-text",    "shape": "sharp"   },
+  "module":     { "label": "Module",      "color": "#5C9E6E", "icon": "package",       "shape": "sharp"   },
+  "flow":       { "label": "Flow",        "color": "#9B59B6", "icon": "activity",      "shape": "sharp"   },
+  "decision":   { "label": "Decision",    "color": "#E74C3C", "icon": "alert-circle",  "shape": "sharp"   },
+  "question":   { "label": "Question",    "color": "#E5A835", "icon": "help-circle",   "shape": "rounded" },
+  "gap":        { "label": "Gap / TODO",  "color": "#1ABC9C", "icon": "lightbulb",     "shape": "rounded" },
+  "reference":  { "label": "Reference",   "color": "#95A5A6", "icon": "book-open",     "shape": "rounded" },
+  "memo":       { "label": "Memo",        "color": "#BDC3C7", "icon": "edit-3",        "shape": "rounded" }
+}
+```
+
+Both sets are just the recommended default — `nodeTemplates` is data inside the file, so an agent can rename/recolor/add keys freely as long as every node's `"template"` matches one.
+
 | `shape` value | When to use |
 |---------------|-------------|
-| `"sharp"`     | Content from the paper (topics, methods, results, claims) |
-| `"rounded"`   | Content outside the paper (questions, gaps, memos, references) |
+| `"sharp"`     | Content from the source itself (paper topics/methods/results/claims, or code modules/flows/decisions) |
+| `"rounded"`   | Content added around the source (questions, gaps, memos, references) |
 
 ---
 
@@ -242,6 +339,15 @@ already anchored (a `main_topic`, or a node that already has a parent) as
 `source`, so the direction you drag in never breaks the hop tree. Duplicate
 edges with the same source and target are rejected by the editor.
 
+**Convergent edges (multiple sources into one target)** render fine — both wires
+draw correctly — but layout position is still one-parent-per-node under the
+hood: whichever incoming edge is found first becomes that node's real tree
+parent, and any other source node with no incoming edge of its own falls back
+to treating its own edge's target as a virtual parent, purely for positioning.
+Practically this means: don't worry about it when just connecting nodes, but if
+a source-only node's placement looks off after adding a convergent edge, that's
+why — it's now positioned as if it hangs off the node it points into.
+
 **Avoid transitively redundant edges yourself** — if A→B and B→C already exist, do not
 also add a direct A→C edge; the reader can already follow A→B→C. The editor no longer has
 a "Reduce Edges" button (removed — this used to be a manual cleanup step), so agents must
@@ -256,14 +362,20 @@ Nodes can have a `links` array for external references:
 
 ```jsonc
 {
-  "type": "url",              // "pdf" | "obsidian" | "url" | "internal"
-  "target": "https://...",   // URL, file path, or Obsidian URI
+  "type": "url",              // "pdf" | "obsidian" | "url" | "internal" | "code"
+  "target": "https://...",   // URL, file path, Obsidian URI, or code path (see below)
   "label": "arXiv paper"
 }
 ```
 
 Click behaviour: `url` and `obsidian` open externally; `pdf` targets are resolved
 relative to the JSON file's directory. `internal` is reserved and currently a no-op.
+
+`code` targets (Code workflow only) are a path relative to the JSON file's own
+directory, optionally with a line spec: `"src/foo.ts"`, `"src/foo.ts:42"`, or
+`"src/foo.ts:42-58"` (1-indexed, inclusive). Click behaviour differs by context:
+- **In the live editor**: opens the file and reveals/selects the given line range directly — no search step, unlike `pdf`'s page-jump, since VS Code can address an exact line natively.
+- **In the exported standalone HTML**: resolves to a GitHub blob URL (`https://github.com/<owner>/<repo>/blob/<commit-sha-at-export-time>/<path>#L<start>-L<end>`) if the project's git remote is on `github.com`. If it isn't (no git repo, no `origin`, non-GitHub host, git not installed), the link renders as inert text — same graceful degradation `canvasImages` already have for HTML export.
 
 ---
 
@@ -503,3 +615,4 @@ After any edit, verify:
 - [ ] `links` field present on every node (use `[]` if empty)
 - [ ] Every table and figure node explains what it shows *and* why that matters for the Killer Application — not just embedded/pasted with no interpretation
 - [ ] No invented numbers, citations, or external claims — every claim traces to the PDF's own text, or has a real `links` entry, or was left unwritten
+- [ ] (Code workflow) Every node that references a specific place in the code has a matching `links` entry with `"type": "code"` — `original.location` alone does not make it clickable

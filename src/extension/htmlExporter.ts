@@ -1,4 +1,6 @@
+import * as path from 'path'
 import { NodeGraph, GraphNode, NodeTemplate } from '../webview/types/graph'
+import { parseCodeLinkTarget } from './codeLink'
 
 function escHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -122,6 +124,7 @@ function renderNodeCard(
   offsetX: number,
   offsetY: number,
   imageData: Record<string, string>,
+  codeLinkOpts: { githubBase: string | null; repoPrefix: string },
 ): string {
   const color = template?.color ?? '#888'
   const borderRadius = template?.shape === 'rounded' ? '22px' : '2px'
@@ -157,7 +160,22 @@ function renderNodeCard(
   }
   if (node.links.length) {
     bodyHtml += `<div class="ng-links">${node.links.map(l => {
-      const icon = l.type === 'url' ? '🔗' : l.type === 'pdf' ? '📄' : l.type === 'obsidian' ? '🟣' : '⬡'
+      const icon = l.type === 'url' ? '🔗' : l.type === 'pdf' ? '📄' : l.type === 'obsidian' ? '🟣' : l.type === 'code' ? '💻' : '⬡'
+      if (l.type === 'code') {
+        // No VS Code API in a static export, so a 'code' link only resolves if the
+        // graph's own repo has a github.com origin (see gitInfo.ts) — otherwise it
+        // renders as inert text, same degrade-gracefully treatment as canvasImages.
+        const { path: relPath, startLine, endLine } = parseCodeLinkTarget(l.target)
+        // repoPrefix (json dir relative to repo root) and relPath (target relative to
+        // json dir) are joined then normalized, so a target like "../src/foo.ts" from a
+        // json file that isn't at the repo root still resolves to a real repo-root-relative
+        // path instead of leaving a literal "prefix/../" segment in the URL.
+        const repoRelPath = path.posix.normalize(codeLinkOpts.repoPrefix + relPath)
+        const href = (codeLinkOpts.githubBase && !repoRelPath.startsWith('..'))
+          ? ` href="${escHtml(codeLinkOpts.githubBase)}/${escHtml(repoRelPath)}${startLine ? `#L${startLine}${endLine ? `-L${endLine}` : ''}` : ''}" target="_blank"`
+          : ''
+        return `<a class="ng-link"${href}>${icon} ${escHtml(l.label || l.target)}</a>`
+      }
       const href = (l.type === 'url' || l.type === 'pdf') ? ` href="${escHtml(l.target)}" target="_blank"` : ''
       return `<a class="ng-link"${href}>${icon} ${escHtml(l.label || l.target)}</a>`
     }).join('')}</div>`
@@ -199,7 +217,11 @@ function renderNodeCard(
 </div>`
 }
 
-export function generateHtml(graph: NodeGraph, imageData: Record<string, string> = {}): string {
+export function generateHtml(
+  graph: NodeGraph,
+  imageData: Record<string, string> = {},
+  codeLinkOpts: { githubBase: string | null; repoPrefix: string } = { githubBase: null, repoPrefix: '' },
+): string {
   let minX = Infinity, minY = Infinity
   for (const n of graph.nodes) {
     minX = Math.min(minX, n.position.x)
@@ -210,7 +232,7 @@ export function generateHtml(graph: NodeGraph, imageData: Record<string, string>
   const offsetY = -minY + 100
 
   const nodesHtml = graph.nodes
-    .map(n => renderNodeCard(n, graph.nodeTemplates[n.template], offsetX, offsetY, imageData))
+    .map(n => renderNodeCard(n, graph.nodeTemplates[n.template], offsetX, offsetY, imageData, codeLinkOpts))
     .join('\n')
 
   const nodesData = JSON.stringify(graph.nodes.map(n => ({
@@ -1092,11 +1114,23 @@ function buildHopTreeJs() {
     // 채로 저장돼 있을 수 있다(source=이 노드, target=main topic) — Canvas.tsx의
     // buildHopTree와 동일하게, 이런 기존 데이터도 여기서 인식해줘야 에디터와 같은
     // 트리 구조가 나온다(안 그러면 이 노드가 잘못 독립 루트로 취급됨).
-    var reversedToMain = null;
+    //
+    // Canvas.tsx와 동일: "여러 source → 하나의 target" 수렴 구조에서 target의 실제
+    // 부모로 안 뽑힌 나머지 source들이 orphan으로 빠지는 걸 막기 위해, target이
+    // main_topic이 아니어도 가상 부모로 채택한다 — 단 target 쪽 "자신을 향하는 첫
+    // edge"가 바로 이 edge라면(서로가 서로의 부모가 되는 2노드 순환) 제외.
+    var outgoing = null;
     EDGES.forEach(function(e) {
-      if (!reversedToMain && e.source === nodeId && nodeById[e.target] && nodeById[e.target].isMain) reversedToMain = e.target;
+      if (!outgoing && e.source === nodeId && nodeById[e.target]) outgoing = e;
     });
-    return reversedToMain;
+    if (outgoing) {
+      var targetsFirstIncoming = null;
+      EDGES.forEach(function(e) {
+        if (!targetsFirstIncoming && e.target === outgoing.target) targetsFirstIncoming = e;
+      });
+      if (targetsFirstIncoming !== outgoing) return outgoing.target;
+    }
+    return null;
   }
   var isRoot = {}, parentOf = {};
   NODES_DATA.forEach(function(n) {
@@ -1228,8 +1262,8 @@ function drawGrid() {
   if (!showGrid) { svg.style.display = 'none'; return; }
   svg.style.display = '';
   var lines = computeGridLinesJs();
-  lines.vLines.forEach(function(x) { svg.appendChild(svgGridLine(x, 0, x, 10000, '#22c55e')); });
-  lines.hLines.forEach(function(y) { svg.appendChild(svgGridLine(0, y, 10000, y, '#f97316')); });
+  lines.vLines.forEach(function(x) { svg.appendChild(svgGridLine(x, -10000, x, 10000, '#22c55e')); });
+  lines.hLines.forEach(function(y) { svg.appendChild(svgGridLine(-10000, y, 10000, y, '#f97316')); });
   updateZoomLineWeights();
 }
 function toggleGrid() {

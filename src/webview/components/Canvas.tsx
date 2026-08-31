@@ -111,8 +111,22 @@ function buildHopTree(
     // 채로 저장돼 있을 수 있다(예: source=새 노드, target=main topic) — addEdge가 이제
     // 이런 경우를 새로 만들 땐 자동으로 바로잡지만, 이미 이렇게 저장된 기존 데이터도
     // 여기서 인식해줘야 리로드 없이(또는 재연결 없이) 바로 hop 트리에 편입된다.
-    const reversedToMain = edges.find(e => e.source === nodeId && !!nodeById.get(e.target) && isMainNode(nodeById.get(e.target)!))
-    return reversedToMain ? reversedToMain.target : null
+    //
+    // 이 fallback은 원래 target이 main_topic일 때만 적용됐는데, "여러 source →
+    // 하나의 target" 수렴 구조에서는 그 source 중 하나(target의 실제 부모로 채택
+    // 안 된 나머지)가 어디에도 들어오는 edge가 없는 채 남아 orphan 취급되어 격자/
+    // hop 트리 배치에서 완전히 빠지는 버그가 있었다(사용자 리포트: "여러 개의 src,
+    // 1개의 dst" 케이스만 grid 밖으로 위치). target이 main_topic이 아니어도 이
+    // fallback을 적용해 그 target을 "가상 부모"로 삼아 트리에 편입시킨다 — 단,
+    // target 쪽에서 "자신을 향하는 첫 edge"가 바로 이 edge라면(target의 실제 부모가
+    // 이 nodeId가 되어버리는 경우) 서로가 서로의 부모가 되는 2노드 순환이 생겨
+    // computeDepth가 무한 재귀에 빠지므로 그 경우만 제외한다.
+    const outgoing = edges.find(e => e.source === nodeId && !!nodeById.get(e.target))
+    if (outgoing) {
+      const targetsFirstIncoming = edges.find(e => e.target === outgoing.target)
+      if (targetsFirstIncoming !== outgoing) return outgoing.target
+    }
+    return null
   }
 
   const isRoot = new Set<string>()
