@@ -62,6 +62,8 @@ interface NodeCardProps {
   onPinHighlight?: (id: string) => void
   onNodeDragActivate?: (nodeId: string) => void
   onNodeDragDeactivate?: (nodeId: string) => void
+  // 툴바의 More 토글 — false면 콘텐츠 높이 캡/More 버튼 없이 항상 전체 펼침
+  capEnabled?: boolean
 }
 
 type EditingField = 'title' | 'content' | 'originalText' | 'originalLoc' | 'originalTitle' | null
@@ -94,6 +96,7 @@ export function NodeCard({
   canvasClipboardRef, onAddFilenameToNode,
   isSearchMatch, isActiveSearchMatch, isGenHighlight, onPinHighlight,
   onNodeDragActivate, onNodeDragDeactivate,
+  capEnabled = true,
 }: NodeCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
@@ -186,6 +189,44 @@ export function NodeCard({
     const current = node.nodeWidth ?? 0
     if (needed > current) onSetNodeWidth(node.id, needed)
   }, [node.content, node.contentExpanded, node.nodeWidth, node.id, onSetNodeWidth])
+
+  // 노드 폭보다 넓은 display 수식($$...$$)도 표처럼 노드 너비를 자동 확장해서 수용
+  // (스크롤바로 잘라 보여주는 방식은 사용자가 명시적으로 거부 — "너비를 늘리자").
+  // 표와 달리 .katex-display는 블록 요소라 scrollWidth가 컨테이너 폭을 따라가므로,
+  // 절대 폭이 아니라 "넘친 양(scrollWidth-clientWidth)"만큼만 더하는 방식이어야
+  // 함 — 절대 폭 기준으로 하면 위 표 로직처럼 쓸 경우 렌더될 때마다 +24px씩
+  // 무한히 자라는 되먹임이 생긴다(헤더 폭 확장 effect와 동일한 접근).
+  // 최초 측정은 KaTeX 웹폰트 로드 전(폴백 폰트, 수식이 더 좁게 렌더)일 수 있어서
+  // overflow가 0으로 나와 조용히 스킵되고, 폰트 도착 후 수식이 넓어져도 deps가 안
+  // 바뀌니 재실행이 없었음 — 실제 webview 번들 헤드리스 재현으로 확인한 버그.
+  // document.fonts.ready 이후 한 번 더 측정해서 폰트 적용 후의 진짜 폭을 반영한다.
+  //
+  // 확장 폭은 onSetNodeWidth로 노드 데이터에 저장하지 않고 컴포넌트 로컬 상태로만
+  // 들고 있는다(펼친 동안만 카드 width에 반영) — 저장하면 접었을 때도 늘어난 폭이
+  // 그대로 남아 "펼쳤다 접으면 노드 길이가 달라진다"는 버그가 되고(사용자 리포트),
+  // 그래프를 열어 보기만 해도 파일이 수정 상태가 되는 부작용도 있었음.
+  const [katexMinWidth, setKatexMinWidth] = useState(0)
+  // 내용이 바뀌면(수식 삭제 등) 이전 확장 폭이 남지 않게 리셋 — 아래 측정 effect가
+  // 같은 deps로 바로 이어 달리며 필요한 만큼만 다시 올린다.
+  useEffect(() => { setKatexMinWidth(0) }, [node.content])
+  useEffect(() => {
+    if (!node.contentExpanded) return
+    const el = tableBodyRef.current
+    if (!el) return
+    const measure = () => {
+      let maxOverflow = 0
+      for (const kd of Array.from(el.querySelectorAll<HTMLElement>('.katex-display'))) {
+        maxOverflow = Math.max(maxOverflow, kd.scrollWidth - kd.clientWidth)
+      }
+      if (maxOverflow <= 0) return
+      const current = Math.max(node.nodeWidth ?? 0, 432, autoMinWidth)
+      setKatexMinWidth(prev => Math.max(prev, current + maxOverflow + 4))
+    }
+    measure()
+    let cancelled = false
+    document.fonts?.ready?.then(() => { if (!cancelled) measure() })
+    return () => { cancelled = true }
+  }, [node.content, node.contentExpanded, node.nodeWidth, node.fontSize, node.id, autoMinWidth])
 
   // 제목이 길면 카드 폭 밖으로 삐져나가던 문제 — 위 표 너비 확장과 같은 방식으로,
   // 헤더가 실제로 필요로 하는 폭(scrollWidth)이 지금 카드 폭(clientWidth)보다 크면
@@ -321,7 +362,9 @@ export function NodeCard({
       return <div onClick={onClickToEdit} style={{ cursor: 'text', minHeight: 20 }}>{renderCellContent(text)}</div>
     }
 
-    const thSt: CSSProperties = { padding: '5px 10px', border: '1px solid #ddd', background: '#f8f9fa', fontWeight: 600, textAlign: 'left', verticalAlign: 'top', whiteSpace: 'pre-wrap', wordBreak: 'normal', cursor: 'text' }
+    // 헤더는 'pre' — 열이 좁아져도 "단계"→"단/계"처럼 세로로 꺾이지 않게 자동 줄바꿈을
+    // 금지(명시적 \n 줄바꿈은 유지). 본문 셀(td)은 계속 pre-wrap으로 자연 줄바꿈.
+    const thSt: CSSProperties = { padding: '5px 10px', border: '1px solid #ddd', background: '#f8f9fa', fontWeight: 600, textAlign: 'left', verticalAlign: 'top', whiteSpace: 'pre', wordBreak: 'normal', cursor: 'text' }
     const tdSt: CSSProperties = { padding: '5px 10px', border: '1px solid #ddd', verticalAlign: 'top', whiteSpace: 'pre-wrap', wordBreak: 'normal', cursor: 'text' }
     const blocks = parseTableBlocks(text)
     return (
@@ -409,7 +452,8 @@ export function NodeCard({
           // 발생하지 않고, 진짜로 더 넓어야 하는 표는 "표 렌더 후 노드 너비 자동 확장"
           // 이펙트(위, tbl.scrollWidth 기반)가 node.nodeWidth를 늘려 이 값 자체를 키우는
           // 정상 경로로만 처리된다.
-          width: Math.max(node.nodeWidth ?? 0, 432, autoMinWidth),
+          // katexMinWidth(수식 폭 확장)는 펼친 동안만 — 접으면 원래 폭으로 복귀
+          width: Math.max(node.nodeWidth ?? 0, 432, autoMinWidth, node.contentExpanded ? katexMinWidth : 0),
           minHeight: node.contentExpanded ? (node.nodeHeight ?? undefined) : undefined,
           background: `color-mix(in srgb, ${color} 15%, ${NODE_BG_BASE})`,
           border: isGenHighlight
@@ -594,20 +638,20 @@ export function NodeCard({
                 ref={tableBodyRef}
                 style={{
                   fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word',
-                  maxHeight: contentMoreExpanded ? undefined : contentMaxHeight,
+                  maxHeight: (!capEnabled || contentMoreExpanded) ? undefined : contentMaxHeight,
                   // overflowX를 'hidden'으로 명시하지 않으면(visible로 남으면), overflowY만
                   // non-visible일 때 브라우저가 overflow-x도 암묵적으로 auto로 취급하는
                   // CSS 스펙 규칙 때문에 이 박스가 줄바꿈을 무시하고 max-content 너비로
                   // 계산되어(표/수식 등 wrap 가능한 콘텐츠도 한 줄로 펼쳐짐) 노드가
                   // 비정상적으로 넓어짐 — 반드시 overflowX도 같이 지정해야 함
-                  overflowY: contentMoreExpanded ? undefined : 'auto',
-                  overflowX: contentMoreExpanded ? undefined : 'hidden',
+                  overflowY: (!capEnabled || contentMoreExpanded) ? undefined : 'auto',
+                  overflowX: (!capEnabled || contentMoreExpanded) ? undefined : 'hidden',
                 }}
               >
                 {renderRichContent(node.content ?? '', (e) => startEdit('content', node.content, e))}
               </div>
             )}
-            {editingField !== 'content' && contentNeedsMoreBtn && (
+            {editingField !== 'content' && capEnabled && contentNeedsMoreBtn && (
               <button
                 onClick={(e) => { e.stopPropagation(); setContentMoreExpanded(v => !v) }}
                 onMouseDown={(e) => e.stopPropagation()}

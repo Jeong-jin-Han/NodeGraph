@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white&style=for-the-badge" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-1.0.1-orange?style=for-the-badge" alt="Version 1.0.1" />
+  <img src="https://img.shields.io/badge/version-1.0.2-orange?style=for-the-badge" alt="Version 1.0.2" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=for-the-badge" alt="MIT License" />
 </p>
 
@@ -94,7 +94,7 @@ See **[FEATURES.md](https://github.com/Jeong-jin-Han/NodeGraph/blob/main/docs/FE
 
 ## Agent / AI Editing
 
-> **Before pointing an AI agent at a project, run `NodeGraph: Copy Agent Spec to Workspace` once** — it writes `.agent/NODEGRAPH_SPEC.md` (copied from the extension bundle), `.agent/ENVIRONMENT.md` (freshly generated), and `.prompt/paper/{korean,english}.md` + `.prompt/code/{korean,english}.md` (ready-to-paste copies of the example prompts below, one pair per language — the `paper` prompt maps a PDF, the `code` prompt maps a codebase, see **Mapping a codebase instead of a paper** below) into one folder, so the agent can read all of it like any other file without needing to know the extension's install path. Right-click the target folder in the Explorer and pick it from the context menu (this is the reliable way in a multi-root workspace, or to target one specific subfolder — it writes into exactly the folder you clicked, nowhere else); running it from the Command Palette instead targets the workspace's only folder, or prompts you to pick one if there are several. It's opt-in rather than automatic on purpose: `.agent/NODEGRAPH_SPEC.md` is a large static doc identical across every install, and writing it into a folder automatically (the way `.agent/ENVIRONMENT.md` alone already does, silently, at every activation) would mean it could land in your own repo without you choosing that.
+> **Before pointing an AI agent at a project, run `NodeGraph: Copy Agent Spec to Workspace` once** — it writes `.agent/NODEGRAPH_SPEC.md` (copied from the extension bundle), `.agent/ENVIRONMENT.md` (freshly generated), and `.prompt/{paper,lecture,code}/{korean,english}.md` (ready-to-paste copies of the example prompts below, one pair per language — the `paper` prompt maps a paper PDF, the `lecture` prompt maps a lecture slide deck (see **Mapping lecture slides** below), the `code` prompt maps a codebase (see **Mapping a codebase instead of a paper** below)) into one folder, so the agent can read all of it like any other file without needing to know the extension's install path. Right-click the target folder in the Explorer and pick it from the context menu (this is the reliable way in a multi-root workspace, or to target one specific subfolder — it writes into exactly the folder you clicked, nowhere else); running it from the Command Palette instead targets the workspace's only folder, or prompts you to pick one if there are several. It's opt-in rather than automatic on purpose: `.agent/NODEGRAPH_SPEC.md` is a large static doc identical across every install, and writing it into a folder automatically (the way `.agent/ENVIRONMENT.md` alone already does, silently, at every activation) would mean it could land in your own repo without you choosing that.
 >
 > **AI agents: read these two files before doing anything (both written by the command above, into the same folder):**
 > 1. `.agent/NODEGRAPH_SPEC.md` — full JSON schema, syntax rules, and constraints
@@ -144,6 +144,12 @@ Write all node content in English.
 Follow the spec exactly, save the result inside PROJECT_FOLDER, and run
 end to end without asking me anything. Tell me when done.
 ```
+
+### Mapping lecture slides
+
+Lecture slide decks are PDFs too, so the whole pipeline — quote-jump into the deck, image extraction, the interactive canvas — works on them unchanged. What changes is the shape of the graph: slides are figure-heavy with sparse text, so the agent follows the deck's own section structure as the backbone (overview/learning-goals first, then one node per section with its slide range), extracts figures generously, and quotes definitions verbatim from the slides. Right-clicking a quote jumps to the exact slide, since `p.N` maps 1:1 to slide numbers.
+
+Run `NodeGraph: Copy Agent Spec to Workspace` on the folder holding the slides PDF, then paste `.prompt/lecture/english.md` (or `.prompt/lecture/korean.md`) into your agent, filling in the PDF's path.
 
 ### Mapping a codebase instead of a paper
 
@@ -370,7 +376,7 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
 |---------|----------|-------------|
 | `NodeGraph: New Graph` | — | Create a new empty graph. Right-click a folder in the Explorer to target it directly; from the Command Palette it targets the workspace's only folder, or prompts you to pick one if there are several |
 | `NodeGraph: Search Nodes` | `Ctrl+F` / `Cmd+F` | Open search dropdown |
-| `NodeGraph: Copy Agent Spec to Workspace` | — | Write `.agent/NODEGRAPH_SPEC.md`, `.agent/ENVIRONMENT.md`, and `.prompt/{paper,code}/{korean,english}.md` into a folder so an AI agent can read them. Same folder-targeting as New Graph above |
+| `NodeGraph: Copy Agent Spec to Workspace` | — | Write `.agent/NODEGRAPH_SPEC.md`, `.agent/ENVIRONMENT.md`, and `.prompt/{paper,lecture,code}/{korean,english}.md` into a folder so an AI agent can read them. Same folder-targeting as New Graph above |
 
 ---
 

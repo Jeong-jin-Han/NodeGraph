@@ -208,13 +208,13 @@ export async function syncAgentSpec(extensionUri: vscode.Uri, targetFolder: vsco
 // (README's "Example prompt" section) instead of the schema doc — copied
 // from the extension bundle's .prompt/ folder into the target workspace
 // folder's own .prompt/, so a user (or an agent acting for them) can open
-// paper/korean.md, paper/english.md, code/korean.md, or code/english.md
-// directly instead of copy-pasting out of the README.
+// {paper,lecture,code}/{korean,english}.md directly instead of copy-pasting
+// out of the README.
 export async function syncPromptTemplates(extensionUri: vscode.Uri, targetFolder: vscode.Uri): Promise<boolean> {
   const bundledDir = vscode.Uri.joinPath(extensionUri, '.prompt')
   const outDir = vscode.Uri.joinPath(targetFolder, '.prompt')
   try {
-    for (const kind of ['paper', 'code']) {
+    for (const kind of ['paper', 'lecture', 'code']) {
       const kindOutDir = vscode.Uri.joinPath(outDir, kind)
       await vscode.workspace.fs.createDirectory(kindOutDir)
       for (const name of ['korean.md', 'english.md']) {

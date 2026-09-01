@@ -315,7 +315,7 @@ select:hover{border-color:#93c5fd}
 .ng-img-wrap{margin:4px 0}
 .ng-table-wrap{overflow-x:auto;margin:6px 0}
 .ng-table{border-collapse:collapse;background:#fff;font-size:inherit;white-space:normal}
-.ng-table th{padding:5px 10px;border:1px solid #ddd;background:#f8f9fa;font-weight:600;text-align:left;vertical-align:top;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word}
+.ng-table th{padding:5px 10px;border:1px solid #ddd;background:#f8f9fa;font-weight:600;text-align:left;vertical-align:top;white-space:pre}
 .ng-table td{padding:5px 10px;border:1px solid #ddd;vertical-align:top;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word}
 .ng-images{margin-top:6px;display:flex;flex-direction:column;gap:6px}
 .ng-img{max-width:100%;border-radius:3px;border:1px solid rgba(0,0,0,.1);display:block;cursor:zoom-in}
@@ -334,7 +334,7 @@ details.ng-toggle summary::-webkit-details-marker{display:none}
 .ng-link{color:#0066cc;text-decoration:none;font-size:11px;opacity:.85}
 .ng-link:hover{opacity:1;text-decoration:underline}
 /* KaTeX */
-.katex{color:inherit}.katex-display{overflow-x:auto;overflow-y:hidden}.katex-html{white-space:nowrap}
+.katex{color:inherit}.katex-html{white-space:nowrap}
 /* Lightbox */
 #lightbox{display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.75);align-items:center;justify-content:center;cursor:zoom-out}
 #lightbox.active{display:flex}
@@ -378,6 +378,7 @@ ${hitStyles}
       </svg>
       Grid
     </button>
+    <button id="tb-more-btn" onclick="toggleMoreCaps()" title="Toggle the More/Less content cap — when off, every node's content is always fully expanded">More</button>
     <div class="tb-sep"></div>
     <span id="tb-sel" style="opacity:.35">Click a node to select</span>
   </div>
@@ -578,7 +579,8 @@ function onTitleClick(e, titleEl) {
   }
   // 접혀 있는 동안엔 .ng-content가 display:none이라 측정이 전부 0으로 나와 More
   // 버튼이 필요없다고 잘못 판단되므로, 다시 보이게 될 때 이 노드만 재측정
-  if (expanding) applyContentCaps(nodeEl);
+  if (expanding) { widenForFormulas(nodeEl); applyContentCaps(nodeEl); }
+  applyKatexWidthForFold(nodeEl, expanding);
   setTimeout(recomputePositions, 0);
   // 검색 드롭다운이 열려있으면 search input 포커스 복원 (화살표 키 유지)
   if (document.getElementById('search-wrap').classList.contains('open') && searchSelectedId === null) {
@@ -655,6 +657,8 @@ function applyFold(nodeIds, expand, after) {
     if (body) body.style.display = expand ? '' : 'none';
     if (chevron) chevron.textContent = expand ? '▲' : '▼';
     syncMinHeight(el, expand);
+    if (expand) widenForFormulas(el);
+    applyKatexWidthForFold(el, expand);
     for (var i = 0; i < NODES_DATA.length; i++) {
       if (NODES_DATA[i].id === id) { NODES_DATA[i].contentExpanded = expand; break; }
     }
@@ -1835,7 +1839,7 @@ function selectSearchNode(id){
     for(var i=0;i<NODES_DATA.length;i++){if(NODES_DATA[i].id===n.id){datum=NODES_DATA[i];break;}}
     if(!datum) return;
     if(n.id===id){
-      if(!datum.contentExpanded){body.style.display='';datum.contentExpanded=true;applyContentCaps(nodeEl);}
+      if(!datum.contentExpanded){body.style.display='';datum.contentExpanded=true;widenForFormulas(nodeEl);applyContentCaps(nodeEl);applyKatexWidthForFold(nodeEl,true);}
       // 매치가 toggle 제목/내용 또는 original 제목/텍스트 안에 있을 수 있으므로,
       // 접혀 있으면 펼쳐서 실제로 보이게 함 (에디터의 handleSelectSearchNode와 동일)
       (n.toggles||[]).forEach(function(t){
@@ -1849,7 +1853,7 @@ function selectSearchNode(id){
         if(origEl&&!origEl.open) origEl.open=true;
       }
     } else {
-      if(datum.contentExpanded){body.style.display='none';datum.contentExpanded=false;}
+      if(datum.contentExpanded){body.style.display='none';datum.contentExpanded=false;applyKatexWidthForFold(nodeEl,false);}
     }
   });
   setTimeout(function(){recomputePositions();flyToNode(id);},0);
@@ -1920,6 +1924,36 @@ function initKatex() {
   });
 }
 
+// 노드 폭보다 넓은 display 수식은 (에디터의 자동 확장과 동일하게) 스크롤바 대신
+// 노드 min-width를 넘친 양만큼 늘려서 수용. offsetWidth/scrollWidth는 CSS transform과
+// 무관한 레이아웃 값이라 줌 상태와 상관없이 언제든 안전하게 측정 가능 — fold를
+// 펼칠 때(scope 지정)도 그대로 재사용한다.
+function widenForFormulas(scope) {
+  (scope ? [scope] : Array.prototype.slice.call(document.querySelectorAll('.ng-node'))).forEach(function(nodeEl) {
+    var maxOv = 0;
+    nodeEl.querySelectorAll('.katex-display').forEach(function(kd) {
+      var ov = kd.scrollWidth - kd.clientWidth;
+      if (ov > maxOv) maxOv = ov;
+    });
+    if (maxOv > 0) {
+      // 접을 때 원래 폭으로 복귀할 수 있도록 원본 inline min-width를 먼저 보관
+      // (에디터의 katexMinWidth와 동일하게, 수식 확장 폭은 펼친 동안만 적용).
+      if (!nodeEl.hasAttribute('data-orig-minw')) nodeEl.setAttribute('data-orig-minw', nodeEl.style.minWidth || '');
+      var widened = Math.ceil(nodeEl.offsetWidth + maxOv + 4) + 'px';
+      nodeEl.setAttribute('data-katex-minw', widened);
+      nodeEl.style.minWidth = widened;
+    }
+  });
+}
+
+// fold/unfold 시 수식 확장 폭을 적용/해제 — 접힌 노드는 원래 폭으로 돌아간다.
+function applyKatexWidthForFold(nodeEl, expanded) {
+  if (!nodeEl.hasAttribute('data-katex-minw')) return;
+  nodeEl.style.minWidth = expanded
+    ? nodeEl.getAttribute('data-katex-minw')
+    : nodeEl.getAttribute('data-orig-minw');
+}
+
 // 본문 높이 상한(More/Less) — NodeCard.tsx의 DEFAULT_CONTENT_MAX 로직을 그대로 이식.
 // .ng-content는 node.content 전용 클래스라서(toggle/original은 각각
 // .ng-toggle-body / .ng-orig-text 를 씀) 이 셀렉터만으로 이미 "content만" 범위가
@@ -1928,9 +1962,12 @@ function initKatex() {
 // 될 때 — display:none 상태에서 측정하면 전부 0으로 나와서 버튼이 필요 없다고
 // 잘못 판단하기 때문에 다시 보이게 된 시점에 재측정이 필요함).
 var DEFAULT_CONTENT_MAX = 500;
+// 기본값 꺼짐(항상 전체 펼침) — 에디터 툴바의 More 토글 기본값과 동일하게 유지.
+var capsEnabled = false;
 function applyContentCaps(scope) {
   (scope || document).querySelectorAll('.ng-content').forEach(function(el) {
     var measure = function() {
+      if (!capsEnabled) return;
       if (el.getAttribute('data-more-expanded') === '1') return;
       var elTop = el.getBoundingClientRect().top;
       var requiredBottom = 0;
@@ -1982,9 +2019,39 @@ function applyContentCaps(scope) {
   });
 }
 
+// 툴바 More 토글 — 끄면 모든 노드의 콘텐츠 캡과 More/Less 버튼이 사라지고 항상
+// 전체 펼침(에디터 툴바의 동일 토글과 짝을 이룸). 다시 켜면 applyContentCaps()가
+// 캡과 버튼을 원래대로 복원한다.
+function toggleMoreCaps() {
+  capsEnabled = !capsEnabled;
+  var btn = document.getElementById('tb-more-btn');
+  if (capsEnabled) { btn.style.background = '#2563eb'; btn.style.color = '#fff'; btn.style.borderColor = '#1d4ed8'; }
+  else { btn.style.background = ''; btn.style.color = ''; btn.style.borderColor = ''; }
+  if (!capsEnabled) {
+    document.querySelectorAll('.ng-content').forEach(function(el) {
+      el.style.maxHeight = ''; el.style.overflowY = ''; el.style.overflowX = '';
+    });
+    document.querySelectorAll('.ng-more-btn').forEach(function(b) { b.style.display = 'none'; });
+  } else {
+    document.querySelectorAll('.ng-more-btn').forEach(function(b) { b.style.display = ''; });
+    applyContentCaps();
+  }
+  setTimeout(function() { recomputePositions(); drawEdges(); }, 0);
+}
+
 window.addEventListener('load', function() {
   // Render KaTeX first so node heights are accurate
   initKatex();
+  widenForFormulas();
+  // KaTeX 웹폰트는 load 이벤트 이후에 도착할 수 있고, 그러면 수식 폭이 바뀐다 —
+  // 폰트 적용 후 한 번 더 측정/확장하고 레이아웃 재계산 (에디터 NodeCard와 동일 보강).
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function() {
+      widenForFormulas();
+      recomputePositions();
+      drawEdges();
+    });
+  }
   // scale는 아직 초기값 1이라(fitView가 아직 안 돌아서) getBoundingClientRect()
   // 측정값이 캔버스 local 좌표와 일치함 — fitView 이후로 미루면 축소된 화면 픽셀을
   // local px로 착각해서 캡 높이가 잘못 계산됨.

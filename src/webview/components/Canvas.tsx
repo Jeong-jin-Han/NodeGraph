@@ -684,6 +684,9 @@ export function Canvas({
   const divRef = useRef<HTMLDivElement>(null)
   const [nodeSizes, setNodeSizes] = useState<Record<string, { width: number; height: number }>>({})
   const [showGrid, setShowGrid] = useState(false)
+  // More/Less 콘텐츠 캡 전역 토글 — 끄면 모든 노드가 항상 전체 펼침(세션 한정, 저장 안 됨).
+  // 기본값은 꺼짐(항상 전체 펼침) — 사용자 결정.
+  const [capEnabled, setCapEnabled] = useState(false)
   const [fontDropOpen, setFontDropOpen] = useState(false)
   const fontInputRef = useRef<HTMLInputElement>(null)
   // 툴바가 overflow-x:auto라 absolute 드롭다운이 클리핑됨 → fixed 좌표로 띄움
@@ -1908,6 +1911,11 @@ export function Canvas({
           </svg>
           Grid
         </button>
+        <button
+          style={{ ...toolbarBtnStyle, background: capEnabled ? '#2563eb' : toolbarBtnStyle.background, color: capEnabled ? '#ffffff' : toolbarBtnStyle.color }}
+          onClick={() => setCapEnabled(v => !v)}
+          title="Toggle the More/Less content cap — when off, every node's content is always fully expanded"
+        >More</button>
 
         <div style={toolbarDividerStyle} />
         <button
@@ -2039,6 +2047,7 @@ export function Canvas({
                   isSearchMatch={searchSelectedId === null && searchMatchNodes.some(m => m.id === node.id)}
                   isActiveSearchMatch={node.id === searchSelectedId}
                   isGenHighlight={genHighlight.nodeIds.has(node.id)}
+                  capEnabled={capEnabled}
                   onPinHighlight={handlePinHighlight}
                   onNodeDragActivate={setDraggingNodeId}
                   onNodeDragDeactivate={handleNodeDragEnd}

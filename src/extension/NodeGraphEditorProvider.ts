@@ -233,6 +233,10 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
       font-family: var(--vscode-font-family);
       font-size: var(--vscode-font-size);
     }
+    /* No overflow-x here on purpose: making .katex-display a scroll container
+       zeroes its min-content contribution, so nothing would ever size the node
+       to fit the formula — the user explicitly wants wide formulas to WIDEN the
+       node (NodeCard's katex-width effect), never to scroll inside it. */
     .katex-display { margin: 0.5em 0; }
     .katex-html { white-space: nowrap; }
   </style>

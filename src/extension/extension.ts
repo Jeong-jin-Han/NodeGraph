@@ -100,7 +100,7 @@ export function activate(context: vscode.ExtensionContext): void {
       const envOk = await writeEnvironmentReportToFolder(target)
       const promptOk = await syncPromptTemplates(context.extensionUri, target)
       if (specOk && envOk && promptOk) {
-        vscode.window.showInformationMessage(`NodeGraph: wrote .agent/NODEGRAPH_SPEC.md, .agent/ENVIRONMENT.md, and .prompt/{paper,code}/{korean,english}.md in ${target.fsPath}.`)
+        vscode.window.showInformationMessage(`NodeGraph: wrote .agent/NODEGRAPH_SPEC.md, .agent/ENVIRONMENT.md, and .prompt/{paper,lecture,code}/{korean,english}.md in ${target.fsPath}.`)
       } else {
         vscode.window.showErrorMessage('NodeGraph: failed to write the agent files — check that the folder is writable and try again.')
       }

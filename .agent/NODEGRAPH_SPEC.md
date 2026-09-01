@@ -15,9 +15,11 @@ should read and edit `.nodegraph.json` files used by the NodeGraph VSCode extens
 
 ## Quick start
 
-When the user says **"apply NodeGraph"** (or the Korean equivalent, **"NodeGraph 적용해"**) and provides a PDF path or a codebase's root folder path, execute the matching workflow below — **PDF → NodeGraph workflow** for a paper, **Code → NodeGraph workflow** for a codebase — without asking for further clarification.
+When the user says **"apply NodeGraph"** (or the Korean equivalent, **"NodeGraph 적용해"**) and provides a paper PDF path, a lecture-slides PDF path, or a codebase's root folder path, execute the matching workflow below — **PDF → NodeGraph workflow** for a paper, **Lecture → NodeGraph workflow** for lecture slides, **Code → NodeGraph workflow** for a codebase — without asking for further clarification.
 
 **One-sentence goal (paper)**: Find what this paper does that no one did before, and structure it so a reader can grasp why it matters in under 5 minutes.
+
+**One-sentence goal (lecture)**: Reconstruct the flow of the lecture — what it teaches, in what order, and why that order — so a student can review the whole session in under 5 minutes.
 
 **One-sentence goal (code)**: Find how this codebase actually works, and structure it so a new contributor can navigate it confidently in under 5 minutes.
 
@@ -125,6 +127,90 @@ For every backbone node, add the verbatim quote from the PDF that best supports 
 ### Step 7 — Finalize
 - Update `"modified"` to the current ISO 8601 timestamp.
 - Tell the user: **"Click Reload in the editor toolbar to see the updated graph."**
+
+---
+
+## Lecture → NodeGraph workflow
+
+Lecture slide decks are PDFs, so everything from the PDF workflow carries over
+mechanically — `source.pdf`, quote-jump, `.<basename>-imgs/` image extraction, the
+same target file naming. What changes is the shape of the content: **many pages,
+sparse text per slide, figure-heavy** — and the goal shifts from "why is this paper
+remarkable" to "what is the flow of this lecture".
+
+### Step 0 — Setup
+Same as the PDF workflow (read `.agent/ENVIRONMENT.md`, identify/create
+`<name>.nodegraph.json` next to the slides PDF, set top-level `source.pdf`).
+
+### Step 1 — Read the slide deck
+- Read **every slide** (chunk if >20 pages). Expect far less text per page than a
+  paper — the meaning often lives in the figures, so plan to extract images liberally.
+- Identify the deck's own structure first: agenda/outline slides, section-divider
+  slides, recurring headers, and the slide ranges each section covers.
+
+### Step 2 — Find the storyline
+Answer this question: **"What is this lecture teaching, and why in this order?"**
+
+A lecture is a designed pedagogical sequence — motivation, then concepts building on
+each other, then examples, then synthesis. The backbone must make that arc visible,
+not just list topics.
+
+### Step 3 — Build the backbone (variable, follow the lecture's own sections)
+
+Unlike the paper workflow's fixed 5 nodes, the backbone mirrors **the lecture's own
+section structure**: one `main_topic` node per major section, in teaching order
+(typically 4–8 nodes), at `x: 0`, spaced `y: 300` apart.
+
+- **The first backbone node is always an overview node** — the lecture's topic,
+  learning goals, and prerequisites (from the title/agenda slides, or inferred).
+- Each section node's title carries the section name; note the slide range in
+  `content` (e.g. "slides 12–27") so the reader can map graph → deck at a glance.
+- Do not invent sections — if the deck has divider slides or an agenda, follow them;
+  only fall back to your own segmentation when the deck provides none.
+
+Connect backbone nodes in sequence with `arrow` edges.
+
+### Step 4 — Add sub-nodes (x: 500–550)
+
+For each section, add sub-nodes branching to the right. Use the appropriate template
+(see the lecture default set under **`nodeTemplates`**):
+
+| What | Template | When to add |
+|------|----------|--------------|
+| A concept/definition introduced | `concept` (sharp) | Every term the lecture defines deserves its own node — quote the definition **verbatim** in `original` |
+| A worked example / derivation | `example` (sharp) | Examples are how lectures teach; capture the setup and the punchline, not every intermediate line |
+| A key diagram/chart from a slide | `figure` (sharp) | Extract with `[[IMG:...]]` — on a figure-heavy slide the image IS the content; add 1–2 sentences on what it shows and where it sits in the lecture's flow |
+| Deep question / likely exam point | `question` (rounded) | "Why does this condition matter?", things the lecturer emphasized |
+| Unclear or glossed-over point | `gap` (rounded) | Something to look up or ask about later |
+| Cited paper/book/resource | `reference` (rounded) | Only what the slides themselves cite |
+| Misc note | `memo` (rounded) | Anything else worth remembering |
+
+Positioning follows the same hop rules as the other workflows (**Position guidelines**).
+Connect each sub-node to its section node with a `line` edge.
+
+### Step 5 — Images
+
+Slides are the image-heavy case this mechanism was made for — extract generously
+(architecture diagrams, plots, annotated equations rendered as graphics), same
+`.<basename>-imgs/` + `[[IMG:filename:WxH]]` mechanics as the PDF workflow, and the
+same rule: every embedded image needs 1–2 sentences of interpretation tying it to
+the lecture's flow. KaTeX/table rules from **Content syntax** apply unchanged.
+
+### Step 6 — Write `original` quotes
+
+Same mechanism as the PDF workflow — verbatim slide text with `location: "p.N"`
+where `N` is the **slide (page) number**, which drives right-click quote-jump.
+Two lecture-specific notes:
+- **Definitions and technical terms must be quoted in the original language of the
+  slides, verbatim** — never translate or paraphrase a definition inside
+  `original.text` (the graph's own `content` follows the normal **Language rules**,
+  with the original English term alongside).
+- Slide text is short, so the quote may be just a sentence or a bullet — that's
+  fine; even when the text match is too short to highlight, the `p.N` still lands
+  the reader on the right slide.
+
+### Step 7 — Finalize
+Same as the PDF workflow (update `"modified"`, tell the user to hit Reload).
 
 ---
 
@@ -253,6 +339,20 @@ A map of template key → template definition. Every node's `"template"` field m
 ```
 
 ```jsonc
+// Lecture workflow default set (see Step 4 of Lecture → NodeGraph workflow)
+"nodeTemplates": {
+  "main_topic": { "label": "Section",     "color": "#4B8BBE", "icon": "file-text",    "shape": "sharp"   },
+  "concept":    { "label": "Concept",     "color": "#5C9E6E", "icon": "cpu",           "shape": "sharp"   },
+  "example":    { "label": "Example",     "color": "#9B59B6", "icon": "bar-chart-2",   "shape": "sharp"   },
+  "figure":     { "label": "Figure",      "color": "#E74C3C", "icon": "image",         "shape": "sharp"   },
+  "question":   { "label": "Question",    "color": "#E5A835", "icon": "help-circle",   "shape": "rounded" },
+  "gap":        { "label": "Gap / Idea",  "color": "#1ABC9C", "icon": "lightbulb",     "shape": "rounded" },
+  "reference":  { "label": "Reference",   "color": "#95A5A6", "icon": "book-open",     "shape": "rounded" },
+  "memo":       { "label": "Memo",        "color": "#BDC3C7", "icon": "edit-3",        "shape": "rounded" }
+}
+```
+
+```jsonc
 // Code workflow default set (see Step 4 of Code → NodeGraph workflow)
 "nodeTemplates": {
   "main_topic": { "label": "Main topic",  "color": "#4B8BBE", "icon": "file-text",    "shape": "sharp"   },
@@ -266,7 +366,7 @@ A map of template key → template definition. Every node's `"template"` field m
 }
 ```
 
-Both sets are just the recommended default — `nodeTemplates` is data inside the file, so an agent can rename/recolor/add keys freely as long as every node's `"template"` matches one.
+All three sets are just the recommended defaults — `nodeTemplates` is data inside the file, so an agent can rename/recolor/add keys freely as long as every node's `"template"` matches one.
 
 | `shape` value | When to use |
 |---------------|-------------|
