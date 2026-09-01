@@ -2019,9 +2019,20 @@ function applyContentCaps(scope) {
   });
 }
 
+// Original 섹션 기본 상태를 More 토글에 연동: More 꺼짐(기본)이면 모든 Original을
+// 펼치고, 켜면 JSON에 저장된 원래 open 상태(data-orig-open에 최초 1회 보관)로 복원.
+// 이후의 개별 수동 토글(native details)은 어느 모드에서든 자유롭게 동작한다.
+function applyOriginalDefaults() {
+  document.querySelectorAll('details.ng-original').forEach(function(d) {
+    if (!d.hasAttribute('data-orig-open')) d.setAttribute('data-orig-open', d.open ? '1' : '0');
+    d.open = capsEnabled ? (d.getAttribute('data-orig-open') === '1') : true;
+  });
+}
+
 // 툴바 More 토글 — 끄면 모든 노드의 콘텐츠 캡과 More/Less 버튼이 사라지고 항상
-// 전체 펼침(에디터 툴바의 동일 토글과 짝을 이룸). 다시 켜면 applyContentCaps()가
-// 캡과 버튼을 원래대로 복원한다.
+// 전체 펼침 + Original 섹션도 전부 펼침(에디터 툴바의 동일 토글과 짝을 이룸).
+// 다시 켜면 applyContentCaps()가 캡/버튼을, applyOriginalDefaults()가 Original의
+// 저장 상태를 원래대로 복원한다.
 function toggleMoreCaps() {
   capsEnabled = !capsEnabled;
   var btn = document.getElementById('tb-more-btn');
@@ -2036,6 +2047,7 @@ function toggleMoreCaps() {
     document.querySelectorAll('.ng-more-btn').forEach(function(b) { b.style.display = ''; });
     applyContentCaps();
   }
+  applyOriginalDefaults();
   setTimeout(function() { recomputePositions(); drawEdges(); }, 0);
 }
 
@@ -2043,6 +2055,7 @@ window.addEventListener('load', function() {
   // Render KaTeX first so node heights are accurate
   initKatex();
   widenForFormulas();
+  applyOriginalDefaults();
   // KaTeX 웹폰트는 load 이벤트 이후에 도착할 수 있고, 그러면 수식 폭이 바뀐다 —
   // 폰트 적용 후 한 번 더 측정/확장하고 레이아웃 재계산 (에디터 NodeCard와 동일 보강).
   if (document.fonts && document.fonts.ready) {

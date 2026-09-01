@@ -206,6 +206,19 @@ export function NodeCard({
   // 그대로 남아 "펼쳤다 접으면 노드 길이가 달라진다"는 버그가 되고(사용자 리포트),
   // 그래프를 열어 보기만 해도 파일이 수정 상태가 되는 부작용도 있었음.
   const [katexMinWidth, setKatexMinWidth] = useState(0)
+
+  // Original 섹션 표시 상태: More(캡) 꺼짐이 기본인 상태에선 Original도 기본 펼침.
+  // 이때의 개별 토글은 표시 레벨 오버라이드로만 처리해 저장 필드(originalExpanded)를
+  // 건드리지 않는다(파일 dirty 방지). More 켜짐 상태에선 기존처럼 저장 상태를 그대로
+  // 쓰고 클릭도 저장 필드를 토글. More 토글을 바꾸면 오버라이드를 리셋해 각 모드의
+  // 기본값(꺼짐=펼침, 켜짐=저장 상태)으로 돌아간다.
+  const [originalOverride, setOriginalOverride] = useState<boolean | null>(null)
+  useEffect(() => { setOriginalOverride(null) }, [capEnabled])
+  const originalOpen = capEnabled ? !!node.originalExpanded : (originalOverride ?? true)
+  const toggleOriginalOpen = () => {
+    if (capEnabled) onToggleOriginal(node.id)
+    else setOriginalOverride(!originalOpen)
+  }
   // 내용이 바뀌면(수식 삭제 등) 이전 확장 폭이 남지 않게 리셋 — 아래 측정 effect가
   // 같은 deps로 바로 이어 달리며 필요한 만큼만 다시 올린다.
   useEffect(() => { setKatexMinWidth(0) }, [node.content])
@@ -673,10 +686,10 @@ export function NodeCard({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <span
-                    onClick={() => onToggleOriginal(node.id)}
+                    onClick={toggleOriginalOpen}
                     style={{ cursor: 'pointer', fontSize: 9, opacity: 0.6, userSelect: 'none', flexShrink: 0, width: 10, textAlign: 'center' }}
                   >
-                    {node.originalExpanded ? '▼' : '▶'}
+                    {originalOpen ? '▼' : '▶'}
                   </span>
                   {editingField === 'originalTitle' ? (
                     <input
@@ -709,7 +722,7 @@ export function NodeCard({
                   )}
                 </div>
 
-                {node.originalExpanded && (
+                {originalOpen && (
                   <div style={{ marginTop: 6, padding: '6px 8px', background: 'rgba(128,128,128,0.08)', borderRadius: 3 }}>
                     {editingField === 'originalLoc' ? (
                       <input
