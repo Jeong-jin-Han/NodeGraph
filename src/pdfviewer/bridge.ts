@@ -26,6 +26,7 @@ declare global {
       }
       open(args: { data: Uint8Array }): Promise<void>
       page: number
+      findController?: { scrollMatchIntoView: (args: unknown) => void }
     }
     PDFViewerApplicationOptions: { set(name: string, value: unknown): void }
   }
@@ -189,10 +190,52 @@ async function resolveQuote(query: string, pageHint?: number): Promise<{ pageNum
 
 // The find controller scrolls its selected match to a hardcoded near-top position
 // (MATCH_SCROLL_OFFSET_TOP = -50 in viewer.mjs) — not configurable. To center the
-// quote instead, wait for the selected-match span (".highlight.selected", added when
-// the page's text layer renders its matches) and re-center it ourselves. The poll
-// also naturally waits out lazy page rendering; a fresh search invalidates any
-// pending recenter from the previous one via the generation token.
+// quote instead we re-scroll after it: the selected match usually spans several
+// spans (pdf.js splits it into begin/middle/end parts, and a quote crossing a
+// column break splits into pieces at the bottom of one column and the top of the
+// next), so center the vertical midpoint of the union of ALL selected pieces —
+// never just the first span.
+function centerSelectedUnion(): void {
+  const els = Array.from(document.querySelectorAll('.textLayer .highlight.selected'))
+  if (els.length === 0) return
+  const rects = els.map(e => e.getBoundingClientRect())
+  const top = Math.min(...rects.map(r => r.top))
+  const bottom = Math.max(...rects.map(r => r.bottom))
+  const container = document.getElementById('viewerContainer')
+  if (!container) return
+  const cRect = container.getBoundingClientRect()
+  const delta = (top + bottom) / 2 - (cRect.top + cRect.height / 2)
+  container.scrollTo({ top: container.scrollTop + delta, behavior: 'smooth' })
+}
+
+// Ordering between pdf.js's own match scroll and our recenter is a genuine race:
+// depending on whether the target page was already rendered, scrollMatchIntoView
+// can fire before OR after any fixed delay, and whichever scrolls last wins (a
+// late pdf.js scroll leaves the quote pinned near the top — observed in real use).
+// So instead of racing it, wrap it: after the find controller performs its own
+// scroll for a quote-jump search, run the union-centering right on top of it.
+// User-typed findbar searches keep stock behavior — the flag is armed only around
+// our own dispatched quote search, and disarmed after one use (or 3s on a miss).
+let pendingQuoteRecenter = false
+function hookFindScroll(): void {
+  const fc = window.PDFViewerApplication.findController as
+    ({ scrollMatchIntoView: (args: unknown) => void; __ngHooked?: boolean } | undefined)
+  if (!fc || fc.__ngHooked) return
+  const orig = fc.scrollMatchIntoView.bind(fc)
+  fc.scrollMatchIntoView = (args: unknown) => {
+    orig(args)
+    if (!pendingQuoteRecenter) return
+    pendingQuoteRecenter = false
+    // Give its (instant) scroll a beat to land before the smooth correction.
+    setTimeout(centerSelectedUnion, 100)
+  }
+  fc.__ngHooked = true
+}
+
+// Fallback for the paths where scrollMatchIntoView never fires (e.g. the find
+// controller decides no scroll is needed because the match is already on-screen):
+// poll for the selected span and center it once. When the hook above also fires,
+// both paths scroll to the same computed target, so the duplicate is harmless.
 let recenterGeneration = 0
 function recenterSelectedMatch(): void {
   const myGen = ++recenterGeneration
@@ -206,26 +249,10 @@ function recenterSelectedMatch(): void {
     if (myGen !== recenterGeneration) return
     const el = document.querySelector('.textLayer .highlight.selected')
     if (el && (el !== stale || Date.now() - startedAt > 600)) {
-      // Small delay so pdf.js's own scrollMatchIntoView (same render tick the
-      // element appears in) runs first and doesn't override the recenter.
       setTimeout(() => {
         if (myGen !== recenterGeneration) return
-        // The selected match usually spans several spans (pdf.js splits it into
-        // begin/middle/end parts), and a quote crossing a column break splits into
-        // pieces at the bottom of one column and the top of the next — centering
-        // just the first span then drags the view to the column bottom. Center the
-        // vertical midpoint of the union of ALL selected pieces instead.
-        const els = Array.from(document.querySelectorAll('.textLayer .highlight.selected'))
-        if (els.length === 0) return
-        const rects = els.map(e => e.getBoundingClientRect())
-        const top = Math.min(...rects.map(r => r.top))
-        const bottom = Math.max(...rects.map(r => r.bottom))
-        const container = document.getElementById('viewerContainer')
-        if (!container) return
-        const cRect = container.getBoundingClientRect()
-        const delta = (top + bottom) / 2 - (cRect.top + cRect.height / 2)
-        container.scrollTo({ top: container.scrollTop + delta, behavior: 'smooth' })
-      }, 150)
+        centerSelectedUnion()
+      }, 250)
       return
     }
     if (Date.now() - startedAt < 5000) setTimeout(poll, 100)
@@ -240,6 +267,9 @@ async function searchAndJump(query: string, pageHint?: number): Promise<void> {
     // Land on the resolved page first — the find below then only has to scroll
     // within it, and even a find miss still leaves the user in the right place.
     app.page = resolved.pageNum
+    hookFindScroll()
+    pendingQuoteRecenter = true
+    setTimeout(() => { pendingQuoteRecenter = false }, 3000)
     app.eventBus.dispatch('find', {
       source: window,
       type: '',
