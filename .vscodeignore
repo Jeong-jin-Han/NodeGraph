@@ -17,7 +17,7 @@ demo/ex5/
 *.vsix
 
 # Dev-only build output (sourcemaps — only emitted by non-production builds)
-dist/*.map
+dist/**/*.map
 
 # Dev dependencies
 node_modules/

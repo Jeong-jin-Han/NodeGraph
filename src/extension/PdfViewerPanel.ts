@@ -1,4 +1,5 @@
 import * as vscode from 'vscode'
+import * as fs from 'fs'
 import { getNonce } from './nonce'
 
 interface PendingSearch {
@@ -83,50 +84,57 @@ export class PdfViewerPanel {
     })
   }
 
+  // Serves Mozilla's official pdf.js reference viewer (vendored via esbuild.js's
+  // copyPdfjsAssets() into dist/pdfjs-viewer/) instead of a hand-rolled UI — see
+  // bridge.ts for how NodeGraph drives it (open, quote search, highlighting) through
+  // its own public API. We don't touch the vendored viewer.html; a <base> tag makes
+  // every relative href/src in it resolve to the right webview URI without having to
+  // rewrite each one by hand, the same trick used to embed any static multi-file app
+  // in a VS Code webview.
   private static _getHtml(context: vscode.ExtensionContext, webview: vscode.Webview): string {
-    const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'dist', 'pdfviewer.js'))
-    const cssUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'dist', 'pdfviewer.css'))
-    const workerUri = webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'dist', 'pdf.worker.min.mjs'))
+    const webDir = vscode.Uri.joinPath(context.extensionUri, 'dist', 'pdfjs-viewer', 'web')
+    const baseUri = webview.asWebviewUri(webDir).toString() + '/'
+    const workerUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'pdfjs-viewer', 'build', 'pdf.worker.min.mjs')
+    )
+    const viewerHtmlPath = vscode.Uri.joinPath(webDir, 'viewer.html').fsPath
     const nonce = getNonce()
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data: blob:; script-src 'nonce-${nonce}' ${webview.cspSource}; style-src 'unsafe-inline' ${webview.cspSource}; worker-src ${webview.cspSource} blob:; connect-src ${webview.cspSource} blob:;">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="${cssUri}">
-  <title>PDF</title>
-</head>
-<body>
-  <div id="root">
-    <div id="toolbar">
-      <button id="zoomOutBtn" title="Zoom out">−</button>
-      <span id="zoomLabel"></span>
-      <button id="zoomInBtn" title="Zoom in">+</button>
-      <span id="loadingLabel"></span>
-      <div id="toolbarSpacer"></div>
-      <button id="findToggleBtn" title="Find in PDF (Ctrl+F)">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.4"/>
-          <line x1="10.1" y1="10.1" x2="14" y2="14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-        </svg>
-      </button>
-      <div id="findBar">
-        <input id="findInput" type="text" placeholder="Find in PDF" autocomplete="off">
-        <span id="findCount"></span>
-        <button id="findPrevBtn" title="Previous match">↑</button>
-        <button id="findNextBtn" title="Next match">↓</button>
-        <button id="findCloseBtn" title="Close">✕</button>
-      </div>
-    </div>
-    <div id="pagesScroll">
-      <div id="status"></div>
-      <div id="pages"></div>
-    </div>
-  </div>
-  <script nonce="${nonce}">window.__PDF_WORKER_URI__ = "${workerUri}";</script>
-  <script nonce="${nonce}" type="module" src="${scriptUri}"></script>
-</body>
-</html>`
+
+    const csp = `default-src 'none'; img-src ${webview.cspSource} data: blob:; script-src 'nonce-${nonce}' ${webview.cspSource}; style-src 'unsafe-inline' ${webview.cspSource}; worker-src ${webview.cspSource} blob:; connect-src ${webview.cspSource} blob:;`
+
+    const html = fs.readFileSync(viewerHtmlPath, 'utf-8')
+    // The "webviewerloaded" listener is the official embedder hook: viewer.mjs
+    // dispatches it synchronously right before PDFViewerApplication.run(), which is
+    // the only moment guaranteed to precede the viewer's startup auto-open. Doing
+    // this in bridge.mjs is too late — run()'s microtask continuations can read
+    // defaultUrl before the next module script even evaluates (confirmed by the
+    // startup "Setting up fake worker failed ... pdf.worker.mjs" error surviving a
+    // bridge-side defaultUrl reset). Clearing defaultUrl here disables the sample-PDF
+    // auto-open, so the only open() call left is bridge.ts's own, which supplies the
+    // workerPort. tomoki1207.pdf configures the viewer through this same event.
+    return html.replace(
+      '<meta charset="utf-8">',
+      `<meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="${csp}">
+    <base href="${baseUri}">
+    <style>
+      /* VS Code injects default webview styles including body{padding:0 20px} —
+         that shifts the full-bleed pdf.js layout sideways and clips the toolbar's
+         right edge off the panel. Reset to the full-window box the viewer expects. */
+      html, body { margin: 0 !important; padding: 0 !important; }
+    </style>
+    <script nonce="${nonce}">
+      window.__PDF_WORKER_URI__ = "${workerUri}";
+      document.addEventListener('webviewerloaded', () => {
+        window.PDFViewerApplicationOptions.set('defaultUrl', '');
+        // Start with the sidebar closed (0 = SidebarView.NONE). An explicit 0 (rather
+        // than the -1/UNKNOWN default) also overrides any remembered open state from
+        // the viewer's own view-history storage. The outline stays one click away on
+        // the sidebar toggle; user preference is closed-by-default (quote-jump is the
+        // primary use, and the sidebar eats horizontal space in a Beside panel).
+        window.PDFViewerApplicationOptions.set('sidebarViewOnLoad', 0);
+      });
+    </script>`
+    )
   }
 }
