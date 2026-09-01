@@ -210,7 +210,21 @@ function recenterSelectedMatch(): void {
       // element appears in) runs first and doesn't override the recenter.
       setTimeout(() => {
         if (myGen !== recenterGeneration) return
-        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
+        // The selected match usually spans several spans (pdf.js splits it into
+        // begin/middle/end parts), and a quote crossing a column break splits into
+        // pieces at the bottom of one column and the top of the next — centering
+        // just the first span then drags the view to the column bottom. Center the
+        // vertical midpoint of the union of ALL selected pieces instead.
+        const els = Array.from(document.querySelectorAll('.textLayer .highlight.selected'))
+        if (els.length === 0) return
+        const rects = els.map(e => e.getBoundingClientRect())
+        const top = Math.min(...rects.map(r => r.top))
+        const bottom = Math.max(...rects.map(r => r.bottom))
+        const container = document.getElementById('viewerContainer')
+        if (!container) return
+        const cRect = container.getBoundingClientRect()
+        const delta = (top + bottom) / 2 - (cRect.top + cRect.height / 2)
+        container.scrollTo({ top: container.scrollTop + delta, behavior: 'smooth' })
       }, 150)
       return
     }
