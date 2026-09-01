@@ -2057,16 +2057,45 @@ export function Canvas({
             {showGrid && (() => {
               // wire와 동일한 줌 보정: 확대 시 기본 두께, 축소 시 화면상 두께 유지되게 키움
               const gzc = viewport.zoom < 1 ? 1 / viewport.zoom : 1
+              // 격자선 길이는 고정 상수(±10000)가 아니라 실제 렌더된 그래프 경계 기준 —
+              // More 기본 펼침 이후 큰 그래프는 세로로 10000px을 훌쩍 넘어서, 고정
+              // 상수로는 그 아래/위 구간의 세로선이 중간에서 끊겨 보였음(사용자 리포트).
+              let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+              for (const n of graph.nodes) {
+                const p = renderPositions[n.id] ?? n.position
+                const s = nodeSizes[n.id]
+                const w = s?.width ?? (n.nodeWidth ?? 432)
+                const h = s?.height ?? HEADER_H
+                if (p.x < minX) minX = p.x
+                if (p.x + w > maxX) maxX = p.x + w
+                if (p.y < minY) minY = p.y
+                if (p.y + h > maxY) maxY = p.y + h
+              }
+              if (!isFinite(minX)) return null
+              // "무한처럼 보이게": 그래프 경계에 더해, 현재 화면에 보이는 월드 영역까지
+              // 항상 포함시킨다 — 팬/줌 때마다 리렌더되며 끝점이 따라오므로 아무리
+              // 멀리 이동해도 선이 화면 밖까지 이어져 있는 것처럼(=무한처럼) 보인다.
+              // (world→screen이 translate(vp.x,vp.y) scale(zoom)이므로 역변환은
+              //  world = (screen - vp.xy) / zoom)
+              const vw = divRef.current?.clientWidth ?? window.innerWidth
+              const vh = divRef.current?.clientHeight ?? window.innerHeight
+              const viewX1 = (0 - viewport.x) / viewport.zoom
+              const viewX2 = (vw - viewport.x) / viewport.zoom
+              const viewY1 = (0 - viewport.y) / viewport.zoom
+              const viewY2 = (vh - viewport.y) / viewport.zoom
+              const PAD = 800
+              const gx1 = Math.min(minX, viewX1) - PAD, gx2 = Math.max(maxX, viewX2) + PAD
+              const gy1 = Math.min(minY, viewY1) - PAD, gy2 = Math.max(maxY, viewY2) + PAD
               return (
                 <svg
-                  style={{ position: 'absolute', left: -10000, top: -10000, width: 20000, height: 20000, pointerEvents: 'none', overflow: 'visible' }}
-                  viewBox="-10000 -10000 20000 20000"
+                  style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, pointerEvents: 'none', overflow: 'visible' }}
+                  viewBox="0 0 1 1"
                 >
                   {gridLines.vLines.map((x, i) => (
-                    <line key={`gv${i}`} x1={x} y1={-10000} x2={x} y2={10000} stroke="#22c55e" strokeWidth={1.5 * gzc} strokeDasharray={`${6 * gzc} ${4 * gzc}`} opacity={0.55} />
+                    <line key={`gv${i}`} x1={x} y1={gy1} x2={x} y2={gy2} stroke="#22c55e" strokeWidth={1.5 * gzc} strokeDasharray={`${6 * gzc} ${4 * gzc}`} opacity={0.55} />
                   ))}
                   {gridLines.hLines.map((y, i) => (
-                    <line key={`gh${i}`} x1={-10000} y1={y} x2={10000} y2={y} stroke="#f97316" strokeWidth={1.5 * gzc} strokeDasharray={`${6 * gzc} ${4 * gzc}`} opacity={0.55} />
+                    <line key={`gh${i}`} x1={gx1} y1={y} x2={gx2} y2={y} stroke="#f97316" strokeWidth={1.5 * gzc} strokeDasharray={`${6 * gzc} ${4 * gzc}`} opacity={0.55} />
                   ))}
                 </svg>
               )

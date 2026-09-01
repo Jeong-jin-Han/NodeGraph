@@ -444,6 +444,7 @@ var tx = 0, ty = 0, scale = 1;
 
 function applyTransform() {
   canvas.style.transform = 'translate('+tx+'px,'+ty+'px) scale('+scale+')';
+  updateGridExtents();
 }
 
 // 창 크기 변경: 화면 중앙에 보이던 지점을 중앙에 유지하면서,
@@ -1266,9 +1267,48 @@ function drawGrid() {
   if (!showGrid) { svg.style.display = 'none'; return; }
   svg.style.display = '';
   var lines = computeGridLinesJs();
-  lines.vLines.forEach(function(x) { svg.appendChild(svgGridLine(x, -10000, x, 10000, '#22c55e')); });
-  lines.hLines.forEach(function(y) { svg.appendChild(svgGridLine(-10000, y, 10000, y, '#f97316')); });
+  // 격자선 길이: 고정 상수(±10000)는 More 기본 펼침 이후의 큰 그래프에서 세로선이
+  // 중간에 끊겨 보였음 — 실제 노드 경계와 현재 화면에 보이는 월드 영역의 합집합
+  // 기준으로 잡아 "무한처럼" 보이게 한다(에디터 Canvas.tsx와 동일 규칙; 팬/줌 시
+  // applyTransform()이 drawGrid를 다시 불러 끝점이 계속 따라옴).
+  var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  document.querySelectorAll('.ng-node').forEach(function(el) {
+    var x = parseFloat(el.style.left) || 0, y = parseFloat(el.style.top) || 0;
+    if (x < minX) minX = x;
+    if (x + el.offsetWidth > maxX) maxX = x + el.offsetWidth;
+    if (y < minY) minY = y;
+    if (y + el.offsetHeight > maxY) maxY = y + el.offsetHeight;
+  });
+  if (!isFinite(minX)) { minX = 0; maxX = 0; minY = 0; maxY = 0; }
+  gridNodeBounds = { minX: minX, maxX: maxX, minY: minY, maxY: maxY };
+  var ext = gridExtents();
+  lines.vLines.forEach(function(x) { svg.appendChild(svgGridLine(x, ext.gy1, x, ext.gy2, '#22c55e')); });
+  lines.hLines.forEach(function(y) { svg.appendChild(svgGridLine(ext.gx1, y, ext.gx2, y, '#f97316')); });
   updateZoomLineWeights();
+}
+var gridNodeBounds = null;
+function gridExtents() {
+  var b = gridNodeBounds || { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+  var vw = vp.clientWidth, vh = vp.clientHeight;
+  var viewX1 = (0 - tx) / scale, viewX2 = (vw - tx) / scale;
+  var viewY1 = (0 - ty) / scale, viewY2 = (vh - ty) / scale;
+  var PAD = 800;
+  return {
+    gx1: Math.min(b.minX, viewX1) - PAD, gx2: Math.max(b.maxX, viewX2) + PAD,
+    gy1: Math.min(b.minY, viewY1) - PAD, gy2: Math.max(b.maxY, viewY2) + PAD
+  };
+}
+// 팬/줌 프레임마다: 노드 경계는 drawGrid가 캐시해 둔 값을 쓰고 뷰 영역만 새로
+// 계산해 기존 선의 끝점 속성만 갱신 — DOM 재생성 없이 무한처럼 따라오게 한다.
+function updateGridExtents() {
+  if (!showGrid) return;
+  var svg = document.getElementById('grid-svg');
+  if (!svg || svg.style.display === 'none') return;
+  var ext = gridExtents();
+  Array.prototype.forEach.call(svg.children, function(l) {
+    if (l.getAttribute('stroke') === '#22c55e') { l.setAttribute('y1', ext.gy1); l.setAttribute('y2', ext.gy2); }
+    else { l.setAttribute('x1', ext.gx1); l.setAttribute('x2', ext.gx2); }
+  });
 }
 function toggleGrid() {
   showGrid = !showGrid;
