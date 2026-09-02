@@ -24,6 +24,7 @@ When the user says **"apply NodeGraph"** (or the Korean equivalent, **"NodeGraph
 **One-sentence goal (code)**: Find how this codebase actually works, and structure it so a new contributor can navigate it confidently in under 5 minutes.
 
 **Writing principles** (apply throughout):
+- **Top-down writing, never bottom-up (두괄식)**: Every node's `content` is written top-down — open with the single most important claim, conclusion, or number (the one sentence the reader must take away), then the explanation and evidence behind it. Put that first sentence's key phrase in `**bold**`. Bottom-up writing — starting from background, definitions, or "the paper says…" run-ups and building toward the point — is not allowed; a reader skimming only each node's first line should still get the whole story. The same rule applies to `toggleItems[].content`.
 - **Bilingual glossing**: When writing content in Korean, include the English term alongside key technical expressions, so readers never have to guess what the original English term was (see **Language rules** below for the exact convention and example).
 - **Not limited to one Killer Application**: Papers often have more than one remarkable contribution. Capture all of them (see Step 2).
 - **Prefer display-block math**: Prefer `$$...$$` block math over `$...$` inline for formulas. Use inline only for short symbols inside a sentence (see Step 5).
@@ -714,5 +715,6 @@ After any edit, verify:
 - [ ] `toggleItems[].id` values are unique within the file
 - [ ] `links` field present on every node (use `[]` if empty)
 - [ ] Every table and figure node explains what it shows *and* why that matters for the Killer Application — not just embedded/pasted with no interpretation
+- [ ] Every node's `content` is written top-down (두괄식) — key claim/conclusion in the first sentence, never bottom-up background/definition run-ups before the point
 - [ ] No invented numbers, citations, or external claims — every claim traces to the PDF's own text, or has a real `links` entry, or was left unwritten
 - [ ] (Code workflow) Every node that references a specific place in the code has a matching `links` entry with `"type": "code"` — `original.location` alone does not make it clickable
