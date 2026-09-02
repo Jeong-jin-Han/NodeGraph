@@ -171,8 +171,13 @@ function renderNodeCard(
         // json file that isn't at the repo root still resolves to a real repo-root-relative
         // path instead of leaving a literal "prefix/../" segment in the URL.
         const repoRelPath = path.posix.normalize(codeLinkOpts.repoPrefix + relPath)
+        // Jupyter notebooks: GitHub renders .ipynb as a notebook page where #L line
+        // fragments do nothing (the editor treats :N as a cell number instead) — omit
+        // the fragment and just open the rendered notebook.
+        const isNotebook = /\.ipynb$/i.test(relPath)
+        const lineFragment = (startLine && !isNotebook) ? `#L${startLine}${endLine ? `-L${endLine}` : ''}` : ''
         const href = (codeLinkOpts.githubBase && !repoRelPath.startsWith('..'))
-          ? ` href="${escHtml(codeLinkOpts.githubBase)}/${escHtml(repoRelPath)}${startLine ? `#L${startLine}${endLine ? `-L${endLine}` : ''}` : ''}" target="_blank"`
+          ? ` href="${escHtml(codeLinkOpts.githubBase)}/${escHtml(repoRelPath)}${lineFragment}" target="_blank"`
           : ''
         return `<a class="ng-link"${href}>${icon} ${escHtml(l.label || l.target)}</a>`
       }

@@ -86,15 +86,31 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
           const { path: relPath, startLine, endLine } = parseCodeLinkTarget(link.target)
           try {
             const fileUri = vscode.Uri.joinPath(vscode.Uri.joinPath(document.uri, '..'), relPath)
-            const doc = await vscode.workspace.openTextDocument(fileUri)
-            const editor = await vscode.window.showTextDocument(doc, { preview: false })
-            if (startLine) {
-              const start = Math.max(0, startLine - 1)
-              const end = Math.max(start, (endLine ?? startLine) - 1)
-              const endLineLen = doc.lineAt(Math.min(end, doc.lineCount - 1)).text.length
-              const range = new vscode.Range(start, 0, end, endLineLen)
-              editor.selection = new vscode.Selection(range.start, range.end)
-              editor.revealRange(range, vscode.TextEditorRevealType.InCenter)
+            if (relPath.toLowerCase().endsWith('.ipynb')) {
+              // Jupyter notebooks can't go through openTextDocument/showTextDocument —
+              // that opens the raw backing JSON in a text editor, not the notebook UI,
+              // and "line numbers" would address JSON source lines. Use the notebook
+              // API instead, and interpret :N / :N-M as 1-based CELL numbers.
+              const nb = await vscode.workspace.openNotebookDocument(fileUri)
+              const nbEditor = await vscode.window.showNotebookDocument(nb, { preview: false })
+              if (startLine) {
+                const start = Math.min(Math.max(0, startLine - 1), nb.cellCount - 1)
+                const end = Math.min(Math.max(start, (endLine ?? startLine) - 1), nb.cellCount - 1)
+                const range = new vscode.NotebookRange(start, end + 1)
+                nbEditor.selection = range
+                nbEditor.revealRange(range, vscode.NotebookEditorRevealType.InCenter)
+              }
+            } else {
+              const doc = await vscode.workspace.openTextDocument(fileUri)
+              const editor = await vscode.window.showTextDocument(doc, { preview: false })
+              if (startLine) {
+                const start = Math.max(0, startLine - 1)
+                const end = Math.max(start, (endLine ?? startLine) - 1)
+                const endLineLen = doc.lineAt(Math.min(end, doc.lineCount - 1)).text.length
+                const range = new vscode.Range(start, 0, end, endLineLen)
+                editor.selection = new vscode.Selection(range.start, range.end)
+                editor.revealRange(range, vscode.TextEditorRevealType.InCenter)
+              }
             }
           } catch {
             vscode.window.showErrorMessage(`NodeGraph: couldn't open ${relPath}`)

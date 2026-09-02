@@ -478,6 +478,13 @@ directory, optionally with a line spec: `"src/foo.ts"`, `"src/foo.ts:42"`, or
 - **In the live editor**: opens the file and reveals/selects the given line range directly — no search step, unlike `pdf`'s page-jump, since VS Code can address an exact line natively.
 - **In the exported standalone HTML**: resolves to a GitHub blob URL (`https://github.com/<owner>/<repo>/blob/<commit-sha-at-export-time>/<path>#L<start>-L<end>`) if the project's git remote is on `github.com`. If it isn't (no git repo, no `origin`, non-GitHub host, git not installed), the link renders as inert text — same graceful degradation `canvasImages` already have for HTML export.
 
+**Jupyter notebooks (`.ipynb`)**: for a notebook target the `:N` / `:N-M` spec means
+**1-based cell numbers**, not lines — e.g. `"analysis.ipynb:3"` opens the notebook in
+the editor's notebook UI and reveals/selects the 3rd cell (`:3-5` selects cells 3–5).
+Never target a notebook's raw JSON line numbers. In the exported HTML the link opens
+GitHub's rendered notebook page without a position (GitHub's notebook view ignores
+line fragments).
+
 ---
 
 ## CanvasImage schema
