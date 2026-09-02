@@ -650,7 +650,10 @@ export function NodeCard({
               <div
                 ref={tableBodyRef}
                 style={{
-                  fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word',
+                  // pre-wrap: 코드 인용 등에서 줄 앞 들여쓰기 공백을 보존 (export의
+                  // .ng-content/.ng-orig-text/.ng-toggle-body와 동일한 규칙 — 에디터
+                  // 쪽만 빠져 있어서 들여쓰기가 접혀 보이던 버그의 수정)
+                  fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap',
                   maxHeight: (!capEnabled || contentMoreExpanded) ? undefined : contentMaxHeight,
                   // overflowX를 'hidden'으로 명시하지 않으면(visible로 남으면), overflowY만
                   // non-visible일 때 브라우저가 overflow-x도 암묵적으로 auto로 취급하는
@@ -760,7 +763,7 @@ export function NodeCard({
                           onSearchInPdf(node.original.text, pageHint ? parseInt(pageHint, 10) : undefined)
                         }}
                         title="Right-click: search this quote in the source PDF"
-                        style={{ fontSize: Math.max(8, fs - 1), lineHeight: 1.55, fontStyle: 'italic', wordBreak: 'break-word', cursor: 'text' }}>
+                        style={{ fontSize: Math.max(8, fs - 1), lineHeight: 1.55, fontStyle: 'italic', wordBreak: 'break-word', cursor: 'text', whiteSpace: 'pre-wrap' }}>
                         {node.original.text
                           ? <MathText text={node.original.text} style={{ fontSize: Math.max(8, fs - 1), fontStyle: 'italic' }} />
                           : <span style={{ opacity: 0.35 }}>Click to add original text…</span>}
@@ -861,7 +864,7 @@ export function NodeCard({
                         style={{ ...baseEditStyle, fontSize: fs, lineHeight: 1.6, resize: 'none', overflow: 'hidden', minHeight: 20, display: 'block' }}
                       />
                     ) : (
-                      <div style={{ fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word' }}>
+                      <div style={{ fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
                         {renderRichContent(toggle.content ?? '', (e) => {
                           e.stopPropagation()
                           setEditingToggle({ id: toggle.id, field: 'content', initVal: toggle.content })
