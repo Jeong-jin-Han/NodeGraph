@@ -6,7 +6,9 @@ PROJECT_FOLDER/.agent/NODEGRAPH_SPEC.md 와 PROJECT_FOLDER/.agent/ENVIRONMENT.md
 workflow" 섹션을 따라줘, PDF workflow가 아니라.
 
 이 코드베이스와 방금 읽은 두 파일을 바탕으로, 어떤 nodegraph를 만들 수 있을지
-먼저 간단히 설명해줘. 그 다음 바로 만들어줘.
+먼저 간단히 설명해줘. 그 다음 바로 만들어줘. 깊게 볼 가치가 있는 함수/클래스는
+spec의 Syntax/Semantic pairing 규칙대로 syntax 노드(구조적으로 무엇인지)와
+semantic 노드(무엇을 하고 왜 그런지)로 나눠서 만들어줘.
 
 모든 노드 내용은 한국어로 작성해. 단, 함수/클래스/변수/라이브러리 이름 같은
 코드 상의 고유 식별자는 임의로 번역하지 말고 원문 그대로 사용하고, 개념적인

@@ -86,13 +86,21 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
           const { path: relPath, startLine, endLine } = parseCodeLinkTarget(link.target)
           try {
             const fileUri = vscode.Uri.joinPath(vscode.Uri.joinPath(document.uri, '..'), relPath)
+            // 코드는 그래프를 덮지 않고 항상 그래프의 "바로 오른쪽" 그룹에 연다 —
+            // 처음엔 새 그룹(Beside)을 만들고, 그 다음부터는 같은 그룹을 재사용해서
+            // 점프할 때마다 창이 계속 쪼개지지 않게 한다 (RTLGraph의 openCodeBeside/
+            // columnRightOf와 동일한 규칙).
+            const viewColumn = columnRightOf(
+              vscode.window.tabGroups.all.map(g => g.viewColumn),
+              webviewPanel.viewColumn
+            ) ?? vscode.ViewColumn.Beside
             if (relPath.toLowerCase().endsWith('.ipynb')) {
               // Jupyter notebooks can't go through openTextDocument/showTextDocument —
               // that opens the raw backing JSON in a text editor, not the notebook UI,
               // and "line numbers" would address JSON source lines. Use the notebook
               // API instead, and interpret :N / :N-M as 1-based CELL numbers.
               const nb = await vscode.workspace.openNotebookDocument(fileUri)
-              const nbEditor = await vscode.window.showNotebookDocument(nb, { preview: false })
+              const nbEditor = await vscode.window.showNotebookDocument(nb, { preview: false, viewColumn })
               if (startLine) {
                 const start = Math.min(Math.max(0, startLine - 1), nb.cellCount - 1)
                 const end = Math.min(Math.max(start, (endLine ?? startLine) - 1), nb.cellCount - 1)
@@ -102,7 +110,7 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
               }
             } else {
               const doc = await vscode.workspace.openTextDocument(fileUri)
-              const editor = await vscode.window.showTextDocument(doc, { preview: false })
+              const editor = await vscode.window.showTextDocument(doc, { preview: false, viewColumn })
               if (startLine) {
                 const start = Math.max(0, startLine - 1)
                 const end = Math.max(start, (endLine ?? startLine) - 1)
@@ -263,4 +271,15 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
 </body>
 </html>`
   }
+}
+
+// code 링크 점프가 열릴 그룹: 그래프가 있는 그룹의 바로 오른쪽. `columns`는 현재
+// 열린 그룹들의 viewColumn(왼쪽→오른쪽), `holding`은 그래프가 있는 그룹. 오른쪽에
+// 그룹이 이미 있으면 그걸 반환(재사용 — 점프를 반복해도 창이 더 안 쪼개짐), 없으면
+// undefined(호출부가 ViewColumn.Beside로 새 그룹 생성). RTLGraph의 columnRightOf와
+// 동일한 규칙.
+function columnRightOf(columns: readonly vscode.ViewColumn[], holding: vscode.ViewColumn | undefined): vscode.ViewColumn | undefined {
+  const at = holding === undefined ? -1 : columns.indexOf(holding)
+  if (at < 0) return columns.length > 1 ? columns[1] : undefined
+  return columns[at + 1]
 }

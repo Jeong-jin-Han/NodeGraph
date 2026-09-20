@@ -255,11 +255,31 @@ For each backbone node, add **sub-nodes branching to the right**. Use the approp
 |------|----------|--------------|
 | A specific module/file worth understanding on its own | `module` (sharp) | Every module central to the architecture deserves its own node |
 | A step in a data/control flow | `flow` (sharp) | Each meaningful hop in a request/event pipeline |
+| What a code element structurally IS | `syntax` (sharp) | See **Syntax/Semantic pairing** below — declaration shape, signature, parameters/types, data layout |
+| What that element DOES and WHY | `semantic` (sharp) | See **Syntax/Semantic pairing** below — behavior, side effects, invariants, design intent |
 | A non-obvious design decision | `decision` (sharp) | Choices that look arbitrary but have a real reason — code's equivalent of the paper workflow's most valuable node type |
 | Deep question or open issue | `question` (rounded) | "Why is this cached instead of recomputed?", "What happens if this call fails?" |
 | Known limitation / improvement idea | `gap` (rounded) | TODOs, things that could be refactored, known rough edges |
 | Related external doc/dependency | `reference` (rounded) | Library docs, RFCs, or upstream projects this code actually depends on or cites (in comments, README, package.json) — never something recalled from general knowledge that the codebase itself doesn't reference |
 | Misc note | `memo` (rounded) | Anything else worth remembering |
+
+**Syntax/Semantic pairing** — when a specific function, class, or API deserves a deep
+dive (not just a mention inside its module's node), split it into a PAIR of nodes
+instead of mixing both concerns in one:
+
+- The **`syntax` node** answers *"what is this, structurally?"* — the signature,
+  parameters and their types, return type, data layout. Its `original.text` is the
+  **verbatim declaration** from the source, and it carries the `code`-type `links`
+  entry pointing at the exact lines (Step 6). No behavior talk here.
+- The **`semantic` node** answers *"what does it do, and why?"* — behavior, side
+  effects, invariants, error cases, and the design intent behind it. No signature
+  restating here; it references the syntax node's shape only when the meaning depends
+  on it.
+- Wire them as: parent (`module` or backbone) → `syntax` → `semantic`, each hop a
+  `line` edge — the semantic node is the syntax node's child, one hop further right.
+- Don't force the pair on trivial elements — a helper worth one sentence stays a
+  sentence inside its module node. The pair is for the handful of elements a new
+  contributor must actually understand.
 
 Space sub-nodes at ~`y: 150` intervals around their parent's y-center, at `x: 500`. Same **hop-based positioning rule** as the PDF workflow — see **Position guidelines** below.
 
@@ -359,6 +379,8 @@ A map of template key → template definition. Every node's `"template"` field m
   "main_topic": { "label": "Main topic",  "color": "#4B8BBE", "icon": "file-text",    "shape": "sharp"   },
   "module":     { "label": "Module",      "color": "#5C9E6E", "icon": "package",       "shape": "sharp"   },
   "flow":       { "label": "Flow",        "color": "#9B59B6", "icon": "activity",      "shape": "sharp"   },
+  "syntax":     { "label": "Syntax",      "color": "#16A085", "icon": "code",          "shape": "sharp"   },
+  "semantic":   { "label": "Semantic",    "color": "#D97706", "icon": "zap",           "shape": "sharp"   },
   "decision":   { "label": "Decision",    "color": "#E74C3C", "icon": "alert-circle",  "shape": "sharp"   },
   "question":   { "label": "Question",    "color": "#E5A835", "icon": "help-circle",   "shape": "rounded" },
   "gap":        { "label": "Gap / TODO",  "color": "#1ABC9C", "icon": "lightbulb",     "shape": "rounded" },
@@ -725,3 +747,4 @@ After any edit, verify:
 - [ ] Every node's `content` is written top-down (두괄식) — key claim/conclusion in the first sentence, never bottom-up background/definition run-ups before the point
 - [ ] No invented numbers, citations, or external claims — every claim traces to the PDF's own text, or has a real `links` entry, or was left unwritten
 - [ ] (Code workflow) Every node that references a specific place in the code has a matching `links` entry with `"type": "code"` — `original.location` alone does not make it clickable
+- [ ] (Code workflow) Deep-dive elements are split into `syntax`/`semantic` node pairs (syntax → semantic, `line` edges) — no node mixes signature description with behavior/intent
