@@ -78,10 +78,10 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('nodegraph.new', (uri?: vscode.Uri) => createNewGraph(uri))
   )
 
-  // Generate .agent/ENVIRONMENT.md so AI agents know what tools are available
+  // Generate .agent/nodegraph/ENVIRONMENT.md so AI agents know what tools are available
   writeEnvironmentReport(vscode.workspace.workspaceFolders ?? [])
 
-  // Copying .agent/NODEGRAPH_SPEC.md into the workspace is opt-in (unlike
+  // Copying .agent/nodegraph/SPEC.md into the workspace is opt-in (unlike
   // ENVIRONMENT.md above) — it's a large static doc, not per-machine info, so
   // it shouldn't silently land in the user's own repo. Run only on command.
   context.subscriptions.push(
@@ -92,15 +92,15 @@ export function activate(context: vscode.ExtensionContext): void {
         return
       }
       // Write both agent files into the exact same target folder — an agent
-      // told "read .agent/ENVIRONMENT.md next to the PDF" would find nothing
-      // there if this only wrote NODEGRAPH_SPEC.md and left ENVIRONMENT.md to
+      // told "read .agent/nodegraph/ENVIRONMENT.md next to the PDF" would find nothing
+      // there if this only wrote SPEC.md and left ENVIRONMENT.md to
       // the activation-time writer above, which targets workspace roots, not
       // whatever subfolder was right-clicked here.
       const specOk = await syncAgentSpec(context.extensionUri, target)
       const envOk = await writeEnvironmentReportToFolder(target)
       const promptOk = await syncPromptTemplates(context.extensionUri, target)
       if (specOk && envOk && promptOk) {
-        vscode.window.showInformationMessage(`NodeGraph: wrote .agent/NODEGRAPH_SPEC.md, .agent/ENVIRONMENT.md, and .prompt/{paper,lecture,code}/{korean,english}.md in ${target.fsPath}.`)
+        vscode.window.showInformationMessage(`NodeGraph: wrote .agent/nodegraph/{SPEC,ENVIRONMENT}.md and .prompt/nodegraph/{paper,lecture,code}/{korean,english}.md in ${target.fsPath}.`)
       } else {
         vscode.window.showErrorMessage('NodeGraph: failed to write the agent files — check that the folder is writable and try again.')
       }

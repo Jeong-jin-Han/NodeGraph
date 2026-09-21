@@ -154,9 +154,14 @@ function buildEnvironmentReport(): string {
 // "Copy Agent Spec to Workspace" command (extension.ts), which needs it
 // written into the exact folder it targets — not necessarily a workspace
 // root — so that folder ends up with both agent files together, consistent
-// with what NODEGRAPH_SPEC.md expects to find next to it.
+// with what SPEC.md expects to find next to it.
+//
+// Everything NodeGraph writes into a workspace lives under a `nodegraph/`
+// subfolder of .agent/.prompt — those top-level folders are shared territory
+// (RTLGraph namespaces itself the same way, e.g. .agent/rtlgraph/), so tools
+// don't collide when a project uses more than one of them.
 export async function writeEnvironmentReportToFolder(folderUri: vscode.Uri): Promise<boolean> {
-  const agentDir = vscode.Uri.joinPath(folderUri, '.agent')
+  const agentDir = vscode.Uri.joinPath(folderUri, '.agent', 'nodegraph')
   const outFile = vscode.Uri.joinPath(agentDir, 'ENVIRONMENT.md')
   try {
     await vscode.workspace.fs.createDirectory(agentDir)
@@ -174,7 +179,7 @@ export async function writeEnvironmentReport(workspaceFolders: readonly vscode.W
   }
 }
 
-// NODEGRAPH_SPEC.md ships inside the extension bundle, not the user's workspace,
+// SPEC.md (the NodeGraph agent spec) ships inside the extension bundle, not the user's workspace,
 // so an AI agent operating on the workspace has no way to find it without being
 // told the extension's install path. Unlike ENVIRONMENT.md (small, genuinely
 // per-machine, fine to regenerate silently every activation), this is a large
@@ -185,7 +190,7 @@ export async function writeEnvironmentReport(workspaceFolders: readonly vscode.W
 // resolved by resolveTargetFolder() in extension.ts (Explorer right-click target,
 // or a folder picker in a multi-root workspace).
 export async function syncAgentSpec(extensionUri: vscode.Uri, targetFolder: vscode.Uri): Promise<boolean> {
-  const bundledSpec = vscode.Uri.joinPath(extensionUri, '.agent', 'NODEGRAPH_SPEC.md')
+  const bundledSpec = vscode.Uri.joinPath(extensionUri, '.agent', 'nodegraph', 'SPEC.md')
   let content: Uint8Array
   try {
     content = await vscode.workspace.fs.readFile(bundledSpec)
@@ -193,8 +198,8 @@ export async function syncAgentSpec(extensionUri: vscode.Uri, targetFolder: vsco
     return false
   }
 
-  const agentDir = vscode.Uri.joinPath(targetFolder, '.agent')
-  const outFile = vscode.Uri.joinPath(agentDir, 'NODEGRAPH_SPEC.md')
+  const agentDir = vscode.Uri.joinPath(targetFolder, '.agent', 'nodegraph')
+  const outFile = vscode.Uri.joinPath(agentDir, 'SPEC.md')
   try {
     await vscode.workspace.fs.createDirectory(agentDir)
     await vscode.workspace.fs.writeFile(outFile, content)
@@ -211,8 +216,8 @@ export async function syncAgentSpec(extensionUri: vscode.Uri, targetFolder: vsco
 // {paper,lecture,code}/{korean,english}.md directly instead of copy-pasting
 // out of the README.
 export async function syncPromptTemplates(extensionUri: vscode.Uri, targetFolder: vscode.Uri): Promise<boolean> {
-  const bundledDir = vscode.Uri.joinPath(extensionUri, '.prompt')
-  const outDir = vscode.Uri.joinPath(targetFolder, '.prompt')
+  const bundledDir = vscode.Uri.joinPath(extensionUri, '.prompt', 'nodegraph')
+  const outDir = vscode.Uri.joinPath(targetFolder, '.prompt', 'nodegraph')
   try {
     for (const kind of ['paper', 'lecture', 'code']) {
       const kindOutDir = vscode.Uri.joinPath(outDir, kind)

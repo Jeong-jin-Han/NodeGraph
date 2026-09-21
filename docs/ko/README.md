@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white&style=for-the-badge" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-1.0.8-orange?style=for-the-badge" alt="Version 1.0.8" />
+  <img src="https://img.shields.io/badge/version-1.0.9-orange?style=for-the-badge" alt="Version 1.0.9" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=for-the-badge" alt="MIT License" />
 </p>
 
@@ -28,7 +28,7 @@ Point an AI agent (Claude Code, Codex, Cursor, Antigravity) at a PDF and it read
 **Getting there takes four steps:**
 1. Install **NodeGraph** from the VS Code Marketplace
 2. Right-click your paper's folder and run `NodeGraph: Copy Agent Spec to Workspace`
-3. Paste the generated `.prompt/paper/english.md` (or `korean.md`) into your agent, filling in the PDF's path
+3. Paste the generated `.prompt/nodegraph/paper/english.md` (or `korean.md`) into your agent, filling in the PDF's path
 4. Open the finished `.nodegraph.json`
 
 ---
@@ -48,7 +48,7 @@ Writing a paper means **diverging** first (exploring branches, dead ends, altern
 
 Existing tools weren't quite it. Obsidian-style Markdown notes are great for linking ideas, but **LaTeX doesn't render inside tables**, a real blocker for papers whose comparison tables are full of notation. NodeGraph fuses what those tools do well into a single node: GFM tables, LaTeX (via KaTeX), and inline images all render together, in the same card.
 
-It's also built around **working with an agent rather than a mouse**. Hand-placing every node as you read is tedious enough to break the flow of thought. Point an agent at the shipped `.agent/NODEGRAPH_SPEC.md` instead, and (based on the question you're currently asking it) it can decide where in the graph a new idea belongs and write the node there itself, so a conversation with an agent turns directly into structure instead of stopping to file each note by hand.
+It's also built around **working with an agent rather than a mouse**. Hand-placing every node as you read is tedious enough to break the flow of thought. Point an agent at the shipped `.agent/nodegraph/SPEC.md` instead, and (based on the question you're currently asking it) it can decide where in the graph a new idea belongs and write the node there itself, so a conversation with an agent turns directly into structure instead of stopping to file each note by hand.
 
 An agent writing your notes raises an obvious concern: hallucination. That's exactly what the **Original tag** exists to guard against. Every claim can carry the exact source-text quote it's grounded in, and clicking it jumps straight into the source PDF and highlights the matching sentence, so you can **verify the agent's claim against the paper in one click** instead of trusting it blindly.
 
@@ -86,7 +86,7 @@ And since you don't always want to be inside VS Code to revisit your own notes, 
 | **Ctrl+F search** | BFS-ordered dropdown over titles, content, original text, and toggle sections, with inline match highlighting |
 | **Debug grid** | One-click overlay of hop-level and main-topic-cluster boundaries for visually spotting layout issues |
 | **HTML export** | A self-contained, interactive standalone viewer — search, highlighting, and layout included |
-| **Agent-friendly** | A machine-readable spec (`.agent/NODEGRAPH_SPEC.md`) so AI agents can read and write graphs directly |
+| **Agent-friendly** | A machine-readable spec (`.agent/nodegraph/SPEC.md`) so AI agents can read and write graphs directly |
 
 See **[FEATURES.md](https://github.com/Jeong-jin-Han/NodeGraph/blob/main/docs/FEATURES.md)** for the complete feature list, organized by Editing / Layout & wires / Find & focus / Images / Files & export.
 
@@ -94,28 +94,28 @@ See **[FEATURES.md](https://github.com/Jeong-jin-Han/NodeGraph/blob/main/docs/FE
 
 ## Agent / AI Editing
 
-> **Before pointing an AI agent at a project, run `NodeGraph: Copy Agent Spec to Workspace` once** — it writes `.agent/NODEGRAPH_SPEC.md` (copied from the extension bundle), `.agent/ENVIRONMENT.md` (freshly generated), and `.prompt/{paper,lecture,code}/{korean,english}.md` (ready-to-paste copies of the example prompts below, one pair per language — the `paper` prompt maps a paper PDF, the `lecture` prompt maps a lecture slide deck (see **Mapping lecture slides** below), the `code` prompt maps a codebase (see **Mapping a codebase instead of a paper** below)) into one folder, so the agent can read all of it like any other file without needing to know the extension's install path. Right-click the target folder in the Explorer and pick it from the context menu (this is the reliable way in a multi-root workspace, or to target one specific subfolder — it writes into exactly the folder you clicked, nowhere else); running it from the Command Palette instead targets the workspace's only folder, or prompts you to pick one if there are several. It's opt-in rather than automatic on purpose: `.agent/NODEGRAPH_SPEC.md` is a large static doc identical across every install, and writing it into a folder automatically (the way `.agent/ENVIRONMENT.md` alone already does, silently, at every activation) would mean it could land in your own repo without you choosing that.
+> **Before pointing an AI agent at a project, run `NodeGraph: Copy Agent Spec to Workspace` once** — it writes `.agent/nodegraph/SPEC.md` (copied from the extension bundle), `.agent/nodegraph/ENVIRONMENT.md` (freshly generated), and `.prompt/nodegraph/{paper,lecture,code}/{korean,english}.md` (ready-to-paste copies of the example prompts below, one pair per language — the `paper` prompt maps a paper PDF, the `lecture` prompt maps a lecture slide deck (see **Mapping lecture slides** below), the `code` prompt maps a codebase (see **Mapping a codebase instead of a paper** below)) into one folder, so the agent can read all of it like any other file without needing to know the extension's install path. Right-click the target folder in the Explorer and pick it from the context menu (this is the reliable way in a multi-root workspace, or to target one specific subfolder — it writes into exactly the folder you clicked, nowhere else); running it from the Command Palette instead targets the workspace's only folder, or prompts you to pick one if there are several. It's opt-in rather than automatic on purpose: `.agent/nodegraph/SPEC.md` is a large static doc identical across every install, and writing it into a folder automatically (the way `.agent/nodegraph/ENVIRONMENT.md` alone already does, silently, at every activation) would mean it could land in your own repo without you choosing that.
 >
 > **AI agents: read these two files before doing anything (both written by the command above, into the same folder):**
-> 1. `.agent/NODEGRAPH_SPEC.md` — full JSON schema, syntax rules, and constraints
-> 2. `.agent/ENVIRONMENT.md` — lists which Python libraries and CLI tools are installed on this machine (PDF reading, image processing, etc.)
+> 1. `.agent/nodegraph/SPEC.md` — full JSON schema, syntax rules, and constraints
+> 2. `.agent/nodegraph/ENVIRONMENT.md` — lists which Python libraries and CLI tools are installed on this machine (PDF reading, image processing, etc.)
 >
 > Key rules from the spec:
 > - Backslashes in KaTeX **must be doubled** in JSON strings (`\\frac`, `\\sqrt`, `\\text`)
 > - Prefer `$$...$$` display blocks for formulas — inline `$...$` only for short in-sentence symbols
 > - Literal currency dollars must be escaped: `\$4.28/GB` (in JSON strings: `\\$4.28/GB`) — a bare `$` opens an inline-math region
-> - When writing content in a non-English language, pair each key technical term with its original English form (see `.agent/NODEGRAPH_SPEC.md` for the exact convention)
+> - When writing content in a non-English language, pair each key technical term with its original English form (see `.agent/nodegraph/SPEC.md` for the exact convention)
 > - The Killer Application is not limited to one — capture every genuinely remarkable contribution
 > - `toggleItems[].content` renders exactly like `node.content` — Markdown tables, KaTeX, and `[[IMG:filename:WxH]]` tokens all work inside toggles too
 > - Always update the `"modified"` timestamp after every edit
 
-The file `.agent/NODEGRAPH_SPEC.md` (included in the extension) is a machine-readable specification for AI agents. It documents the full JSON schema, ID conventions, KaTeX/Markdown syntax rules, rendering support per field, and a step-by-step workflow for generating a nodegraph from a PDF.
+The file `.agent/nodegraph/SPEC.md` (included in the extension) is a machine-readable specification for AI agents. It documents the full JSON schema, ID conventions, KaTeX/Markdown syntax rules, rendering support per field, and a step-by-step workflow for generating a nodegraph from a PDF.
 
 Five fully agent-built graphs ship with the extension, so you can open a finished result before building your own: `demo/ex1` ("Attention Is All You Need"), `demo/ex2` ("Point Transformer"), `demo/ex3` ("Mooncake"), `demo/ex4` ("3D Gaussian Splatting"), and `demo/ex5` ("Mental Illness Terms and Hermeneutic Hijacking", a philosophy paper, not just CS/ML) — between them covering KaTeX formulas, Markdown tables, toggle sections, and deep question nodes.
 
 **Typical agent workflow:**
 1. Right-click the project folder in the Explorer and run `NodeGraph: Copy Agent Spec to Workspace` (one-time per folder). If you opened that folder itself as the workspace root, VS Code won't show a right-click menu on it directly, right-click the empty space below the file list instead
-2. Tell your agent to read `.agent/NODEGRAPH_SPEC.md` and `.agent/ENVIRONMENT.md`
+2. Tell your agent to read `.agent/nodegraph/SPEC.md` and `.agent/nodegraph/ENVIRONMENT.md`
 3. Read or create the target `.nodegraph.json`
 4. Edit the JSON directly
 5. Click **Reload** in the toolbar to see the updated graph without closing/reopening the file
@@ -124,13 +124,13 @@ Five fully agent-built graphs ship with the extension, so you can open a finishe
 
 <a href="https://github.com/Jeong-jin-Han/NodeGraph/blob/main/README.md#example-prompt">English</a> | <b>한국어</b>
 
-After running `NodeGraph: Copy Agent Spec to Workspace` on the folder that holds your PDF (step 1 above), paste this into your agent — fill in the path and it does the rest: reads the spec, reads the paper, and builds the graph without further back-and-forth. The same command also writes this out as `.prompt/paper/english.md` (and a Korean version at `.prompt/paper/korean.md`) in that folder, so you can open the file directly instead of copying it from here.
+After running `NodeGraph: Copy Agent Spec to Workspace` on the folder that holds your PDF (step 1 above), paste this into your agent — fill in the path and it does the rest: reads the spec, reads the paper, and builds the graph without further back-and-forth. The same command also writes this out as `.prompt/nodegraph/paper/english.md` (and a Korean version at `.prompt/nodegraph/paper/korean.md`) in that folder, so you can open the file directly instead of copying it from here.
 
 ```
 PDF_ABSOLUTE_PATH = <PDF_ABSOLUTE_PATH>
 PROJECT_FOLDER = dirname(PDF_ABSOLUTE_PATH)
 
-PROJECT_FOLDER/.agent/NODEGRAPH_SPEC.md 와 PROJECT_FOLDER/.agent/ENVIRONMENT.md
+PROJECT_FOLDER/.agent/nodegraph/SPEC.md 와 PROJECT_FOLDER/.agent/nodegraph/ENVIRONMENT.md
 파일은 이미 준비돼 있어 — 둘 다 꼼꼼히 읽어줘.
 
 이 논문과 방금 읽은 두 파일을 바탕으로, 어떤 nodegraph를 만들 수 있을지 먼저
@@ -151,11 +151,11 @@ demo/ex1/attention-is-all-you-need.nodegraph.json이 있으니, 도움이 되면
 
 Lecture slide decks are PDFs too, so the whole pipeline — quote-jump into the deck, image extraction, the interactive canvas — works on them unchanged. What changes is the shape of the graph: slides are figure-heavy with sparse text, so the agent follows the deck's own section structure as the backbone (overview/learning-goals first, then one node per section with its slide range), extracts figures generously, and quotes definitions verbatim from the slides. Right-clicking a quote jumps to the exact slide, since `p.N` maps 1:1 to slide numbers.
 
-Run `NodeGraph: Copy Agent Spec to Workspace` on the folder holding the slides PDF, then paste `.prompt/lecture/english.md` (or `.prompt/lecture/korean.md`) into your agent, filling in the PDF's path.
+Run `NodeGraph: Copy Agent Spec to Workspace` on the folder holding the slides PDF, then paste `.prompt/nodegraph/lecture/english.md` (or `.prompt/nodegraph/lecture/korean.md`) into your agent, filling in the PDF's path.
 
 ### Mapping a codebase instead of a paper
 
-Point the same command at a codebase instead: run `NodeGraph: Copy Agent Spec to Workspace` on the project's root folder, then paste `.prompt/code/english.md` (or `.prompt/code/korean.md`) into your agent, filling in the project root's path. The agent walks the codebase instead of reading a PDF, and builds a graph around architecture, core implementation, and data/control flow instead of a paper's argument.
+Point the same command at a codebase instead: run `NodeGraph: Copy Agent Spec to Workspace` on the project's root folder, then paste `.prompt/nodegraph/code/english.md` (or `.prompt/nodegraph/code/korean.md`) into your agent, filling in the project root's path. The agent walks the codebase instead of reading a PDF, and builds a graph around architecture, core implementation, and data/control flow instead of a paper's argument.
 
 The key difference from the paper workflow: every node that points at real code carries a `links` entry of type `code` (e.g. `src/foo/bar.ts:42-58`), and clicking it jumps straight to that file and line range in the editor, no PDF-style search needed. Export the graph to standalone HTML and those same links resolve to GitHub blob URLs (`.../blob/<commit>/path#L42-L58`) if the project has a `github.com` remote, so the graph stays clickable outside the editor too.
 
@@ -163,7 +163,7 @@ The key difference from the paper workflow: every node that points at real code 
 PROJECT_ROOT_ABSOLUTE_PATH = <PROJECT_ROOT_ABSOLUTE_PATH>
 PROJECT_FOLDER = PROJECT_ROOT_ABSOLUTE_PATH
 
-PROJECT_FOLDER/.agent/NODEGRAPH_SPEC.md and PROJECT_FOLDER/.agent/ENVIRONMENT.md
+PROJECT_FOLDER/.agent/nodegraph/SPEC.md and PROJECT_FOLDER/.agent/nodegraph/ENVIRONMENT.md
 are already prepared for you — read both in full. Follow the "Code →
 NodeGraph workflow" section specifically, not the PDF workflow.
 
@@ -176,7 +176,7 @@ Follow the spec exactly, save the result inside PROJECT_FOLDER, and run
 end to end without asking me anything. Tell me when done.
 ```
 
-> **Benchmark** — an agent read the PDF, planned, and wrote each nodegraph end to end with no manual cleanup, on papers it had never seen before. Tested with Claude Code; other agentic coding tools should work the same way, since all it needs is the plain-markdown spec and prompt in `.agent`/`.prompt`:
+> **Benchmark** — an agent read the PDF, planned, and wrote each nodegraph end to end with no manual cleanup, on papers it had never seen before. Tested with Claude Code; other agentic coding tools should work the same way, since all it needs is the plain-markdown spec and prompt in `.agent/nodegraph`/`.prompt/nodegraph`:
 
 <p align="center">
   <img src="https://img.shields.io/badge/Claude_Code-ffffff?logo=data:image/svg%2bxml;base64,PHN2ZyBoZWlnaHQ9IjIwMCIgc3R5bGU9ImZsZXg6bm9uZTtsaW5lLWhlaWdodDoxIiB2aWV3Qm94PSIwIDAgMjQgMjQiIHdpZHRoPSIyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHRpdGxlPkNsYXVkZSBDb2RlPC90aXRsZT48cGF0aCBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0yMC45OTggMTAuOTQ5SDI0djMuMTAyaC0zdjMuMDI4aC0xLjQ4N1YyMEgxOHYtMi45MjFoLTEuNDg3VjIwSDE1di0yLjkyMUg5VjIwSDcuNDg4di0yLjkyMUg2VjIwSDQuNDg3di0yLjkyMUgzVjE0LjA1SDBWMTAuOTVoM1Y1aDE3Ljk5OHY1Ljk0OXpNNiAxMC45NDloMS40ODhWOC4xMDJINnYyLjg0N3ptMTAuNTEgMEgxOFY4LjEwMmgtMS40OXYyLjg0N3oiIGZpbGw9IiNEOTc3NTciIGZpbGwtcnVsZT0iZXZlbm9kZCI+PC9wYXRoPjwvc3ZnPg==&style=for-the-badge" alt="Claude Code" />
@@ -378,7 +378,7 @@ Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.
 |---------|----------|-------------|
 | `NodeGraph: New Graph` | — | Create a new empty graph. Right-click a folder in the Explorer to target it directly; from the Command Palette it targets the workspace's only folder, or prompts you to pick one if there are several |
 | `NodeGraph: Search Nodes` | `Ctrl+F` / `Cmd+F` | Open search dropdown |
-| `NodeGraph: Copy Agent Spec to Workspace` | — | Write `.agent/NODEGRAPH_SPEC.md`, `.agent/ENVIRONMENT.md`, and `.prompt/{paper,lecture,code}/{korean,english}.md` into a folder so an AI agent can read them. Same folder-targeting as New Graph above |
+| `NodeGraph: Copy Agent Spec to Workspace` | — | Write `.agent/nodegraph/SPEC.md`, `.agent/nodegraph/ENVIRONMENT.md`, and `.prompt/nodegraph/{paper,lecture,code}/{korean,english}.md` into a folder so an AI agent can read them. Same folder-targeting as New Graph above |
 
 ---
 
