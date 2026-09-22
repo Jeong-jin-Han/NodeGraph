@@ -26,6 +26,69 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
     NodeGraphEditorProvider._activeWebview?.postMessage(message)
   }
 
+  // Like postToActive, but first pulls real keyboard focus into the webview.
+  // Needed for Ctrl+F: clicking the nodegraph TAB makes the panel active (so the
+  // keybinding's when-clause holds and the command fires) but leaves DOM focus in
+  // the workbench, not inside the webview iframe — the search bar then opens yet
+  // its input.focus() can't take keyboard focus, which reads as "Ctrl+F doesn't
+  // work until I click a node first" (user report).
+  //
+  // Custom-editor webview panels don't support WebviewPanel.reveal() (that's for
+  // createWebviewPanel panels — trying it here misbehaved and even bounced focus
+  // to the neighboring group). The supported route: the keybinding's when-clause
+  // already guarantees the active editor IS this custom editor, so focusing the
+  // active editor group hands keyboard focus to its active editor — our iframe.
+  public static async focusActiveAndPost(message: unknown): Promise<void> {
+    // Target = the nodegraph behind the tab that is active right now, falling back
+    // to the most recently active one. No fallback to VS Code's own find: this
+    // command only runs when the keybinding's when-clause already decided the
+    // keystroke is ours, and the earlier `actions.find` fallback is exactly what
+    // produced "Ctrl+F opens find in the OTHER tab" whenever tab-group state lagged.
+    const target = NodeGraphEditorProvider.activeGraphEntry() ?? NodeGraphEditorProvider.lastActiveEntry()
+    if (!target) return
+    // Pull real keyboard focus into this panel's iframe. Neither
+    // WebviewPanel.reveal() (unsupported for custom editors — it bounced focus to
+    // the neighbouring group) nor focusActiveEditorGroup (targets whatever group
+    // the workbench *thinks* is active, which lags right after a tab click — the
+    // same failure mode as microsoft/vscode#76863, "click webview tab, then keys
+    // don't register") is reliable. Re-opening the already-open custom editor in
+    // its OWN column with preserveFocus:false is the supported way to activate
+    // and focus one specific editor.
+    await vscode.commands.executeCommand('vscode.openWith', target.uri, 'nodegraph.editor', {
+      viewColumn: target.panel.viewColumn,
+      preserveFocus: false,
+    })
+    target.panel.webview.postMessage(message)
+  }
+
+  // Every open nodegraph panel, by document URI — lets commands find the panel
+  // behind whichever tab is active, rather than trusting last-activated state.
+  private static readonly _panels = new Map<string, vscode.WebviewPanel>()
+  private static _lastActiveUri: string | null = null
+
+  private static activeGraphEntry(): { uri: vscode.Uri; panel: vscode.WebviewPanel } | undefined {
+    const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input
+    if (!(input instanceof vscode.TabInputCustom) || input.viewType !== 'nodegraph.editor') return undefined
+    const panel = NodeGraphEditorProvider._panels.get(input.uri.toString())
+    return panel ? { uri: input.uri, panel } : undefined
+  }
+
+  private static lastActiveEntry(): { uri: vscode.Uri; panel: vscode.WebviewPanel } | undefined {
+    const key = NodeGraphEditorProvider._lastActiveUri
+    const panel = key ? NodeGraphEditorProvider._panels.get(key) : undefined
+    return (key && panel) ? { uri: vscode.Uri.parse(key), panel } : undefined
+  }
+
+  // Mirrors "is the active tab a nodegraph?" into the context key the Ctrl+F
+  // keybinding is conditioned on (see extension.ts for why not activeCustomEditorId).
+  public static syncGraphTabContext(): void {
+    vscode.commands.executeCommand('setContext', 'nodegraph.graphTabActive', !!NodeGraphEditorProvider.activeGraphPanel())
+  }
+
+  public static activeGraphPanel(): vscode.WebviewPanel | undefined {
+    return NodeGraphEditorProvider.activeGraphEntry()?.panel
+  }
+
   private readonly _pendingSaves = new Set<string>()
 
   constructor(private readonly context: vscode.ExtensionContext) {}
@@ -208,9 +271,16 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
 
     // Track which webview is currently active so extension commands can reach it
     NodeGraphEditorProvider._activeWebview = webviewPanel.webview
+    NodeGraphEditorProvider._panels.set(document.uri.toString(), webviewPanel)
+    NodeGraphEditorProvider._lastActiveUri = document.uri.toString()
+    // Tab events can fire before this panel is registered (first open), so sync
+    // here and on every view-state change too.
+    NodeGraphEditorProvider.syncGraphTabContext()
     webviewPanel.onDidChangeViewState(e => {
+      NodeGraphEditorProvider.syncGraphTabContext()
       if (e.webviewPanel.active) {
         NodeGraphEditorProvider._activeWebview = webviewPanel.webview
+        NodeGraphEditorProvider._lastActiveUri = document.uri.toString()
         // Switching back to this tab from another webview (e.g. the Help-opened
         // README preview, itself a webview) doesn't reliably hand DOM keyboard
         // focus back into our iframe the way switching to/from a plain text
@@ -229,6 +299,10 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
       if (NodeGraphEditorProvider._activeWebview === webviewPanel.webview) {
         NodeGraphEditorProvider._activeWebview = null
       }
+      if (NodeGraphEditorProvider._panels.get(document.uri.toString()) === webviewPanel) {
+        NodeGraphEditorProvider._panels.delete(document.uri.toString())
+      }
+      NodeGraphEditorProvider.syncGraphTabContext()
     })
   }
 

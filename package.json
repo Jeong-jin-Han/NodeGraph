@@ -2,7 +2,7 @@
   "name": "nodegraph",
   "displayName": "NodeGraph",
   "description": "Node-based knowledge graph for research paper analysis",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "publisher": "JeongjinHan",
   "icon": "resources/icon-hires.png",
   "repository": {
@@ -66,7 +66,7 @@
         "key": "ctrl+f",
         "mac": "cmd+f",
         "command": "nodegraph.search",
-        "when": "activeCustomEditorId == 'nodegraph.editor'"
+        "when": "nodegraph.graphTabActive || activeCustomEditorId == 'nodegraph.editor' || activeWebviewPanelId == 'nodegraph.editor'"
       }
     ]
   },

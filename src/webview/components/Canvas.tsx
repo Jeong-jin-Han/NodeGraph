@@ -824,7 +824,12 @@ export function Canvas({
   useEffect(() => {
     if (openSearchSignal === 0) return
     setSearchOpen(true)
+    // 확장 쪽이 reveal()로 iframe에 포커스를 넘겨준 직후일 수 있는데, 그 포커스
+    // 전달은 비동기라 첫 focus() 시점엔 아직 iframe이 포커스를 못 받았을 수 있음 —
+    // 짧은 간격으로 재시도해서 타이핑이 바로 검색창에 들어가게 보장.
     setTimeout(() => searchInputRef.current?.focus(), 0)
+    setTimeout(() => searchInputRef.current?.focus(), 120)
+    setTimeout(() => searchInputRef.current?.focus(), 300)
   }, [openSearchSignal])
 
   // 박스 선택에 필요한 최신 상태를 ref로 유지 (전역 mouseup 핸들러에서 stale closure 없이 읽기 위함)
@@ -1407,6 +1412,14 @@ export function Canvas({
   // 캔버스 mousedown: 오른쪽=박스선택(전역 리스너), 왼쪽=뷰포트 pan
   // 전역 document 리스너를 사용하므로 canvas 밖에서 mouseup이 발생해도 선택이 정상 완료됨
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // 빈 배경 클릭으로도 키보드 포커스를 webview로 가져오기 — 좌클릭 패닝(onMouseDown)과
+    // 우클릭 박스 선택이 preventDefault를 호출해서 브라우저의 "클릭하면 포커스 이동"
+    // 기본 동작까지 막히는 바람에, 다른 에디터에서 작업하다 캔버스 빈 곳을 클릭해도
+    // 포커스가 이전 에디터에 남아 Ctrl+F 등이 먹지 않았음(사용자 리포트: 노드를
+    // 클릭해야만 됐음). 사용자 클릭(activation) 중의 명시적 focus()는 iframe 밖에서
+    // 안으로도 포커스를 옮겨준다.
+    window.focus()
+    divRef.current?.focus({ preventScroll: true })
     if (e.button === 2) {
       e.preventDefault()
       const startX = e.clientX, startY = e.clientY

@@ -64,7 +64,9 @@ export function activate(context: vscode.ExtensionContext): void {
   // a keybinding (package.json) that fires this command instead.
   context.subscriptions.push(
     vscode.commands.registerCommand('nodegraph.search', () => {
-      NodeGraphEditorProvider.postToActive({ type: 'openSearch' })
+      // 검색은 입력 포커스가 필수라 postToActive가 아니라 focusActiveAndPost —
+      // 탭만 눌러 활성화된(포커스 없는) 상태에서도 바로 타이핑이 되게.
+      NodeGraphEditorProvider.focusActiveAndPost({ type: 'openSearch' })
     }),
     vscode.commands.registerCommand('nodegraph.fitView', () => {
       NodeGraphEditorProvider.postToActive({ type: 'fitView' })
@@ -76,6 +78,21 @@ export function activate(context: vscode.ExtensionContext): void {
       NodeGraphEditorProvider.postToActive({ type: 'expandAll' })
     }),
     vscode.commands.registerCommand('nodegraph.new', (uri?: vscode.Uri) => createNewGraph(uri))
+  )
+
+  // Ctrl+F keybinding condition. `activeCustomEditorId` alone proved unreliable:
+  // right after clicking the nodegraph tab (keyboard focus still outside the
+  // webview), or after using Ctrl+F in another editor, it could evaluate false —
+  // VS Code's built-in find (whose condition is merely "a text editor is open")
+  // then caught the keystroke and opened find in the OTHER tab (user report). The
+  // tab-group API reflects which tab is actually active the instant it's clicked,
+  // so mirror that into our own context key and bind Ctrl+F to it.
+  const syncGraphTabContext = () => NodeGraphEditorProvider.syncGraphTabContext()
+  syncGraphTabContext()
+  context.subscriptions.push(
+    vscode.window.tabGroups.onDidChangeTabs(syncGraphTabContext),
+    vscode.window.tabGroups.onDidChangeTabGroups(syncGraphTabContext),
+    vscode.window.onDidChangeActiveTextEditor(syncGraphTabContext),
   )
 
   // Generate .agent/nodegraph/ENVIRONMENT.md so AI agents know what tools are available
