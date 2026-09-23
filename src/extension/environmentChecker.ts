@@ -242,7 +242,11 @@ export async function syncPromptTemplates(extensionUri: vscode.Uri, targetFolder
     for (const kind of ['paper', 'lecture', 'code']) {
       const kindOutDir = vscode.Uri.joinPath(outDir, kind)
       await vscode.workspace.fs.createDirectory(kindOutDir)
-      for (const name of ['korean.md', 'english.md']) {
+      // 파일명을 고정 목록으로 두면 프롬프트를 새로 추가해도(예: *-hierarchical.md)
+      // 워크스페이스로 영영 복사되지 않는다 — 번들된 폴더를 그대로 읽어서 옮긴다
+      const entries = await vscode.workspace.fs.readDirectory(vscode.Uri.joinPath(bundledDir, kind))
+      for (const [name, type] of entries) {
+        if (type !== vscode.FileType.File || !name.endsWith('.md')) continue
         const content = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(bundledDir, kind, name))
         await vscode.workspace.fs.writeFile(vscode.Uri.joinPath(kindOutDir, name), content)
       }
