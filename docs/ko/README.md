@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white&style=for-the-badge" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-1.0.10-orange?style=for-the-badge" alt="Version 1.0.10" />
+  <img src="https://img.shields.io/badge/version-2.0.0-orange?style=for-the-badge" alt="Version 2.0.0" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=for-the-badge" alt="MIT License" />
 </p>
 
@@ -83,7 +83,12 @@ And since you don't always want to be inside VS Code to revisit your own notes, 
 | **Overlap-free hop layout** | Bottom-up/top-down auto-layout keyed to each main-topic's hop tree — expanding a node only grows its own branch, never disturbs siblings |
 | **Smart wire routing** | A*-routed backbone wires that keep clear of node borders and spread apart when several share an endpoint; hop-child wires are direct straight lines anchored to the correct side |
 | **PDF quote-jump** | Right-click an original-text quote to open the source PDF, jump to the page, and highlight the matching sentence |
-| **Ctrl+F search** | BFS-ordered dropdown over titles, content, original text, and toggle sections, with inline match highlighting |
+| **Ctrl+F search** | Two modes, toggled like VS Code's find widget: `Aa` searches titles, content, original text and toggles with inline match highlighting; `#` searches by **node number** and accepts `17`, `17 19`, `17-20` |
+| **Node numbers** | Every node shows its number (`#17`) in the header, visible even when folded — so "I added #17" is something you can jump to in two keystrokes |
+| **Hierarchy folding** | Right-click a node to hide or show its *descendants* (a different axis from folding a node's own body). Four scopes each way — one level, this level, all below, everything — plus undo. A folded node shows a `+N` badge |
+| **Levels control** | One click decides how much of the graph is on screen: `1` is the backbone alone, `2` adds the next layer, `All` shows everything |
+| **Outline panel** | A left-hand table of contents listing the selected node's direct children in reading order, including folded ones. Click to drill down, breadcrumb to walk back up |
+| **Edit this node** | Right-click → one click turns the whole card into editors at once: title, tag and content together |
 | **Debug grid** | One-click overlay of hop-level and main-topic-cluster boundaries for visually spotting layout issues |
 | **HTML export** | A self-contained, interactive standalone viewer — search, highlighting, and layout included |
 | **Agent-friendly** | A machine-readable spec (`.agent/nodegraph/SPEC.md`) so AI agents can read and write graphs directly |
@@ -228,7 +233,9 @@ The `demo/ex4` run above was recorded on **v0.6.3**, using `NodeGraph: Copy Agen
 | Action | Control |
 |--------|---------|
 | **Fold / Unfold content** | **Click node title** |
-| **Edit node title** | **Right-click node title** |
+| **Edit the whole node** | **Right-click anywhere on the node → `Edit this node`** — title, tag and content all become editable at once. A round ✕ just outside the top-right corner (or `Esc`) commits and leaves |
+| **Rename quickly** | **Double-click node title** |
+| **Hide / show descendants** | **Right-click anywhere on the node** → the fold section: `children` (one level), `this level`, `all below`, `everything`, each with a matching collapse, plus `Undo last fold change` |
 | Edit content / original | Click text area |
 | **Search original quote in PDF** | **Right-click the original-text quote** (requires `source.pdf`) |
 | Add image | Copy an image, then `Ctrl+V` with the node selected or hovered — inserted as an `[[IMG:...]]` token; pasting on the background creates a floating canvas image, which can be dragged onto a node or table cell |
@@ -248,6 +255,8 @@ The toolbar is two rows — editing controls on top, view/graph-navigation contr
 | View | Collapse / Expand | Fold/unfold the selected subtree, or everything when nothing is selected — collapsing *everything* also auto-runs Fit View |
 | View | Node-type filter (next to Collapse/Expand) | When set to a type instead of `None`: `Collapse` closes everything, `Expand` opens only that type's nodes and closes the rest |
 | View | Fit View | Zoom to fit all nodes |
+| View | Levels `1 2 3 All` | How many levels to show at once — `1` is the backbone alone. Only as many buttons appear as the graph has depth; using the right-click fold menu afterwards clears the highlight |
+| View | Outline | Toggle the left-hand table of contents (off by default) |
 | View | Grid | Toggle the layout debug grid (hop-level vertical lines, main-topic-cluster horizontal lines) |
 | View | Export HTML | Write `<name>.html` next to the JSON |
 | View | Reload | Re-read the JSON from disk |
@@ -260,12 +269,13 @@ When the window is narrower than the toolbar content, both rows slide horizontal
 | Action | Control |
 |--------|---------|
 | Open search | `Ctrl+F` (or `Cmd+F` on Mac) |
+| Switch mode | `Aa` (text) / `#` (node number) buttons in the search box |
 | Close search | `Escape` or ✕ button |
 | Navigate results | `↑` / `↓` — moves dropdown highlight **and** flies viewport to that node |
 | Select node | `Enter` — expands selected node, collapses other matches |
 | Reopen after select | Click search input — resumes from last selected position |
 
-Matched text inside each node is additionally marked (inverse template color + underline), so you can see *where* in the node the query appears — in the editor and in the exported HTML.
+In `#` mode a hidden node still matches, and selecting it expands its ancestors so it actually appears. Matched text inside each node is additionally marked (inverse template color + underline), so you can see *where* in the node the query appears — in the editor and in the exported HTML.
 
 </details>
 

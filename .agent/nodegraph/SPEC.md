@@ -23,8 +23,44 @@ When the user says **"apply NodeGraph"** (or the Korean equivalent, **"NodeGraph
 
 **One-sentence goal (code)**: Find how this codebase actually works, and structure it so a new contributor can navigate it confidently in under 5 minutes.
 
-**Writing principles** (apply throughout):
-- **Top-down writing, never bottom-up (두괄식)**: Every node's `content` is written top-down — open with the single most important claim, conclusion, or number (the one sentence the reader must take away), then the explanation and evidence behind it. Put that first sentence's key phrase in `**bold**`. Bottom-up writing — starting from background, definitions, or "the paper says…" run-ups and building toward the point — is not allowed; a reader skimming only each node's first line should still get the whole story. The same rule applies to `toggleItems[].content`.
+---
+
+## Writing principles
+
+> **The test a graph has to pass is not "is this readable".**
+> It is **"is reading this faster than reading the source directly?"**
+> A graph that takes longer to understand than the thing it explains has failed, however complete it is.
+> Two symptoms mean it failed: titles that name a topic instead of saying something, and nodes so long
+> that the reader gives up and asks a question instead.
+
+The eight principles below are **constructive** — it is easy to check whether a node satisfies one, and
+when it does not, the principle itself says what to change. That is the bar for being in this list;
+uncheckable advice ("be clear", "omit needless words") is deliberately absent. Run the **Check** column
+node by node before finishing (the **Post-edit checklist** repeats them).
+
+| # | Principle | What it means for a node | Check |
+|---|-----------|--------------------------|-------|
+| 1 | **Canonical reader** | Before writing anything, fix **one concrete reader**: someone real, with the *minimum* expertise you expect — "a 4th-year undergrad who has used gem5 SE mode but never read a cache model", not "a technical audience". Write every node as if explaining it to them at a whiteboard. Record them in top-level `conventions.reader`. | Does any node use a term this reader does not know, without glossing it? |
+| 2 | **A title is a falsifiable claim** | The title says something that **could turn out to be wrong**. `개요`, `구조`, `Overview`, `Architecture` cannot be wrong, so they carry no information — the reader has to open the node to learn anything. `모듈 넷, 그중 직접 쓴 것은 수신기 하나` can be wrong, so it informs. The template badge already shows the node's *role*; the title spends its ~30 characters on the *claim*. Put a subtitle after ` — ` if one is needed. | Could this title turn out to be wrong? If it cannot, rewrite it. |
+| 3 | **One landmark** | The graph has **one sentence** naming what it is about, visible from everywhere — the problem and the answer, together. Record it in `conventions.landmark`. Every node must earn its place against it. | Can you say in one clause how this node serves the landmark? If not, delete the node. |
+| 4 | **One node, one point — and the point comes first (두괄식)** | A node carries exactly **one point, stated in one sentence, at the top**, with its key phrase in `**bold**`; the rest of the node is the evidence for that sentence. If one sentence cannot cover the whole node, the node holds two points and must be split. Never build up to the point through background, definitions, or "the paper says…" run-ups. Same rule for `toggleItems[].content`. | Does one point sentence cover the whole node? Does the node open with it? |
+| 5 | **Old to new** | A child node's first sentence **starts from wording the parent already used** and ends on what is new. This is what makes a path through the graph read as one argument instead of a pile of notes. | Does the first sentence start from something the parent already said? |
+| 6 | **Name your baby** | Every recurring thing gets **one name**, used identically in every title and body. Two names for one thing is the most common reason a reader stops and asks a question. | Does anything in this graph appear under two names? |
+| 7 | **Just in time, and layer by audience** | Put background and definitions **in the node that needs them**, at the hop where they are needed — never front-loaded into the overview, where the reader cannot use them yet. Each layer has a different audience: **backbone = everyone, hop 1 = the interested reader, hop 2+ = the few who need the mechanism.** | Is every piece of information in this node used *in* this node? Do the backbone and hop-1 nodes **alone** tell the whole story? |
+| 8 | **Cut, then cut again** | When the graph feels finished, make a **shortening pass** over every node — a required second pass, not an optional polish. Cut run-ups, cut anything a *different* node already says, and collapse repeated examples into **one running example** reused across the graph. The pass is mandatory; the amount is not a quota. Drafts written slide-style from the start typically shed 10–20%; a first draft written like a document sheds far more. **Never delete evidence to hit a number** — if the only way to cut further is to remove a fact the graph needs, you are done. | Did you run the pass, and can you name what it removed? Is the same fact stated in two nodes? Is there more than one example for the same idea? |
+
+> **The cause of verbose nodes has a name: writing each node to be readable on its own.**
+> A node is a **slide, not a document**. Completeness is the job of the *path* through the graph, not of
+> any single node. When a node grows because you wanted it to stand alone, that is the bug — split it,
+> or let the parent carry the context.
+
+These are judging criteria, not style advice: a graph that fails #2 or #7 is not "a bit rough", it is
+not usable for its purpose. (Sources: Benjamin C. Pierce, *The Curse of Knowledge*, PLMW 2017 —
+canonical reader, landmark, falsifiable contributions, running example, the shortening pass; Derek
+Dreyer, *How to Write Papers and Give Talks That People Can Follow*, PLMW@ICFP 2017 — one point per
+unit, old-to-new, name your baby, just in time, audience layering, and the "readable on its own" trap.)
+
+**Other conventions** (apply throughout):
 - **Bilingual glossing**: When writing content in Korean, include the English term alongside key technical expressions, so readers never have to guess what the original English term was (see **Language rules** below for the exact convention and example).
 - **Not limited to one Killer Application**: Papers often have more than one remarkable contribution. Capture all of them (see Step 2).
 - **Prefer display-block math**: Prefer `$$...$$` block math over `$...$` inline for formulas. Use inline only for short symbols inside a sentence (see Step 5).
@@ -38,7 +74,10 @@ When the user says **"apply NodeGraph"** (or the Korean equivalent, **"NodeGraph
 ### Step 0 — Setup
 1. Read `.agent/nodegraph/ENVIRONMENT.md` to know which PDF/image tools are available.
 2. Identify the target file: `<name>.nodegraph.json` (create it if it does not exist).
-3. If the JSON already exists, read it first so you don't clobber existing work.
+3. If the JSON already exists, read it first so you don't clobber existing work — **including its
+   top-level `conventions` field, which is binding for every node you add** (see **`conventions`**).
+   If you are only adding nodes to a graph that already exists, `conventions` plus the
+   **Writing principles** table is enough; you do not have to re-read the rest of this document.
 
 ### Step 1 — Read the PDF
 - Read the **entire PDF** (all pages; chunk if >20 pages).
@@ -58,21 +97,33 @@ Do not force weak contributions into the list — only include what is genuinely
 
 ### Step 3 — Build the backbone (5 nodes)
 
-Create exactly **5 backbone `main_topic` nodes** at `x: 0`, spaced `y: 300` apart:
+Create exactly **5 backbone `main_topic` nodes**, positioned per **Position guidelines** below (`x: 0`, 600px apart vertically):
 
-| # | Node title (Korean file) | Node title (English file) | What to put in `content` |
-|---|-------------------------|---------------------------|--------------------------|
-| 1 | **Killer Application** | **Killer Application** | The problem(s) solved and why remarkable. Be concrete and specific. |
-| 2 | **필요한 이유 (Why)** | **Why It's Needed** | What existing approaches fail to do, and why. Include key limitation equations in KaTeX. |
-| 3 | **해결책 (Solution)** | **Solution** | The core technical contribution. Key equations in KaTeX, architecture description. Embed architecture diagram image if available. |
-| 4 | **결과 (Results)** | **Results** | Quantitative evidence. Benchmark tables in Markdown. Embed performance charts as images. |
-| 5 | **결론 (Conclusion)** | **Conclusion** | What this enables. Future directions, limitations, broader impact. |
+The five **slots** are fixed. The five **titles** are not — you write them fresh for this paper.
+
+| # | Slot (fixed role — **never** the title) | What the `title` must claim | What to put in `content` |
+|---|---|---|---|
+| 1 | Killer Application | The specific thing this paper does that nobody did before | The problem(s) solved and why remarkable. Be concrete and specific. |
+| 2 | Why | The actual reason existing work could not do it | What existing approaches fail to do, and why. Include key limitation equations in KaTeX. |
+| 3 | Solution | The mechanism, in one claim | The core technical contribution. Key equations in KaTeX, architecture description. Embed architecture diagram image if available. |
+| 4 | Results | What the numbers actually establish | Quantitative evidence. Benchmark tables in Markdown. Embed performance charts as images. |
+| 5 | Conclusion | What this now makes possible | What this enables. Future directions, limitations, broader impact. |
+
+> ⚠️ **Do not use the slot names as titles.** `Killer Application`, `필요한 이유 (Why)`,
+> `해결책 (Solution)`, `결과 (Results)`, `결론 (Conclusion)` are role labels for *you*, and they all
+> fail Writing principle 2 — none of them could be wrong, so the reader learns nothing from the
+> backbone until they open all five nodes. The slot name belongs nowhere in the JSON; if a reader
+> would be lost without it, put it in the first words of `content`, not in `title`.
+>
+> For *Attention Is All You Need*, slot 3 is not `해결책 (Solution)` but
+> `어텐션만으로 문장을 한 번에 본다 — 순환을 지운다`. Slot 4 is not `결과 (Results)` but
+> `BLEU는 올라가고 학습 시간은 1/4로`.
 
 **Graph language**: Write the whole graph in Korean or entirely in English — both are fully supported. Follow the user's request; if unspecified, default to Korean with English terms alongside (per **Language rules**). For an English-only graph, use the English column titles and skip the bilingual-glossing rule.
 
 Connect backbone nodes in sequence with `arrow` edges (1→2→3→4→5).
 
-### Step 4 — Add sub-nodes (x: 500–550)
+### Step 4 — Add sub-nodes
 
 For each backbone node, add **sub-nodes branching to the right**. Use the appropriate template:
 
@@ -85,7 +136,7 @@ For each backbone node, add **sub-nodes branching to the right**. Use the approp
 | Related prior work | `reference` (rounded) | Papers the PDF itself cites as baselines or inspirations — only what's actually in the paper's own citations/discussion, never a paper you recall from general knowledge that the PDF doesn't mention. Add a `links` entry (arXiv/DOI URL) when you have one; if you don't have a verifiable link, still only include it if the PDF names it, and say so in `content` instead of inventing a link |
 | Design decision memo | `memo` (rounded) | Choices that seem arbitrary but have a reason |
 
-Space sub-nodes at ~`y: 150` intervals around their parent's y-center, at `x: 500`.
+Position sub-nodes per **Position guidelines** below — hop 1 at `parent.x ± 750`, hop 2+ 750px further in the same direction. Do not invent your own offsets.
 
 Connect each sub-node to its parent backbone node with a `line` edge.
 
@@ -126,6 +177,16 @@ For every backbone node, add the verbatim quote from the PDF that best supports 
 **The page number in `location` must be correct** — right-clicking `original.text` in the editor jumps the built-in PDF viewer to that page (parsed from `p.N`) and highlights the matching sentence. A wrong page number sends the user to the wrong place. This feature requires the graph's top-level `source.pdf` to be set (see Top-level schema below).
 
 ### Step 7 — Finalize
+- **Run the shortening pass (Writing principle 8).** Go back over every node you wrote and cut.
+  This is a required second pass, not a polish — the first draft of a node is always written to
+  stand alone, and that is exactly the habit that makes a graph slower to read than the source.
+  Cut run-ups, delete anything another node already says, collapse repeated examples into the one
+  running example, and move background down to the node that actually needs it. Report what the
+  pass removed. **Do not delete evidence to hit a percentage** — there is no quota.
+- **Run the Check column** of the **Writing principles** table over every node, then the
+  **Post-edit checklist**.
+- **Write or refresh top-level `conventions`** (`reader`, `landmark`, `example`, `names`, `checks`)
+  so the next agent to add a node inherits the rules — see **`conventions`**.
 - Update `"modified"` to the current ISO 8601 timestamp.
 - Tell the user: **"Click Reload in the editor toolbar to see the updated graph."**
 
@@ -141,7 +202,8 @@ remarkable" to "what is the flow of this lecture".
 
 ### Step 0 — Setup
 Same as the PDF workflow (read `.agent/nodegraph/ENVIRONMENT.md`, identify/create
-`<name>.nodegraph.json` next to the slides PDF, set top-level `source.pdf`).
+`<name>.nodegraph.json` next to the slides PDF, set top-level `source.pdf`, and read an existing
+file's `conventions` before touching it).
 
 ### Step 1 — Read the slide deck
 - Read **every slide** (chunk if >20 pages). Expect far less text per page than a
@@ -160,18 +222,22 @@ not just list topics.
 
 Unlike the paper workflow's fixed 5 nodes, the backbone mirrors **the lecture's own
 section structure**: one `main_topic` node per major section, in teaching order
-(typically 4–8 nodes), at `x: 0`, spaced `y: 300` apart.
+(typically 4–8 nodes), positioned per **Position guidelines** below (`x: 0`, 600px apart vertically).
 
 - **The first backbone node is always an overview node** — the lecture's topic,
   learning goals, and prerequisites (from the title/agenda slides, or inferred).
-- Each section node's title carries the section name; note the slide range in
-  `content` (e.g. "slides 12–27") so the reader can map graph → deck at a glance.
+- **The deck's section name is the slot, not the title.** Follow the deck's sections for
+  *structure*, but do not copy a section heading into `title` — lecture headings are topic
+  words (`Caches`, `Dynamic Programming`, `정렬`) and they fail Writing principle 2. The title
+  says what that section **establishes**: not `Caches` but `지역성이 있으면 작은 메모리가 큰 메모리처럼 보인다`.
+  Put the section name and the slide range in `content`'s first line (e.g. "Caches, slides 12–27")
+  so the reader can still map graph → deck at a glance.
 - Do not invent sections — if the deck has divider slides or an agenda, follow them;
   only fall back to your own segmentation when the deck provides none.
 
 Connect backbone nodes in sequence with `arrow` edges.
 
-### Step 4 — Add sub-nodes (x: 500–550)
+### Step 4 — Add sub-nodes
 
 For each section, add sub-nodes branching to the right. Use the appropriate template
 (see the lecture default set under **`nodeTemplates`**):
@@ -211,7 +277,8 @@ Two lecture-specific notes:
   the reader on the right slide.
 
 ### Step 7 — Finalize
-Same as the PDF workflow (update `"modified"`, tell the user to hit Reload).
+Same as the PDF workflow — shortening pass, Check column, write `conventions`, update `"modified"`,
+tell the user to hit Reload.
 
 ---
 
@@ -219,7 +286,10 @@ Same as the PDF workflow (update `"modified"`, tell the user to hit Reload).
 
 ### Step 0 — Setup
 1. Identify the target file: `<repo-name>.nodegraph.json` (create it if it does not exist), saved directly inside the codebase's root folder (the same folder the user pointed you at — call it `PROJECT_FOLDER`). This matters because every `code`-type link (Step 6) resolves relative to wherever this JSON file lives, the same way `pdf`-type links already resolve relative to the JSON's own directory in the PDF workflow.
-2. If the JSON already exists, read it first so you don't clobber existing work.
+2. If the JSON already exists, read it first so you don't clobber existing work — **including its
+   top-level `conventions` field, which is binding for every node you add** (see **`conventions`**).
+   If you are only adding nodes to a graph that already exists, `conventions` plus the
+   **Writing principles** table is enough; you do not have to re-read the rest of this document.
 
 ### Step 1 — Read the codebase
 - Walk the directory tree from `PROJECT_FOLDER` down, respecting `.gitignore` (skip `node_modules/`, build output, lockfiles, etc. — they're not architecture).
@@ -233,21 +303,33 @@ This becomes the framing of the first backbone node. Not a generic description l
 
 ### Step 3 — Build the backbone (5 nodes)
 
-Create exactly **5 backbone `main_topic` nodes** at `x: 0`, spaced `y: 300` apart:
+Create exactly **5 backbone `main_topic` nodes**, positioned per **Position guidelines** below (`x: 0`, 600px apart vertically):
 
-| # | Node title (Korean file) | Node title (English file) | What to put in `content` |
-|---|---------------------------------------|-----------------------------------|--------------------------|
-| 1 | **개요 (Overview)** | **Overview** | What this project does and the core idea that makes it work, in a sentence or two. Be concrete and specific, not a generic tagline. |
-| 2 | **구조 (Architecture)** | **Architecture** | The major components/layers and how they fit together (e.g. extension host vs. webview, frontend vs. backend). A short table of components is welcome here. |
-| 3 | **핵심 구현 (Core Implementation)** | **Core Implementation** | The specific mechanisms that make the system work — the interesting algorithms, data structures, or protocols. Most `code`-type `links` (Step 6) belong on the sub-nodes under this backbone node. |
-| 4 | **데이터/제어 흐름 (Data & Control Flow)** | **Data & Control Flow** | How a request/event/action actually moves through the system end to end — e.g. "user clicks X → message posted to extension host → file written → webview re-rendered." |
-| 5 | **설계 결정과 주의사항 (Design Decisions & Gotchas)** | **Design Decisions & Gotchas** | Non-obvious choices and constraints a new contributor needs to know before touching the code — the things that aren't written in any single file's comments. |
+The five **slots** are fixed. The five **titles** are not — you write them fresh for this codebase.
+
+| # | Slot (fixed role — **never** the title) | What the `title` must claim | What to put in `content` |
+|---|---|---|---|
+| 1 | Overview | What this codebase does, as one claim | What this project does and the core idea that makes it work, in a sentence or two. Be concrete and specific, not a generic tagline. |
+| 2 | Architecture | The shape of the system, stated so it could be wrong | The major components/layers and how they fit together (e.g. extension host vs. webview, frontend vs. backend). A short table of components is welcome here. |
+| 3 | Core Implementation | The one mechanism that makes it work | The specific mechanisms that make the system work — the interesting algorithms, data structures, or protocols. Most `code`-type `links` (Step 6) belong on the sub-nodes under this backbone node. |
+| 4 | Data & Control Flow | The path one event actually takes | How a request/event/action actually moves through the system end to end — e.g. "user clicks X → message posted to extension host → file written → webview re-rendered." |
+| 5 | Design Decisions & Gotchas | The thing that will surprise a newcomer | Non-obvious choices and constraints a new contributor needs to know before touching the code — the things that aren't written in any single file's comments. |
+
+> ⚠️ **Do not use the slot names as titles.** `개요 (Overview)`, `구조 (Architecture)`,
+> `핵심 구현 (Core Implementation)`, `데이터/제어 흐름`, `설계 결정과 주의사항` are role labels for
+> *you*. They all fail Writing principle 2 — none of them could be wrong, so a reader scanning the
+> backbone learns nothing until they open all five. The slot name belongs nowhere in the JSON; if a
+> reader would be lost without it, put it in the first words of `content`, not in `title`.
+>
+> For a UART receiver assignment, slot 2 is not `구조 (Architecture)` but
+> `모듈 넷, 그중 직접 쓴 것은 수신기 하나`. Slot 3 is not `핵심 구현` but
+> `레지스터 다섯으로 돈다 — FSM은 결국 \`bit_counter\``.
 
 **Graph language**: same rule as the PDF workflow — write the whole graph in Korean or entirely in English, following the user's request (default to Korean with English terms alongside per **Language rules** if unspecified).
 
 Connect backbone nodes in sequence with `arrow` edges (1→2→3→4→5).
 
-### Step 4 — Add sub-nodes (x: 500–550)
+### Step 4 — Add sub-nodes
 
 For each backbone node, add **sub-nodes branching to the right**. Use the appropriate template:
 
@@ -281,7 +363,7 @@ instead of mixing both concerns in one:
   sentence inside its module node. The pair is for the handful of elements a new
   contributor must actually understand.
 
-Space sub-nodes at ~`y: 150` intervals around their parent's y-center, at `x: 500`. Same **hop-based positioning rule** as the PDF workflow — see **Position guidelines** below.
+Position sub-nodes per **Position guidelines** below — hop 1 at `parent.x ± 750`, hop 2+ 750px further in the same direction. Do not invent your own offsets.
 
 Connect each sub-node to its parent backbone node with a `line` edge.
 
@@ -306,6 +388,16 @@ For nodes describing a specific piece of code, add the verbatim snippet the same
 **Unlike the PDF workflow, `original.location` alone does not drive navigation for code** — there is no page-search mechanism to parse it. One-click navigation comes entirely from a `links` entry of `"type": "code"` (see **NodeLink schema** below). Add one to every node that references a real location in the code, with `target` as a path relative to this JSON file's own directory, in the form `path/to/file.ts`, `path/to/file.ts:42` (a single line), or `path/to/file.ts:42-58` (an inclusive range).
 
 ### Step 7 — Finalize
+- **Run the shortening pass (Writing principle 8).** Go back over every node you wrote and cut.
+  This is a required second pass, not a polish — the first draft of a node is always written to
+  stand alone, and that is exactly the habit that makes a graph slower to read than the source.
+  Cut run-ups, delete anything another node already says, collapse repeated examples into the one
+  running example, and move background down to the node that actually needs it. Report what the
+  pass removed. **Do not delete evidence to hit a percentage** — there is no quota.
+- **Run the Check column** of the **Writing principles** table over every node, then the
+  **Post-edit checklist**.
+- **Write or refresh top-level `conventions`** (`reader`, `landmark`, `example`, `names`, `checks`)
+  so the next agent to add a node inherits the rules — see **`conventions`**.
 - Update `"modified"` to the current ISO 8601 timestamp.
 - Tell the user: **"Click Reload in the editor toolbar to see the updated graph."**
 
@@ -319,6 +411,7 @@ For nodes describing a specific piece of code, add the verbatim snippet the same
   "title": "Paper Title",       // display name shown in the UI
   "created": "2026-07-06T00:00:00.000Z",   // ISO 8601; set once on creation, never change again
   "modified": "2026-07-06T12:00:00.000Z",  // ISO 8601; UPDATE after EVERY edit session
+  "conventions": { ... },       // required on graphs you create — see "conventions" below
   "source": {                   // optional — paper / document metadata (PDF workflow only)
     "pdf": "paper.pdf",
     "authors": "Vaswani et al.",
@@ -337,7 +430,54 @@ For nodes describing a specific piece of code, add the verbatim snippet the same
 `source` is specific to the PDF workflow (`source.pdf` is what makes right-click-to-jump-to-page work — see Step 6 of that workflow). Code graphs have no equivalent top-level field to set and should just omit `source` entirely — `code`-type links (see **NodeLink schema**) carry their own path, so no top-level pointer is needed.
 
 Required top-level fields: `version`, `title`, `created`, `modified`, `nodeTemplates`, `nodes`, `edges`, `viewport`.
+Also required on any graph you create: `conventions` (see below).
 Optional: `source`, `canvasImages`.
+
+---
+
+## `conventions` — the rules travel with the graph
+
+> **Why this field exists.** A graph is rarely written once. Most nodes get added later, one at a
+> time, in answer to a question — and by then the agent adding them has usually lost this document
+> from its context, so the new nodes quietly stop following it. Re-reading all of `SPEC.md` for a
+> single node is far too expensive to do every time. So the rules that must survive live **inside
+> the graph file itself**: adding a node means reading that file, which means the rules arrive for
+> free, and there is no path by which they can be forgotten.
+
+```jsonc
+"conventions": {
+  "spec": ".agent/nodegraph/SPEC.md",
+  "reader": "A 4th-year CS undergrad who has used gem5 SE mode but never read a cache model",
+  "landmark": "One sentence: the problem this graph is about, and the answer.",
+  "example": "The one running example reused across the graph (omit if there isn't one).",
+  "names": { "the delay register": "serial_in_d" },
+  "checks": [
+    "Title is a claim that could be wrong — never a topic word like 개요/구조/Overview.",
+    "The node opens with its one point sentence, key phrase in **bold**.",
+    "One point sentence covers the whole node; if not, split the node.",
+    "First sentence starts from wording the parent node already used.",
+    "Every name matches conventions.names — one thing, one name.",
+    "Background sits in the node that needs it, not front-loaded upstream.",
+    "Backbone + hop-1 nodes alone still tell the whole story.",
+    "The node was cut, not written to stand alone. A node is a slide, not a document.",
+    "Nothing outside the source was invented; unverifiable points are left unwritten or carry a real link."
+  ]
+}
+```
+
+Rules for this field:
+
+- **Write it when you create the graph**, from the **Writing principles** above: `reader` is
+  principle 1, `landmark` is principle 3, `example` is principle 8, `names` is principle 6, and
+  `checks` is the Check column, compressed. Keep `checks` under ~12 lines — it is read on every
+  later edit, so its size is a recurring cost.
+- **Read it before adding or editing any node**, and obey it. It is the authority for this specific
+  graph; `conventions.spec` points at the full document if you need a rule it does not cover.
+- **Keep it true.** If the graph's landmark changes or a thing gets renamed, update this field in
+  the same edit — a stale `conventions` is worse than none, because later agents will trust it.
+- `names` is for things that were *at risk* of getting two names, not a glossary of everything.
+- The editor and the HTML export **ignore this field entirely** — it never renders, and it survives
+  save/reload untouched. It exists for agents, not readers.
 
 ---
 
@@ -421,7 +561,9 @@ All three sets are just the recommended defaults — `nodeTemplates` is data ins
   ],
   "contentExpanded": false,     // whether the content panel is open (default false)
   "originalExpanded": false,    // whether the original-quote panel is open (default false)
-  "childrenExpanded": false,    // required field, but currently has no effect on rendering — always set false
+  "childrenExpanded": false,    // required field; still has no effect on rendering — always set false.
+                                // Hierarchy folding (hiding descendants) now exists in the UI, but it is
+                                // session state, not read from or written to this field. See below.
   "position": { "x": 400, "y": -60 },
   "children": [],               // list of child node IDs (for tree structure)
   "links": [],                  // NodeLink array — see below; use [] if empty
@@ -430,6 +572,18 @@ All three sets are just the recommended defaults — `nodeTemplates` is data ins
   "nodeHeight": null            // optional — user-set minimum height in px
 }
 ```
+
+### Hierarchy folding is a view, not data
+
+The editor and the exported HTML can hide a node's descendants (right-click the tag badge — see
+**Editor interaction**). That fold state lives **only in the open view**: it is not read from
+`childrenExpanded`, not written back to the file, and not carried by the HTML export. Opening a
+graph always shows every node.
+
+This is deliberate. Every graph written so far has `childrenExpanded: false` on every node, so
+honoring the field would make existing files open with nothing but the backbone visible. Keep
+writing `false`; if you want a reader to start from the backbone, say so in your message ("collapse
+everything, then expand #3") rather than trying to encode it in the file.
 
 ### Fields NOT to set manually
 
@@ -547,6 +701,59 @@ Always use the **next available number**. IDs must be unique within the entire f
 > keep writing zero-padded IDs, but must tolerate both forms when reading a file.
 > Uniqueness is the only hard requirement.
 
+### Two shapes: flat and hierarchical
+
+The same paper can be laid out two ways, and the choice changes how the graph is read.
+
+| | **Flat** (default) | **Hierarchical** |
+|---|---|---|
+| Shape | 5 backbone nodes, everything else hanging directly off them | 5 backbone nodes, then 3–4 more levels of narrowing detail |
+| Fan-out | a backbone node may carry 5–8 children | **at most 4 direct children per node, anywhere** |
+| Depth | 1–2 hops | **3 or more hops** |
+| Good for | short papers, a graph you will read straight through | anything you will come back to and ask questions of |
+| `Levels 2` shows | almost everything, so the control barely helps | a genuine middle layer |
+
+**Why fan-out is the rule that matters.** Depth alone does nothing if one node carries 19 children —
+the reader still meets 19 things at once, which is the problem the levels control and folding exist to
+solve. Cap the fan-out and the depth follows on its own.
+
+**Building hierarchical:**
+- **At most 4 direct children per node.** If a node needs a fifth, group two of them under a new
+  intermediate node that names what they have in common — that name is usually a real insight.
+- **Aim for depth 3–5.** A 30-node graph should land near 5 / 12 / 9 / 4 across the levels, not 5 / 19 / 6.
+- **Fill `children`.** In a flat graph the edges carry the tree well enough; in a deep one, state it.
+- **Each level answers a different question.** Backbone: what is this. Level 2: what are its parts.
+  Level 3: how does each part work. Level 4: the case, the number, the exception.
+- **A parent must read on its own.** Someone who stops at level 2 and never opens level 3 should still
+  have a correct, if coarser, understanding. This is Writing principle 7 applied to the tree.
+- **Report the shape when you finish**: the count at each depth and the largest fan-out. If any node
+  has more than 4 children, say so rather than leaving it to be discovered.
+
+### Reading order is the layout, so place nodes in the order you want them read
+
+The outline panel and the search dropdown both list nodes **top to bottom by `y`** within a
+parent. That ordering is not a separate field you set — it falls out of `position.y`. So when
+a node's children have a natural reading order (steps of a flow, cases of a failure, stages of
+an argument), **give them ascending `y` in that order**. A reader following the outline from
+top to bottom is following the order you laid out, whether or not they ever look at the canvas.
+
+`children` does not have to be populated for this: the outline derives the tree from `children`
+**or** the edges, the same way the layout and the search ordering do. Filling `children` is still
+worth doing when the tree is not obvious from edges alone.
+
+### The node number is the id's number — use it when you talk to the user
+
+The editor and the exported HTML print each node's number in its header (`#17` for
+`node_017`), and that badge stays visible when the node is folded. `Ctrl+F`'s `#` mode
+searches by exactly that number.
+
+So when you report what you did, **name nodes by number, not by title or id**: "added #17
+under #3" is something the user can jump to in two keystrokes, while "added a node about
+the tile rasterizer" makes them hunt for it. Ranges work too, so "#19-22" is a valid thing
+to say after adding four nodes. This is the whole reason node ids are numeric — keep
+writing `node_NNN` with the next available number so the numbering stays dense and
+predictable.
+
 ---
 
 ## Content syntax
@@ -562,6 +769,7 @@ Different fields have different rendering capabilities:
 | KaTeX inline `$...$` | ✅ | ✅ |
 | KaTeX block `$$...$$` | ✅ | ✅ |
 | Markdown table | ✅ | ✅ |
+| Markdown list (`- ` / `1. `) | ✅ | ✅ |
 | `[[IMG:filename:WxH]]` | ✅ | ✅ |
 | `**bold**` | ✅ | ✅ |
 
@@ -583,6 +791,12 @@ Different fields have different rendering capabilities:
 > ⚠️ **Never use Unicode math characters.** Always use KaTeX syntax instead.
 > The renderer only processes `$...$` and `$$...$$` blocks — Unicode symbols outside these
 > blocks appear as raw characters and look inconsistent or broken.
+>
+> **Exception — `original.text` wins.** A quote must stay verbatim (Step 6), so when the source
+> sentence itself contains `α`, `Σ`, `≥`, `×` or similar, **copy it exactly and leave the symbol
+> alone**. Do not rewrite a quote into KaTeX, and do not pick a weaker sentence just to dodge a
+> character. The no-Unicode rule governs text *you* write — `title`, `content`, `toggleItems[]` —
+> where you always have the choice.
 
 > 💲 **Literal dollar signs (currency) must be escaped as `\$`** — e.g. `**\$4.28/GB**`.
 > A bare `$` opens an inline-math region and swallows the text up to the next `$`,
@@ -635,6 +849,49 @@ Surround block math with a blank line on each side for clean rendering.
 
 ---
 
+### Markdown lists
+
+> **If you are enumerating things, write a list. Never run the items together in one paragraph.**
+
+```
+1. First item
+2. Second item
+3. Third item
+```
+```
+- First item
+- Second item
+```
+
+- Ordered (`1.` or `1)`) and unordered (`-`, `*`, `+`) both render as real `<ol>` / `<ul>`,
+  with hanging indent and spacing between items.
+- **Each item goes on its own line** — in a JSON string that means a real `\n` between them.
+- The first number is honored: a list starting at `5.` renders starting at 5.
+- Indent by two spaces to nest one level deeper. Nesting works to any depth.
+- Works in `node.content`, `original.text`, and `toggleItems[].content`.
+
+**This is the single most common readability failure in generated graphs.** An enumeration
+written inline —
+
+> ❌ `**Three elements.** (1) the representation. (2) the optimizer. (3) the rasterizer. Element 3 is what makes 2 affordable.`
+
+— arrives as one unbroken block of text that the reader has to parse by eye. The same content
+as a list is scannable at a glance:
+
+> ✅ ```
+> **Three elements, and none of them is a learned layer.**
+> 1. Anisotropic 3D Gaussians — the representation
+> 2. Optimization of position, opacity, covariance and color
+> 3. A visibility-aware differentiable rasterizer
+>
+> Element 3 is what makes element 2 affordable.
+> ```
+
+Note the shape: the point sentence first (Writing principle 4), then the list, then the
+consequence. The list carries the items; it does not carry the argument.
+
+---
+
 ### Inline images
 
 To embed an image inside a node's content area, or inside a toggle's content:
@@ -676,7 +933,14 @@ This is the same hop-based rule the editor applies automatically when a wire is 
 interactively (`computeHopPosition` in `useGraph.ts`) — follow it by hand when writing
 positions directly into JSON, so agent-authored and UI-authored graphs look consistent.
 
-- **Backbone (main_topic) nodes**: arrange vertically, `y` spacing of ~300px, `x` = 0.
+> **This section is the single source of truth for positions.** Each workflow's Step 3/4 points
+> here and gives no numbers of its own.
+
+- **Backbone (main_topic) nodes**: arrange vertically at `x: 0`, `y` spacing of **600px**.
+  600 rather than 300 because a hop-1 fan-out spans 450px on its own (`parent.y-150` …
+  `parent.y+300` for four children), so 300px spacing makes one backbone node's children
+  collide with the next one's. If a backbone node carries more than four children on one
+  side, widen that gap further rather than letting the clusters touch.
 - **Hop 1** (a node whose direct parent — via `children` or an edge — is a main_topic node):
   place at `parent.x ± 750`, alternating around the parent's vertical center (`parent.y`,
   `parent.y+150`, `parent.y-150`, `parent.y+300`, ...). Default to the **right** (`+750`); once
@@ -709,12 +973,15 @@ positions directly into JSON, so agent-authored and UI-authored graphs look cons
 |-------------|-----------|
 | Click **tag badge** (e.g. "Gap / Idea") | Drag node + pin **generation highlight** — the node, its parents/children, and connecting wires turn red; background clicks keep it, `Esc` clears it |
 | Click **node title** | Toggle `contentExpanded` (fold / unfold) |
-| Right-click **node title** | Edit title inline |
+| Double-click **node title** | Rename inline (the quick path; the right-click menu also has it) |
+| Right-click **anywhere on a node** | Open the node menu. It has two sections. **Edit this node** turns the whole card into editors at once — title, tag (template) and content — and opens the body even if the node was folded. The content box grows with its text instead of scrolling inside itself. A round **✕** sits just outside the card's top-right corner (hovering it reads *Edit done*); it and `Esc` both commit and leave. The **fold** section hides and shows *descendant nodes*, a different axis from Collapse, which only folds a node's own body. Four scopes each way — `children` (one level), `this level` (everything at the same hop depth), `all below` (this branch to the bottom), `everything` (the whole graph) — plus **Undo last fold change**. An entry is greyed out when it would not change anything, and a folded node shows a `+N` badge counting what is hidden under it. |
 | Click a **wire** | Select edge (blue); `Delete` removes it |
 | Drag from a **port dot** onto a node body | Create an edge |
-| `Ctrl+F` / `Cmd+F` | Open search dropdown (live filter by title + content + original text + toggle titles/content); matched text inside nodes is marked in the inverse template color |
+| `Ctrl+F` / `Cmd+F` | Open search dropdown. Two modes, toggled by the `Aa` / `#` buttons in the search box (VS Code's find-widget style): **`Aa`** filters by title + content + original text + toggle titles/content, and marks matched text inside nodes in the inverse template color; **`#`** filters by **node number** and accepts `17`, `17 19`, `17,19`, `17-20` or any mix |
 | `↑` / `↓` in search | Preview node (viewport flies to it); dropdown stays open |
 | `Enter` in search | Confirm: expands selected node, collapses all other matches |
+| **Levels** toolbar control | `1` shows the backbone alone, `2` adds hop 1, `3` adds hop 2, `All` shows everything. One click decides how much of the graph is on screen at once. Only as many buttons appear as the graph has depth. Using the right-click fold menu afterwards clears the highlight, because the view is no longer a clean level. |
+| **Outline** toolbar button | Toggle the left-hand outline panel (off by default). It lists the selected node's **direct children in reading order** — top to bottom, the same order the layout puts them in — with each node's `#number`. Clicking an entry drills one level down and flies the canvas there; the breadcrumb walks back up, `Top` returns to the backbone. Selecting a node on the canvas moves the outline to it. |
 | `Shift`+wheel on toolbar | Slide the toolbar horizontally when the window is narrow |
 
 **Overlap prevention**: When a node is unfolded (expanded), nodes below it in the same visual column are automatically pushed down, and horizontally adjacent nodes keep a minimum gap. When it is folded again, they pull back to their original positions. Wires are routed around nodes automatically. This works in both the editor and the exported HTML viewer.
@@ -738,13 +1005,27 @@ After any edit, verify:
 - [ ] Literal currency dollars escaped: `\\$` in JSON strings (never a bare `$` outside math)
 - [ ] Important formulas written as `$$...$$` display blocks (inline `$...$` only for short in-sentence symbols)
 - [ ] Korean content includes English terms alongside key technical expressions
-- [ ] No bare Unicode math symbols outside `$...$` — α/β/×/→/≤/∑/√/ℝ etc. must be KaTeX
+- [ ] No bare Unicode math symbols outside `$...$` in text you wrote (`title`, `content`, `toggleItems[]`) — α/β/×/→/≤/∑/√/ℝ etc. must be KaTeX. **`original.text` is exempt: verbatim wins**
 - [ ] Markdown tables have a separator row (`|---|---|`) — works in `node.content` or `toggleItems[].content`
+- [ ] **Every enumeration is a real list**, one item per line with a real `\n` — never `(1) … (2) … (3) …` run together inside a paragraph
 - [ ] `[[IMG:...]]` tokens reference files that exist in `.<basename>-imgs/` (works in `node.content` or `toggleItems[].content`)
 - [ ] `toggleItems[].id` values are unique within the file
 - [ ] `links` field present on every node (use `[]` if empty)
 - [ ] Every table and figure node explains what it shows *and* why that matters for the Killer Application — not just embedded/pasted with no interpretation
-- [ ] Every node's `content` is written top-down (두괄식) — key claim/conclusion in the first sentence, never bottom-up background/definition run-ups before the point
+
+**Writing principles** — the Check column of the table above, one line each. A graph failing 2 or 7
+is not "a bit rough", it is unusable for its purpose; fix those before anything else.
+
+- [ ] **(1 Canonical reader)** No node uses a term `conventions.reader` would not know without glossing it
+- [ ] **(2 Falsifiable titles)** Every `title` is a claim that could turn out to be **wrong** — no `개요`/`구조`/`Overview`/`Architecture`, no bare deck section name, no slot name used as a title
+- [ ] **(3 Landmark)** `conventions.landmark` is set, and each node's contribution to it can be stated in one clause — nodes that couldn't were deleted, not kept
+- [ ] **(4 One node, one point)** One point sentence covers each node and the node opens with it, key phrase in `**bold**` (두괄식 — never a background/definition run-up). Same for `toggleItems[].content`
+- [ ] **(5 Old to new)** Every child node's first sentence starts from wording its parent already used
+- [ ] **(6 Name your baby)** Nothing in the graph appears under two names; `conventions.names` matches what the nodes actually say
+- [ ] **(7 Just in time / layering)** No background sits above the node that needs it, and the backbone + hop-1 nodes **alone** still tell the whole story
+- [ ] **(8 Cut again)** The shortening pass was run, and one running example is reused instead of a fresh example per node
+- [ ] `conventions` is present, true of this graph, and its `checks` list is under ~12 lines
+
 - [ ] No invented numbers, citations, or external claims — every claim traces to the PDF's own text, or has a real `links` entry, or was left unwritten
 - [ ] (Code workflow) Every node that references a specific place in the code has a matching `links` entry with `"type": "code"` — `original.location` alone does not make it clickable
 - [ ] (Code workflow) Deep-dive elements are split into `syntax`/`semantic` node pairs (syntax → semantic, `line` edges) — no node mixes signature description with behavior/intent

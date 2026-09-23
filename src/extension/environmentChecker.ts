@@ -41,6 +41,8 @@ function buildEnvironmentReport(): string {
 
   // --- CLI tools ---
   const hasPdftotext = check('pdftotext -v 2>&1 && echo ok') || check('pdftotext --help 2>&1 && echo ok')
+  // poppler의 페이지 렌더러. PyMuPDF가 없는 기계에서 그림을 뽑는 실질적인 유일한 경로다
+  const hasPdftoppm = check('pdftoppm -v 2>&1 && echo ok') || check('pdftoppm -h 2>&1 && echo ok')
   const hasConvert = check('convert --version 2>&1 && echo ok')
   const hasMagick = check('magick --version 2>&1 && echo ok')
   const hasGhostscript = check('gs --version 2>&1 && echo ok') || check('gswin64c --version 2>&1 && echo ok')
@@ -76,6 +78,7 @@ function buildEnvironmentReport(): string {
   lines.push(`| pdfplumber | ${ok(hasPlumber)} | ${hasPlumber ? 'available' : 'Install: \`pip install pdfplumber\`'} |`)
   lines.push(`| pdfminer | ${ok(hasPdfminer)} | ${hasPdfminer ? 'available' : 'Install: \`pip install pdfminer.six\`'} |`)
   lines.push(`| poppler (\`pdftotext\`) | ${ok(hasPdftotext)} | ${hasPdftotext ? 'CLI tool available' : platform === 'win32' ? 'Install: download poppler for Windows' : platform === 'darwin' ? 'Install: \`brew install poppler\`' : 'Install: \`apt install poppler-utils\`'} |`)
+  lines.push(`| poppler (\`pdftoppm\`) | ${ok(hasPdftoppm)} | ${hasPdftoppm ? 'renders pages to PNG — the image-extraction path when PyMuPDF is missing' : platform === 'win32' ? 'Install: download poppler for Windows' : platform === 'darwin' ? 'Install: \`brew install poppler\`' : 'Install: \`apt install poppler-utils\`'} |`)
   lines.push(`| Ghostscript (\`gs\`) | ${ok(hasGhostscript)} | ${hasGhostscript ? 'available' : 'optional'} |`)
   lines.push(``)
   lines.push(`---`)
@@ -135,10 +138,27 @@ function buildEnvironmentReport(): string {
     lines.push(`        pix = fitz.Pixmap(doc, xref)`)
     lines.push(`        pix.save(f"fig_{i}_{xref}.png")`)
     lines.push(`\`\`\``)
+  } else if (hasPdftoppm) {
+    // PyMuPDF가 없을 때 막다른 길을 안내하지 않도록: poppler로 페이지를 이미지로 렌더한 뒤
+    // (Pillow가 있으면) 필요한 그림만 잘라낸다. 실제로 이 경로로 그림 추출이 된다.
+    lines.push(`PyMuPDF is not installed, so render the page with poppler and crop the figure out:`)
+    lines.push(`\`\`\`bash`)
+    lines.push(`pdftoppm -png -r 240 -f 5 -l 5 paper.pdf page   # → page-05.png (page 5 at 240 dpi)`)
+    lines.push(`\`\`\``)
+    if (hasPillow) {
+      lines.push(`Then crop the figure with Pillow:`)
+      lines.push(`\`\`\`python`)
+      lines.push(`from PIL import Image`)
+      lines.push(`img = Image.open("page-05.png")`)
+      lines.push(`img.crop((left, top, right, bottom)).save("fig_01.png")   # pixels at 240 dpi`)
+      lines.push(`\`\`\``)
+    } else {
+      lines.push(`Pillow is not installed either, so crop with ImageMagick (\`magick page-05.png -crop WxH+X+Y fig_01.png\`) or save whole pages.`)
+    }
   } else if (hasPillow) {
-    lines.push(`Pillow is available but cannot extract from PDF directly. Use PyMuPDF for extraction.`)
+    lines.push(`Pillow can crop images but cannot read a PDF. Install one of: \`pip install pymupdf\`, or poppler (\`apt install poppler-utils\` / \`brew install poppler\`) for \`pdftoppm\`.`)
   } else {
-    lines.push(`❌ No image extraction tool available.`)
+    lines.push(`❌ No image extraction tool available. Install \`pip install pymupdf\`, or poppler for \`pdftoppm\`.`)
   }
 
   lines.push(``)

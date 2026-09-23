@@ -6,6 +6,7 @@ import { Port } from '../utils/wireGeometry'
 import { MathText } from './MathText'
 import { parseTableBlocks, hasTable } from '../utils/tableParser'
 import { THEME } from '../utils/themeSnapshot'
+import { formatNodeNumber } from '../utils/nodeNumber'
 
 const NODE_BG_BASE = THEME.nodeBg
 const NODE_FG = THEME.fg
@@ -18,6 +19,12 @@ const NODE_INPUT_BORDER = THEME.inputBorder
 // table or image, the cap grows to fit them fully instead (see contentMaxHeight effect below) —
 // only the extra text beyond that still scrolls/hides behind the "more" button.
 const DEFAULT_CONTENT_MAX = 500
+
+// 제목 하나 때문에 카드가 끝없이 넓어지지 않도록 하는 상한. 여기까지는 제목 길이에 맞춰
+// 카드가 넓어지고, 이보다 더 필요하면 제목을 여러 줄로 접는다.
+const TITLE_MAX_WIDTH = 660
+// 제목 끝과 카드 오른쪽 테두리 사이 여백
+const TITLE_RIGHT_GUTTER = 10
 
 interface NodeCardProps {
   node: GraphNode
@@ -64,6 +71,13 @@ interface NodeCardProps {
   onNodeDragDeactivate?: (nodeId: string) => void
   // 툴바의 More 토글 — false면 콘텐츠 높이 캡/More 버튼 없이 항상 전체 펼침
   capEnabled?: boolean
+  // 계층 접기로 이 노드 아래에 숨겨져 있는 자손 수 (0이면 접혀 있지 않음)
+  childrenHiddenCount?: number
+  // 우클릭 — 이 노드의 컨텍스트 메뉴를 연다 (편집 + 계층 접기)
+  onFoldMenu?: (nodeId: string, clientX: number, clientY: number) => void
+  // 편집 모드 — 켜지면 제목·태그·본문이 한꺼번에 편집 가능해진다
+  editMode?: boolean
+  onExitEdit?: () => void
 }
 
 type EditingField = 'title' | 'content' | 'originalText' | 'originalLoc' | 'originalTitle' | null
@@ -97,6 +111,10 @@ export function NodeCard({
   isSearchMatch, isActiveSearchMatch, isGenHighlight, onPinHighlight,
   onNodeDragActivate, onNodeDragDeactivate,
   capEnabled = true,
+  childrenHiddenCount = 0,
+  onFoldMenu,
+  editMode = false,
+  onExitEdit,
 }: NodeCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
@@ -128,6 +146,41 @@ export function NodeCard({
     return hasTable(content) ? maxW + 280 : maxW + 32
   }, [node.content])
   const [contentNeedsMoreBtn, setContentNeedsMoreBtn] = useState(false)
+  // 제목이 한 줄로는 TITLE_MAX_WIDTH를 넘어야 할 만큼 길 때 여러 줄 모드로 전환
+  const [titleWraps, setTitleWraps] = useState(false)
+
+  const [editCloseHover, setEditCloseHover] = useState(false)
+  // 편집 모드용 초안. 제목과 본문을 동시에 편집해야 하므로 단일 editValue를 쓸 수 없다.
+  const [draft, setDraft] = useState<{ title: string; content: string } | null>(null)
+  useEffect(() => {
+    if (editMode) setDraft({ title: node.title, content: node.content ?? '' })
+    else setDraft(null)
+    // node.title/content를 의존성에 넣지 않는다 — 편집 중 커밋이 되돌아와 초안을 덮어쓴다
+  }, [editMode, node.id])
+
+  const commitDraft = useCallback(() => {
+    setDraft(cur => {
+      if (cur) {
+        if (cur.title !== node.title) onUpdateNode(node.id, 'title', cur.title)
+        if (cur.content !== (node.content ?? '')) onUpdateNode(node.id, 'content', cur.content)
+      }
+      return cur
+    })
+  }, [node.id, node.title, node.content, onUpdateNode])
+
+  // 편집 textarea는 내용 높이에 맞춰 늘린다 — 고정 행수 + 내부 스크롤바는 읽기도 쓰기도 불편하다
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    const ta = editTextareaRef.current
+    if (!editMode || !ta) return
+    ta.style.height = 'auto'
+    ta.style.height = `${ta.scrollHeight}px`
+  }, [editMode, draft?.content])
+
+  const finishEdit = useCallback(() => {
+    commitDraft()
+    onExitEdit?.()
+  }, [commitDraft, onExitEdit])
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -246,15 +299,28 @@ export function NodeCard({
   // 그 초과분만큼 nodeWidth를 늘린다. 헤더 자식(뱃지/제목)은 whiteSpace:'nowrap'+
   // 기본 min-width:auto라 줄어들지 못하고 카드 밖으로 넘치기만 할 뿐 카드 자체의
   // width(고정값, 위 참고)를 밀어 넓히지는 않아서 별도로 반영해줘야 함.
+  //
+  // 다만 무한정 넓히면 제목 하나 때문에 카드가 화면을 가로지르게 되므로 TITLE_MAX_WIDTH에서
+  // 멈추고, 거기서도 모자라면 제목을 여러 줄로 접는다(titleWraps).
   useEffect(() => {
     const el = headerRef.current
-    if (!el) return
+    if (!el || titleWraps) return
     const overflow = el.scrollWidth - el.clientWidth
     if (overflow <= 0) return
     const current = Math.max(node.nodeWidth ?? 0, 432, autoMinWidth)
     const needed = current + overflow + 4
+    if (needed > TITLE_MAX_WIDTH) {
+      setTitleWraps(true)
+      if ((node.nodeWidth ?? 0) < TITLE_MAX_WIDTH) onSetNodeWidth(node.id, TITLE_MAX_WIDTH)
+      return
+    }
     if (needed > (node.nodeWidth ?? 0)) onSetNodeWidth(node.id, needed)
-  }, [node.title, node.fontSize, node.nodeWidth, node.id, autoMinWidth, onSetNodeWidth])
+  }, [node.title, node.fontSize, node.nodeWidth, node.id, autoMinWidth, onSetNodeWidth, titleWraps, childrenHiddenCount])
+
+  // 제목이 바뀌면 다시 한 줄부터 시도한다 (짧아졌을 수 있으므로)
+  // 제목이 바뀌거나 헤더 구성이 바뀌면(숨김 개수 배지가 붙고 떨어지면) 다시 한 줄부터
+  // 시도한다 — 배지가 헤더 폭을 바꾸는데 다시 재지 않으면 제목이 카드 밖으로 넘친다
+  useEffect(() => { setTitleWraps(false) }, [node.title, node.fontSize, childrenHiddenCount])
 
   // 본문 높이 상한 계산: 표/이미지가 있으면 그게 전부 보일 만큼(마지막 표/이미지 하단까지)
   // 상한을 넓히고, 없으면 DEFAULT_CONTENT_MAX로 폴백. overflow:auto라 실제 measure는
@@ -404,6 +470,8 @@ export function NodeCard({
 
   const color = template?.color ?? '#888888'
   const borderRadius = template?.shape === 'rounded' ? 22 : 2
+  // 헤더는 접힌 상태에서도 그려지므로, 번호를 여기 두면 "접혀 있어도 번호가 보인다"가 자동으로 성립한다
+  const numLabel = formatNodeNumber(node.id)
   const fs = node.fontSize ?? 14
 
   const handleResizeStart = useCallback((e: React.MouseEvent, axis: 'x' | 'y' | 'both') => {
@@ -491,6 +559,13 @@ export function NodeCard({
           zIndex: isDragging ? 10 : 1,
         }}
         data-node-id={node.id}
+        onContextMenu={(e) => {
+          // 노드 어디서든 우클릭하면 같은 메뉴가 뜬다. 안쪽에서 우클릭을 따로 쓰는 곳
+          // (원문 인용 → PDF 검색)은 stopPropagation 하므로 여기까지 오지 않는다.
+          if (!onFoldMenu || editMode) return
+          e.preventDefault()
+          onFoldMenu(node.id, e.clientX, e.clientY)
+        }}
         onMouseDown={(e) => { e.stopPropagation(); onSelect(node.id, false) }}
         onDoubleClick={(e) => e.stopPropagation()}
         onMouseEnter={() => { setIsHovered(true); onHoverStart(node.id) }}
@@ -509,6 +584,41 @@ export function NodeCard({
         })}
 
         {/* Header */}
+        {editMode && (
+          <div
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseEnter={() => setEditCloseHover(true)}
+            onMouseLeave={() => setEditCloseHover(false)}
+            style={{
+              // 노드 바깥 우상단 — 헤더 안에 두면 제목을 잘라먹는다
+              position: 'absolute', top: -11, right: -11, zIndex: 20,
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+            }}
+          >
+            {editCloseHover && (
+              <div style={{
+                position: 'absolute', bottom: '100%', marginBottom: 4,
+                background: '#1f2937', color: '#fff', fontSize: 10, fontWeight: 600,
+                padding: '2px 6px', borderRadius: 3, whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+              }}>Edit done</div>
+            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); finishEdit() }}
+              aria-label="Edit done"
+              style={{
+                width: 22, height: 22, borderRadius: '50%', cursor: 'pointer',
+                border: `1px solid ${editCloseHover ? '#1d4ed8' : NODE_INPUT_BORDER}`,
+                background: editCloseHover ? '#2563eb' : NODE_INPUT_BG,
+                color: editCloseHover ? '#ffffff' : NODE_FG,
+                fontSize: 12, lineHeight: 1, padding: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 1px 4px rgba(0,0,0,.2)',
+              }}
+            >✕</button>
+          </div>
+        )}
+
         <div
           ref={headerRef}
           onMouseDown={(e) => {
@@ -517,7 +627,10 @@ export function NodeCard({
           }}
           style={{
             display: 'flex',
-            alignItems: 'center',
+            // 배지(10px) · 번호(10px) · 제목(12px)은 글자 크기가 서로 달라서 top이나 center로
+            // 맞추면 어느 하나가 뜬다. baseline으로 맞추면 셋이 같은 줄에 앉고, 제목이 두 줄이
+            // 돼도 첫 줄 baseline 기준이라 그대로 유지된다.
+            alignItems: 'baseline',
             gap: 6,
             padding: '6px 8px',
             cursor: 'default',
@@ -527,7 +640,32 @@ export function NodeCard({
             borderRadius: `${borderRadius}px ${borderRadius}px ${node.contentExpanded ? 0 : borderRadius}px ${node.contentExpanded ? 0 : borderRadius}px`,
           }}
         >
+          {editMode ? (
+            <select
+              value={node.template}
+              onChange={(e) => onSetNodeTemplate(node.id, e.target.value)}
+              onMouseDown={(e) => e.stopPropagation()}
+              title="Change this node's tag"
+              style={{
+                fontSize: 10, fontWeight: 600, flexShrink: 0, borderRadius: 3,
+                padding: '1px 4px', cursor: 'pointer',
+                background: NODE_INPUT_BG, color: NODE_INPUT_FG,
+                border: `1px solid ${NODE_INPUT_BORDER}`,
+              }}
+            >
+              {Object.entries(nodeTemplates).map(([key, t]) => (
+                <option key={key} value={key}>{t.label ?? key}</option>
+              ))}
+            </select>
+          ) : (
           <span
+            onContextMenu={(e) => {
+              if (!onFoldMenu) return
+              e.preventDefault()
+              e.stopPropagation()
+              onFoldMenu(node.id, e.clientX, e.clientY)
+            }}
+            title="Drag to move · Right-click for node menu"
             onMouseDown={(e) => {
               onSelect(node.id, e.shiftKey || e.ctrlKey || e.metaKey)
               onPinHighlight?.(node.id)
@@ -561,8 +699,51 @@ export function NodeCard({
           >
             {template?.label ?? node.template}
           </span>
+          )}
 
-          {editingField === 'title' ? (
+          {numLabel && (
+            <span
+              title={`Node ${numLabel} — find it with Ctrl+F in # mode`}
+              style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.02em',
+                // 버튼처럼 보이지 않도록 배경/테두리 없이 글자만 — 템플릿 색을 옅게 섞어
+                // 카드 배경에 녹아들게 한다
+                color: `color-mix(in srgb, ${color} 65%, #6b7280)`,
+                flexShrink: 0, whiteSpace: 'nowrap',
+                fontVariantNumeric: 'tabular-nums', userSelect: 'none',
+              }}
+            >
+              {numLabel}
+            </span>
+          )}
+
+          {childrenHiddenCount > 0 && (
+            <span
+              title={`${childrenHiddenCount} node(s) hidden below — right-click the tag to expand`}
+              style={{
+                fontSize: 10, fontWeight: 600, flexShrink: 0, whiteSpace: 'nowrap',
+                padding: '0 4px', borderRadius: 3,
+                background: `color-mix(in srgb, ${color} 18%, transparent)`,
+                color: `color-mix(in srgb, ${color} 70%, #374151)`,
+                fontVariantNumeric: 'tabular-nums', userSelect: 'none',
+              }}
+            >{`+${childrenHiddenCount}`}</span>
+          )}
+
+          {editMode && draft ? (
+            <input
+              value={draft.title}
+              autoFocus
+              onChange={(e) => setDraft(d => d && { ...d, title: e.target.value })}
+              onKeyDown={(e) => {
+                e.stopPropagation()
+                if (e.key === 'Enter' || e.key === 'Escape') finishEdit()
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              placeholder="Title"
+              style={{ ...baseEditStyle, flex: 1, fontSize: 12, fontWeight: 500, minWidth: 80 }}
+            />
+          ) : editingField === 'title' ? (
             <div style={{ flex: 'none', position: 'relative', minWidth: 80 }}>
               <span aria-hidden style={{
                 display: 'block', visibility: 'hidden',
@@ -587,9 +768,24 @@ export function NodeCard({
           ) : (
             <span
               onClick={(e) => { e.stopPropagation(); onToggleContent(node.id) }}
-              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); startEdit('title', node.title, e) }}
-              title="Click to fold/unfold · Right-click to edit"
-              style={{ flex: 1, fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }}
+              onDoubleClick={(e) => { e.stopPropagation(); startEdit('title', node.title, e) }}
+              onContextMenu={(e) => {
+                if (!onFoldMenu) return
+                e.preventDefault()
+                e.stopPropagation()
+                onFoldMenu(node.id, e.clientX, e.clientY)
+              }}
+              title={`${node.title}\n\nClick to fold/unfold · Double-click to rename · Right-click for the node menu`}
+              style={{
+                flex: 1, fontSize: 12, fontWeight: 500, cursor: 'pointer', userSelect: 'none',
+                // 제목 끝이 카드 오른쪽 테두리에 닿지 않도록 여백을 준다
+                paddingRight: TITLE_RIGHT_GUTTER,
+                // 기본은 한 줄. 한 줄로는 카드가 TITLE_MAX_WIDTH를 넘어야 할 만큼 길면
+                // 아래 effect가 titleWraps를 켜고, 그때부터 여러 줄로 접힌다
+                whiteSpace: titleWraps ? 'normal' : 'nowrap',
+                overflowWrap: titleWraps ? 'break-word' : undefined,
+                lineHeight: 1.35,
+              }}
             >
               {node.title}
             </span>
@@ -598,9 +794,27 @@ export function NodeCard({
         </div>
 
         {/* Content body */}
-        {node.contentExpanded && (
+        {/* 편집 모드에서는 접혀 있어도 본문을 열어야 고칠 수 있다 */}
+        {(node.contentExpanded || editMode) && (
           <div style={{ padding: '8px 10px' }}>
-            {editingField === 'content' ? (
+            {editMode && draft ? (
+              <textarea
+                ref={editTextareaRef}
+                value={draft.content}
+                onChange={(e) => setDraft(d => d && { ...d, content: e.target.value })}
+                onKeyDown={(e) => {
+                  e.stopPropagation()
+                  if (e.key === 'Escape') finishEdit()
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                placeholder="Content — markdown lists, tables, $KaTeX$ and [[IMG:...]] all work here"
+                style={{
+                  ...baseEditStyle, fontSize: fs, lineHeight: 1.6, display: 'block', width: '100%',
+                  // 내용에 맞춰 자라므로 안쪽 스크롤바가 생기지 않는다 (아래 effect가 높이를 맞춘다)
+                  resize: 'none', overflow: 'hidden', minHeight: 60,
+                }}
+              />
+            ) : editingField === 'content' ? (
               <textarea
                 ref={setEditRef as React.RefCallback<HTMLTextAreaElement>}
                 value={editValue}

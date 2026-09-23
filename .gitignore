@@ -3,3 +3,4 @@ test/
 test-demo/
 node_modules/
 # test-demo-v2 is intentionally tracked — serves as a reference example for AI agents
+demo/ex4-new/

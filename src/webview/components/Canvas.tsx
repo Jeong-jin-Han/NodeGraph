@@ -3,7 +3,11 @@ import { NodeGraph, GraphNode, Viewport, NodeLink, CanvasImage } from '../types/
 import { NodeCard } from './NodeCard'
 import { WireLayer } from './WireLayer'
 import { CanvasImageLayer } from './CanvasImageLayer'
-import { SearchBar } from './SearchBar'
+import { SearchBar, SearchMode } from './SearchBar'
+import { OutlinePanel, OutlineEntry } from './OutlinePanel'
+import { NodeContextMenu, FoldMenuItem } from './NodeContextMenu'
+import { FoldScope, hiddenIds, expand as foldExpand, collapseTo as foldCollapse, wouldChange, hiddenCountUnder, collapseToDepth, maxDepthOf } from '../utils/foldState'
+import { nodeNumber, parseNumberQuery } from '../utils/nodeNumber'
 import { Port } from '../utils/wireGeometry'
 import { THEME } from '../utils/themeSnapshot'
 import { parentIdOf, childIdsOf } from '../hooks/useGraph'
@@ -687,6 +691,19 @@ export function Canvas({
   // More/Less 콘텐츠 캡 전역 토글 — 끄면 모든 노드가 항상 전체 펼침(세션 한정, 저장 안 됨).
   // 기본값은 꺼짐(항상 전체 펼침) — 사용자 결정.
   const [capEnabled, setCapEnabled] = useState(false)
+  // 목차 패널 — 기본 꺼짐(항상 떠 있으면 방해되므로 툴바 버튼으로만 켠다).
+  // outlineFocusId는 "지금 어느 노드의 직속 자식을 보고 있는가"이고, null이면 백본(최상위).
+  const [outlineOpen, setOutlineOpen] = useState(false)
+  const [outlineFocusId, setOutlineFocusId] = useState<string | null>(null)
+  // 계층 접기 — 자손 노드를 화면에서 숨긴다(본문만 접는 기존 Collapse와 다른 축).
+  // 파일에 저장하지 않는 세션 상태다: 기존 그래프는 전부 childrenExpanded:false라
+  // 파일 값을 믿으면 열자마자 백본만 남는다. 되돌리기는 이전 집합을 스택에 쌓아 처리.
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
+  const foldHistoryRef = useRef<Array<Set<string>>>([])
+  const [foldCanUndo, setFoldCanUndo] = useState(false)
+  const [foldMenu, setFoldMenu] = useState<{ nodeId: string; x: number; y: number } | null>(null)
+  // 편집 모드에 들어간 노드 — 제목·태그·본문이 한꺼번에 편집 가능해진다
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null)
   const [fontDropOpen, setFontDropOpen] = useState(false)
   const fontInputRef = useRef<HTMLInputElement>(null)
   // 툴바가 overflow-x:auto라 absolute 드롭다운이 클리핑됨 → fixed 좌표로 띄움
@@ -813,6 +830,7 @@ export function Canvas({
   // Search state
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchMode, setSearchMode] = useState<SearchMode>('text')
   const [searchSelectedId, setSearchSelectedId] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const searchSelectedIdRef = useRef<string | null>(null)
@@ -1189,7 +1207,10 @@ export function Canvas({
   // buildHopTree로 계산해서 두 로직이 어긋나지 않게 함.
   const searchMatchNodes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
-    if (!q) return [] as Array<{ id: string; title: string }>
+    if (!q) return [] as Array<{ id: string; title: string; num: number | null }>
+    // 번호 모드: 쓸 수 있는 토큰이 없으면 "전부 매치"가 아니라 0건이어야 한다
+    const numMatch = searchMode === 'number' ? parseNumberQuery(q) : null
+    if (searchMode === 'number' && !numMatch) return [] as Array<{ id: string; title: string; num: number | null }>
     const { depthOf, rootOf } = buildHopTree(graph.nodes, graph.edges, graph.nodeTemplates)
     const roots = graph.nodes
       .filter(n => depthOf.get(n.id) === 0)
@@ -1197,15 +1218,19 @@ export function Canvas({
     const rootIndex = new Map(roots.map((r, i) => [r.id, i]))
 
     return graph.nodes
-      .filter(n =>
-        n.title.toLowerCase().includes(q) ||
-        (n.content ?? '').toLowerCase().includes(q) ||
-        (n.original?.text ?? '').toLowerCase().includes(q) ||
-        (n.original?.title ?? '').toLowerCase().includes(q) ||
-        (n.toggleItems ?? []).some(t =>
-          t.title.toLowerCase().includes(q) || t.content.toLowerCase().includes(q)
-        )
-      )
+      .filter(n => {
+        if (numMatch) {
+          const num = nodeNumber(n.id)
+          return num !== null && numMatch(num)
+        }
+        return n.title.toLowerCase().includes(q) ||
+          (n.content ?? '').toLowerCase().includes(q) ||
+          (n.original?.text ?? '').toLowerCase().includes(q) ||
+          (n.original?.title ?? '').toLowerCase().includes(q) ||
+          (n.toggleItems ?? []).some(t =>
+            t.title.toLowerCase().includes(q) || t.content.toLowerCase().includes(q)
+          )
+      })
       .sort((a, b) => {
         const ra = rootIndex.get(rootOf.get(a.id) ?? a.id) ?? 0
         const rb = rootIndex.get(rootOf.get(b.id) ?? b.id) ?? 0
@@ -1215,8 +1240,131 @@ export function Canvas({
         // 같은 main topic, 같은 hop 레벨이면 원래 저장된 Y 순서로 안정적으로 정렬
         return a.position.y - b.position.y || a.position.x - b.position.x
       })
-      .map(n => ({ id: n.id, title: n.title }))
-  }, [searchQuery, graph.nodes, graph.edges, graph.nodeTemplates])
+      .map(n => ({ id: n.id, title: n.title, num: nodeNumber(n.id) }))
+  }, [searchQuery, searchMode, graph.nodes, graph.edges, graph.nodeTemplates])
+
+  // 목차 패널 데이터. children[]이 비어 있어도 동작해야 하므로 buildHopTree의 childrenOf를
+  // 쓴다 — 레이아웃·검색 정렬과 같은 트리라 목차가 화면 배치와 어긋나지 않는다. 그리고
+  // contentExpanded는 보지 않으므로 캔버스에서 접혀 있는 노드도 목차에는 전부 나온다.
+  const outlineData = useMemo(() => {
+    const { childrenOf, parentOf, depthOf } = buildHopTree(graph.nodes, graph.edges, graph.nodeTemplates)
+    const byId = new Map(graph.nodes.map(n => [n.id, n]))
+    const focus = outlineFocusId && byId.has(outlineFocusId) ? outlineFocusId : null
+
+    const toEntry = (n: GraphNode): OutlineEntry => ({
+      id: n.id,
+      title: n.title,
+      template: n.template,
+      color: graph.nodeTemplates[n.template]?.color ?? '#888888',
+      childCount: (childrenOf.get(n.id) ?? []).length,
+    })
+    // 읽는 순서 = 화면에 놓인 순서(위에서 아래로). 백본도 자식도 같은 규칙
+    const readingOrder = (ids: string[]) => ids
+      .map(id => byId.get(id))
+      .filter((n): n is GraphNode => !!n)
+      .sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x)
+      .map(toEntry)
+
+    const trail: OutlineEntry[] = []
+    const seen = new Set<string>()
+    for (let cur = focus; cur && byId.has(cur) && !seen.has(cur); cur = parentOf.get(cur) ?? null) {
+      seen.add(cur)
+      trail.unshift(toEntry(byId.get(cur)!))
+    }
+
+    const childIds = focus
+      ? (childrenOf.get(focus) ?? [])
+      : graph.nodes.filter(n => depthOf.get(n.id) === 0).map(n => n.id)
+    return { trail, items: readingOrder(childIds) }
+  }, [graph.nodes, graph.edges, graph.nodeTemplates, outlineFocusId])
+
+  // 접기 계산에 쓰는 트리 — 목차/레이아웃/검색과 같은 buildHopTree 결과를 공유한다
+  const foldTree = useMemo(() => {
+    const { parentOf, childrenOf, depthOf } = buildHopTree(graph.nodes, graph.edges, graph.nodeTemplates)
+    return { parentOf, childrenOf, depthOf }
+  }, [graph.nodes, graph.edges, graph.nodeTemplates])
+
+  const allNodeIds = useMemo(() => graph.nodes.map(n => n.id), [graph.nodes])
+
+  // 조상이 접혀 있는 노드는 화면에서 빠진다. 노드와 엣지를 같은 기준으로 걸러야
+  // 사라진 노드로 향하는 선이 허공에 남지 않는다.
+  const hiddenNodeIds = useMemo(
+    () => hiddenIds(collapsedIds, foldTree, allNodeIds),
+    [collapsedIds, foldTree, allNodeIds],
+  )
+  const visibleNodes = useMemo(
+    () => hiddenNodeIds.size === 0 ? graph.nodes : graph.nodes.filter(n => !hiddenNodeIds.has(n.id)),
+    [graph.nodes, hiddenNodeIds],
+  )
+  const visibleEdges = useMemo(
+    () => hiddenNodeIds.size === 0
+      ? graph.edges
+      : graph.edges.filter(e => !hiddenNodeIds.has(e.source) && !hiddenNodeIds.has(e.target)),
+    [graph.edges, hiddenNodeIds],
+  )
+
+  const applyFold = useCallback((action: 'expand' | 'collapse', scope: FoldScope, nodeId: string) => {
+    setShownDepth(null)
+    setCollapsedIds(prev => {
+      const next = action === 'expand'
+        ? foldExpand(prev, scope, nodeId, foldTree, allNodeIds)
+        : foldCollapse(prev, scope, nodeId, foldTree, allNodeIds)
+      foldHistoryRef.current = [...foldHistoryRef.current.slice(-19), prev]
+      return next
+    })
+    setFoldCanUndo(true)
+  }, [foldTree, allNodeIds])
+
+  // 숨겨진 노드로 이동해야 할 때(검색 결과 선택, 목차에서 클릭) 조상 경로를 펼쳐 드러낸다.
+  // 이게 없으면 "찾았는데 화면에 아무것도 없다"가 된다.
+  const revealNode = useCallback((id: string) => {
+    setCollapsedIds(prev => {
+      if (prev.size === 0) return prev
+      const next = new Set(prev)
+      let changed = false
+      for (let p = foldTree.parentOf.get(id); p !== undefined; p = foldTree.parentOf.get(p)) {
+        if (next.delete(p)) changed = true
+      }
+      if (!changed) return prev
+      foldHistoryRef.current = [...foldHistoryRef.current.slice(-19), prev]
+      setFoldCanUndo(true)
+      setShownDepth(null)
+      return next
+    })
+  }, [foldTree])
+
+  const maxDepth = useMemo(() => maxDepthOf(foldTree, allNodeIds), [foldTree, allNodeIds])
+
+  // 툴바의 층 선택 — "몇 층까지 보여줄지"를 한 번에 정한다.
+  // 0 = All, 1.. = 그 층까지, null = 어느 버튼에도 해당하지 않는 상태(우클릭 메뉴로
+  // 직접 접고 펴면 더 이상 깔끔한 한 층이 아니므로 아무 버튼도 켜지 않는다).
+  const [shownDepth, setShownDepth] = useState<number | null>(0)
+  const setDepth = useCallback((depth: number) => {
+    setShownDepth(depth)
+    setCollapsedIds(prev => {
+      foldHistoryRef.current = [...foldHistoryRef.current.slice(-19), prev]
+      return depth <= 0 ? new Set<string>() : collapseToDepth(depth, foldTree, allNodeIds)
+    })
+    setFoldCanUndo(true)
+  }, [foldTree, allNodeIds])
+
+  const undoFold = useCallback(() => {
+    const stack = foldHistoryRef.current
+    if (stack.length === 0) return
+    const prev = stack[stack.length - 1]
+    foldHistoryRef.current = stack.slice(0, -1)
+    setCollapsedIds(prev)
+    setShownDepth(null)
+    setFoldCanUndo(foldHistoryRef.current.length > 0)
+  }, [])
+
+  // 캔버스에서 노드를 하나 고르면 목차도 그 노드 기준으로 따라간다 (사용자 요청:
+  // "node를 선택했을 때 왼쪽에 탭이 떠서 직속 자식이 나오게")
+  useEffect(() => {
+    if (!outlineOpen || selectedIds.size !== 1) return
+    const [only] = selectedIds
+    setOutlineFocusId(only)
+  }, [outlineOpen, selectedIds])
 
   const showSearchDropdown = searchOpen && searchQuery.trim() !== '' && searchSelectedId === null
 
@@ -1230,7 +1378,9 @@ export function Canvas({
       cssAny.highlights.delete(`ng-hit-${hitKeySafe(key)}`)
     }
     const q = searchQuery.trim().toLowerCase()
-    if (!searchOpen || !q) return
+    // 번호 모드에는 노드 본문에 대응하는 텍스트가 없으므로 인라인 하이라이트를 건너뛴다
+    // (노드 테두리 강조는 searchMatchNodes 기반이라 그대로 동작한다)
+    if (!searchOpen || !q || searchMode === 'number') return
     const byTmpl = new Map<string, any>()
     for (const m of searchMatchNodes) {
       const node = graph.nodes.find(n => n.id === m.id)
@@ -1256,7 +1406,7 @@ export function Canvas({
     }
     byTmpl.forEach((hl, key) => cssAny.highlights.set(`ng-hit-${key}`, hl))
   // nodeSizes/renderPositions: expand/collapse 등 재렌더 후 Range 재수집을 위해 포함
-  }, [searchOpen, searchQuery, searchMatchNodes, graph.nodes, graph.nodeTemplates, nodeSizes, renderPositions])
+  }, [searchOpen, searchQuery, searchMode, searchMatchNodes, graph.nodes, graph.nodeTemplates, nodeSizes, renderPositions])
 
   // 고정된 루트 노드의 한 세대(부모+자식) 하이라이트 — 연결 wire부터 이웃 노드까지 빨간색.
   // genRootIds 기반이라 배경 클릭으로 선택이 풀려도 유지되고 Esc로만 해제됨
@@ -1299,13 +1449,37 @@ export function Canvas({
     })
   }, [graph.nodes, onSetViewport])
 
+  // 목차에서 항목을 누르면 그 노드로 한 단계 내려가면서 캔버스도 그리로 이동한다.
+  // 선택까지 바꿔두면 위의 동기화 effect가 focus를 맞춰주므로 여기서는 선택만 세팅해도 된다.
+  const handleOutlineDrill = useCallback((id: string) => {
+    setOutlineFocusId(id)
+    setSelectedIds(new Set([id]))
+    revealNode(id)
+    flyToNode(id)
+  }, [flyToNode, revealNode, setSelectedIds])
+
+  // 브레드크럼으로 위로 — null이면 백본(최상위)으로 돌아간다
+  const handleOutlineUp = useCallback((id: string | null) => {
+    setOutlineFocusId(id)
+    if (id) {
+      setSelectedIds(new Set([id]))
+      flyToNode(id)
+    } else {
+      setSelectedIds(new Set())
+    }
+  }, [flyToNode, setSelectedIds])
+
   const handlePreviewSearchNode = useCallback((id: string) => {
     flyToNode(id)
   }, [flyToNode])
 
   const handleSelectSearchNode = useCallback((id: string) => {
     setSearchSelectedId(id)
-    const q = searchQuery.trim().toLowerCase()
+    revealNode(id)
+    // 번호 모드의 검색어는 텍스트가 아니므로 toggle/original 본문 매칭에 쓰면 안 된다
+    // ("17"이 본문의 "17"과 우연히 걸려 엉뚱한 섹션이 펼쳐짐). 빈 문자열로 두면
+    // 아래 `&& q` 가드가 그 경로를 그대로 막아준다.
+    const q = searchMode === 'number' ? '' : searchQuery.trim().toLowerCase()
     // Enter 확정: 선택된 노드만 expand, 나머지 매치 노드는 collapse
     for (const match of searchMatchNodes) {
       const node = graph.nodes.find(n => n.id === match.id)
@@ -1328,7 +1502,7 @@ export function Canvas({
       }
     }
     requestAnimationFrame(() => flyToNode(id))
-  }, [flyToNode, searchMatchNodes, graph.nodes, onToggleContent, onExpandToggle, onToggleOriginal, searchQuery])
+  }, [flyToNode, revealNode, searchMatchNodes, graph.nodes, onToggleContent, onExpandToggle, onToggleOriginal, searchQuery, searchMode])
 
   const handleSearchQueryChange = useCallback((q: string) => {
     setSearchQuery(q)
@@ -1929,6 +2103,33 @@ export function Canvas({
           onClick={() => setCapEnabled(v => !v)}
           title="Toggle the More/Less content cap — when off, every node's content is always fully expanded"
         >More</button>
+        <button
+          style={{ ...toolbarBtnStyle, background: outlineOpen ? '#2563eb' : toolbarBtnStyle.background, color: outlineOpen ? '#ffffff' : toolbarBtnStyle.color }}
+          onClick={() => setOutlineOpen(v => !v)}
+          title="Toggle the outline panel — shows the selected node's direct children in reading order, including folded ones"
+        >Outline</button>
+
+        {maxDepth > 0 && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flexShrink: 0 }}
+                title="How many levels to show at once — 1 is the backbone alone">
+            <span style={{ fontSize: 10, opacity: 0.6, marginRight: 2 }}>Levels</span>
+            {Array.from({ length: Math.min(maxDepth, 3) }, (_, i) => i + 1).map(d => (
+              <button
+                key={d}
+                style={{ ...toolbarBtnStyle, minWidth: 22, padding: '2px 6px',
+                  background: shownDepth === d ? '#2563eb' : toolbarBtnStyle.background,
+                  color: shownDepth === d ? '#ffffff' : toolbarBtnStyle.color }}
+                onClick={() => setDepth(d)}
+              >{d}</button>
+            ))}
+            <button
+              style={{ ...toolbarBtnStyle, padding: '2px 6px',
+                background: shownDepth === 0 ? '#2563eb' : toolbarBtnStyle.background,
+                color: shownDepth === 0 ? '#ffffff' : toolbarBtnStyle.color }}
+              onClick={() => setDepth(0)}
+            >All</button>
+          </span>
+        )}
 
         <div style={toolbarDividerStyle} />
         <button
@@ -2007,7 +2208,7 @@ export function Canvas({
               onUpdateSize={(id, w, h) => onUpdateCanvasImage(id, { width: w, height: h })}
               onDrop={handleCanvasImageDrop}
             />
-            {graph.nodes.map((node) => {
+            {visibleNodes.map((node) => {
               const isMultiSelected = selectedIds.has(node.id) && selectedIds.size > 1
               const extraDragNodes = isMultiSelected
                 ? [...selectedIds]
@@ -2030,6 +2231,10 @@ export function Canvas({
                   isMultiSelected={isMultiSelected}
                   extraDragNodes={extraDragNodes}
                   onSelect={handleNodeSelect}
+                  childrenHiddenCount={collapsedIds.has(node.id) ? hiddenCountUnder(node.id, foldTree) : 0}
+                  onFoldMenu={(id, cx, cy) => setFoldMenu({ nodeId: id, x: cx, y: cy })}
+                  editMode={editingNodeId === node.id}
+                  onExitEdit={() => setEditingNodeId(null)}
                   onHoverStart={handleNodeHoverStart}
                   onHoverEnd={handleNodeHoverEnd}
                   onUpdatePosition={onUpdateNodePosition}
@@ -2114,8 +2319,8 @@ export function Canvas({
               )
             })()}
             <WireLayer
-              nodes={graph.nodes}
-              edges={graph.edges}
+              nodes={visibleNodes}
+              edges={visibleEdges}
               nodeSizes={nodeSizes}
               renderPositions={renderPositions}
               wirePreview={wireDrawing}
@@ -2127,6 +2332,49 @@ export function Canvas({
               onSelectEdge={setSelectedEdgeId}
             />
           </div>
+
+          {foldMenu && (() => {
+            const node = graph.nodes.find(n => n.id === foldMenu.nodeId)
+            const num = nodeNumber(foldMenu.nodeId)
+            const mk = (action: 'expand' | 'collapse', scope: FoldScope, label: string): FoldMenuItem => ({
+              action, scope, label,
+              enabled: wouldChange(collapsedIds, action, scope, foldMenu.nodeId, foldTree, allNodeIds),
+            })
+            return (
+              <NodeContextMenu
+                x={foldMenu.x}
+                y={foldMenu.y}
+                heading={`${num !== null ? '#' + num + '  ' : ''}${node?.title ?? foldMenu.nodeId}`}
+                canUndo={foldCanUndo}
+                onUndo={undoFold}
+                onPick={(action, scope) => applyFold(action, scope, foldMenu.nodeId)}
+                onEdit={() => setEditingNodeId(foldMenu.nodeId)}
+                onClose={() => setFoldMenu(null)}
+                items={[
+                  mk('expand', 'one', 'Expand children'),
+                  mk('expand', 'level', 'Expand this level'),
+                  mk('expand', 'chain', 'Expand all below'),
+                  mk('expand', 'all', 'Expand everything'),
+                  mk('collapse', 'one', 'Collapse children'),
+                  mk('collapse', 'level', 'Collapse this level'),
+                  mk('collapse', 'chain', 'Collapse all below'),
+                  mk('collapse', 'all', 'Collapse everything'),
+                ]}
+              />
+            )
+          })()}
+
+          {/* 목차 패널 — 툴바 Outline 버튼으로만 열린다 (기본 꺼짐) */}
+          {outlineOpen && (
+            <OutlinePanel
+              trail={outlineData.trail}
+              items={outlineData.items}
+              selectedId={selectedIds.size === 1 ? [...selectedIds][0] : null}
+              onDrillInto={handleOutlineDrill}
+              onGoUp={handleOutlineUp}
+              onClose={() => setOutlineOpen(false)}
+            />
+          )}
 
           {/* 검색 오버레이 */}
           {searchOpen && (
@@ -2141,6 +2389,8 @@ export function Canvas({
               onClose={handleCloseSearch}
               onReopen={() => setSearchSelectedId(null)}
               inputRef={searchInputRef}
+              mode={searchMode}
+              onModeChange={setSearchMode}
             />
           )}
 

@@ -3,7 +3,12 @@ import React, { useEffect, useRef, useMemo } from 'react'
 export interface SearchMatch {
   id: string
   title: string
+  /** 노드 번호 — 드롭다운에 `#17` 로 표시한다. 번호 없는 id면 null. */
+  num?: number | null
 }
+
+/** 'text' = 제목/내용/원문/토글 전체, 'number' = 노드 번호. VS Code Ctrl+F의 토글 버튼과 같은 방식. */
+export type SearchMode = 'text' | 'number'
 
 interface SearchBarProps {
   query: string
@@ -16,9 +21,11 @@ interface SearchBarProps {
   onClose: () => void
   onReopen: () => void
   inputRef: React.RefObject<HTMLInputElement>
+  mode: SearchMode
+  onModeChange: (m: SearchMode) => void
 }
 
-export function SearchBar({ query, onQueryChange, matches, showDropdown, selectedId, onSelectNode, onPreviewNode, onClose, onReopen, inputRef }: SearchBarProps) {
+export function SearchBar({ query, onQueryChange, matches, showDropdown, selectedId, onSelectNode, onPreviewNode, onClose, onReopen, inputRef, mode, onModeChange }: SearchBarProps) {
   const [kbIdx, setKbIdx] = React.useState(-1)
   const dropRef = useRef<HTMLDivElement>(null)
 
@@ -96,12 +103,31 @@ export function SearchBar({ query, onQueryChange, matches, showDropdown, selecte
             setKbIdx(idx)
             onReopen()
           }}
-          placeholder="Search nodes… (Ctrl+F)"
+          placeholder={mode === 'number' ? 'Node number… e.g. 17, 19-22' : 'Search nodes… (Ctrl+F)'}
           style={{
             border: 'none', outline: 'none', fontSize: 13,
             width: 200, background: 'transparent', color: '#111',
           }}
         />
+        {/* 모드 토글 — VS Code 찾기 상자의 Aa/.* 버튼과 같은 자리·같은 방식 */}
+        {([
+          ['text', 'Aa', 'Search titles, content and quotes'],
+          ['number', '#', 'Search by node number (17, 19-22)'],
+        ] as Array<[SearchMode, string, string]>).map(([m, label, tip]) => (
+          <button
+            key={m}
+            onClick={() => { onModeChange(m); inputRef.current?.focus() }}
+            title={tip}
+            aria-pressed={mode === m}
+            style={{
+              background: mode === m ? '#dbeafe' : 'none',
+              border: mode === m ? '1px solid #93c5fd' : '1px solid transparent',
+              cursor: 'pointer', padding: '1px 5px', fontSize: 11,
+              fontWeight: 600, color: mode === m ? '#1d4ed8' : '#6b7280',
+              borderRadius: 3, lineHeight: 1.4, flexShrink: 0,
+            }}
+          >{label}</button>
+        ))}
         {countLabel && (
           <span style={{
             fontSize: 11, color: hasMatches ? '#6b7280' : '#ef4444',
@@ -156,6 +182,12 @@ export function SearchBar({ query, onQueryChange, matches, showDropdown, selecte
                   fontWeight: isActive ? 500 : 400,
                 }}
               >
+                {m.num != null && (
+                  <span style={{
+                    color: '#6b7280', fontWeight: 600, marginRight: 6,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>#{m.num}</span>
+                )}
                 {m.title}
               </div>
             )

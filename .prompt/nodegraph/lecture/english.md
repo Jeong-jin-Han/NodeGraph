@@ -13,5 +13,25 @@ so extract images generously.
 Write all node content in English. Quote definitions and technical terms
 verbatim from the slides.
 
+Before you start, fix two things and tell me what you chose: (1) the canonical
+reader for this graph — one plausible real person with only the minimum
+background I'd expect; (2) the landmark, one sentence saying what this lecture
+teaches and what it concludes. Record both in the result's top-level
+`conventions` (see the spec's `conventions` section). That field is what lets
+whoever adds a node later inherit these rules without re-reading the spec.
+
+Write titles as claims that could turn out to be **wrong**, not as topics. Don't
+copy the deck's section headings ("Caches", "Sorting") into titles — say what
+that section establishes. The section name and slide range go in `content`'s
+first line instead.
+
+When it's built, run one more shortening pass. Writing each node so it stands
+alone is the habit that makes the whole graph slower to read than the source; a
+node is a slide, not a document, and completeness is the path's job.
+
+When you enumerate things, write a real markdown list with one item per line —
+never `(1) … (2) … (3) …` run together inside a paragraph. Run-together
+enumerations are the most common reason a node is hard to read.
+
 Follow the spec exactly, save the result inside PROJECT_FOLDER, and run
 end to end without asking me anything. Tell me when done.

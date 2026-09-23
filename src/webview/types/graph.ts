@@ -11,6 +11,19 @@ export interface NodeGraph {
   title: string
   created: string
   modified: string
+  /**
+   * Agent-facing authoring rules carried inside the graph itself, so that an agent adding a
+   * node later inherits them without re-reading `.agent/nodegraph/SPEC.md`. Never rendered;
+   * the editor and the HTML export ignore it and only round-trip it on save.
+   */
+  conventions?: {
+    spec?: string
+    reader?: string
+    landmark?: string
+    example?: string
+    names?: Record<string, string>
+    checks?: string[]
+  }
   source?: {
     pdf: string
     authors: string

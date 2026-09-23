@@ -1,6 +1,7 @@
 import * as path from 'path'
 import { NodeGraph, GraphNode, NodeTemplate } from '../webview/types/graph'
 import { parseCodeLinkTarget } from './codeLink'
+import { groupListsInHtml } from '../webview/utils/listBlocks'
 
 function escHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -118,6 +119,15 @@ function renderTableBlockHtml(block: HtmlTableBlock, imageData: Record<string, s
   return `<div class="ng-table-wrap"><table class="ng-table"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>`
 }
 
+// 노드 번호 — 에디터의 src/webview/utils/nodeNumber.ts와 같은 규칙(`node_017` → 17).
+// 익스포터는 webview 번들과 코드를 공유하지 않으므로 여기에 한 벌 더 둔다.
+function nodeNumOf(id: string): number | null {
+  const m = /(\d+)\s*$/.exec(id)
+  if (!m) return null
+  const n = parseInt(m[1], 10)
+  return Number.isNaN(n) ? null : n
+}
+
 function renderNodeCard(
   node: GraphNode,
   template: NodeTemplate | undefined,
@@ -141,22 +151,22 @@ function renderNodeCard(
       if (block.type === 'table') {
         bodyHtml += renderTableBlockHtml(block, imageData)
       } else if (block.text) {
-        bodyHtml += `<div class="ng-seg">${renderCellHtml(block.text, imageData).replace(/\n/g, '<br>')}</div>`
+        bodyHtml += `<div class="ng-seg">${groupListsInHtml(renderCellHtml(block.text, imageData))}</div>`
       }
     }
     bodyHtml += '</div>'
   } else if (content) {
-    bodyHtml += `<div class="ng-content">${renderCellHtml(content, imageData).replace(/\n/g, '<br>')}</div>`
+    bodyHtml += `<div class="ng-content">${groupListsInHtml(renderCellHtml(content, imageData))}</div>`
   }
   if (node.original) {
     const origTitle = escHtml(node.original.title ?? 'Original')
     const openAttr = node.originalExpanded ? ' open' : ''
     bodyHtml += `<details class="ng-original"${openAttr}><summary>${origTitle}${node.original.location ? ` <span class="ng-loc">${escHtml(node.original.location)}</span>` : ''}</summary>
-<div class="ng-orig-text">${renderTextSegment(node.original.text).replace(/\n/g, '<br>')}</div></details>`
+<div class="ng-orig-text">${groupListsInHtml(renderTextSegment(node.original.text))}</div></details>`
   }
   for (const t of node.toggleItems ?? []) {
     bodyHtml += `<details class="ng-toggle" data-toggle-id="${escHtml(t.id)}"${t.expanded ? ' open' : ''}><summary>${escHtml(t.title || '(untitled)')}</summary>
-<div class="ng-toggle-body">${renderTextSegment(t.content).replace(/\n/g, '<br>')}</div></details>`
+<div class="ng-toggle-body">${groupListsInHtml(renderTextSegment(t.content))}</div></details>`
   }
   if (node.links.length) {
     bodyHtml += `<div class="ng-links">${node.links.map(l => {
@@ -216,6 +226,7 @@ function renderNodeCard(
   return `<div class="ng-node${hasTableClass}" id="node-${escHtml(node.id)}"${childrenAttr}${minHAttr} style="--color:${color};border-radius:${borderRadius};left:${nx}px;top:${ny}px${extraStyle ? ';' + extraStyle : ''}">
   <div class="ng-header" onclick="onHeaderClick(this)" title="Click to select node">
     <span class="ng-tag" onmousedown="onNodeTagMousedown(event,this.closest('.ng-node'))" style="background:color-mix(in srgb,${color} 20%,transparent);color:${color}">${label}</span>
+    ${nodeNumOf(node.id) === null ? '' : `<span class="ng-num" style="color:color-mix(in srgb,${color} 65%,#6b7280)">#${nodeNumOf(node.id)}</span>`}
     ${hasBody ? `<span class="ng-title" onclick="onTitleClick(event,this)" title="Click to fold/unfold">${escHtml(node.title)}</span>` : `<span class="ng-title">${escHtml(node.title)}</span>`}
   </div>
   ${hasBody ? `<div class="ng-body"${bodyDisplay}${node.fontSize ? ` style="font-size:${node.fontSize}px"` : ''}>${bodyHtml}</div>` : ''}
@@ -246,6 +257,7 @@ export function generateHtml(
     ly: Math.round(n.position.y + offsetY),
     children: n.children ?? [],
     template: n.template,
+    color: graph.nodeTemplates[n.template]?.color ?? '#888888',
     contentExpanded: n.contentExpanded,
     isMain: n.template === 'main_topic',
     nodeHeight: n.nodeHeight ?? null,
@@ -309,10 +321,34 @@ select:hover{border-color:#93c5fd}
 .ng-node{position:absolute;min-width:432px;background:color-mix(in srgb,var(--color) 15%,#ffffff);border:1px solid color-mix(in srgb,var(--color) 40%,#e0e0e0);font-size:13px;transition:box-shadow .1s,top .35s ease,left .35s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .ng-node.ng-selected{box-shadow:0 0 0 2px color-mix(in srgb,var(--color) 80%,transparent),0 2px 8px rgba(0,0,0,.12)}
 .ng-node.ng-dragging{opacity:.88;transition:box-shadow .1s;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:100}
-.ng-header{display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:default;user-select:none}
+.ng-header{display:flex;align-items:baseline;gap:6px;padding:6px 8px;cursor:default;user-select:none}
 .ng-header:hover{background:rgba(0,0,0,.04)}
 .ng-tag{font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;flex-shrink:0;white-space:nowrap;cursor:move;user-select:none}
-.ng-title{flex:1;font-size:12px;font-weight:500;color:#1a1a1a;white-space:nowrap;cursor:pointer;user-select:none}
+.ng-num{font-size:10px;font-weight:700;letter-spacing:.02em;flex-shrink:0;white-space:nowrap;font-variant-numeric:tabular-nums;user-select:none}
+.ng-hidden-count{font-size:10px;font-weight:600;flex-shrink:0;white-space:nowrap;padding:0 4px;border-radius:3px;font-variant-numeric:tabular-nums;user-select:none}
+.ng-mode-btn{background:none;border:1px solid transparent;cursor:pointer;padding:1px 5px;font-size:11px;font-weight:600;color:#6b7280;border-radius:3px;line-height:1.4;flex-shrink:0}
+.ng-mode-btn.active{background:#dbeafe;border-color:#93c5fd;color:#1d4ed8}
+.ng-drop-num{color:#6b7280;font-weight:600;margin-right:6px;font-variant-numeric:tabular-nums}
+#outline{position:absolute;top:0;left:0;bottom:0;width:256px;z-index:480;background:#fff;border-right:1px solid #d1d5db;box-shadow:2px 0 12px rgba(0,0,0,.08);display:none;flex-direction:column}
+#outline.open{display:flex}
+#outline-head{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid #e5e7eb;flex-shrink:0}
+#outline-head span{font-size:12px;font-weight:700;color:#374151;flex:1}
+#outline-head button{background:none;border:none;cursor:pointer;color:#6b7280;font-size:13px;padding:2px 4px;line-height:1}
+#outline-crumbs{padding:6px 10px;border-bottom:1px solid #f3f4f6;flex-shrink:0;font-size:11px;color:#6b7280;display:flex;flex-wrap:wrap;align-items:center;gap:3px}
+#outline-crumbs button{background:none;border:none;padding:0;cursor:pointer;font-size:11px;color:#2563eb}
+#outline-crumbs button.here{color:#374151;font-weight:600}
+#outline-cur{padding:8px 10px;border-bottom:1px solid #f3f4f6;flex-shrink:0;font-size:12px;font-weight:600;color:#111;display:none}
+#outline-cur.on{display:block}
+#outline-list{flex:1;overflow-y:auto;padding:6px 6px 12px}
+#outline-label{font-size:10px;color:#9ca3af;padding:2px 8px 6px;font-weight:600;letter-spacing:.03em}
+.ng-out-item{display:flex;align-items:baseline;gap:6px;padding:5px 8px;border-radius:4px;cursor:pointer;font-size:12px;line-height:1.4;text-align:left;width:100%;border:none;background:transparent;color:#1a1a1a}
+.ng-out-item:hover{background:#f3f4f6}
+.ng-out-item.sel{background:#e8f0fe;font-weight:600}
+.ng-out-num{font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;flex-shrink:0;min-width:26px}
+.ng-out-title{flex:1;min-width:0}
+.ng-out-count{font-size:10px;color:#9ca3af;flex-shrink:0}
+.ng-title{flex:1;font-size:12px;font-weight:500;color:#1a1a1a;white-space:nowrap;line-height:1.35;padding-right:10px;cursor:pointer;user-select:none}
+.ng-node.title-wrap .ng-title{white-space:normal;overflow-wrap:break-word}
 .ng-body{padding:8px 10px;font-size:14px}
 .ng-content{line-height:1.6;color:#333;white-space:pre-wrap;word-break:break-word;margin-bottom:6px}
 .ng-more-btn{display:block;width:100%;margin-top:4px;padding:3px 0;background:transparent;border:none;color:inherit;opacity:.55;font-size:10px;cursor:pointer;text-align:center;user-select:none}
@@ -384,14 +420,24 @@ ${hitStyles}
       Grid
     </button>
     <button id="tb-more-btn" onclick="toggleMoreCaps()" title="Toggle the More/Less content cap — when off, every node's content is always fully expanded">More</button>
+    <button id="tb-outline-btn" onclick="toggleOutline()" title="Toggle the outline panel — shows the selected node's direct children in reading order, including folded ones">Outline</button>
+    <span id="tb-levels" style="display:inline-flex;align-items:center;gap:2px;flex-shrink:0" title="How many levels to show at once — 1 is the backbone alone"></span>
     <div class="tb-sep"></div>
     <span id="tb-sel" style="opacity:.35">Click a node to select</span>
   </div>
 </div>
 <div id="viewport">
+  <div id="outline">
+    <div id="outline-head"><span>Outline</span><button onclick="toggleOutline()" title="Hide the outline">✕</button></div>
+    <div id="outline-crumbs"></div>
+    <div id="outline-cur"></div>
+    <div id="outline-list"><div id="outline-label"></div></div>
+  </div>
   <div id="search-wrap">
     <div id="search-row">
       <input id="search-input" placeholder="Search nodes… (Ctrl+F)" oninput="doSearch(this.value)" onkeydown="onSearchKey(event)" onclick="onSearchInputClick()">
+      <button id="search-mode-text" class="ng-mode-btn active" title="Search titles, content and quotes" onclick="setSearchMode('text')">Aa</button>
+      <button id="search-mode-number" class="ng-mode-btn" title="Search by node number (17, 19-22)" onclick="setSearchMode('number')">#</button>
       <span id="search-count"></span>
       <div style="width:1px;height:16px;background:#e5e7eb;margin:0 2px;flex-shrink:0"></div>
       <button onclick="closeSearch()" title="Close (Escape)" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:13px;color:#6b7280;border-radius:3px;line-height:1">✕</button>
@@ -567,7 +613,10 @@ function onHeaderClick(hdr) {
   if (lastWasDrag) { lastWasDrag = false; return; }
   var nodeEl = hdr.parentNode;
   var nodeId = nodeEl.id.replace('node-', '');
-  selectNode(selectedNodeId === nodeId ? null : nodeId);
+  var next = selectedNodeId === nodeId ? null : nodeId;
+  selectNode(next);
+  // 노드를 고르면 목차도 그 노드 기준으로 따라간다
+  if (outlineOpen) { outlineFocusId = next; renderOutline(); }
 }
 
 // Title click = fold/unfold this node
@@ -1552,9 +1601,12 @@ function drawEdges(fast) {
 
   // 노드 rect 캐시 (엣지 라우팅 장애물 검사용 — drawEdges 1회당 1회만 DOM 조회)
   var rectById={};
+  var _foldT=foldTreeJs();
   NODES_DATA.forEach(function(n){
     var el=document.getElementById('node-'+n.id);
-    if(el) rectById[n.id]=getNodeRect(el);
+    // 접혀서 숨겨진 노드는 rect를 만들지 않는다 — 아래 라우팅 루프들이 이미
+    // if(!rectById[...]) return 으로 거르므로 이 한 곳만 막으면 전부 반영된다
+    if(el && !isNodeHidden(n.id,_foldT)) rectById[n.id]=getNodeRect(el);
   });
 
   // hop 자식(line) 엣지: 버스 라우팅도, A*/커브 라우팅도 없이 그냥 평범한 직선
@@ -1766,7 +1818,8 @@ function updateTextHits(){
   if(!window.CSS||!CSS.highlights||typeof Highlight==='undefined') return;
   clearTextHits();
   var q=document.getElementById('search-input').value.trim().toLowerCase();
-  if(!q||!document.getElementById('search-wrap').classList.contains('open')) return;
+  // 번호 모드에는 본문에 대응하는 텍스트가 없으므로 인라인 하이라이트를 건너뛴다
+  if(!q||searchMode==='number'||!document.getElementById('search-wrap').classList.contains('open')) return;
   var byTmpl={};
   searchMatchNodes.forEach(function(n){
     var el=document.getElementById('node-'+n.id);
@@ -1808,12 +1861,383 @@ function nodeMatchesQuery(n, q){
     return (t.title||'').toLowerCase().indexOf(q)!==-1 || (t.content||'').toLowerCase().indexOf(q)!==-1;
   });
 }
+// ── 계층 접기 — 에디터 src/webview/utils/foldState.ts와 같은 규칙.
+// 상태는 "자손을 숨기고 있는 노드 집합" 하나뿐이고, 보이는지는 "조상 중 접힌 것이 있는가"로 정한다.
+var collapsedSet = {};
+var foldHistory = [];
+function foldTreeJs() {
+  var d = outlineChildren();   // {kids, tree}
+  return { parentOf: d.tree.parentOf, depthOf: d.tree.depthOf, kids: d.kids };
+}
+function isNodeHidden(id, t) {
+  for (var p = t.parentOf[id]; p !== undefined && p !== null; p = t.parentOf[p]) {
+    if (collapsedSet[p]) return true;
+  }
+  return false;
+}
+function descendantsJs(id, t) {
+  var out = [], stack = (t.kids[id] || []).slice(), seen = {};
+  while (stack.length) {
+    var c = stack.pop();
+    if (seen[c]) continue;
+    seen[c] = 1; out.push(c);
+    (t.kids[c] || []).forEach(function(k){ stack.push(k); });
+  }
+  return out;
+}
+function sameDepthJs(id, t) {
+  var d = t.depthOf[id];
+  return NODES_DATA.filter(function(n){ return t.depthOf[n.id] === d; }).map(function(n){ return n.id; });
+}
+function foldCompute(base, action, scope, id, t) {
+  var next = {};
+  Object.keys(base).forEach(function(k){ next[k] = 1; });
+  var targets;
+  if (scope === 'one') targets = [id];
+  else if (scope === 'level') targets = sameDepthJs(id, t);
+  else if (scope === 'chain') targets = [id].concat(descendantsJs(id, t));
+  else targets = NODES_DATA.map(function(n){ return n.id; });
+  if (action === 'expand') {
+    targets.forEach(function(x){ delete next[x]; });
+  } else {
+    targets.forEach(function(x){ if ((t.kids[x] || []).length) next[x] = 1; });
+  }
+  return next;
+}
+function setsDiffer(a, b) {
+  var ka = Object.keys(a), kb = Object.keys(b);
+  if (ka.length !== kb.length) return true;
+  for (var i = 0; i < ka.length; i++) if (!b[ka[i]]) return true;
+  return false;
+}
+function applyFoldVisibility() {
+  var t = foldTreeJs();
+  NODES_DATA.forEach(function(n){
+    var el = document.getElementById('node-' + n.id);
+    if (!el) return;
+    el.style.display = isNodeHidden(n.id, t) ? 'none' : '';
+    var badge = el.querySelector('.ng-hidden-count');
+    var count = collapsedSet[n.id] ? descendantsJs(n.id, t).length : 0;
+    if (count > 0) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'ng-hidden-count';
+        var after = el.querySelector('.ng-num') || el.querySelector('.ng-tag');
+        after.parentNode.insertBefore(badge, after.nextSibling);
+      }
+      badge.textContent = '+' + count;
+      badge.title = count + ' node(s) hidden below — right-click the tag to expand';
+      badge.style.background = 'color-mix(in srgb,' + (n.color || '#888') + ' 18%,transparent)';
+      badge.style.color = 'color-mix(in srgb,' + (n.color || '#888') + ' 70%,#374151)';
+    } else if (badge) {
+      badge.remove();
+    }
+  });
+  // +N 배지가 붙고 떨어지면 헤더 폭이 바뀐다 — 다시 재지 않으면 제목이 카드 밖으로 넘친다
+  clampWideTitles();
+  drawEdges();
+  if (outlineOpen) renderOutline();
+  renderLevelButtons();
+}
+function foldPick(action, scope, id) {
+  shownDepth = null;
+  var t = foldTreeJs();
+  var next = foldCompute(collapsedSet, action, scope, id, t);
+  foldHistory.push(collapsedSet);
+  if (foldHistory.length > 20) foldHistory.shift();
+  collapsedSet = next;
+  applyFoldVisibility();
+}
+function foldUndo() {
+  if (!foldHistory.length) return;
+  shownDepth = null;
+  collapsedSet = foldHistory.pop();
+  applyFoldVisibility();
+}
+// 숨겨진 노드로 이동해야 할 때 조상 경로를 펼쳐 드러낸다 (검색/목차에서 호출)
+function revealNodeJs(id) {
+  if (!Object.keys(collapsedSet).length) return;
+  var t = foldTreeJs(), changed = false;
+  var next = {};
+  Object.keys(collapsedSet).forEach(function(k){ next[k] = 1; });
+  for (var p = t.parentOf[id]; p !== undefined && p !== null; p = t.parentOf[p]) {
+    if (next[p]) { delete next[p]; changed = true; }
+  }
+  if (!changed) return;
+  foldHistory.push(collapsedSet);
+  shownDepth = null;
+  collapsedSet = next;
+  applyFoldVisibility();
+}
+// 층 선택 — "몇 층까지 보여줄지"를 한 번에 정한다 (에디터 툴바의 Levels와 같은 규칙).
+// 층 단위로 파일을 쪼개는 대신 이걸 쓴다: 보이는 결과는 같으면서 검색·목차·접기 상태가
+// 파일 경계에서 끊기지 않는다.
+// 0 = All, 1.. = 그 층까지, null = 어느 버튼에도 해당하지 않는 상태
+var shownDepth = 0;
+function maxDepthJs(t) {
+  var max = 0;
+  NODES_DATA.forEach(function(n){ var d = t.depthOf[n.id]; if (d !== undefined && d > max) max = d; });
+  return max;
+}
+function collapseToDepthJs(depth, t) {
+  var next = {};
+  if (depth <= 0) return next;
+  NODES_DATA.forEach(function(n){
+    if (!(t.kids[n.id] || []).length) return;
+    var d = t.depthOf[n.id];
+    if (d !== undefined && d >= depth - 1) next[n.id] = 1;
+  });
+  return next;
+}
+function setLevels(depth) {
+  var t = foldTreeJs();
+  foldHistory.push(collapsedSet);
+  shownDepth = depth;
+  collapsedSet = collapseToDepthJs(depth, t);
+  applyFoldVisibility();
+  renderLevelButtons();
+}
+function renderLevelButtons() {
+  var host = document.getElementById('tb-levels');
+  if (!host) return;
+  var t = foldTreeJs();
+  var max = maxDepthJs(t);
+  host.innerHTML = '';
+  if (max <= 0) return;
+  var label = document.createElement('span');
+  label.textContent = 'Levels';
+  label.style.cssText = 'font-size:10px;opacity:.6;margin-right:2px';
+  host.appendChild(label);
+  function mk(text, depth) {
+    var b = document.createElement('button');
+    b.textContent = text;
+    b.style.padding = '2px 6px';
+    b.style.minWidth = '22px';
+    if (shownDepth === depth) { b.style.background = '#2563eb'; b.style.color = '#fff'; }
+    b.addEventListener('click', function(){ setLevels(depth); });
+    host.appendChild(b);
+  }
+  for (var d = 1; d <= Math.min(max, 3); d++) mk(String(d), d);
+  mk('All', 0);
+}
+
+function closeFoldMenu() {
+  var m = document.getElementById('fold-menu');
+  if (m) m.remove();
+}
+function openFoldMenu(nodeId, x, y) {
+  closeFoldMenu();
+  var t = foldTreeJs();
+  var n = outlineNodeById(nodeId);
+  var menu = document.createElement('div');
+  menu.id = 'fold-menu';
+  menu.style.cssText = 'position:fixed;z-index:900;min-width:236px;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px 0;font-size:12px;color:#1a1a1a';
+  menu.style.left = Math.min(x, window.innerWidth - 250) + 'px';
+  menu.style.top = Math.min(y, window.innerHeight - 290) + 'px';
+  var head = document.createElement('div');
+  head.style.cssText = 'padding:4px 12px 6px;font-size:11px;color:#6b7280;font-weight:600;border-bottom:1px solid #f3f4f6;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+  head.textContent = (outlineNumOf(nodeId) ? outlineNumOf(nodeId) + '  ' : '') + (n ? n.title : nodeId);
+  menu.appendChild(head);
+  function add(action, scope, label) {
+    var next = foldCompute(collapsedSet, action, scope, nodeId, t);
+    var on = setsDiffer(collapsedSet, next);
+    var b = document.createElement('button');
+    b.textContent = label;
+    b.disabled = !on;
+    b.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%;padding:5px 12px;border:none;background:transparent;text-align:left;font-size:12px;line-height:1.4;color:' + (on ? '#1a1a1a' : '#b0b4ba') + ';cursor:' + (on ? 'pointer' : 'default');
+    if (on) {
+      b.addEventListener('mouseenter', function(){ b.style.background = '#f3f4f6'; });
+      b.addEventListener('mouseleave', function(){ b.style.background = 'transparent'; });
+      b.addEventListener('click', function(){ foldPick(action, scope, nodeId); closeFoldMenu(); });
+    }
+    menu.appendChild(b);
+  }
+  function sep() {
+    var d = document.createElement('div');
+    d.style.cssText = 'height:1px;background:#f3f4f6;margin:4px 0';
+    menu.appendChild(d);
+  }
+  add('expand', 'one', 'Expand children');
+  add('expand', 'level', 'Expand this level');
+  add('expand', 'chain', 'Expand all below');
+  add('expand', 'all', 'Expand everything');
+  sep();
+  add('collapse', 'one', 'Collapse children');
+  add('collapse', 'level', 'Collapse this level');
+  add('collapse', 'chain', 'Collapse all below');
+  add('collapse', 'all', 'Collapse everything');
+  sep();
+  var u = document.createElement('button');
+  u.textContent = 'Undo last fold change';
+  u.disabled = !foldHistory.length;
+  u.style.cssText = 'display:flex;width:100%;padding:5px 12px;border:none;background:transparent;text-align:left;font-size:12px;color:' + (foldHistory.length ? '#1a1a1a' : '#b0b4ba') + ';cursor:' + (foldHistory.length ? 'pointer' : 'default');
+  if (foldHistory.length) u.addEventListener('click', function(){ foldUndo(); closeFoldMenu(); });
+  menu.appendChild(u);
+  menu.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  menu.addEventListener('mousedown', function(e){ e.stopPropagation(); });
+  document.body.appendChild(menu);
+}
+document.addEventListener('mousedown', function(e){
+  var m = document.getElementById('fold-menu');
+  if (m && !m.contains(e.target)) closeFoldMenu();
+}, true);
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeFoldMenu(); }, true);
+document.addEventListener('contextmenu', function(e){
+  var tag = e.target.closest ? e.target.closest('.ng-tag') : null;
+  if (!tag) return;
+  var card = tag.closest('.ng-node');
+  if (!card) return;
+  e.preventDefault();
+  e.stopPropagation();
+  openFoldMenu(card.id.replace('node-', ''), e.clientX, e.clientY);
+}, true);
+
+// ── 목차 패널 — 에디터 OutlinePanel.tsx와 같은 규칙.
+// children[]이 비어 있어도 되도록 hop 트리의 parentOf에서 자식을 역산하고,
+// contentExpanded는 보지 않으므로 접혀 있는 노드도 전부 나온다.
+var outlineOpen=false;
+var outlineFocusId=null;
+function outlineChildren(){
+  var tree=buildHopTreeJs();
+  var kids={};
+  NODES_DATA.forEach(function(n){
+    var p=tree.parentOf[n.id];
+    if(p!==undefined&&p!==null) (kids[p]=kids[p]||[]).push(n.id);
+  });
+  return {kids:kids,tree:tree};
+}
+function outlineNodeById(id){
+  for(var i=0;i<NODES_DATA.length;i++) if(NODES_DATA[i].id===id) return NODES_DATA[i];
+  return null;
+}
+function outlineNumOf(id){var n=nodeNumOfJs(id);return n===null?'':'#'+n;}
+function toggleOutline(){
+  outlineOpen=!outlineOpen;
+  document.getElementById('outline').classList.toggle('open',outlineOpen);
+  var b=document.getElementById('tb-outline-btn');
+  b.style.background=outlineOpen?'#2563eb':''; b.style.color=outlineOpen?'#fff':'';
+  if(outlineOpen) renderOutline();
+}
+function outlineDrill(id){
+  outlineFocusId=id;
+  revealNodeJs(id);
+  selectNode(id);
+  flyToNode(id);
+  renderOutline();
+}
+function outlineUp(id){
+  outlineFocusId=id;
+  if(id){selectNode(id);flyToNode(id);} else {selectNode(null);}
+  renderOutline();
+}
+function renderOutline(){
+  if(!outlineOpen) return;
+  var d=outlineChildren(), kids=d.kids, tree=d.tree;
+  var focus=(outlineFocusId&&outlineNodeById(outlineFocusId))?outlineFocusId:null;
+
+  // 브레드크럼
+  var trail=[], seen={};
+  for(var cur=focus; cur&&outlineNodeById(cur)&&!seen[cur]; cur=(tree.parentOf[cur]!==undefined?tree.parentOf[cur]:null)){
+    seen[cur]=1; trail.unshift(cur);
+  }
+  var cr=document.getElementById('outline-crumbs');
+  cr.innerHTML='';
+  var top=document.createElement('button');
+  top.textContent='Top';
+  if(!trail.length) top.style.color='#6b7280';
+  top.addEventListener('click',function(){outlineUp(null);});
+  cr.appendChild(top);
+  trail.forEach(function(id,i){
+    var sep=document.createElement('span'); sep.textContent='\u203a'; sep.style.color='#9ca3af'; cr.appendChild(sep);
+    var b=document.createElement('button');
+    b.textContent=outlineNumOf(id)||(outlineNodeById(id)||{}).title;
+    b.title=(outlineNodeById(id)||{}).title||'';
+    if(i===trail.length-1) b.className='here';
+    b.addEventListener('click',function(){outlineUp(id);});
+    cr.appendChild(b);
+  });
+
+  // 현재 노드
+  var curEl=document.getElementById('outline-cur');
+  if(focus){
+    var fn=outlineNodeById(focus);
+    curEl.innerHTML='';
+    var num=document.createElement('span');
+    num.className='ng-out-num'; num.style.color=fn.color||'#888'; num.textContent=outlineNumOf(focus);
+    curEl.appendChild(num);
+    curEl.appendChild(document.createTextNode(' '+fn.title));
+    curEl.classList.add('on');
+  } else { curEl.classList.remove('on'); curEl.innerHTML=''; }
+
+  // 직속 자식 — 읽는 순서(화면 배치 순서)대로
+  var ids = focus ? (kids[focus]||[]) : NODES_DATA.filter(function(n){return tree.depthOf[n.id]===0;}).map(function(n){return n.id;});
+  var items = ids.map(outlineNodeById).filter(Boolean)
+    .sort(function(a,b){return (a.ly-b.ly)||(a.lx-b.lx);});
+
+  var list=document.getElementById('outline-list');
+  list.innerHTML='';
+  var label=document.createElement('div');
+  label.id='outline-label';
+  label.textContent = items.length===0 ? 'NOTHING BELOW THIS NODE' : (focus?'READ IN THIS ORDER':'BACKBONE — READ IN THIS ORDER');
+  list.appendChild(label);
+  items.forEach(function(n){
+    var b=document.createElement('button');
+    b.className='ng-out-item'+(n.id===selectedNodeId?' sel':'');
+    b.title=n.title;
+    var num=document.createElement('span');
+    num.className='ng-out-num'; num.style.color=n.color||'#888'; num.textContent=outlineNumOf(n.id);
+    b.appendChild(num);
+    var t=document.createElement('span'); t.className='ng-out-title'; t.textContent=n.title; b.appendChild(t);
+    var c=(kids[n.id]||[]).length;
+    if(c>0){var cc=document.createElement('span');cc.className='ng-out-count';cc.textContent='\u203a'+c;b.appendChild(cc);}
+    b.addEventListener('click',function(){outlineDrill(n.id);});
+    list.appendChild(b);
+  });
+}
+
+// 'text' = 제목/내용/원문/토글, 'number' = 노드 번호. 에디터 SearchBar의 모드와 동일
+var searchMode='text';
+function setSearchMode(m){
+  searchMode=m;
+  document.getElementById('search-mode-text').classList.toggle('active',m==='text');
+  document.getElementById('search-mode-number').classList.toggle('active',m==='number');
+  var input=document.getElementById('search-input');
+  input.placeholder = m==='number' ? 'Node number… e.g. 17, 19-22' : 'Search nodes… (Ctrl+F)';
+  doSearch(input.value);
+  input.focus();
+}
+// "17", "17 19", "17,19", "17-20" 과 그 조합. 쓸 수 있는 토큰이 없으면 null을 돌려
+// 호출부가 "전부 매치"가 아니라 0건을 보여주게 한다
+function parseNumberQuery(q){
+  var ranges=[];
+  q.split(/[\\s,]+/).forEach(function(t){
+    if(!t) return;
+    var r=/^(\\d+)-(\\d+)$/.exec(t);
+    if(r){var a=parseInt(r[1],10),b=parseInt(r[2],10);ranges.push(a<=b?[a,b]:[b,a]);return;}
+    if(/^\\d+$/.test(t)){var v=parseInt(t,10);ranges.push([v,v]);}
+  });
+  if(!ranges.length) return null;
+  return function(n){return ranges.some(function(p){return n>=p[0]&&n<=p[1];});};
+}
+function nodeNumOfJs(id){
+  var m=/(\\d+)\\s*$/.exec(id);
+  if(!m) return null;
+  var n=parseInt(m[1],10);
+  return isNaN(n)?null:n;
+}
 function doSearch(q){
   clearSearchHighlights();
   searchSelectedId=null;kbIdx=-1;
   var query=q.trim().toLowerCase();
   if(!query){document.getElementById('search-count').textContent='';closeDropdown();searchMatchNodes=[];return;}
-  searchMatchNodes=NODES_DATA.filter(function(n){return nodeMatchesQuery(n,query);});
+  var numMatch = searchMode==='number' ? parseNumberQuery(query) : null;
+  if(searchMode==='number' && !numMatch){
+    searchMatchNodes=[];updateSearchCount();closeDropdown();return;
+  }
+  searchMatchNodes=NODES_DATA.filter(function(n){
+    if(numMatch){var v=nodeNumOfJs(n.id);return v!==null&&numMatch(v);}
+    return nodeMatchesQuery(n,query);
+  });
   // main topic BFS 순서로 정렬: 한 main topic의 모든 hop1, 모든 hop2, ... 를 다 훑은
   // 뒤에야 다음 main topic으로 (에디터의 searchMatchNodes 정렬과 동일 규칙)
   var tree=buildHopTreeJs();
@@ -1844,7 +2268,14 @@ function renderDropdown(){
     div.setAttribute('data-kb-idx',i);
     var nodeEl=document.getElementById('node-'+n.id);
     var titleEl=nodeEl?nodeEl.querySelector('.ng-title'):null;
-    div.textContent=titleEl?titleEl.textContent:n.id;
+    var num=nodeNumOfJs(n.id);
+    if(num!==null){
+      var numEl=document.createElement('span');
+      numEl.className='ng-drop-num';
+      numEl.textContent='#'+num;
+      div.appendChild(numEl);
+    }
+    div.appendChild(document.createTextNode(titleEl?titleEl.textContent:n.id));
     div.addEventListener('mousedown',function(e){e.preventDefault();selectSearchNode(n.id);});
     div.addEventListener('mouseenter',function(){setKbActive(i);});
     drop.appendChild(div);
@@ -1869,6 +2300,7 @@ function applyKbHighlight(){
   });
 }
 function selectSearchNode(id){
+  revealNodeJs(id);
   clearSearchHighlights();
   searchSelectedId=id;
   var el=document.getElementById('node-'+id);
@@ -2096,6 +2528,32 @@ function toggleMoreCaps() {
   setTimeout(function() { recomputePositions(); drawEdges(); }, 0);
 }
 
+// 제목 한 줄 때문에 카드가 지나치게 넓어지면 TITLE_MAX_WIDTH에서 멈추고 제목을 접는다.
+// 에디터(NodeCard.tsx)의 TITLE_MAX_WIDTH / titleWraps와 같은 값·같은 규칙.
+var TITLE_MAX_WIDTH = 660;
+function clampWideTitles() {
+  document.querySelectorAll('.ng-node').forEach(function(el) {
+    // 최초 1회, 서버가 넣어준 min-width를 기억해둔다 (여러 번 불려도 기준이 흔들리지 않게)
+    if (el.dataset.origMinw === undefined) el.dataset.origMinw = el.style.minWidth || '';
+    el.classList.remove('title-wrap');
+    el.style.removeProperty('max-width');
+    if (el.dataset.origMinw) el.style.minWidth = el.dataset.origMinw;
+    else el.style.removeProperty('min-width');
+
+    // 표·이미지가 폭을 요구하는 카드는 제목과 무관하게 넓은 것이므로 손대지 않는다
+    if (el.querySelector('.ng-body table, .ng-body img')) return;
+    // 사용자가/에이전트가 일부러 상한보다 넓게 지정한 카드도 그대로 둔다
+    if ((parseFloat(el.dataset.origMinw) || 0) > TITLE_MAX_WIDTH) return;
+    if (el.offsetWidth <= TITLE_MAX_WIDTH) return;
+
+    // 카드 폭은 min-content로 정해지는데, 제목이 접히면 min-content가 '가장 긴 단어'로
+    // 떨어져 카드가 432px까지 주저앉는다 — 그래서 max만이 아니라 폭 자체를 고정한다.
+    el.style.minWidth = TITLE_MAX_WIDTH + 'px';
+    el.style.maxWidth = TITLE_MAX_WIDTH + 'px';
+    el.classList.add('title-wrap');
+  });
+}
+
 window.addEventListener('load', function() {
   // Render KaTeX first so node heights are accurate
   initKatex();
@@ -2113,6 +2571,8 @@ window.addEventListener('load', function() {
   // scale는 아직 초기값 1이라(fitView가 아직 안 돌아서) getBoundingClientRect()
   // 측정값이 캔버스 local 좌표와 일치함 — fitView 이후로 미루면 축소된 화면 픽셀을
   // local px로 착각해서 캡 높이가 잘못 계산됨.
+  clampWideTitles();
+  renderLevelButtons();
   applyContentCaps();
   recomputePositions();
   drawEdges();

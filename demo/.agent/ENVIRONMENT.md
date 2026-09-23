@@ -4,7 +4,7 @@
 > **AI agents: read this file to understand what tools are available on this machine.**
 > Re-generated each time a `.nodegraph.json` file is opened.
 
-Generated: `2026-09-23T12:11:14.178Z`
+Generated: `2026-07-28T08:25:56.021Z`
 
 ---
 
@@ -27,7 +27,6 @@ Generated: `2026-09-23T12:11:14.178Z`
 | pdfplumber | ✅ | available |
 | pdfminer | ✅ | available |
 | poppler (`pdftotext`) | ✅ | CLI tool available |
-| poppler (`pdftoppm`) | ✅ | renders pages to PNG — the image-extraction path when PyMuPDF is missing |
 | Ghostscript (`gs`) | ✅ | available |
 
 ---
@@ -53,16 +52,7 @@ with pdfplumber.open("paper.pdf") as pdf:
 ```
 
 ### Extracting images from a PDF
-PyMuPDF is not installed, so render the page with poppler and crop the figure out:
-```bash
-pdftoppm -png -r 240 -f 5 -l 5 paper.pdf page   # → page-05.png (page 5 at 240 dpi)
-```
-Then crop the figure with Pillow:
-```python
-from PIL import Image
-img = Image.open("page-05.png")
-img.crop((left, top, right, bottom)).save("fig_01.png")   # pixels at 240 dpi
-```
+Pillow is available but cannot extract from PDF directly. Use PyMuPDF for extraction.
 
 ---
 
