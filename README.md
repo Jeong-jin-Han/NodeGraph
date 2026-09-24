@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white&style=for-the-badge" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-2.1.0-orange?style=for-the-badge" alt="Version 2.1.0" />
+  <img src="https://img.shields.io/badge/version-2.2.0-orange?style=for-the-badge" alt="Version 2.2.0" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=for-the-badge" alt="MIT License" />
 </p>
 
@@ -142,15 +142,65 @@ PROJECT_FOLDER/.agent/nodegraph/SPEC.md and PROJECT_FOLDER/.agent/nodegraph/ENVI
 are already prepared for you — read both in full.
 
 Based on the paper and those two files, briefly explain what kind of
-nodegraph you can build from it. This extension ships a worked example
-at demo/ex1/attention-is-all-you-need.nodegraph.json (inside its own
-install folder) as a reference for depth/structure — check it if
-useful, then build ours the same way for this paper.
+nodegraph you can build from it, then build it.
+
+**Shape.** Once the graph will carry **more than about 12 sub-nodes**, build it
+hierarchical — see "Two shapes" in the spec. Below that, one level under the backbone
+is fine and inventing intermediate nodes just to add depth is noise. When it applies:
+
+- **At most 4 direct children on any node.** If a node needs a fifth child, invent
+  an intermediate node that names what two of them have in common, and put them
+  under that. Finding those names is most of the work.
+- **Depth 3 or more.** A ~30-node graph should land near 5 / 12 / 9 / 4 across the
+  levels, not 5 / 19 / 6.
+- **Fill `children`** on every node that has any.
+- **Each level answers a different question**: what is this / what are its parts /
+  how does each part work / the case, the number, the exception.
+- **A parent must read on its own.** Someone who stops at level 2 and never opens
+  level 3 should still come away with a correct, coarser understanding.
+
+Pick the backbone nodes with the spec's **kernel test** (Step 2): a kernel is something
+the authors contributed that nobody else did. Find 4-8 of them and check the whole paper
+reconstructs from that set. Sort everything else into SUPPORTING (real but standard — goes
+below the kernel it supports) or non-kernel (gets no node at all). Then write the chain:
+each kernel says which one it follows from and which it enables. A kernel that derives
+from nothing and enables nothing is misclassified.
 
 Write all node content in English.
 
+Before you start, fix two things and tell me what you chose: (1) the canonical
+reader for this graph — one plausible real person with only the minimum
+background I'd expect; (2) the landmark, one sentence saying what this paper is
+about and what the answer is. Record both in the result's top-level
+`conventions` (see the spec's `conventions` section). That field is what lets
+whoever adds a node later inherit these rules without re-reading the spec.
+
+Write titles as claims that could turn out to be **wrong**, not as topics.
+"Killer Application", "Why It's Needed", "Solution", "Results", "Conclusion" are
+slot names, not titles — scanning the titles alone should explain the paper, and
+a title that cannot be wrong carries no information.
+
+When it's built, run one more shortening pass. Writing each node so it stands
+alone is the habit that makes the whole graph slower to read than the source; a
+node is a slide, not a document, and completeness is the path's job.
+
+Quote page numbers (`p.N`) are the PDF's own page index counting from 1, not the number
+printed on the paper — proceedings often differ by hundreds, and the viewer takes `p.N`
+literally.
+
+When you enumerate things, write a real markdown list with one item per line —
+never `(1) … (2) … (3) …` run together inside a paragraph. Run-together
+enumerations are the most common reason a node is hard to read.
+
+When you are finished, run the verifier and paste its output:
+`node <path-to-extension>/tools/verify-nodegraph.js PROJECT_FOLDER`
+It re-reads every line range you cited and fails if a quote is not actually there, if an
+`internal` link points at a node that does not exist, or if a node exceeds the fan-out cap.
+Do not report success without running it.
+
 Follow the spec exactly, save the result inside PROJECT_FOLDER, and run
-end to end without asking me anything. Tell me when done.
+end to end without asking me anything. When you are done, report the node count
+at each depth and the largest fan-out in the graph.
 ```
 
 ### Mapping lecture slides

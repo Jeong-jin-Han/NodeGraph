@@ -40,6 +40,14 @@
 - **Canvas images** — paste on the background to get a floating, draggable, aspect-preserving-resizable image; drop it onto a node (or a specific table cell) to move it into that content; `Ctrl+C`/`X`/`V` copies, cuts, and clones canvas images
 - **Lightbox** — click any image to zoom it full-screen; `Esc` or a click closes
 
+- **One prompt per workflow and language, shape decided by size** — the bundled prompts no
+  longer come in flat and hierarchical variants. Past roughly 12 sub-nodes a graph is built
+  hierarchical (at most 4 direct children on any node, depth 3 or more, `children` filled);
+  below that it stays one level deep, because inventing an intermediate node to hold two
+  children is noise. The rule is not optional flavour: four graphs written before it existed
+  all came out backbone-plus-one-flat-layer, three of them hanging six to eight children off a
+  single node, which leaves the Levels control and the outline's drill-down with nothing to do
+
 ### Checking a graph
 - **`tools/verify-nodegraph.js <folder>`** — re-reads every `original` quote against the lines it cites (code graphs) or the PDF page it cites (paper graphs), confirms every `internal` link points at a node that exists, that `code` link ranges are inside their files, that `original.location` sits inside its link's range, and that no node exceeds the hierarchical fan-out cap. It exits non-zero, so it can gate a workflow. It exists because a generating agent reported "all quotes machine-checked" on a graph where three of thirty cited the wrong lines — a claim nobody could falsify without running something. The spec and every prompt now require a clean run before a graph is called done
 
