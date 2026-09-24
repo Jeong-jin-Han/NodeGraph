@@ -483,6 +483,9 @@ ${hitStyles}
     <span id="tb-title">${escHtml(graph.title)}</span>
   </div>
   <div id="tb-row2">
+    <button id="tb-back-btn" onclick="navJump(-1)" disabled style="opacity:.4;cursor:default;min-width:92px;justify-content:center" title="Back to the node you were reading (0 steps available) — Alt+&larr;">&lsaquo; Back</button>
+    <button id="tb-fwd-btn" onclick="navJump(1)" disabled style="opacity:.4;cursor:default;min-width:92px;justify-content:center" title="Forward again — Alt+&rarr;">Forward &rsaquo;</button>
+    <div class="tb-sep"></div>
     <select id="tb-filter" title="Filter Collapse/Expand to one node type"></select>
     <button onclick="doCollapse()" title="Collapse selected node + children (all if none selected; all if a type filter is set) — collapsing everything also fits the view">📁 Collapse</button>
     <button onclick="doExpand()" title="Expand selected node + children (all if none selected; only the filtered type if a type filter is set)">📂 Expand</button>
@@ -692,6 +695,7 @@ function onHeaderClick(hdr) {
   var nodeId = nodeEl.id.replace('node-', '');
   var next = selectedNodeId === nodeId ? null : nodeId;
   selectNode(next);
+  if (next) recordVisit(next);
   // 노드를 고르면 목차도 그 노드 기준으로 따라간다
   if (outlineOpen) { outlineFocusId = next; renderOutline(); }
 }
@@ -1836,6 +1840,11 @@ function fitView() {
 function showLightbox(src){document.getElementById('lightbox-img').src=src;document.getElementById('lightbox').classList.add('active');}
 function closeLightbox(){document.getElementById('lightbox').classList.remove('active');document.getElementById('lightbox-img').src='';}
 document.addEventListener('keydown',function(e){
+  // 브라우저의 뒤로/앞으로와 같은 키 — 읽던 자리로 돌아간다(에디터와 동일)
+  if(e.altKey&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){
+    var tag=(document.activeElement&&document.activeElement.tagName)||'';
+    if(tag!=='INPUT'&&tag!=='TEXTAREA'){e.preventDefault();navJump(e.key==='ArrowLeft'?-1:1);return;}
+  }
   if((e.ctrlKey||e.metaKey)&&e.key==='f'){e.preventDefault();openSearch();return;}
   if(e.key==='Escape'){
     if(document.getElementById('search-wrap').classList.contains('open')){closeSearch();return;}
@@ -1941,6 +1950,52 @@ function nodeMatchesQuery(n, q){
     return (t.title||'').toLowerCase().indexOf(q)!==-1 || (t.content||'').toLowerCase().indexOf(q)!==-1;
   });
 }
+// ── 어디까지 봤는지 기록 — 에디터 Canvas.tsx의 navStack과 같은 규칙.
+// 편집 Undo/Redo와는 다른 축이다(export에는 편집이 아예 없다). 링크로 뛰어간 자리와
+// 그냥 눌러 본 노드를 같은 스택에 쌓고, 뒤로 간 상태에서 새 곳으로 가면 앞 가지를 버린다.
+var NAV_MAX = 10;
+var navStack = [], navIndex = -1, navigating = false;
+function updateNavButtons() {
+  var back = document.getElementById('tb-back-btn');
+  var fwd = document.getElementById('tb-fwd-btn');
+  var canBack = navIndex > 0;
+  var canFwd = navIndex >= 0 && navIndex < navStack.length - 1;
+  if (back) {
+    back.disabled = !canBack;
+    back.style.opacity = canBack ? '1' : '.4';
+    back.style.cursor = canBack ? 'pointer' : 'default';
+    var n = Math.max(0, navIndex);
+    back.title = 'Back to the node you were reading (' + n + ' step' + (n === 1 ? '' : 's') + ' available) \u2014 Alt+\u2190';
+  }
+  if (fwd) {
+    fwd.disabled = !canFwd;
+    fwd.style.opacity = canFwd ? '1' : '.4';
+    fwd.style.cursor = canFwd ? 'pointer' : 'default';
+  }
+}
+function recordVisit(id) {
+  if (navigating || !id) return;
+  if (navStack[navIndex] === id) return;   // 같은 자리를 연달아 보면 쌓지 않는다
+  navStack = navStack.slice(0, navIndex + 1).concat([id]);
+  if (navStack.length > NAV_MAX) navStack = navStack.slice(navStack.length - NAV_MAX);
+  navIndex = navStack.length - 1;
+  updateNavButtons();
+}
+function navJump(delta) {
+  var next = navIndex + delta;
+  if (next < 0 || next >= navStack.length) return;
+  var id = navStack[next];
+  if (!document.getElementById('node-' + id)) return;
+  navigating = true;
+  navIndex = next;
+  updateNavButtons();
+  revealNodeJs(id);
+  selectNode(id);
+  flyToNode(id);
+  if (outlineOpen) { outlineFocusId = id; renderOutline(); }
+  navigating = false;
+}
+
 // internal 링크 — 이 문서 안의 노드로 이동한다. 접혀 있으면 조상을 펼치고,
 // 선택하고, 화면을 맞춘다 (에디터 Canvas.goToNode와 같은 동작).
 function goToNodeJs(id) {
@@ -1948,6 +2003,7 @@ function goToNodeJs(id) {
   revealNodeJs(id);
   selectNode(id);
   flyToNode(id);
+  recordVisit(id);
   if (outlineOpen) { outlineFocusId = id; renderOutline(); }
 }
 // 다른 그래프의 export에서 other.html#node-node_017 로 들어온 경우
@@ -2218,6 +2274,7 @@ function outlineDrill(id){
   revealNodeJs(id);
   selectNode(id);
   flyToNode(id);
+  recordVisit(id);
   renderOutline();
 }
 function outlineUp(id){
@@ -2428,6 +2485,7 @@ function selectSearchNode(id){
       if(datum.contentExpanded){body.style.display='none';datum.contentExpanded=false;applyKatexWidthForFold(nodeEl,false);}
     }
   });
+  recordVisit(id);
   setTimeout(function(){recomputePositions();flyToNode(id);},0);
   closeDropdown();
   updateSearchCount();

@@ -310,7 +310,22 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
         const html = await highlightCode(String(msg.code ?? ''), String(msg.lang ?? ''))
         webviewPanel.webview.postMessage({ type: 'codeHighlighted', lang: msg.lang, code: msg.code, html })
       } else if (msg.type === 'openHelp') {
-        const readmeUri = vscode.Uri.joinPath(this.context.extensionUri, 'README.md')
+        // vsce는 패키징할 때 README를 소문자 `readme.md`로 넣는다. 대문자 이름만 찾으면
+        // 대소문자를 구분하는 파일시스템(리눅스)에서는 없는 파일을 열게 되어 Help가
+        // 아무 일도 하지 않는다 — 설치본을 확인해 보면 실제로 readme.md 하나뿐이다.
+        let readmeUri: vscode.Uri | null = null
+        for (const name of ['README.md', 'readme.md']) {
+          const candidate = vscode.Uri.joinPath(this.context.extensionUri, name)
+          try {
+            await vscode.workspace.fs.stat(candidate)
+            readmeUri = candidate
+            break
+          } catch { /* 다음 후보 */ }
+        }
+        if (!readmeUri) {
+          vscode.window.showErrorMessage('NodeGraph: the bundled README could not be found.')
+          return
+        }
         vscode.commands.executeCommand('markdown.showPreviewToSide', readmeUri.with({ fragment: 'features' }))
       }
     })

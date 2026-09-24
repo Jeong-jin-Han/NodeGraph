@@ -102,6 +102,9 @@ interface HopTree {
   rootOf: Map<string, string>
 }
 // 디버그 격자 색 — 둘 다 회색이되 명도로 구분한다 (세로 = hop 경계, 가로 = main topic 묶음)
+// 읽은 자리 기록의 깊이
+const NAV_MAX = 10
+
 const GRID_V_COLOR = '#9ca3af'
 const GRID_H_COLOR = '#6b7280'
 
@@ -656,6 +659,32 @@ const toolbarSelectStyle: React.CSSProperties = {
 
 const toolbarDividerStyle: React.CSSProperties = { width: 1, height: 18, background: '#d1d5db', margin: '0 4px' }
 
+// Edit 쌍과 Read 쌍을 닫는 구분자. 두 행에 걸쳐 **한 줄로 이어져 보여야** 두 쌍이 하나의
+// 블록으로 읽힌다: 행 높이만큼 늘이고(stretch), 위쪽 것은 두 행 사이의 gap(6px)만큼
+// 아래로 더 내려 그 틈을 메운다.
+const axisDividerStyle: React.CSSProperties = {
+  width: 1, background: '#d1d5db', margin: '0 4px', alignSelf: 'stretch',
+}
+const axisDividerTopStyle: React.CSSProperties = { ...axisDividerStyle, marginBottom: -6 }
+
+// 네 버튼(Undo/Redo/Back/Forward)의 너비를 같게 묶는다. 쌍의 총 너비가 같아야 두 행의
+// 구분자가 같은 x에 서고, 그래야 위 규칙이 만드는 선이 실제로 일직선이 된다.
+const axisPairBtnStyle: React.CSSProperties = { ...toolbarBtnStyle, minWidth: 92, justifyContent: 'center' }
+
+// Undo/Redo(문서를 되돌림)와 Back/Forward(보던 자리로 돌아감)는 서로 다른 축인데 세로로
+// 맞붙어 있어 같은 기능처럼 보인다. 각 쌍 앞에 축 이름을 붙여 둘을 가른다 — 두 라벨의
+// minWidth 를 같게 둬서 위아래 줄이 정확히 세로 정렬된다.
+const axisLabelStyle: React.CSSProperties = {
+  fontSize: 9,
+  fontWeight: 700,
+  letterSpacing: '0.06em',
+  color: '#9ca3af',
+  textTransform: 'uppercase',
+  userSelect: 'none',
+  flexShrink: 0,
+  minWidth: 28,
+}
+
 interface SelectionBox {
   x1: number; y1: number; x2: number; y2: number
 }
@@ -715,6 +744,18 @@ export function Canvas({
   const [foldMenu, setFoldMenu] = useState<{ nodeId: string; x: number; y: number } | null>(null)
   // 편집 모드에 들어간 노드 — 제목·태그·본문이 한꺼번에 편집 가능해진다
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null)
+
+  // 읽은 자리 기록 — 편집 Undo/Redo와는 **다른 축**이다. 링크를 타고 갔다가 읽던 데로
+  // 돌아오려고 Undo를 누르면 문서가 되돌아가 버리므로, 보기 이력은 따로 둔다.
+  // 문서를 건드리지 않고 저장도 하지 않는, 이 세션 한정 상태.
+  // ref가 단일 출처고 state는 버튼을 다시 그리기 위한 사본이다. setter 안에서 다른
+  // setter를 부르면 호출 순서가 보장되지 않아 기록이 통째로 누락된다(실제로 그랬음).
+  const navRef = useRef<{ stack: string[]; index: number }>({ stack: [], index: -1 })
+  const [navState, setNavState] = useState<{ stack: string[]; index: number }>({ stack: [], index: -1 })
+  // 뒤/앞으로 이동하는 동안에는 그 이동 자체가 다시 기록되면 안 된다
+  const navigatingRef = useRef(false)
+  // keydown 핸들러가 navJump 보다 먼저 정의돼서 직접 못 부른다 — 최신 것을 ref 로 건넨다
+  const navJumpRef = useRef<((delta: number) => void) | null>(null)
   const [fontDropOpen, setFontDropOpen] = useState(false)
   const fontInputRef = useRef<HTMLInputElement>(null)
   // 툴바가 overflow-x:auto라 absolute 드롭다운이 클리핑됨 → fixed 좌표로 띄움
@@ -928,6 +969,14 @@ export function Canvas({
         setGenRootIds(new Set())
         if (canvasClipboardRef.current !== null) pasteBlockedRef.current = true
         canvasClipboardRef.current = null
+        return
+      }
+
+      // 브라우저의 뒤로/앞으로와 같은 키. 위의 가드 덕분에 노드를 편집하는 중에는
+      // 여기까지 오지 않으므로 macOS 의 Option+← (단어 단위 이동)를 뺏지 않는다.
+      if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault()
+        navJumpRef.current?.(e.key === 'ArrowLeft' ? -1 : 1)
         return
       }
 
@@ -1481,14 +1530,48 @@ export function Canvas({
   // 선택까지 바꿔두면 위의 동기화 effect가 focus를 맞춰주므로 여기서는 선택만 세팅해도 된다.
   // 노드로 이동 — 숨겨져 있으면 조상을 펼치고, 선택하고, 화면을 맞춘다.
   // 검색 결과 선택 / 목차 드릴다운 / internal 링크가 모두 이 동작을 공유한다.
+  // 방문 기록에 한 자리를 남긴다. 같은 노드를 연달아 보면 쌓지 않고, 뒤로 간 상태에서
+  // 새 곳으로 가면 앞쪽(redo) 가지는 버린다 — 브라우저 히스토리와 같은 규칙.
+  const recordVisit = useCallback((id: string) => {
+    if (navigatingRef.current) return
+    const { stack, index } = navRef.current
+    if (stack[index] === id) return          // 같은 자리를 연달아 보면 쌓지 않는다
+    let next = stack.slice(0, index + 1).concat(id)
+    if (next.length > NAV_MAX) next = next.slice(next.length - NAV_MAX)
+    navRef.current = { stack: next, index: next.length - 1 }
+    setNavState(navRef.current)
+  }, [])
+
   const goToNode = useCallback((id: string) => {
     if (!graph.nodes.some(n => n.id === id)) return false
     revealNode(id)
     setSelectedIds(new Set([id]))
     setOutlineFocusId(id)
+    recordVisit(id)
     requestAnimationFrame(() => flyToNode(id))
     return true
+  }, [graph.nodes, revealNode, setSelectedIds, flyToNode, recordVisit])
+
+  // 기록을 따라 이동 — 여기서의 이동은 기록에 다시 쌓이지 않는다
+  const navJump = useCallback((delta: number) => {
+    const { stack, index } = navRef.current
+    const next = index + delta
+    if (next < 0 || next >= stack.length) return
+    const id = stack[next]
+    if (!graph.nodes.some(n => n.id === id)) return
+    navigatingRef.current = true
+    navRef.current = { stack, index: next }
+    setNavState(navRef.current)
+    revealNode(id)
+    setSelectedIds(new Set([id]))
+    setOutlineFocusId(id)
+    requestAnimationFrame(() => {
+      flyToNode(id)
+      navigatingRef.current = false
+    })
   }, [graph.nodes, revealNode, setSelectedIds, flyToNode])
+
+  useEffect(() => { navJumpRef.current = navJump }, [navJump])
 
   // internal 링크: 같은 그래프면 여기서 바로 처리하고, 다른 파일이면 확장에 넘긴다
   const handleOpenLink = useCallback((link: NodeLink) => {
@@ -1599,6 +1682,7 @@ export function Canvas({
   const handleNodeSelect = useCallback((id: string, additive: boolean) => {
     setSelectedCanvasImgIds(new Set())
     setSelectedEdgeId(null)
+    if (!additive) recordVisit(id)
     setSelectedIds(prev => {
       if (additive) {
         const next = new Set(prev)
@@ -1935,8 +2019,9 @@ export function Canvas({
         }}>
         {/* Row 1 — editing: undo/redo, node creation, deletion, per-selection controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <span style={axisLabelStyle} title="Undo and Redo change the document">Edit</span>
         <button
-          style={{ ...toolbarBtnStyle, opacity: canUndo ? 1 : 0.35, cursor: canUndo ? 'pointer' : 'default' }}
+          style={{ ...axisPairBtnStyle, opacity: canUndo ? 1 : 0.35, cursor: canUndo ? 'pointer' : 'default' }}
           onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1946,7 +2031,7 @@ export function Canvas({
           Undo
         </button>
         <button
-          style={{ ...toolbarBtnStyle, opacity: canRedo ? 1 : 0.35, cursor: canRedo ? 'pointer' : 'default' }}
+          style={{ ...axisPairBtnStyle, opacity: canRedo ? 1 : 0.35, cursor: canRedo ? 'pointer' : 'default' }}
           onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Shift+Z)"
         >
           Redo
@@ -1956,7 +2041,7 @@ export function Canvas({
           </svg>
         </button>
 
-        <div style={toolbarDividerStyle} />
+        <div style={axisDividerTopStyle} />
 
         <select
           value={selectedTemplate}
@@ -2116,6 +2201,21 @@ export function Canvas({
 
         {/* Row 2 — view / graph navigation: fold/expand, fit view, grid, export, reload, help */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        {/* 읽은 자리 되돌리기 — 편집 Undo/Redo와 다른 축이라 View 행에 둔다 */}
+        <span style={axisLabelStyle} title="Back and Forward move the view — they never change the document">Read</span>
+        <button
+          style={{ ...axisPairBtnStyle, opacity: navState.index > 0 ? 1 : 0.4, cursor: navState.index > 0 ? 'pointer' : 'default' }}
+          disabled={navState.index <= 0}
+          onClick={() => navJump(-1)}
+          title={`Back to the node you were reading (${Math.max(0, navState.index)} step${navState.index === 1 ? '' : 's'} available) — Alt+← · this moves the view, it does not undo an edit`}
+        >‹ Back</button>
+        <button
+          style={{ ...axisPairBtnStyle, opacity: navState.index >= 0 && navState.index < navState.stack.length - 1 ? 1 : 0.4, cursor: navState.index >= 0 && navState.index < navState.stack.length - 1 ? 'pointer' : 'default' }}
+          disabled={!(navState.index >= 0 && navState.index < navState.stack.length - 1)}
+          onClick={() => navJump(1)}
+          title="Forward again — Alt+→ · this moves the view, it does not redo an edit"
+        >Forward ›</button>
+        <div style={axisDividerStyle} />
         <select
           value={expandFilterLabel}
           onChange={(e) => setExpandFilterLabel(e.target.value)}

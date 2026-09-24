@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white&style=for-the-badge" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-2.2.0-orange?style=for-the-badge" alt="Version 2.2.0" />
+  <img src="https://img.shields.io/badge/version-2.3.0-orange?style=for-the-badge" alt="Version 2.3.0" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=for-the-badge" alt="MIT License" />
 </p>
 
@@ -90,6 +90,7 @@ And since you don't always want to be inside VS Code to revisit your own notes, 
 | **Outline panel** | A left-hand table of contents listing the selected node's direct children in reading order, including folded ones. Click to drill down, breadcrumb to walk back up |
 | **Edit this node** | Right-click → one click turns the whole card into editors at once: title, tag and content together. **Editing is only reachable this way** — clicking the body no longer opens an editor by accident |
 | **Cross-graph links** | An `internal` link jumps to a node — in this graph, or in a graph beside it (`other.nodegraph.json#node_017`). It shows as `#17 <that node's title>`, so the label can never drift from what it points at, and the target is revealed even if hierarchy folding is hiding it |
+| **Reading history** | `‹ Back` / `Forward ›` (or `Alt+←` / `Alt+→`) walk the last 10 places you read — link jumps, node clicks, outline drill-downs and search hits all count. It is a separate axis from `Undo`/`Redo`, which change the document; the toolbar labels each pair **Edit** and **Read** so the two are never confused |
 | **Code blocks look like code** | Fenced blocks (```` ```verilog ````) render with VS Code's Light+ colours. Highlighting runs in the extension host, so the webview stays small and the exported HTML carries the colours without the library. Long lines widen the node instead of scrolling |
 | **Graph verifier** | `tools/verify-nodegraph.js` re-reads every quote against the lines or PDF page it cites, checks `internal` targets exist, `code` link ranges, and the fan-out cap — and exits non-zero, so an agent cannot claim it checked |
 | **Debug grid** | One-click overlay of hop-level and main-topic-cluster boundaries for visually spotting layout issues |
@@ -269,6 +270,7 @@ The `demo/ex4` run above was recorded on **v0.6.3**, using `NodeGraph: Copy Agen
 | **Drag node** | **Left-drag the tag badge** (e.g. "Gap / Idea") — dropping it reorders it among same-parent, same-side siblings based on where it lands, rather than just placing it at a free-form position; with a multi-selection, all selected nodes move together (without the single-node drop reordering) |
 | Pin generation highlight | Click the tag badge — node + parents + children + wires turn red |
 | Clear highlight / selection | `Escape` (background clicks keep the highlight) |
+| Back / forward through what you read | `Alt+←` / `Alt+→` — the last 10 places, same as the toolbar's `‹ Back` / `Forward ›`. Not intercepted while you are typing in a node |
 | Delete selection | `Delete` or `Backspace` — canvas images first, then a selected wire, then nodes |
 | Select wire | Left-click a wire (turns blue) |
 | Draw edge | Drag from a port dot (appears on hover) onto the other node's body, in either direction — becomes an arrow only between two Main topic nodes, a plain line otherwise |
@@ -289,7 +291,7 @@ The `demo/ex4` run above was recorded on **v0.6.3**, using `NodeGraph: Copy Agen
 
 ### Toolbar
 
-The toolbar is two rows — editing controls on top, view/graph-navigation controls below:
+The toolbar is two rows — editing controls on top, view/graph-navigation controls below. Each row is labelled at its left edge, **Edit** and **Read**, because `Undo`/`Redo` and `Back`/`Forward` sit one above the other and act on different things: one changes the document, the other only moves the view.
 
 | Row | Control | Description |
 |-----|---------|-------------|
@@ -297,6 +299,7 @@ The toolbar is two rows — editing controls on top, view/graph-navigation contr
 | Edit | Template dropdown + `+ Add Node` | With exactly one node selected, adds a child of the chosen type to it (auto-positioned into the hop layout); with none or multiple selected, creates an unparented node in the nearest free spot around the view center |
 | Edit | Delete | Deletes all selected nodes (shows a live count, e.g. `Delete (3)`, once more than one is selected) |
 | Edit | Type & font controls | Shown while nodes are selected — switch the node's template; set font size by typing a number or picking a preset (8–72) |
+| View | `‹ Back` / `Forward ›` | Walk back and forth through the last 10 nodes you read (also `Alt+←` / `Alt+→`). This moves the view only — it never undoes an edit |
 | View | Collapse / Expand | Fold/unfold the selected subtree, or everything when nothing is selected — collapsing *everything* also auto-runs Fit View |
 | View | Node-type filter (next to Collapse/Expand) | When set to a type instead of `None`: `Collapse` closes everything, `Expand` opens only that type's nodes and closes the rest |
 | View | Fit View | Zoom to fit all nodes |
