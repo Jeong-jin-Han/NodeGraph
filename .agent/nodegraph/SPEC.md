@@ -220,6 +220,13 @@ For every backbone node, add the verbatim quote from the PDF that best supports 
 
 **The page number in `location` must be correct** — right-clicking `original.text` in the editor jumps the built-in PDF viewer to that page (parsed from `p.N`) and highlights the matching sentence. A wrong page number sends the user to the wrong place. This feature requires the graph's top-level `source.pdf` to be set (see Top-level schema below).
 
+> ⚠️ **`p.N` is the PDF's own page index, counting the first page as 1 — not the page number
+> printed on the paper.** Conference proceedings routinely disagree: an OSDI paper whose PDF
+> runs 1–21 may be printed 957–977, an offset of 956. The viewer and
+> `tools/verify-nodegraph.js` both take `p.N` literally as the PDF index, so a printed number
+> makes every quote-jump land in the wrong place — or nowhere. If you want the printed number
+> visible to a reader, put it in the section part: `"§3.1 (printed p.960), p.5"`.
+
 ### Step 7 — Finalize
 - **Run the shortening pass (Writing principle 8).** Go back over every node you wrote and cut.
   This is a required second pass, not a polish — the first draft of a node is always written to
@@ -862,23 +869,35 @@ Always use the **next available number**. IDs must be unique within the entire f
 > keep writing zero-padded IDs, but must tolerate both forms when reading a file.
 > Uniqueness is the only hard requirement.
 
-### Two shapes: flat and hierarchical
+### Two shapes, one rule: build hierarchical past ~12 sub-nodes
 
-The same paper can be laid out two ways, and the choice changes how the graph is read.
-
-| | **Flat** (default) | **Hierarchical** |
+| | **Flat** | **Hierarchical** |
 |---|---|---|
-| Shape | 5 backbone nodes, everything else hanging directly off them | 5 backbone nodes, then 3–4 more levels of narrowing detail |
-| Fan-out | a backbone node may carry 5–8 children | **at most 4 direct children per node, anywhere** |
+| When | 12 or fewer sub-nodes | **more than ~12 sub-nodes** |
+| Shape | backbone plus one level | backbone, then 3–4 levels of narrowing detail |
+| Fan-out | unconstrained | **at most 4 direct children per node, anywhere** |
 | Depth | 1–2 hops | **3 or more hops** |
-| Good for | short papers, a graph you will read straight through | anything you will come back to and ask questions of |
 | `Levels 2` shows | almost everything, so the control barely helps | a genuine middle layer |
+
+**This is one rule with two outcomes, not two styles to pick between.** Below the threshold,
+inventing an intermediate node to hold two children is noise. Above it, skipping the rule
+produces the shape an unguided model always produces, which measurement says is
+backbone-plus-one-flat-layer:
+
+| Graph | Depths | Largest fan-out | `Levels 2` shows |
+|---|---|---|---|
+| Four graphs written before this rule existed | 5 / 24–27 / 0–3 | 4, 6, 7, **8** | 29 of 29, 32 of 34, 34 of 37 |
+| The same paper with the rule | **5 / 13 / 12 / 5** | **3** | **18 of 35** |
+
+Three of those four hung six to eight children off one node, and in all four the Levels
+control and the outline's drill-down had nothing to work with. The rule is what produces
+depth; leaving it out does not leave the choice open, it picks flat.
 
 **Why fan-out is the rule that matters.** Depth alone does nothing if one node carries 19 children —
 the reader still meets 19 things at once, which is the problem the levels control and folding exist to
 solve. Cap the fan-out and the depth follows on its own.
 
-**Building hierarchical:**
+**Building hierarchical** (when the threshold applies):
 - **At most 4 direct children per node.** If a node needs a fifth, group two of them under a new
   intermediate node that names what they have in common — that name is usually a real insight.
 - **Aim for depth 3–5.** A 30-node graph should land near 5 / 12 / 9 / 4 across the levels, not 5 / 19 / 6.
@@ -1113,6 +1132,9 @@ positions directly into JSON, so agent-authored and UI-authored graphs look cons
   `parent.y+150`, `parent.y-150`, `parent.y+300`, ...). Default to the **right** (`+750`); once
   a main_topic parent already has 4 hop-1 children on the right, put further ones on the
   **left** (`-750`) instead.
+  **This left-side overflow only applies to a flat graph.** A hierarchical one caps fan-out at
+  4, so a fifth child never exists — if you find yourself reaching for the left side there, the
+  answer is an intermediate node, not a second column.
 - **Hop 2 and deeper**: do **not** re-split left/right. A node inherits whichever side its own
   direct parent is already on (compare the parent's `x` to its nearest main_topic ancestor's
   `x`) and continues **750px further in that same direction** per level — this is also what

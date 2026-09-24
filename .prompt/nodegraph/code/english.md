@@ -8,6 +8,24 @@ NodeGraph workflow" section specifically, not the PDF workflow.
 Based on this codebase and those two files, briefly explain what kind of
 nodegraph you can build from it, then build it.
 
+**Shape.** Once the graph will carry **more than about 12 sub-nodes**, build it
+hierarchical — see "Two shapes" in the spec. Below that, one level under the backbone
+is fine and inventing intermediate nodes just to add depth is noise. When it applies:
+
+- **At most 4 direct children on any node.** If a node needs a fifth child, invent
+  an intermediate node that names what two of them have in common, and put them
+  under that. Finding those names is most of the work.
+- **Depth 3 or more.** A ~30-node graph should land near 5 / 12 / 9 / 4 across the
+  levels, not 5 / 19 / 6.
+- **Fill `children`** on every node that has any.
+- **Each level answers a different question**: what does this codebase do /
+  what are its parts (modules, layers) / how does each part work (the mechanism,
+  the data structure, the protocol) / the case, the gotcha, the exact line.
+- The **purpose chain already adds levels** (purpose → parameters → semantic → syntax).
+  Count them when you check the depth, and keep the fan-out cap on top of that
+- **A parent must read on its own.** Someone who stops at level 2 and never opens
+  level 3 should still come away with a correct, coarser understanding.
+
 Build **two kinds of graph**, as the spec's "Two graphs, not one" section describes:
 
 1. **One code graph for the whole codebase** — `<repo-name>.nodegraph.json`. Its backbone
@@ -57,4 +75,5 @@ It re-reads every line range you cited and fails if a quote is not actually ther
 Do not report success without running it.
 
 Follow the spec exactly, save the result inside PROJECT_FOLDER, and run
-end to end without asking me anything. Tell me when done.
+end to end without asking me anything. When you are done, report the node count
+at each depth and the largest fan-out in the graph.

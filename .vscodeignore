@@ -14,6 +14,7 @@ test-demo/
 demo/ex4-new/
 demo/ex6/
 demo/ex4-new-v2/
+demo/ex7/
 
 # demo/ex5 is tracked in git and linked from the README Benchmark table,
 # but intentionally excluded from the packaged .vsix (unlike ex1-ex4)

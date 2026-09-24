@@ -10,6 +10,26 @@ Based on the slides and those two files, briefly explain what kind of
 nodegraph you can build from it, then build it. Slides are figure-heavy,
 so extract images generously.
 
+**Shape.** Once the graph will carry **more than about 12 sub-nodes**, build it
+hierarchical — see "Two shapes" in the spec. Below that, one level under the backbone
+is fine and inventing intermediate nodes just to add depth is noise. When it applies:
+
+- **At most 4 direct children on any node.** If a node needs a fifth child, invent
+  an intermediate node that names what two of them have in common, and put them
+  under that. Finding those names is most of the work.
+- **Depth 3 or more.** A ~30-node graph should land near 5 / 12 / 9 / 4 across the
+  levels, not 5 / 19 / 6.
+- **Fill `children`** on every node that has any.
+- **Each level answers a different question**: what is this lecture teaching /
+  what are each section's parts (the concepts it defines) / how does each concept
+  work (the worked example, the derivation) / the case, the likely exam point,
+  the exception.
+- The deck's own sections set the backbone, but a section with eight concepts
+  still needs intermediate nodes — the deck's structure is a starting point, not
+  a licence to fan out
+- **A parent must read on its own.** Someone who stops at level 2 and never opens
+  level 3 should still come away with a correct, coarser understanding.
+
 Write all node content in English. Quote definitions and technical terms
 verbatim from the slides.
 
@@ -29,6 +49,10 @@ When it's built, run one more shortening pass. Writing each node so it stands
 alone is the habit that makes the whole graph slower to read than the source; a
 node is a slide, not a document, and completeness is the path's job.
 
+Quote page numbers (`p.N`) are the PDF's own page index counting from 1, not the number
+printed on the paper — proceedings often differ by hundreds, and the viewer takes `p.N`
+literally.
+
 When you enumerate things, write a real markdown list with one item per line —
 never `(1) … (2) … (3) …` run together inside a paragraph. Run-together
 enumerations are the most common reason a node is hard to read.
@@ -40,4 +64,5 @@ It re-reads every line range you cited and fails if a quote is not actually ther
 Do not report success without running it.
 
 Follow the spec exactly, save the result inside PROJECT_FOLDER, and run
-end to end without asking me anything. Tell me when done.
+end to end without asking me anything. When you are done, report the node count
+at each depth and the largest fan-out in the graph.
