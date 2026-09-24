@@ -2,5 +2,10 @@ tmp/
 test/
 test-demo/
 node_modules/
+# 개발(F5) 빌드만 만드는 소스맵 — 프로덕션 빌드에는 없고 패키지에서도 제외된다.
+# 2.0.0 커밋에 실수로 들어갔던 것을 되돌린다.
+dist/**/*.map
 # test-demo-v2 is intentionally tracked — serves as a reference example for AI agents
 demo/ex4-new/
+demo/ex6/
+demo/ex4-new-v2/

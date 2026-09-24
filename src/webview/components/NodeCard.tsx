@@ -4,9 +4,10 @@ import { GraphNode, NodeTemplate, NodeLink } from '../types/graph'
 import { useDrag } from '../hooks/useDrag'
 import { Port } from '../utils/wireGeometry'
 import { MathText } from './MathText'
-import { parseTableBlocks, hasTable } from '../utils/tableParser'
+import { parseTableBlocks, hasTable, hasCodeFence } from '../utils/tableParser'
 import { THEME } from '../utils/themeSnapshot'
 import { formatNodeNumber } from '../utils/nodeNumber'
+import { CodeBlockView } from './CodeBlockView'
 
 const NODE_BG_BASE = THEME.nodeBg
 const NODE_FG = THEME.fg
@@ -281,7 +282,8 @@ export function NodeCard({
     if (!el) return
     const measure = () => {
       let maxOverflow = 0
-      for (const kd of Array.from(el.querySelectorAll<HTMLElement>('.katex-display'))) {
+      // 수식과 코드 블록을 같은 규칙으로 — 둘 다 스크롤바로 자르지 않고 노드를 넓힌다
+      for (const kd of Array.from(el.querySelectorAll<HTMLElement>('.katex-display, .ng-code'))) {
         maxOverflow = Math.max(maxOverflow, kd.scrollWidth - kd.clientWidth)
       }
       if (maxOverflow <= 0) return
@@ -374,7 +376,11 @@ export function NodeCard({
     }, 0)
   }, [])
 
+  // 편집은 우클릭 메뉴의 "Edit this node"로만 들어간다. 예전에는 본문을 왼쪽 클릭하기만
+  // 해도 편집기가 열려서, 읽다가 실수로 고치는 일이 생겼다. 개별 필드 편집기는 편집 모드
+  // 안에서만 열리고, 밖에서는 클릭이 아무 일도 하지 않는다.
   const startEdit = (field: EditingField, value: string, e: React.MouseEvent) => {
+    if (!editMode) return
     e.stopPropagation()
     setEditingField(field)
     setEditValue(value)
@@ -431,14 +437,16 @@ export function NodeCard({
 
     if (!text) {
       return (
-        <div onClick={onClickToEdit} style={{ cursor: 'text', minHeight: 20 }}>
+        <div onClick={onClickToEdit} style={{ cursor: editMode ? 'text' : 'default', minHeight: 20 }}>
           <span style={{ opacity: 0.35, fontStyle: 'italic' }}>{placeholder}</span>
         </div>
       )
     }
 
-    if (!hasTable(text)) {
-      return <div onClick={onClickToEdit} style={{ cursor: 'text', minHeight: 20 }}>{renderCellContent(text)}</div>
+    // 표도 코드 펜스도 없으면 블록으로 나눌 것이 없으므로 통째로 렌더한다.
+    // (코드 펜스를 여기 넣지 않으면 표 없는 노드의 코드 블록이 그대로 글자로 나온다.)
+    if (!hasTable(text) && !hasCodeFence(text)) {
+      return <div onClick={onClickToEdit} style={{ cursor: editMode ? 'text' : 'default', minHeight: 20 }}>{renderCellContent(text)}</div>
     }
 
     // 헤더는 'pre' — 열이 좁아져도 "단계"→"단/계"처럼 세로로 꺾이지 않게 자동 줄바꿈을
@@ -457,8 +465,10 @@ export function NodeCard({
               </tbody>
             </table>
           </div>
+        ) : block.type === 'code' ? (
+          <CodeBlockView key={`code-${bi}`} lang={block.lang} code={block.code} fontSize={fs} onClickToEdit={onClickToEdit} />
         ) : (
-          <div key={bi} onClick={onClickToEdit} style={{ cursor: 'text', minHeight: bi === blocks.length - 1 ? 20 : undefined }}>
+          <div key={bi} onClick={onClickToEdit} style={{ cursor: editMode ? 'text' : 'default', minHeight: bi === blocks.length - 1 ? 20 : undefined }}>
             {block.text
               ? renderCellContent(block.text)
               : bi === blocks.length - 1 ? <span style={{ opacity: 0.35, fontStyle: 'italic' }}>{placeholder}</span> : null}
@@ -1021,7 +1031,7 @@ export function NodeCard({
                     />
                   ) : (
                     <span
-                      onClick={(e) => { e.stopPropagation(); setEditingToggle({ id: toggle.id, field: 'title', initVal: toggle.title }) }}
+                      onClick={(e) => { if (!editMode) return; e.stopPropagation(); setEditingToggle({ id: toggle.id, field: 'title', initVal: toggle.title }) }}
                       style={{ flex: 1, fontSize: fs, cursor: 'text', opacity: toggle.title ? 1 : 0.35,
                         fontStyle: toggle.title ? 'normal' : 'italic', minWidth: 40, lineHeight: 1.5 }}
                     >
@@ -1081,6 +1091,7 @@ export function NodeCard({
                       <div style={{ fontSize: fs, lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
                         {renderRichContent(toggle.content ?? '', (e) => {
                           e.stopPropagation()
+                          if (!editMode) return
                           setEditingToggle({ id: toggle.id, field: 'content', initVal: toggle.content })
                         })}
                       </div>

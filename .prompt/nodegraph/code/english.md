@@ -6,10 +6,27 @@ are already prepared for you — read both in full. Follow the "Code →
 NodeGraph workflow" section specifically, not the PDF workflow.
 
 Based on this codebase and those two files, briefly explain what kind of
-nodegraph you can build from it, then build it. For every function/class
-worth a deep dive, split it into a syntax node (what it structurally is)
-and a semantic node (what it does and why), as the spec's Syntax/Semantic
-pairing rule describes.
+nodegraph you can build from it, then build it.
+
+Build **two kinds of graph**, as the spec's "Two graphs, not one" section describes:
+
+1. **One code graph for the whole codebase** — `<repo-name>.nodegraph.json`. Its backbone
+   is one node per source file (plus a purpose node first and a gotchas node last), and
+   below each file node hangs that file's purpose chain: purpose (plain language, no
+   identifiers) → the state that purpose needs → the behaviours over that state, split by
+   scale → the code implementing each. `syntax` hangs off its `semantic` parent, not the
+   reverse. **Do not make one graph per file** — that breaks Ctrl+F, the outline and the
+   Levels control, all of which stop at the file boundary.
+2. **One workflow graph** — `<repo-name>-workflow.nodegraph.json`, for what happens when
+   the files run together. Cover both the scenarios the code handles and the ones it does
+   not (`gap` nodes for those — they are the most valuable nodes in the graph).
+
+Every workflow step that rests on a specific behaviour must carry an `internal` link to
+that node, e.g. `{"type":"internal","target":"uart.nodegraph.json#node_014"}`.
+A workflow claim with no link into the code graph is something nobody can check.
+
+Put every graph directly in PROJECT_FOLDER, side by side — links resolve relative to each
+JSON's own directory, so a subfolder would break them.
 
 Write all node content in English.
 
@@ -32,6 +49,12 @@ node is a slide, not a document, and completeness is the path's job.
 When you enumerate things, write a real markdown list with one item per line —
 never `(1) … (2) … (3) …` run together inside a paragraph. Run-together
 enumerations are the most common reason a node is hard to read.
+
+When you are finished, run the verifier and paste its output:
+`node <path-to-extension>/tools/verify-nodegraph.js PROJECT_FOLDER`
+It re-reads every line range you cited and fails if a quote is not actually there, if an
+`internal` link points at a node that does not exist, or if a node exceeds the fan-out cap.
+Do not report success without running it.
 
 Follow the spec exactly, save the result inside PROJECT_FOLDER, and run
 end to end without asking me anything. Tell me when done.

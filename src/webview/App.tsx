@@ -35,6 +35,8 @@ export function App() {
   const [openSearchSignal, setOpenSearchSignal] = React.useState(0)
   const [fitViewSignal, setFitViewSignal] = React.useState(0)
   const [focusCanvasSignal, setFocusCanvasSignal] = React.useState(0)
+  // 다른 그래프의 internal 링크로 열렸을 때 어느 노드로 갈지 (nodeId + 호출 횟수)
+  const [focusNodeReq, setFocusNodeReq] = React.useState<{ id: string; n: number } | null>(null)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -53,6 +55,7 @@ export function App() {
       else if (e.data?.type === 'collapseAll') collapseAll()
       else if (e.data?.type === 'expandAll') expandAll()
       else if (e.data?.type === 'focusCanvas') setFocusCanvasSignal(n => n + 1)
+      else if (e.data?.type === 'focusNode' && e.data.nodeId) setFocusNodeReq(p => ({ id: e.data.nodeId, n: (p?.n ?? 0) + 1 }))
     }
     window.addEventListener('message', handler)
     return () => window.removeEventListener('message', handler)
@@ -71,6 +74,7 @@ export function App() {
       openSearchSignal={openSearchSignal}
       fitViewSignal={fitViewSignal}
       focusCanvasSignal={focusCanvasSignal}
+      focusNodeReq={focusNodeReq}
       viewport={viewport}
       cursor={cursor}
       nativeWheelHandler={nativeWheelHandler}

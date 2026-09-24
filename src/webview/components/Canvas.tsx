@@ -8,12 +8,15 @@ import { OutlinePanel, OutlineEntry } from './OutlinePanel'
 import { NodeContextMenu, FoldMenuItem } from './NodeContextMenu'
 import { FoldScope, hiddenIds, expand as foldExpand, collapseTo as foldCollapse, wouldChange, hiddenCountUnder, collapseToDepth, maxDepthOf } from '../utils/foldState'
 import { nodeNumber, parseNumberQuery } from '../utils/nodeNumber'
+import { parseInternalTarget } from '../utils/internalLink'
 import { Port } from '../utils/wireGeometry'
 import { THEME } from '../utils/themeSnapshot'
 import { parentIdOf, childIdsOf } from '../hooks/useGraph'
 
 interface CanvasProps {
   openSearchSignal: number
+  /** 다른 그래프의 internal 링크로 열렸을 때 이동할 노드 */
+  focusNodeReq?: { id: string; n: number } | null
   fitViewSignal: number
   focusCanvasSignal: number
   viewport: Viewport
@@ -96,6 +99,10 @@ interface HopTree {
   depthOf: Map<string, number>
   rootOf: Map<string, string>
 }
+// 디버그 격자 색 — 둘 다 회색이되 명도로 구분한다 (세로 = hop 경계, 가로 = main topic 묶음)
+const GRID_V_COLOR = '#9ca3af'
+const GRID_H_COLOR = '#6b7280'
+
 function buildHopTree(
   nodes: GraphNode[],
   edges: { source: string; target: string; type?: string }[],
@@ -668,6 +675,7 @@ const hitKeySafe = (k: string) => k.replace(/[^a-zA-Z0-9_-]/g, '_')
 
 export function Canvas({
   openSearchSignal,
+  focusNodeReq,
   fitViewSignal,
   focusCanvasSignal,
   viewport, cursor, nativeWheelHandler,
@@ -1451,6 +1459,33 @@ export function Canvas({
 
   // 목차에서 항목을 누르면 그 노드로 한 단계 내려가면서 캔버스도 그리로 이동한다.
   // 선택까지 바꿔두면 위의 동기화 effect가 focus를 맞춰주므로 여기서는 선택만 세팅해도 된다.
+  // 노드로 이동 — 숨겨져 있으면 조상을 펼치고, 선택하고, 화면을 맞춘다.
+  // 검색 결과 선택 / 목차 드릴다운 / internal 링크가 모두 이 동작을 공유한다.
+  const goToNode = useCallback((id: string) => {
+    if (!graph.nodes.some(n => n.id === id)) return false
+    revealNode(id)
+    setSelectedIds(new Set([id]))
+    setOutlineFocusId(id)
+    requestAnimationFrame(() => flyToNode(id))
+    return true
+  }, [graph.nodes, revealNode, setSelectedIds, flyToNode])
+
+  // internal 링크: 같은 그래프면 여기서 바로 처리하고, 다른 파일이면 확장에 넘긴다
+  const handleOpenLink = useCallback((link: NodeLink) => {
+    if (link.type !== 'internal') { onOpenLink(link); return }
+    const parsed = parseInternalTarget(link.target)
+    if (!parsed) return
+    if (parsed.file === null) { goToNode(parsed.nodeId); return }
+    onOpenLink(link)
+  }, [onOpenLink, goToNode])
+
+  // 다른 그래프에서 internal 링크로 들어온 경우 — 그래프가 그려진 뒤에 이동해야 한다
+  useEffect(() => {
+    if (!focusNodeReq) return
+    const t = requestAnimationFrame(() => goToNode(focusNodeReq.id))
+    return () => cancelAnimationFrame(t)
+  }, [focusNodeReq, goToNode])
+
   const handleOutlineDrill = useCallback((id: string) => {
     setOutlineFocusId(id)
     setSelectedIds(new Set([id]))
@@ -2255,7 +2290,7 @@ export function Canvas({
                   onAddOriginal={onAddOriginal}
                   onAddLink={onAddLink}
                   onDeleteLink={onDeleteLink}
-                  onOpenLink={onOpenLink}
+                  onOpenLink={handleOpenLink}
                   onSearchInPdf={onSearchInPdf}
                   onSetNodeTemplate={onSetNodeTemplate}
                   imageUris={imageUris}
@@ -2310,10 +2345,10 @@ export function Canvas({
                   viewBox="0 0 1 1"
                 >
                   {gridLines.vLines.map((x, i) => (
-                    <line key={`gv${i}`} x1={x} y1={gy1} x2={x} y2={gy2} stroke="#22c55e" strokeWidth={1.5 * gzc} strokeDasharray={`${6 * gzc} ${4 * gzc}`} opacity={0.55} />
+                    <line key={`gv${i}`} x1={x} y1={gy1} x2={x} y2={gy2} stroke={GRID_V_COLOR} strokeWidth={1.5 * gzc} strokeDasharray={`${6 * gzc} ${4 * gzc}`} opacity={0.55} />
                   ))}
                   {gridLines.hLines.map((y, i) => (
-                    <line key={`gh${i}`} x1={gx1} y1={y} x2={gx2} y2={y} stroke="#f97316" strokeWidth={1.5 * gzc} strokeDasharray={`${6 * gzc} ${4 * gzc}`} opacity={0.55} />
+                    <line key={`gh${i}`} x1={gx1} y1={y} x2={gx2} y2={y} stroke={GRID_H_COLOR} strokeWidth={1.5 * gzc} strokeDasharray={`${6 * gzc} ${4 * gzc}`} opacity={0.55} />
                   ))}
                 </svg>
               )

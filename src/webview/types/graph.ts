@@ -107,6 +107,8 @@ export type ExtToWebviewMessage =
   | { type: 'collapseAll' }
   | { type: 'expandAll' }
   | { type: 'focusCanvas' }
+  | { type: 'focusNode'; nodeId: string }
+  | { type: 'codeHighlighted'; lang: string; code: string; html: string | null }
 
 export type WebviewToExtMessage =
   | { type: 'save'; data: NodeGraph }
@@ -117,3 +119,4 @@ export type WebviewToExtMessage =
   | { type: 'searchInPdf'; pdfTarget: string; query: string; pageHint?: number }
   | { type: 'saveImage'; nodeId: string; data: string; ext: string }
   | { type: 'exportHtml'; data: NodeGraph }
+  | { type: 'highlightCode'; lang: string; code: string }

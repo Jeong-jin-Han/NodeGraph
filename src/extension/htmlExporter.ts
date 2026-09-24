@@ -1,6 +1,8 @@
 import * as path from 'path'
 import { NodeGraph, GraphNode, NodeTemplate } from '../webview/types/graph'
 import { parseCodeLinkTarget } from './codeLink'
+import { parseInternalTarget } from '../webview/utils/internalLink'
+import { parseTableBlocks } from '../webview/utils/tableParser'
 import { groupListsInHtml } from '../webview/utils/listBlocks'
 
 function escHtml(s: string): string {
@@ -128,6 +130,15 @@ function nodeNumOf(id: string): number | null {
   return Number.isNaN(n) ? null : n
 }
 
+/** 하이라이팅 맵의 키 — 확장 쪽 캐시 키와 같은 규칙 */
+export function codeKey(lang: string, code: string): string { return `${lang}\u0000${code}` }
+
+function renderCodeBlockHtml(lang: string, code: string, codeHtml: Record<string, string>): string {
+  const baked = codeHtml[codeKey(lang, code)]
+  const inner = baked ? baked : escHtml(code)
+  return `<div class="ng-code"><pre>${inner}</pre></div>`
+}
+
 function renderNodeCard(
   node: GraphNode,
   template: NodeTemplate | undefined,
@@ -135,6 +146,7 @@ function renderNodeCard(
   offsetY: number,
   imageData: Record<string, string>,
   codeLinkOpts: { githubBase: string | null; repoPrefix: string },
+  codeHtml: Record<string, string> = {},
 ): string {
   const color = template?.color ?? '#888'
   const borderRadius = template?.shape === 'rounded' ? '22px' : '2px'
@@ -144,19 +156,35 @@ function renderNodeCard(
 
   let bodyHtml = ''
   const content = node.content ?? ''
-  if (hasHtmlTable(content)) {
-    const blocks = parseHtmlTableBlocks(content)
+  // 코드 펜스를 먼저 떼어낸다 — 에디터와 같은 파서를 써서 두 쪽의 구간 나눔이 어긋나지 않게 한다.
+  // 떼어낸 코드는 미리 구워둔 하이라이팅 HTML로, 나머지는 기존 표/텍스트 경로로 보낸다.
+  const renderProse = (text: string): string => {
+    if (!text) return ''
+    if (hasHtmlTable(text)) {
+      const blocks = parseHtmlTableBlocks(text)
+      let out = ''
+      for (const block of blocks) {
+        if (block.type === 'table') out += renderTableBlockHtml(block, imageData)
+        else if (block.text) out += `<div class="ng-seg">${groupListsInHtml(renderCellHtml(block.text, imageData))}</div>`
+      }
+      return out
+    }
+    return `<div class="ng-seg">${groupListsInHtml(renderCellHtml(text, imageData))}</div>`
+  }
+  if (content) {
+    const parts = parseTableBlocks(content)
     bodyHtml += '<div class="ng-content">'
-    for (const block of blocks) {
-      if (block.type === 'table') {
-        bodyHtml += renderTableBlockHtml(block, imageData)
-      } else if (block.text) {
-        bodyHtml += `<div class="ng-seg">${groupListsInHtml(renderCellHtml(block.text, imageData))}</div>`
+    let prose = ''
+    for (const part of parts) {
+      if (part.type === 'code') {
+        bodyHtml += renderProse(prose); prose = ''
+        bodyHtml += renderCodeBlockHtml(part.lang, part.code, codeHtml)
+      } else {
+        prose += content.slice(part.startChar, part.endChar)
       }
     }
+    bodyHtml += renderProse(prose)
     bodyHtml += '</div>'
-  } else if (content) {
-    bodyHtml += `<div class="ng-content">${groupListsInHtml(renderCellHtml(content, imageData))}</div>`
   }
   if (node.original) {
     const origTitle = escHtml(node.original.title ?? 'Original')
@@ -190,6 +218,18 @@ function renderNodeCard(
           ? ` href="${escHtml(codeLinkOpts.githubBase)}/${escHtml(repoRelPath)}${lineFragment}" target="_blank"`
           : ''
         return `<a class="ng-link"${href}>${icon} ${escHtml(l.label || l.target)}</a>`
+      }
+      if (l.type === 'internal') {
+        // 같은 그래프의 노드면 이 문서 안에서 이동한다. 다른 그래프 파일이면 그 그래프의
+        // export(<name>.html)로 보낸다 — 내보내기 시점에 존재하는지 알 수 없으므로
+        // 링크는 걸되, 없으면 브라우저가 알아서 404를 낸다(코드 링크와 같은 degrade).
+        const parsed = parseInternalTarget(l.target)
+        if (!parsed) return `<a class="ng-link">${icon} ${escHtml(l.label || l.target)}</a>`
+        if (!parsed.file) {
+          return `<a class="ng-link" href="#" onclick="goToNodeJs('${escHtml(parsed.nodeId)}');return false">${icon} ${escHtml(l.label || l.target)}</a>`
+        }
+        const siblingHtml = parsed.file.replace(/\.nodegraph\.json$/i, '.html')
+        return `<a class="ng-link" href="${escHtml(siblingHtml)}#node-${escHtml(parsed.nodeId)}">${icon} ${escHtml(l.label || l.target)}</a>`
       }
       const href = (l.type === 'url' || l.type === 'pdf') ? ` href="${escHtml(l.target)}" target="_blank"` : ''
       return `<a class="ng-link"${href}>${icon} ${escHtml(l.label || l.target)}</a>`
@@ -237,6 +277,9 @@ export function generateHtml(
   graph: NodeGraph,
   imageData: Record<string, string> = {},
   codeLinkOpts: { githubBase: string | null; repoPrefix: string } = { githubBase: null, repoPrefix: '' },
+  // 코드 블록 하이라이팅 결과를 미리 구워서 넣는다 (키: `lang\u0000code`).
+  // 내보낸 HTML에는 하이라이터가 아니라 결과 <span>만 들어가므로 파일이 무거워지지 않는다.
+  codeHtml: Record<string, string> = {},
 ): string {
   let minX = Infinity, minY = Infinity
   for (const n of graph.nodes) {
@@ -248,7 +291,7 @@ export function generateHtml(
   const offsetY = -minY + 100
 
   const nodesHtml = graph.nodes
-    .map(n => renderNodeCard(n, graph.nodeTemplates[n.template], offsetX, offsetY, imageData, codeLinkOpts))
+    .map(n => renderNodeCard(n, graph.nodeTemplates[n.template], offsetX, offsetY, imageData, codeLinkOpts, codeHtml))
     .join('\n')
 
   const nodesData = JSON.stringify(graph.nodes.map(n => ({
@@ -326,6 +369,8 @@ select:hover{border-color:#93c5fd}
 .ng-tag{font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;flex-shrink:0;white-space:nowrap;cursor:move;user-select:none}
 .ng-num{font-size:10px;font-weight:700;letter-spacing:.02em;flex-shrink:0;white-space:nowrap;font-variant-numeric:tabular-nums;user-select:none}
 .ng-hidden-count{font-size:10px;font-weight:600;flex-shrink:0;white-space:nowrap;padding:0 4px;border-radius:3px;font-variant-numeric:tabular-nums;user-select:none}
+.ng-code{margin:6px 0;padding:8px 10px;border-radius:4px;background:#f6f8fa;border:1px solid #e1e4e8;overflow-x:hidden}
+.ng-code pre{margin:0;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;line-height:1.5}
 .ng-mode-btn{background:none;border:1px solid transparent;cursor:pointer;padding:1px 5px;font-size:11px;font-weight:600;color:#6b7280;border-radius:3px;line-height:1.4;flex-shrink:0}
 .ng-mode-btn.active{background:#dbeafe;border-color:#93c5fd;color:#1d4ed8}
 .ng-drop-num{color:#6b7280;font-weight:600;margin-right:6px;font-variant-numeric:tabular-nums}
@@ -343,6 +388,13 @@ select:hover{border-color:#93c5fd}
 #outline-label{font-size:10px;color:#9ca3af;padding:2px 8px 6px;font-weight:600;letter-spacing:.03em}
 .ng-out-item{display:flex;align-items:baseline;gap:6px;padding:5px 8px;border-radius:4px;cursor:pointer;font-size:12px;line-height:1.4;text-align:left;width:100%;border:none;background:transparent;color:#1a1a1a}
 .ng-out-item:hover{background:#f3f4f6}
+/* 전역 button:hover(툴바용 파란 강조)가 목차 항목에도 걸려 배경은 회색인데 글자만 흰색이
+   되던 문제. 에디터 목차는 배경만 바뀌므로 export도 배경만 바뀌게 맞춘다. */
+#outline button:hover{background:transparent;color:inherit;border-color:transparent}
+#outline-crumbs button:hover{color:#2563eb}
+#outline-crumbs button.here:hover{color:#374151}
+#outline-head button:hover{color:#6b7280}
+#outline .ng-out-item:hover{background:#f3f4f6;color:#1a1a1a}
 .ng-out-item.sel{background:#e8f0fe;font-weight:600}
 .ng-out-num{font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;flex-shrink:0;min-width:26px}
 .ng-out-title{flex:1;min-width:0}
@@ -1315,6 +1367,9 @@ function svgGridLine(x1, y1, x2, y2, stroke) {
   l.setAttribute('opacity', '0.55');
   return l;
 }
+// 디버그 격자 색 — 에디터 Canvas.tsx와 같은 값 (세로 = hop 경계, 가로 = main topic 묶음)
+var GRID_V_COLOR = '#9ca3af';
+var GRID_H_COLOR = '#6b7280';
 function drawGrid() {
   var svg = document.getElementById('grid-svg');
   svg.innerHTML = '';
@@ -1336,8 +1391,8 @@ function drawGrid() {
   if (!isFinite(minX)) { minX = 0; maxX = 0; minY = 0; maxY = 0; }
   gridNodeBounds = { minX: minX, maxX: maxX, minY: minY, maxY: maxY };
   var ext = gridExtents();
-  lines.vLines.forEach(function(x) { svg.appendChild(svgGridLine(x, ext.gy1, x, ext.gy2, '#22c55e')); });
-  lines.hLines.forEach(function(y) { svg.appendChild(svgGridLine(ext.gx1, y, ext.gx2, y, '#f97316')); });
+  lines.vLines.forEach(function(x) { svg.appendChild(svgGridLine(x, ext.gy1, x, ext.gy2, GRID_V_COLOR)); });
+  lines.hLines.forEach(function(y) { svg.appendChild(svgGridLine(ext.gx1, y, ext.gx2, y, GRID_H_COLOR)); });
   updateZoomLineWeights();
 }
 var gridNodeBounds = null;
@@ -1360,7 +1415,7 @@ function updateGridExtents() {
   if (!svg || svg.style.display === 'none') return;
   var ext = gridExtents();
   Array.prototype.forEach.call(svg.children, function(l) {
-    if (l.getAttribute('stroke') === '#22c55e') { l.setAttribute('y1', ext.gy1); l.setAttribute('y2', ext.gy2); }
+    if (l.getAttribute('stroke') === GRID_V_COLOR) { l.setAttribute('y1', ext.gy1); l.setAttribute('y2', ext.gy2); }
     else { l.setAttribute('x1', ext.gx1); l.setAttribute('x2', ext.gx2); }
   });
 }
@@ -1861,6 +1916,21 @@ function nodeMatchesQuery(n, q){
     return (t.title||'').toLowerCase().indexOf(q)!==-1 || (t.content||'').toLowerCase().indexOf(q)!==-1;
   });
 }
+// internal 링크 — 이 문서 안의 노드로 이동한다. 접혀 있으면 조상을 펼치고,
+// 선택하고, 화면을 맞춘다 (에디터 Canvas.goToNode와 같은 동작).
+function goToNodeJs(id) {
+  if (!document.getElementById('node-' + id)) return;
+  revealNodeJs(id);
+  selectNode(id);
+  flyToNode(id);
+  if (outlineOpen) { outlineFocusId = id; renderOutline(); }
+}
+// 다른 그래프의 export에서 other.html#node-node_017 로 들어온 경우
+window.addEventListener('load', function () {
+  var m = /^#node-(.+)$/.exec(location.hash || '');
+  if (m) setTimeout(function () { goToNodeJs(m[1]); }, 400);
+});
+
 // ── 계층 접기 — 에디터 src/webview/utils/foldState.ts와 같은 규칙.
 // 상태는 "자손을 숨기고 있는 노드 집합" 하나뿐이고, 보이는지는 "조상 중 접힌 것이 있는가"로 정한다.
 var collapsedSet = {};
@@ -2408,7 +2478,8 @@ function initKatex() {
 function widenForFormulas(scope) {
   (scope ? [scope] : Array.prototype.slice.call(document.querySelectorAll('.ng-node'))).forEach(function(nodeEl) {
     var maxOv = 0;
-    nodeEl.querySelectorAll('.katex-display').forEach(function(kd) {
+    // 수식과 코드 블록을 같은 규칙으로 — 둘 다 스크롤바로 자르지 않고 노드를 넓힌다
+    nodeEl.querySelectorAll('.katex-display, .ng-code').forEach(function(kd) {
       var ov = kd.scrollWidth - kd.clientWidth;
       if (ov > maxOv) maxOv = ov;
     });

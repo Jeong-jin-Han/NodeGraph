@@ -2,10 +2,13 @@ import * as vscode from 'vscode'
 import * as path from 'path'
 import { NodeGraph } from '../webview/types/graph'
 import { computeImageUris, saveImageToAssetsFolder, deleteImageFile } from './imageManager'
-import { generateHtml } from './htmlExporter'
+import { generateHtml, codeKey } from './htmlExporter'
+import { collectCodeBlocks } from '../webview/utils/tableParser'
 import { createEmptyGraph } from './defaultGraph'
 import { getNonce } from './nonce'
 import { PdfViewerPanel } from './PdfViewerPanel'
+import { parseInternalTarget } from '../webview/utils/internalLink'
+import { highlightCode } from './codeHighlight'
 import { parseCodeLinkTarget } from './codeLink'
 import { resolveGitHubBase, resolveRepoRelativePrefix } from './gitInfo'
 
@@ -145,6 +148,32 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
           vscode.env.openExternal(pdfUri)
         } else if (link.type === 'obsidian') {
           vscode.env.openExternal(vscode.Uri.parse(link.target))
+        } else if (link.type === 'internal') {
+          // 같은 그래프 안의 노드는 웹뷰가 직접 처리하므로 여기까지 오지 않는다.
+          // 여기로 오는 것은 "다른 그래프 파일의 노드" 뿐이다.
+          const parsed = parseInternalTarget(link.target)
+          if (!parsed || !parsed.file) return
+          const targetUri = vscode.Uri.joinPath(vscode.Uri.joinPath(document.uri, '..'), parsed.file)
+          try {
+            await vscode.workspace.fs.stat(targetUri)
+          } catch {
+            vscode.window.showErrorMessage(`NodeGraph: couldn't find ${parsed.file}`)
+            return
+          }
+          // 코드 링크와 같은 규칙으로 그래프의 바로 오른쪽 그룹에 연다
+          const viewColumn = columnRightOf(
+            vscode.window.tabGroups.all.map(g => g.viewColumn),
+            webviewPanel.viewColumn,
+          ) ?? vscode.ViewColumn.Beside
+          await vscode.commands.executeCommand('vscode.openWith', targetUri, 'nodegraph.editor', { viewColumn, preserveFocus: false })
+          // 그 그래프의 웹뷰는 방금 열렸을 수 있어 아직 'ready'를 보내기 전일 수 있다 —
+          // 등록될 때까지 짧게 기다렸다가 포커스 요청을 보낸다.
+          const key = targetUri.toString()
+          for (let i = 0; i < 40; i++) {
+            const panel = NodeGraphEditorProvider._panels.get(key)
+            if (panel) { panel.webview.postMessage({ type: 'focusNode', nodeId: parsed.nodeId }); return }
+            await new Promise(r => setTimeout(r, 50))
+          }
         } else if (link.type === 'code') {
           const { path: relPath, startLine, endLine } = parseCodeLinkTarget(link.target)
           try {
@@ -221,7 +250,18 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
 
           const githubBase = resolveGitHubBase(docDir.fsPath)
           const repoPrefix = githubBase ? resolveRepoRelativePrefix(docDir.fsPath) : ''
-          const htmlContent = generateHtml(data, imageData, { githubBase, repoPrefix })
+          // 코드 블록은 내보내기 시점에 미리 구워 넣는다 — 그래야 내보낸 HTML에
+          // 하이라이터가 아니라 결과 <span>만 들어간다
+          const codeHtml: Record<string, string> = {}
+          for (const node of data.nodes) {
+            for (const blk of collectCodeBlocks(node.content ?? '')) {
+              const key = codeKey(blk.lang, blk.code)
+              if (key in codeHtml) continue
+              const html = await highlightCode(blk.code, blk.lang)
+              if (html) codeHtml[key] = html
+            }
+          }
+          const htmlContent = generateHtml(data, imageData, { githubBase, repoPrefix }, codeHtml)
           const outUri = vscode.Uri.joinPath(docDir, `${baseName}.html`)
           await vscode.workspace.fs.writeFile(outUri, Buffer.from(htmlContent, 'utf-8'))
           const choice = await vscode.window.showInformationMessage(
@@ -257,6 +297,11 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
         } catch {
           sendGraph('load')
         }
+      } else if (msg.type === 'highlightCode') {
+        // 웹뷰가 코드 블록을 만나면 요청한다. 실패해도 웹뷰가 평문으로 보여주므로
+        // 에러를 띄우지 않고 null만 돌려준다.
+        const html = await highlightCode(String(msg.code ?? ''), String(msg.lang ?? ''))
+        webviewPanel.webview.postMessage({ type: 'codeHighlighted', lang: msg.lang, code: msg.code, html })
       } else if (msg.type === 'openHelp') {
         const readmeUri = vscode.Uri.joinPath(this.context.extensionUri, 'README.md')
         vscode.commands.executeCommand('markdown.showPreviewToSide', readmeUri.with({ fragment: 'features' }))

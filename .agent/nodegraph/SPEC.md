@@ -95,6 +95,50 @@ This becomes the framing of the first backbone node and the lens through which e
 
 Do not force weak contributions into the list — only include what is genuinely remarkable.
 
+#### Kernel test — what earns a backbone node
+
+"Remarkable" is a judgement call, which makes it a weak filter. Use this sharper one:
+
+> **A kernel is something the authors contributed that nobody else did.**
+> Find **4–8** of them, and check that *the whole paper can be reconstructed from that set*.
+> If it cannot, you have missed one. If a candidate can be dropped without losing the
+> reconstruction, it was never a kernel.
+
+Sort every candidate into one of three piles:
+
+| | What it is | Where it goes |
+|---|---|---|
+| **CORE** | The authors' own contribution — a named phenomenon, a metric they defined, an interpretation only they drew | A backbone node |
+| **SUPPORTING** | Standard method, external data, textbook background — real, but not theirs | A node below the kernel it supports, or one line inside it |
+| **Non-kernel** | Transitions, restatements, boilerplate framing | **No node at all** |
+
+Signals that something is CORE:
+- **The authors named it.** A phenomenon or metric with a term that has no external citation.
+- **A definition with a formula** they introduce: "we define X as…", "let X = …".
+- **Analytical inversion** — "X looks large → the calculation shows it is trivial → therefore
+  X is not the cause." This is the strongest uniqueness signal there is, and the easiest to miss.
+- **A verdict between two possibilities**: "X is Y, not Z." The choice is the contribution.
+- **An interpretation attached to a number.** Anyone can compute the number; the meaning is theirs.
+
+Signals it is only SUPPORTING: a standard technique (OLS, NPV, an off-the-shelf baseline),
+a number reported without interpretation, background the reader could get anywhere.
+
+**Then write the chain.** Kernels must connect: each one says which kernel it follows from
+and which it enables. That chain is the backbone's `arrow` edges, and it is also the check —
+**a kernel that derives from nothing and enables nothing is misclassified.** No leaps: if K3
+needs a step that is not in K1 or K2, that step is a missing kernel.
+
+**When there are more kernels than backbone slots** — and there usually are, since the
+backbone is five and the test asks for 4–8 — the extra kernels do **not** get squeezed out.
+A backbone node can carry a kernel *and its immediate consequences below it*: put the kernel
+that opens the argument on the backbone and hang the kernels it enables beneath it as hop-1
+nodes. What must stay true is that **every backbone node is a kernel**, not that every kernel
+is a backbone node. If you find yourself with eight kernels and five slots, the chain tells
+you which three are consequences of another.
+
+This replaces nothing above — the Killer Application is still what the framing is built on.
+The kernel test just decides **which** claims are strong enough to carry a backbone node.
+
 ### Step 3 — Build the backbone (5 nodes)
 
 Create exactly **5 backbone `main_topic` nodes**, positioned per **Position guidelines** below (`x: 0`, 600px apart vertically):
@@ -130,7 +174,7 @@ For each backbone node, add **sub-nodes branching to the right**. Use the approp
 | What | Template | When to add |
 |------|----------|-------------|
 | Key equation explained in depth | `method` (sharp) | Every important formula deserves its own node |
-| Data table from the paper | `method` (sharp) | Put the markdown table directly in `content` |
+| Data table from the paper | `method` (sharp) | Put the markdown table directly in `content`. **An ablation table goes below the mechanism it tests, not under Results** — the kernel test's SUPPORTING rule wins over this row. That is what turns a flat results branch into real depth |
 | Figure / diagram image | `method` (sharp) | Embed `[[IMG:filename:WxH]]` in `content` |
 | Deep question or gap | `gap` (rounded) | "Why did they choose X?", "What if Y instead?" |
 | Related prior work | `reference` (rounded) | Papers the PDF itself cites as baselines or inspirations — only what's actually in the paper's own citations/discussion, never a paper you recall from general knowledge that the PDF doesn't mention. Add a `links` entry (arXiv/DOI URL) when you have one; if you don't have a verifiable link, still only include it if the PDF names it, and say so in `content` instead of inventing a link |
@@ -185,6 +229,12 @@ For every backbone node, add the verbatim quote from the PDF that best supports 
   pass removed. **Do not delete evidence to hit a percentage** — there is no quota.
 - **Run the Check column** of the **Writing principles** table over every node, then the
   **Post-edit checklist**.
+- **Run the verifier**: `node <extension>/tools/verify-nodegraph.js <PROJECT_FOLDER>`.
+  It re-reads every cited line range and fails if a quote is not there, if an `internal`
+  link points at a node that does not exist, if a `code` link runs past the end of a file,
+  or if a node exceeds the fan-out cap. **Report its output.** Saying "I checked the line
+  numbers" is not the same as running it — an agent has already made that claim on a graph
+  where three of thirty quotes cited the wrong lines.
 - **Write or refresh top-level `conventions`** (`reader`, `landmark`, `example`, `names`, `checks`)
   so the next agent to add a node inherits the rules — see **`conventions`**.
 - Update `"modified"` to the current ISO 8601 timestamp.
@@ -284,8 +334,52 @@ tell the user to hit Reload.
 
 ## Code → NodeGraph workflow
 
+### Two graphs, not one
+
+A codebase is read with two different questions, and mixing them blurs both. **Two graphs
+total** — not one per source file:
+
+| | **Code graph** | **Workflow graph** |
+|---|---|---|
+| Question | What does each file do, and how is it written? | What happens when these files run together? |
+| Covers | **every source file, in one graph** — one backbone node per file, each with its own purpose chain below it | the behaviours the code graph already established |
+| File | `<repo-name>.nodegraph.json` | `<repo-name>-workflow.nodegraph.json` |
+
+> ⚠️ **One code graph for the whole codebase.** Do not emit `uart_receiver.nodegraph.json`,
+> `uart_transmitter.nodegraph.json`, … one per file. Splitting per file breaks the things
+> that make a graph usable: `Ctrl+F` only sees the open file, the outline stops at the file
+> boundary, the Levels control can no longer show "the whole codebase at level 1", and a
+> reader has to know which file to open before they can look anything up. Files become
+> **backbone nodes inside one graph**, not separate graphs.
+
+**Why the workflow is separate.** You can read `uart_receiver.v` and `uart_transmitter.v`
+perfectly and still not know what happens when a reset lands mid-frame — that only shows up
+between them. Put the scenarios in the code graph and the cross-file story gets buried among
+per-file detail; put the per-file detail in the workflow graph and it gets interrupted by
+scenarios no single file can explain.
+
+**The workflow graph holds two kinds of node:**
+- **Covered scenarios** — a workflow the current code *does* handle. Each step links back
+  to the `semantic` node in the code graph that produces it, so the reader can see *which*
+  behaviour makes the step happen.
+- **Uncovered scenarios** — a situation the code does *not* handle, or handles by
+  accident. Use the `gap` template. These are the most valuable nodes in the graph and
+  the hardest to get from reading one file.
+
+**Linking back is the point.** Every workflow step that rests on a specific behaviour
+carries an `internal` link to that node (see **NodeLink schema**):
+`{ "type": "internal", "target": "uart.nodegraph.json#node_014", "label": "…" }`.
+A workflow node with no link into the code graph is an assertion nobody can check.
+
+> **Keep every graph in the same folder.** `code`, `pdf`, `internal` links and the image
+> folder all resolve relative to **the JSON's own directory**, so side-by-side files share
+> one resolution base and nothing needs rewriting. Do not put them in a subfolder.
+
+**When one graph is enough**: a single-file project, or code with no meaningful runtime
+interaction between parts. Say so and build only the code graph.
+
 ### Step 0 — Setup
-1. Identify the target file: `<repo-name>.nodegraph.json` (create it if it does not exist), saved directly inside the codebase's root folder (the same folder the user pointed you at — call it `PROJECT_FOLDER`). This matters because every `code`-type link (Step 6) resolves relative to wherever this JSON file lives, the same way `pdf`-type links already resolve relative to the JSON's own directory in the PDF workflow.
+1. Identify the two target files: `<repo-name>.nodegraph.json` (the code graph, covering every source file) and `<repo-name>-workflow.nodegraph.json`. Both go **directly inside `PROJECT_FOLDER`** (the folder the user pointed you at), side by side. This matters because every `code`-type link (Step 6) and every `internal` link resolves relative to wherever the JSON file lives, the same way `pdf`-type links already resolve relative to the JSON's own directory in the PDF workflow.
 2. If the JSON already exists, read it first so you don't clobber existing work — **including its
    top-level `conventions` field, which is binding for every node you add** (see **`conventions`**).
    If you are only adding nodes to a graph that already exists, `conventions` plus the
@@ -301,29 +395,47 @@ Answer this question: **"What does this codebase actually do, and what's the cen
 
 This becomes the framing of the first backbone node. Not a generic description like "a web app for managing tasks." Specific: "a VS Code extension that renders documents as an editable node graph, using grid-based A* routing so wires never cross a node."
 
-### Step 3 — Build the backbone (5 nodes)
+### Step 3 — Build the backbone
 
-Create exactly **5 backbone `main_topic` nodes**, positioned per **Position guidelines** below (`x: 0`, 600px apart vertically):
+The two graphs have **different backbones**, because they answer different questions.
 
-The five **slots** are fixed. The five **titles** are not — you write them fresh for this codebase.
+#### Code graph — one node per file, plus the two that frame them
+
+The backbone is **not a fixed five**. It is:
+
+| # | Slot | What the `title` must claim |
+|---|---|---|
+| 1 | Purpose | What this codebase does, as one claim — plain language, no identifiers |
+| 2 … n+1 | **One node per source file** | What that file is for, stated so it could be wrong |
+| last | Design Decisions & Gotchas | The thing that will surprise a newcomer, across files |
+
+So a three-file project has 5 backbone nodes, a six-file project has 8. Files that are
+trivial or generated get one line inside another node instead of a backbone slot of their own.
+
+**A file's backbone node *is* that file's ① purpose node** — there is one `main_topic` per
+file, not a backbone node with a separate purpose node beneath it. Below it hang the rest of
+the chain: its state (②), its behaviours (③), the code implementing them (④). See
+**The purpose chain**.
+
+#### Workflow graph — the five slots
 
 | # | Slot (fixed role — **never** the title) | What the `title` must claim | What to put in `content` |
 |---|---|---|---|
-| 1 | Overview | What this codebase does, as one claim | What this project does and the core idea that makes it work, in a sentence or two. Be concrete and specific, not a generic tagline. |
-| 2 | Architecture | The shape of the system, stated so it could be wrong | The major components/layers and how they fit together (e.g. extension host vs. webview, frontend vs. backend). A short table of components is welcome here. |
-| 3 | Core Implementation | The one mechanism that makes it work | The specific mechanisms that make the system work — the interesting algorithms, data structures, or protocols. Most `code`-type `links` (Step 6) belong on the sub-nodes under this backbone node. |
-| 4 | Data & Control Flow | The path one event actually takes | How a request/event/action actually moves through the system end to end — e.g. "user clicks X → message posted to extension host → file written → webview re-rendered." |
-| 5 | Design Decisions & Gotchas | The thing that will surprise a newcomer | Non-obvious choices and constraints a new contributor needs to know before touching the code — the things that aren't written in any single file's comments. |
+| 1 | Overview | What running this system actually looks like, as one claim | The scenario set this graph covers, and what it is for. |
+| 2 | Architecture | The shape of the interaction, stated so it could be wrong | Which parts talk to which, and through what. A short table is welcome. |
+| 3 | The normal path | What happens when nothing goes wrong | The main covered scenario, step by step, each step linking into the code graph. |
+| 4 | The other paths | What else the code handles | The remaining covered scenarios. |
+| 5 | What is not handled | The situation that will bite someone | The `gap` nodes — uncovered scenarios, and what the code does instead of handling them. |
 
-> ⚠️ **Do not use the slot names as titles.** `개요 (Overview)`, `구조 (Architecture)`,
-> `핵심 구현 (Core Implementation)`, `데이터/제어 흐름`, `설계 결정과 주의사항` are role labels for
-> *you*. They all fail Writing principle 2 — none of them could be wrong, so a reader scanning the
-> backbone learns nothing until they open all five. The slot name belongs nowhere in the JSON; if a
-> reader would be lost without it, put it in the first words of `content`, not in `title`.
+> ⚠️ **Do not use the slot names as titles**, and do not use a bare filename either.
+> `개요`, `Overview`, `Architecture`, `설계 결정과 주의사항` are role labels for *you*, and
+> `uart_receiver.v` is a fact the reader can already see. They all fail Writing principle 2 —
+> none of them could be wrong. The slot name belongs nowhere in the JSON; if a reader would be
+> lost without it, put it in the first words of `content`, not in `title`.
 >
-> For a UART receiver assignment, slot 2 is not `구조 (Architecture)` but
-> `모듈 넷, 그중 직접 쓴 것은 수신기 하나`. Slot 3 is not `핵심 구현` but
-> `레지스터 다섯으로 돈다 — FSM은 결국 \`bit_counter\``.
+> A file's backbone node is titled by **what the file is for**: not `uart_receiver.v` but
+> `수신기는 비트 한가운데서 한 번만 읽는다 — 그 반 비트가 클럭 합의를 대신한다`. Put the
+> filename in `content`'s first line.
 
 **Graph language**: same rule as the PDF workflow — write the whole graph in Korean or entirely in English, following the user's request (default to Korean with English terms alongside per **Language rules** if unspecified).
 
@@ -337,31 +449,52 @@ For each backbone node, add **sub-nodes branching to the right**. Use the approp
 |------|----------|--------------|
 | A specific module/file worth understanding on its own | `module` (sharp) | Every module central to the architecture deserves its own node |
 | A step in a data/control flow | `flow` (sharp) | Each meaningful hop in a request/event pipeline |
-| What a code element structurally IS | `syntax` (sharp) | See **Syntax/Semantic pairing** below — declaration shape, signature, parameters/types, data layout |
-| What that element DOES and WHY | `semantic` (sharp) | See **Syntax/Semantic pairing** below — behavior, side effects, invariants, design intent |
+| The code implementing one behaviour | `syntax` (sharp) | See **The purpose chain** below — step ④, hangs off its `semantic` parent and carries the `code` link |
+| An abstract behaviour, and why | `semantic` (sharp) | See **The purpose chain** below — step ③, split by the scale of the behaviour |
 | A non-obvious design decision | `decision` (sharp) | Choices that look arbitrary but have a real reason — code's equivalent of the paper workflow's most valuable node type |
 | Deep question or open issue | `question` (rounded) | "Why is this cached instead of recomputed?", "What happens if this call fails?" |
 | Known limitation / improvement idea | `gap` (rounded) | TODOs, things that could be refactored, known rough edges |
 | Related external doc/dependency | `reference` (rounded) | Library docs, RFCs, or upstream projects this code actually depends on or cites (in comments, README, package.json) — never something recalled from general knowledge that the codebase itself doesn't reference |
 | Misc note | `memo` (rounded) | Anything else worth remembering |
 
-**Syntax/Semantic pairing** — when a specific function, class, or API deserves a deep
-dive (not just a mention inside its module's node), split it into a PAIR of nodes
-instead of mixing both concerns in one:
+**The purpose chain** — a file's nodes are built in this order, each step answering the
+question the previous one raises. This is the backbone of a per-file graph:
 
-- The **`syntax` node** answers *"what is this, structurally?"* — the signature,
-  parameters and their types, return type, data layout. Its `original.text` is the
-  **verbatim declaration** from the source, and it carries the `code`-type `links`
-  entry pointing at the exact lines (Step 6). No behavior talk here.
-- The **`semantic` node** answers *"what does it do, and why?"* — behavior, side
-  effects, invariants, error cases, and the design intent behind it. No signature
-  restating here; it references the syntax node's shape only when the meaning depends
-  on it.
-- Wire them as: parent (`module` or backbone) → `syntax` → `semantic`, each hop a
-  `line` edge — the semantic node is the syntax node's child, one hop further right.
+```
+① purpose      이 파일은 무엇을 이루려 하는가        (natural language, no identifiers yet)
+      ↓  "to do that, what has to be remembered?"
+② parameters   그래서 어떤 상태가 필요한가            (each one tied back to ①)
+      ↓  "what is done with that state?"
+③ semantic     그 상태로 어떤 행동이 일어나는가        (split by scale of behaviour)
+      ↓  "how is that behaviour written?"
+④ syntax       그 행동을 구현한 코드                  (maps onto ③, carries the code link)
+```
+
+- **① purpose** — one `main_topic` node, written in plain language. No variable names,
+  no code. If you cannot say what the file is for without naming an identifier, you do
+  not yet understand it.
+- **② parameters** — the state the purpose requires: registers, fields, configuration.
+  Each one says **what it contributes to ①**, not just what type it is. A parameter that
+  cannot be tied to the purpose is either dead or the purpose is stated wrong.
+- **③ semantic** — the abstract behaviours. For each: which **local** state it
+  introduces, which of ②'s parameters it consumes, and which other behaviours it is
+  coupled to. **Split these by the scale of the behaviour** — a big behaviour is a
+  parent, the behaviours it decomposes into are its children. That is also what keeps
+  the fan-out within the hierarchical cap.
+- **④ syntax** — the code that implements one ③. It carries the **verbatim declaration
+  or body** in `original.text` and the `code`-type `links` entry pointing at the exact
+  lines (Step 6). It maps onto its semantic parent; it does not restate the behaviour.
+
+> ⚠️ **This reverses the order shipped in 1.0.8**, which wired `module → syntax → semantic`
+> (structure first, meaning second). Meaning now comes first and code hangs off it:
+> `semantic → syntax`, the semantic node as the parent. The old order could never answer
+> "why does this variable exist", because it introduced the variable before the purpose
+> that needs it. Existing graphs written the old way are not broken, but new ones follow
+> the chain above.
+
 - Don't force the pair on trivial elements — a helper worth one sentence stays a
-  sentence inside its module node. The pair is for the handful of elements a new
-  contributor must actually understand.
+  sentence inside its semantic node. `syntax` is for the handful of places a reader
+  must actually see the code to believe the behaviour.
 
 Position sub-nodes per **Position guidelines** below — hop 1 at `parent.x ± 750`, hop 2+ 750px further in the same direction. Do not invent your own offsets.
 
@@ -385,6 +518,11 @@ For nodes describing a specific piece of code, add the verbatim snippet the same
 ]
 ```
 
+**Keep `original.location` and the `code` link pointing at the same place.** The verifier
+checks the quote against the **link**, so a node with a correct link and a stale `location`
+passes silently and then sends a human reader to the wrong line. Write the location from the
+link, not from memory.
+
 **Unlike the PDF workflow, `original.location` alone does not drive navigation for code** — there is no page-search mechanism to parse it. One-click navigation comes entirely from a `links` entry of `"type": "code"` (see **NodeLink schema** below). Add one to every node that references a real location in the code, with `target` as a path relative to this JSON file's own directory, in the form `path/to/file.ts`, `path/to/file.ts:42` (a single line), or `path/to/file.ts:42-58` (an inclusive range).
 
 ### Step 7 — Finalize
@@ -396,6 +534,12 @@ For nodes describing a specific piece of code, add the verbatim snippet the same
   pass removed. **Do not delete evidence to hit a percentage** — there is no quota.
 - **Run the Check column** of the **Writing principles** table over every node, then the
   **Post-edit checklist**.
+- **Run the verifier**: `node <extension>/tools/verify-nodegraph.js <PROJECT_FOLDER>`.
+  It re-reads every cited line range and fails if a quote is not there, if an `internal`
+  link points at a node that does not exist, if a `code` link runs past the end of a file,
+  or if a node exceeds the fan-out cap. **Report its output.** Saying "I checked the line
+  numbers" is not the same as running it — an agent has already made that claim on a graph
+  where three of thirty quotes cited the wrong lines.
 - **Write or refresh top-level `conventions`** (`reader`, `landmark`, `example`, `names`, `checks`)
   so the next agent to add a node inherits the rules — see **`conventions`**.
 - Update `"modified"` to the current ISO 8601 timestamp.
@@ -646,7 +790,24 @@ Nodes can have a `links` array for external references:
 ```
 
 Click behaviour: `url` and `obsidian` open externally; `pdf` targets are resolved
-relative to the JSON file's directory. `internal` is reserved and currently a no-op.
+relative to the JSON file's directory.
+
+`internal` points at **a node** — either in this graph or in a graph beside it. It works in
+every workflow, not just Code:
+
+| `target` | What happens |
+|---|---|
+| `node_017` | Jumps to that node in this graph — reveals it if hierarchy folding is hiding it, selects it, centres the view |
+| `other.nodegraph.json#node_017` | Opens that graph in the editor group to the right (same rule as `code` links) and jumps to the node there |
+
+The file part is resolved **relative to this JSON's own directory**, like every other link
+type — so sibling graphs in one folder need no path prefixes. In the exported HTML a
+same-graph link scrolls within the page, and a cross-file link points at the sibling's
+export (`other.html#node-node_017`).
+
+Use it for cross-references the reader would otherwise have to hunt for: a workflow step
+citing the behaviour that causes it, a result node citing the method that produced it, a
+lecture example citing the definition it uses.
 
 `code` targets (Code workflow only) are a path relative to the JSON file's own
 directory, optionally with a line spec: `"src/foo.ts"`, `"src/foo.ts:42"`, or
@@ -936,11 +1097,17 @@ positions directly into JSON, so agent-authored and UI-authored graphs look cons
 > **This section is the single source of truth for positions.** Each workflow's Step 3/4 points
 > here and gives no numbers of its own.
 
-- **Backbone (main_topic) nodes**: arrange vertically at `x: 0`, `y` spacing of **600px**.
-  600 rather than 300 because a hop-1 fan-out spans 450px on its own (`parent.y-150` …
-  `parent.y+300` for four children), so 300px spacing makes one backbone node's children
-  collide with the next one's. If a backbone node carries more than four children on one
-  side, widen that gap further rather than letting the clusters touch.
+- **Backbone (main_topic) nodes**: arrange vertically at `x: 0`. Spacing depends on the shape:
+  - **Flat graph** — `y` spacing of **600px**. 600 rather than 300 because a hop-1 fan-out
+    spans 450px on its own (`parent.y-150` … `parent.y+300` for four children), so 300px
+    spacing makes one backbone node's children collide with the next one's.
+  - **Hierarchical graph** — a fixed number does not work, because a subtree's height depends
+    on how many leaves it has. Lay it out bottom-up instead: **put leaves on a ~200px pitch,
+    give every parent the mean `y` of its children, and leave ~400px between one backbone
+    node's subtree and the next.** Backbone gaps then fall out of the content (commonly
+    900–1500px). This supersedes the alternating `parent.y ±150, +300` offsets below, which
+    only describe a one-level fan-out.
+  - Either way the horizontal rule is unchanged: hop *n* sits at `depth × 750` from the backbone.
 - **Hop 1** (a node whose direct parent — via `children` or an edge — is a main_topic node):
   place at `parent.x ± 750`, alternating around the parent's vertical center (`parent.y`,
   `parent.y+150`, `parent.y-150`, `parent.y+300`, ...). Default to the **right** (`+750`); once
@@ -1018,6 +1185,7 @@ is not "a bit rough", it is unusable for its purpose; fix those before anything 
 
 - [ ] **(1 Canonical reader)** No node uses a term `conventions.reader` would not know without glossing it
 - [ ] **(2 Falsifiable titles)** Every `title` is a claim that could turn out to be **wrong** — no `개요`/`구조`/`Overview`/`Architecture`, no bare deck section name, no slot name used as a title
+- [ ] **(Paper)** Every backbone node is a kernel (the authors' own contribution), 4–8 kernels were found in total, and the paper reconstructs from that set. Each kernel states what it follows from and what it enables; kernels beyond the five slots hang below the kernel they follow from
 - [ ] **(3 Landmark)** `conventions.landmark` is set, and each node's contribution to it can be stated in one clause — nodes that couldn't were deleted, not kept
 - [ ] **(4 One node, one point)** One point sentence covers each node and the node opens with it, key phrase in `**bold**` (두괄식 — never a background/definition run-up). Same for `toggleItems[].content`
 - [ ] **(5 Old to new)** Every child node's first sentence starts from wording its parent already used
@@ -1027,5 +1195,6 @@ is not "a bit rough", it is unusable for its purpose; fix those before anything 
 - [ ] `conventions` is present, true of this graph, and its `checks` list is under ~12 lines
 
 - [ ] No invented numbers, citations, or external claims — every claim traces to the PDF's own text, or has a real `links` entry, or was left unwritten
+- [ ] **`tools/verify-nodegraph.js` was run and reported OK** — quotes really are at the lines they cite, `internal` targets exist, `code` links are in range, fan-out within cap
 - [ ] (Code workflow) Every node that references a specific place in the code has a matching `links` entry with `"type": "code"` — `original.location` alone does not make it clickable
-- [ ] (Code workflow) Deep-dive elements are split into `syntax`/`semantic` node pairs (syntax → semantic, `line` edges) — no node mixes signature description with behavior/intent
+- [ ] (Code workflow) Each file follows **the purpose chain** — purpose → parameters → semantic → syntax, with `syntax` hanging off its `semantic` parent (not the reverse). Every parameter node says what it contributes to the purpose

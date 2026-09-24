@@ -52,6 +52,12 @@ When you enumerate things, write a real markdown list with one item per line —
 never `(1) … (2) … (3) …` run together inside a paragraph. Run-together
 enumerations are the most common reason a node is hard to read.
 
+When you are finished, run the verifier and paste its output:
+`node <path-to-extension>/tools/verify-nodegraph.js PROJECT_FOLDER`
+It re-reads every line range you cited and fails if a quote is not actually there, if an
+`internal` link points at a node that does not exist, or if a node exceeds the fan-out cap.
+Do not report success without running it.
+
 Follow the spec exactly, save the result inside PROJECT_FOLDER, and run
 end to end without asking me anything. When you are done, report the node count
 at each depth and the largest fan-out in the graph.

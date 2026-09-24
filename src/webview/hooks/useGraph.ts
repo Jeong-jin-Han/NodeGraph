@@ -46,6 +46,9 @@ declare function acquireVsCodeApi(): {
 }
 
 const vscode = acquireVsCodeApi()
+// acquireVsCodeApi는 한 번만 호출할 수 있다 — 다른 컴포넌트(CodeBlockView 등)가
+// 메시지를 보내야 할 때 쓰도록 이 인스턴스를 공유한다
+export const vscodeApi = vscode
 const MAX_HISTORY = 50
 
 // --- Hop-based initial position for a newly-connected child node -----------------------
