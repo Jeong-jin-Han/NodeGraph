@@ -9,6 +9,7 @@ import { getNonce } from './nonce'
 import { PdfViewerPanel } from './PdfViewerPanel'
 import { parseInternalTarget } from '../webview/utils/internalLink'
 import { highlightCode } from './codeHighlight'
+import { resolveInternalTitles } from './internalTitles'
 import { parseCodeLinkTarget } from './codeLink'
 import { resolveGitHubBase, resolveRepoRelativePrefix } from './gitInfo'
 
@@ -116,6 +117,11 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
         const data: NodeGraph = text.trim() === '' ? createEmptyGraph() : JSON.parse(text)
         const imageUris = computeImageUris(webviewPanel.webview, document.uri, data)
         webviewPanel.webview.postMessage({ type, data, imageUris })
+        // 옆 그래프의 노드 제목은 확장만 읽을 수 있다 — 링크를 "#17 제목"으로 보여주기
+        // 위해 뒤따라 보낸다(그래프 렌더를 막지 않도록 별도 메시지로).
+        resolveInternalTitles(document.uri, data).then(titles => {
+          if (Object.keys(titles).length) webviewPanel.webview.postMessage({ type: 'internalTitles', titles })
+        })
       } catch {
         // invalid JSON — skip
       }
@@ -261,7 +267,8 @@ export class NodeGraphEditorProvider implements vscode.CustomTextEditorProvider 
               if (html) codeHtml[key] = html
             }
           }
-          const htmlContent = generateHtml(data, imageData, { githubBase, repoPrefix }, codeHtml)
+          const internalTitles = await resolveInternalTitles(document.uri, data)
+          const htmlContent = generateHtml(data, imageData, { githubBase, repoPrefix }, codeHtml, internalTitles)
           const outUri = vscode.Uri.joinPath(docDir, `${baseName}.html`)
           await vscode.workspace.fs.writeFile(outUri, Buffer.from(htmlContent, 'utf-8'))
           const choice = await vscode.window.showInformationMessage(

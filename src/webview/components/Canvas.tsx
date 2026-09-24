@@ -17,6 +17,8 @@ interface CanvasProps {
   openSearchSignal: number
   /** 다른 그래프의 internal 링크로 열렸을 때 이동할 노드 */
   focusNodeReq?: { id: string; n: number } | null
+  /** 옆 그래프 노드 제목 (키: internal 링크의 target 원문) */
+  internalTitles?: Record<string, string>
   fitViewSignal: number
   focusCanvasSignal: number
   viewport: Viewport
@@ -676,6 +678,7 @@ const hitKeySafe = (k: string) => k.replace(/[^a-zA-Z0-9_-]/g, '_')
 export function Canvas({
   openSearchSignal,
   focusNodeReq,
+  internalTitles,
   fitViewSignal,
   focusCanvasSignal,
   viewport, cursor, nativeWheelHandler,
@@ -1294,6 +1297,23 @@ export function Canvas({
 
   const allNodeIds = useMemo(() => graph.nodes.map(n => n.id), [graph.nodes])
 
+  // internal 링크에 붙일 "#17 제목" — 같은 그래프는 여기서 풀고, 옆 파일은 확장이 준 것을 쓴다
+  const internalTitleLookup = useMemo(() => {
+    const byId = new Map(graph.nodes.map(n => [n.id, n.title]))
+    const out: Record<string, string> = { ...(internalTitles ?? {}) }
+    for (const n of graph.nodes) {
+      for (const l of n.links ?? []) {
+        if (l.type !== 'internal' || out[l.target]) continue
+        const parsed = parseInternalTarget(l.target)
+        if (parsed && !parsed.file) {
+          const t = byId.get(parsed.nodeId)
+          if (t) out[l.target] = t
+        }
+      }
+    }
+    return out
+  }, [graph.nodes, internalTitles])
+
   // 조상이 접혀 있는 노드는 화면에서 빠진다. 노드와 엣지를 같은 기준으로 걸러야
   // 사라진 노드로 향하는 선이 허공에 남지 않는다.
   const hiddenNodeIds = useMemo(
@@ -1479,11 +1499,24 @@ export function Canvas({
     onOpenLink(link)
   }, [onOpenLink, goToNode])
 
-  // 다른 그래프에서 internal 링크로 들어온 경우 — 그래프가 그려진 뒤에 이동해야 한다
+  // 다른 그래프에서 internal 링크로 들어온 경우.
+  //
+  // 확장은 대상 그래프의 웹뷰 패널이 등록되자마자 focusNode를 보내는데, 그 시점은
+  // 웹뷰가 'ready'를 보낸 직후라 **그래프 데이터(load)가 아직 도착하기 전**일 수 있다.
+  // 그러면 goToNode가 찾을 노드가 없어 조용히 실패하고, effect는 한 번만 돌므로 영영
+  // 이동하지 않는다 — 새 탭으로 열리는 교차 파일 링크가 "눌러도 아무 일도 없는" 원인.
+  // 노드가 나타날 때까지 짧게 재시도한다.
   useEffect(() => {
     if (!focusNodeReq) return
-    const t = requestAnimationFrame(() => goToNode(focusNodeReq.id))
-    return () => cancelAnimationFrame(t)
+    let cancelled = false
+    const deadline = Date.now() + 4000
+    const attempt = () => {
+      if (cancelled) return
+      if (goToNode(focusNodeReq.id)) return
+      if (Date.now() < deadline) setTimeout(attempt, 100)
+    }
+    const t = requestAnimationFrame(attempt)
+    return () => { cancelled = true; cancelAnimationFrame(t) }
   }, [focusNodeReq, goToNode])
 
   const handleOutlineDrill = useCallback((id: string) => {
@@ -2291,6 +2324,7 @@ export function Canvas({
                   onAddLink={onAddLink}
                   onDeleteLink={onDeleteLink}
                   onOpenLink={handleOpenLink}
+                  internalTitles={internalTitleLookup}
                   onSearchInPdf={onSearchInPdf}
                   onSetNodeTemplate={onSetNodeTemplate}
                   imageUris={imageUris}

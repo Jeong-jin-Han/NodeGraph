@@ -37,6 +37,8 @@ export function App() {
   const [focusCanvasSignal, setFocusCanvasSignal] = React.useState(0)
   // 다른 그래프의 internal 링크로 열렸을 때 어느 노드로 갈지 (nodeId + 호출 횟수)
   const [focusNodeReq, setFocusNodeReq] = React.useState<{ id: string; n: number } | null>(null)
+  // 옆 그래프 노드의 제목 — internal 링크를 "#17 제목"으로 보여주기 위해 확장이 보내준다
+  const [internalTitles, setInternalTitles] = React.useState<Record<string, string>>({})
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -56,6 +58,7 @@ export function App() {
       else if (e.data?.type === 'expandAll') expandAll()
       else if (e.data?.type === 'focusCanvas') setFocusCanvasSignal(n => n + 1)
       else if (e.data?.type === 'focusNode' && e.data.nodeId) setFocusNodeReq(p => ({ id: e.data.nodeId, n: (p?.n ?? 0) + 1 }))
+      else if (e.data?.type === 'internalTitles') setInternalTitles(prev => ({ ...prev, ...e.data.titles }))
     }
     window.addEventListener('message', handler)
     return () => window.removeEventListener('message', handler)
@@ -75,6 +78,7 @@ export function App() {
       fitViewSignal={fitViewSignal}
       focusCanvasSignal={focusCanvasSignal}
       focusNodeReq={focusNodeReq}
+      internalTitles={internalTitles}
       viewport={viewport}
       cursor={cursor}
       nativeWheelHandler={nativeWheelHandler}

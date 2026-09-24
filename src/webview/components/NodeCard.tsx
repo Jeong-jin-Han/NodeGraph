@@ -7,6 +7,7 @@ import { MathText } from './MathText'
 import { parseTableBlocks, hasTable, hasCodeFence } from '../utils/tableParser'
 import { THEME } from '../utils/themeSnapshot'
 import { formatNodeNumber } from '../utils/nodeNumber'
+import { parseInternalTarget } from '../utils/internalLink'
 import { CodeBlockView } from './CodeBlockView'
 
 const NODE_BG_BASE = THEME.nodeBg
@@ -20,6 +21,19 @@ const NODE_INPUT_BORDER = THEME.inputBorder
 // table or image, the cap grows to fit them fully instead (see contentMaxHeight effect below) —
 // only the extra text beyond that still scrolls/hides behind the "more" button.
 const DEFAULT_CONTENT_MAX = 500
+
+// internal 링크는 손으로 쓴 라벨 대신 "#17 대상 노드 제목"으로 보여준다 — 라벨은 대상이
+// 바뀌면 조용히 어긋나지만 번호와 제목은 대상에서 끌어온 값이라 항상 맞고, 번호가 있으면
+// Ctrl+F(# 모드)로 바로 찾아갈 수 있다. 제목을 못 구하면 기존 라벨로 폴백한다.
+function renderLinkText(link: NodeLink, titles?: Record<string, string>): string {
+  if (link.type !== 'internal') return link.label || link.target
+  const parsed = parseInternalTarget(link.target)
+  if (!parsed) return link.label || link.target
+  const num = formatNodeNumber(parsed.nodeId)
+  const title = titles?.[link.target]
+  if (title) return num ? `${num}  ${title}` : title
+  return num ? `${num}  ${link.label || parsed.nodeId}` : (link.label || link.target)
+}
 
 // 제목 하나 때문에 카드가 끝없이 넓어지지 않도록 하는 상한. 여기까지는 제목 길이에 맞춰
 // 카드가 넓어지고, 이보다 더 필요하면 제목을 여러 줄로 접는다.
@@ -79,6 +93,8 @@ interface NodeCardProps {
   // 편집 모드 — 켜지면 제목·태그·본문이 한꺼번에 편집 가능해진다
   editMode?: boolean
   onExitEdit?: () => void
+  /** internal 링크 target → 대상 노드 제목 (같은 그래프 + 옆 파일 모두) */
+  internalTitles?: Record<string, string>
 }
 
 type EditingField = 'title' | 'content' | 'originalText' | 'originalLoc' | 'originalTitle' | null
@@ -116,6 +132,7 @@ export function NodeCard({
   onFoldMenu,
   editMode = false,
   onExitEdit,
+  internalTitles,
 }: NodeCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
@@ -1117,9 +1134,9 @@ export function NodeCard({
                       onClick={() => onOpenLink(link)}
                       style={{ fontSize: Math.max(9, fs - 2), color: NODE_LINK_FG, cursor: 'pointer',
                         flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                      title={link.target}
+                      title={link.type === 'internal' ? `${link.target}${link.label ? `\n${link.label}` : ''}` : link.target}
                     >
-                      {link.label || link.target}
+                      {renderLinkText(link, internalTitles)}
                     </span>
                     {hoveredLinkIdx === i && (
                       <button

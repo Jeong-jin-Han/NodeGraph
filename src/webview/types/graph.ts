@@ -108,6 +108,7 @@ export type ExtToWebviewMessage =
   | { type: 'expandAll' }
   | { type: 'focusCanvas' }
   | { type: 'focusNode'; nodeId: string }
+  | { type: 'internalTitles'; titles: Record<string, string> }
   | { type: 'codeHighlighted'; lang: string; code: string; html: string | null }
 
 export type WebviewToExtMessage =

@@ -130,6 +130,15 @@ function nodeNumOf(id: string): number | null {
   return Number.isNaN(n) ? null : n
 }
 
+// 에디터 NodeCard.renderLinkText와 같은 규칙 — 라벨 대신 "#17 대상 제목"
+function internalLinkText(l: { label?: string; target: string }, parsed: { nodeId: string }, titles: Record<string, string>): string {
+  const n = nodeNumOf(parsed.nodeId)
+  const num = n === null ? '' : `#${n}`
+  const title = titles[l.target]
+  if (title) return num ? `${num}  ${title}` : title
+  return num ? `${num}  ${l.label || parsed.nodeId}` : (l.label || l.target)
+}
+
 /** 하이라이팅 맵의 키 — 확장 쪽 캐시 키와 같은 규칙 */
 export function codeKey(lang: string, code: string): string { return `${lang}\u0000${code}` }
 
@@ -147,6 +156,7 @@ function renderNodeCard(
   imageData: Record<string, string>,
   codeLinkOpts: { githubBase: string | null; repoPrefix: string },
   codeHtml: Record<string, string> = {},
+  linkTitles: Record<string, string> = {},
 ): string {
   const color = template?.color ?? '#888'
   const borderRadius = template?.shape === 'rounded' ? '22px' : '2px'
@@ -226,10 +236,10 @@ function renderNodeCard(
         const parsed = parseInternalTarget(l.target)
         if (!parsed) return `<a class="ng-link">${icon} ${escHtml(l.label || l.target)}</a>`
         if (!parsed.file) {
-          return `<a class="ng-link" href="#" onclick="goToNodeJs('${escHtml(parsed.nodeId)}');return false">${icon} ${escHtml(l.label || l.target)}</a>`
+          return `<a class="ng-link" href="#" onclick="goToNodeJs('${escHtml(parsed.nodeId)}');return false" title="${escHtml(l.target)}">${icon} ${escHtml(internalLinkText(l, parsed, linkTitles))}</a>`
         }
         const siblingHtml = parsed.file.replace(/\.nodegraph\.json$/i, '.html')
-        return `<a class="ng-link" href="${escHtml(siblingHtml)}#node-${escHtml(parsed.nodeId)}">${icon} ${escHtml(l.label || l.target)}</a>`
+        return `<a class="ng-link" href="${escHtml(siblingHtml)}#node-${escHtml(parsed.nodeId)}" title="${escHtml(l.target)}">${icon} ${escHtml(internalLinkText(l, parsed, linkTitles))}</a>`
       }
       const href = (l.type === 'url' || l.type === 'pdf') ? ` href="${escHtml(l.target)}" target="_blank"` : ''
       return `<a class="ng-link"${href}>${icon} ${escHtml(l.label || l.target)}</a>`
@@ -280,7 +290,22 @@ export function generateHtml(
   // 코드 블록 하이라이팅 결과를 미리 구워서 넣는다 (키: `lang\u0000code`).
   // 내보낸 HTML에는 하이라이터가 아니라 결과 <span>만 들어가므로 파일이 무거워지지 않는다.
   codeHtml: Record<string, string> = {},
+  // internal 링크 target → 대상 노드 제목. 옆 그래프는 확장이 읽어서 넘겨준다.
+  internalTitles: Record<string, string> = {},
 ): string {
+  // 같은 그래프 안의 대상은 여기서 바로 풀 수 있다
+  const titleById = new Map(graph.nodes.map(n => [n.id, n.title]))
+  const linkTitles: Record<string, string> = { ...internalTitles }
+  for (const n of graph.nodes) {
+    for (const l of n.links ?? []) {
+      if (l.type !== 'internal' || linkTitles[l.target]) continue
+      const parsed = parseInternalTarget(l.target)
+      if (parsed && !parsed.file) {
+        const t = titleById.get(parsed.nodeId)
+        if (t) linkTitles[l.target] = t
+      }
+    }
+  }
   let minX = Infinity, minY = Infinity
   for (const n of graph.nodes) {
     minX = Math.min(minX, n.position.x)
@@ -291,7 +316,7 @@ export function generateHtml(
   const offsetY = -minY + 100
 
   const nodesHtml = graph.nodes
-    .map(n => renderNodeCard(n, graph.nodeTemplates[n.template], offsetX, offsetY, imageData, codeLinkOpts, codeHtml))
+    .map(n => renderNodeCard(n, graph.nodeTemplates[n.template], offsetX, offsetY, imageData, codeLinkOpts, codeHtml, linkTitles))
     .join('\n')
 
   const nodesData = JSON.stringify(graph.nodes.map(n => ({

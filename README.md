@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white&style=for-the-badge" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-2.0.1-orange?style=for-the-badge" alt="Version 2.0.1" />
+  <img src="https://img.shields.io/badge/version-2.1.0-orange?style=for-the-badge" alt="Version 2.1.0" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=for-the-badge" alt="MIT License" />
 </p>
 
@@ -88,7 +88,10 @@ And since you don't always want to be inside VS Code to revisit your own notes, 
 | **Hierarchy folding** | Right-click a node to hide or show its *descendants* (a different axis from folding a node's own body). Four scopes each way — one level, this level, all below, everything — plus undo. A folded node shows a `+N` badge |
 | **Levels control** | One click decides how much of the graph is on screen: `1` is the backbone alone, `2` adds the next layer, `All` shows everything |
 | **Outline panel** | A left-hand table of contents listing the selected node's direct children in reading order, including folded ones. Click to drill down, breadcrumb to walk back up |
-| **Edit this node** | Right-click → one click turns the whole card into editors at once: title, tag and content together |
+| **Edit this node** | Right-click → one click turns the whole card into editors at once: title, tag and content together. **Editing is only reachable this way** — clicking the body no longer opens an editor by accident |
+| **Cross-graph links** | An `internal` link jumps to a node — in this graph, or in a graph beside it (`other.nodegraph.json#node_017`). It shows as `#17 <that node's title>`, so the label can never drift from what it points at, and the target is revealed even if hierarchy folding is hiding it |
+| **Code blocks look like code** | Fenced blocks (```` ```verilog ````) render with VS Code's Light+ colours. Highlighting runs in the extension host, so the webview stays small and the exported HTML carries the colours without the library. Long lines widen the node instead of scrolling |
+| **Graph verifier** | `tools/verify-nodegraph.js` re-reads every quote against the lines or PDF page it cites, checks `internal` targets exist, `code` link ranges, and the fan-out cap — and exits non-zero, so an agent cannot claim it checked |
 | **Debug grid** | One-click overlay of hop-level and main-topic-cluster boundaries for visually spotting layout issues |
 | **HTML export** | A self-contained, interactive standalone viewer — search, highlighting, and layout included |
 | **Agent-friendly** | A machine-readable spec (`.agent/nodegraph/SPEC.md`) so AI agents can read and write graphs directly |
@@ -234,7 +237,7 @@ The `demo/ex4` run above was recorded on **v0.6.3**, using `NodeGraph: Copy Agen
 | **Edit the whole node** | **Right-click anywhere on the node → `Edit this node`** — title, tag and content all become editable at once. A round ✕ just outside the top-right corner (or `Esc`) commits and leaves |
 | **Rename quickly** | **Double-click node title** |
 | **Hide / show descendants** | **Right-click anywhere on the node** → the fold section: `children` (one level), `this level`, `all below`, `everything`, each with a matching collapse, plus `Undo last fold change` |
-| Edit content / original | Click text area |
+| Edit content / original | Click the text **while in edit mode** — outside it, clicking does nothing |
 | **Search original quote in PDF** | **Right-click the original-text quote** (requires `source.pdf`) |
 | Add image | Copy an image, then `Ctrl+V` with the node selected or hovered — inserted as an `[[IMG:...]]` token; pasting on the background creates a floating canvas image, which can be dragged onto a node or table cell |
 | Add toggle / original / link | `+ Toggle` · `+ Original` · `+ Link` buttons at the bottom of an expanded node |
