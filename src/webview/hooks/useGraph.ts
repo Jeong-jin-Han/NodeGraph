@@ -1,6 +1,21 @@
 import { useState, useCallback, useRef } from 'react'
 import { NodeGraph, GraphNode, NodeLink, CanvasImage } from '../types/graph'
 
+// tableParser.parseCells 와 같은 규칙 (`\|` = 리터럴 파이프)
+function splitEscapedCells(line: string): string[] {
+  const body = line.replace(/^\s*\|/, '')
+  const out: string[] = []
+  let cur = ''
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i]
+    if (c === '\\' && body[i + 1] === '|') { cur += '|'; i++; continue }
+    if (c === '|') { out.push(cur.trim()); cur = ''; continue }
+    cur += c
+  }
+  if (cur.trim() !== '') out.push(cur.trim())
+  return out
+}
+
 function insertImgTokenInCell(content: string, tableIdx: number, rowIdx: number, colIdx: number, filename: string): string {
   const lines = content.split('\n')
   let tableCount = 0
@@ -25,13 +40,13 @@ function insertImgTokenInCell(content: string, tableIdx: number, rowIdx: number,
     // rowIdx 0 = header, 1+ = data rows (skip separator at i+1)
     const targetLineIdx = rowIdx === 0 ? i : i + rowIdx + 1
     if (targetLineIdx < lines.length && /^\s*\|/.test(lines[targetLineIdx])) {
-      const cells = lines[targetLineIdx]
-        .replace(/^\s*\|/, '').replace(/\|\s*$/, '')
-        .split('|').map(s => s.trim())
+      // 분해/재조립 모두 `\|` 를 지켜야 한다 — 그러지 않으면 이미지를 하나 떨어뜨리는 것만으로
+      // 셀 안의 파이프가 구분자로 승격돼 표가 한 칸씩 밀린다.
+      const cells = splitEscapedCells(lines[targetLineIdx])
       while (cells.length <= colIdx) cells.push('')
       const token = `[[IMG:${filename}]]`
       cells[colIdx] = cells[colIdx] ? `${cells[colIdx]} ${token}` : token
-      lines[targetLineIdx] = '| ' + cells.join(' | ') + ' |'
+      lines[targetLineIdx] = '| ' + cells.map(c => c.replace(/\|/g, '\\|')).join(' | ') + ' |'
     }
     break
   }

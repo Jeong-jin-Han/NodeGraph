@@ -38,8 +38,23 @@ function isSepLine(line: string): boolean {
   return /^\s*\|[\s\-:|]+\|\s*$/.test(line) && !/[a-zA-Z0-9]/.test(line)
 }
 
+// 셀 안의 `\|`는 구분자가 아니라 리터럴 파이프다. 단순 split('|')이던 시절에는 표 안에
+// 파이프를 넣을 방법이 **아예 없었다** — 백틱 안에서도 쪼개졌고, `&#124;` 는 렌더 단계에서
+// escape 돼 글자 그대로 보였다. GFM과 같은 규칙으로 맞춘다.
 function parseCells(line: string): string[] {
-  return line.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(s => s.trim())
+  const body = line.replace(/^\s*\|/, '')
+  const out: string[] = []
+  let cur = ''
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i]
+    if (c === '\\' && body[i + 1] === '|') { cur += '|'; i++; continue }
+    if (c === '|') { out.push(cur.trim()); cur = ''; continue }
+    cur += c
+  }
+  // 마지막 구분자 뒤에 남는 꼬리(대개 공백)는 셀이 아니다. 비어 있지 않을 때만 센다 —
+  // 닫는 `|` 가 없는 줄도 마지막 셀을 잃지 않게.
+  if (cur.trim() !== '') out.push(cur.trim())
+  return out
 }
 
 export function parseTableBlocks(content: string): ContentBlock[] {

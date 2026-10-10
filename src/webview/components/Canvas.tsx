@@ -744,6 +744,10 @@ export function Canvas({
   const [foldMenu, setFoldMenu] = useState<{ nodeId: string; x: number; y: number } | null>(null)
   // 편집 모드에 들어간 노드 — 제목·태그·본문이 한꺼번에 편집 가능해진다
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null)
+  // 크기 조절은 **우클릭 메뉴를 거쳐야만** 켜진다. 예전에는 노드를 고르기만 해도 모서리에
+  // 핸들이 생겨서, 노드를 집어 옮기려다 폭을 바꿔버리는 일이 잦았다. 편집 모드와 같은
+  // 축이므로 둘은 동시에 켜지지 않는다.
+  const [resizingNodeId, setResizingNodeId] = useState<string | null>(null)
 
   // 읽은 자리 기록 — 편집 Undo/Redo와는 **다른 축**이다. 링크를 타고 갔다가 읽던 데로
   // 돌아오려고 Undo를 누르면 문서가 되돌아가 버리므로, 보기 이력은 따로 둔다.
@@ -1409,6 +1413,10 @@ export function Canvas({
       return next
     })
   }, [foldTree])
+
+  useEffect(() => {
+    if (resizingNodeId && !selectedIds.has(resizingNodeId)) setResizingNodeId(null)
+  }, [selectedIds, resizingNodeId])
 
   const maxDepth = useMemo(() => maxDepthOf(foldTree, allNodeIds), [foldTree, allNodeIds])
 
@@ -2403,6 +2411,7 @@ export function Canvas({
                   onFoldMenu={(id, cx, cy) => setFoldMenu({ nodeId: id, x: cx, y: cy })}
                   editMode={editingNodeId === node.id}
                   onExitEdit={() => setEditingNodeId(null)}
+                  resizeMode={resizingNodeId === node.id}
                   onHoverStart={handleNodeHoverStart}
                   onHoverEnd={handleNodeHoverEnd}
                   onUpdatePosition={onUpdateNodePosition}
@@ -2517,7 +2526,12 @@ export function Canvas({
                 canUndo={foldCanUndo}
                 onUndo={undoFold}
                 onPick={(action, scope) => applyFold(action, scope, foldMenu.nodeId)}
-                onEdit={() => setEditingNodeId(foldMenu.nodeId)}
+                onEdit={() => { setResizingNodeId(null); setEditingNodeId(foldMenu.nodeId) }}
+                onResize={() => {
+                  setEditingNodeId(null)
+                  setSelectedIds(new Set([foldMenu.nodeId]))
+                  setResizingNodeId(foldMenu.nodeId)
+                }}
                 onClose={() => setFoldMenu(null)}
                 items={[
                   mk('expand', 'one', 'Expand children'),

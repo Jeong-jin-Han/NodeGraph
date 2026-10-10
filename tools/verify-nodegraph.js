@@ -81,7 +81,44 @@ function pdfPageText(pdfPath, page) {
 }
 const norm = s => (s || '').replace(/\s+/g, ' ').trim()
 
-let quotesChecked = 0, codeLinks = 0, internalLinks = 0, pdfQuotesChecked = 0, pdfSkipped = 0
+// ── Markdown 표: 셀 수가 헤더와 어긋나면 거의 항상 셀 안의 파이프를 이스케이프하지 않은 것이다.
+// `|` 하나가 구분자로 승격되면서 그 행만 한 칸씩 밀리는데, 에디터에서는 표가 그럴듯하게
+// 그려져서 눈으로는 잘 안 잡힌다. 쓰는 법은 `\|` (JSON 문자열 안에서는 `\\|`).
+function splitCells(line) {
+  const body = line.replace(/^\s*\|/, '')
+  const out = []
+  let cur = ''
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i]
+    if (c === '\\' && body[i + 1] === '|') { cur += '|'; i++; continue }
+    if (c === '|') { out.push(cur.trim()); cur = ''; continue }
+    cur += c
+  }
+  if (cur.trim() !== '') out.push(cur.trim())
+  return out
+}
+
+const isSep = l => /^\s*\|[\s\-:|]+\|\s*$/.test(l) && !/[a-zA-Z0-9]/.test(l)
+
+// [{ header: n, rows: [{ line, n }] }]
+function tablesIn(text) {
+  const lines = (text || '').split('\n')
+  const tables = []
+  for (let i = 0; i + 1 < lines.length; i++) {
+    if (!/^\s*\|/.test(lines[i]) || !isSep(lines[i + 1])) continue
+    const header = splitCells(lines[i]).length
+    const rows = []
+    let j = i + 2
+    for (; j < lines.length && /^\s*\|/.test(lines[j]); j++) {
+      rows.push({ line: j + 1, n: splitCells(lines[j]).length, text: lines[j] })
+    }
+    tables.push({ header, rows })
+    i = j - 1
+  }
+  return tables
+}
+
+let quotesChecked = 0, codeLinks = 0, internalLinks = 0, pdfQuotesChecked = 0, pdfSkipped = 0, tableRows = 0
 
 for (const [f, g] of graphs) {
   const ids = new Set(g.nodes.map(n => n.id))
@@ -101,6 +138,18 @@ for (const [f, g] of graphs) {
   for (const [p, cs] of kids) if (cs.length > 4) note(f, p, `fan-out ${cs.length} (cap is 4)`)
 
   for (const n of g.nodes) {
+    const texts = [['content', n.content], ...(n.toggleItems || []).map((t, k) => [`toggleItems[${k}].content`, t.content])]
+    for (const [where, text] of texts) {
+      for (const t of tablesIn(text)) {
+        for (const r of t.rows) {
+          tableRows++
+          if (r.n !== t.header) {
+            note(f, n.id, `${where}: table row has ${r.n} cells but the header has ${t.header} — an unescaped "|" inside a cell? write it as \\| (\\\\| in JSON): ${r.text.trim().slice(0, 60)}`)
+          }
+        }
+      }
+    }
+
     for (const l of n.links || []) {
       if (l.type === 'internal') {
         internalLinks++
@@ -201,6 +250,7 @@ for (const [f, g] of graphs) {
 console.log(`checked ${files.length} graph(s) in ${dir}`)
 console.log(`  ${internalLinks} internal link(s), ${codeLinks} code link(s), ${quotesChecked} quote(s) against their cited lines`)
 if (pdfQuotesChecked) console.log(`  ${pdfQuotesChecked} PDF quote(s) against their cited page`)
+if (tableRows) console.log(`  ${tableRows} table row(s) against their header's column count`)
 if (pdfSkipped) console.log(`  ${pdfSkipped} PDF quote(s) skipped — pdftotext not available`)
 if (problems.length === 0) {
   console.log('OK — no problems found')

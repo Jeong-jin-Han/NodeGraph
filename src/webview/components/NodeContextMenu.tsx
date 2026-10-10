@@ -21,10 +21,12 @@ interface NodeContextMenuProps {
   onPick: (action: 'expand' | 'collapse', scope: FoldScope) => void
   /** 편집 모드 진입 — 제목·태그·본문을 한꺼번에 고칠 수 있게 된다 */
   onEdit: () => void
+  /** 크기 조절 모드 진입 — 이때만 모서리 핸들이 생긴다. 고르기만 해서는 안 생긴다 */
+  onResize: () => void
   onClose: () => void
 }
 
-export function NodeContextMenu({ x, y, heading, items, canUndo, onUndo, onPick, onEdit, onClose }: NodeContextMenuProps) {
+export function NodeContextMenu({ x, y, heading, items, canUndo, onUndo, onPick, onEdit, onResize, onClose }: NodeContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -95,6 +97,13 @@ export function NodeContextMenu({ x, y, heading, items, canUndo, onUndo, onPick,
         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
         style={{ ...rowStyle(true), fontWeight: 600 }}
       >Edit this node</button>
+      <button
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={() => { onResize(); onClose() }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = '#f3f4f6' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+        style={{ ...rowStyle(true), fontWeight: 600 }}
+      >Resize this node</button>
       <div style={{ height: 1, background: '#f3f4f6', margin: '4px 0' }} />
 
       {renderGroup(expandItems)}

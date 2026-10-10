@@ -92,6 +92,8 @@ interface NodeCardProps {
   onFoldMenu?: (nodeId: string, clientX: number, clientY: number) => void
   // 편집 모드 — 켜지면 제목·태그·본문이 한꺼번에 편집 가능해진다
   editMode?: boolean
+  /** 우클릭 → Resize this node 로만 켜진다. 선택만으로는 핸들이 생기지 않는다 */
+  resizeMode?: boolean
   onExitEdit?: () => void
   /** internal 링크 target → 대상 노드 제목 (같은 그래프 + 옆 파일 모두) */
   internalTitles?: Record<string, string>
@@ -131,6 +133,7 @@ export function NodeCard({
   childrenHiddenCount = 0,
   onFoldMenu,
   editMode = false,
+  resizeMode = false,
   onExitEdit,
   internalTitles,
 }: NodeCardProps) {
@@ -1244,7 +1247,7 @@ export function NodeCard({
           </div>
         )}
 
-        {selected && (
+        {resizeMode && (
           <>
             {/* 우측 엣지 리사이즈 핸들 */}
             <div

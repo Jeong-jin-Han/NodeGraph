@@ -34,7 +34,18 @@ function isHtmlSepLine(line: string): boolean {
   return /^\s*\|[\s\-:|]+\|\s*$/.test(line) && !/[a-zA-Z0-9]/.test(line)
 }
 function parseHtmlCells(line: string): string[] {
-  return line.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(s => s.trim())
+  // `\|` = 리터럴 파이프. 웹뷰 tableParser.parseCells 와 같은 규칙이어야 export 가 갈라지지 않는다.
+  const body = line.replace(/^\s*\|/, '')
+  const out: string[] = []
+  let cur = ''
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i]
+    if (c === '\\' && body[i + 1] === '|') { cur += '|'; i++; continue }
+    if (c === '|') { out.push(cur.trim()); cur = ''; continue }
+    cur += c
+  }
+  if (cur.trim() !== '') out.push(cur.trim())
+  return out
 }
 
 function parseHtmlTableBlocks(content: string): HtmlContentBlock[] {

@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white&style=for-the-badge" alt="VS Code Extension" />
-  <img src="https://img.shields.io/badge/version-2.3.0-orange?style=for-the-badge" alt="Version 2.3.0" />
+  <img src="https://img.shields.io/badge/version-2.4.0-orange?style=for-the-badge" alt="Version 2.4.0" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=for-the-badge" alt="MIT License" />
 </p>
 
@@ -283,11 +283,12 @@ The `demo/ex4` run above was recorded on **v0.6.3**, using `NodeGraph: Copy Agen
 | **Edit the whole node** | **Right-click anywhere on the node → `Edit this node`** — title, tag and content all become editable at once. A round ✕ just outside the top-right corner (or `Esc`) commits and leaves |
 | **Rename quickly** | **Double-click node title** |
 | **Hide / show descendants** | **Right-click anywhere on the node** → the fold section: `children` (one level), `this level`, `all below`, `everything`, each with a matching collapse, plus `Undo last fold change` |
+| **Right-click menu** | `Edit this node` and `Resize this node` sit above the fold section — editing and resizing are both reachable only from here |
 | Edit content / original | Click the text **while in edit mode** — outside it, clicking does nothing |
 | **Search original quote in PDF** | **Right-click the original-text quote** (requires `source.pdf`) |
 | Add image | Copy an image, then `Ctrl+V` with the node selected or hovered — inserted as an `[[IMG:...]]` token; pasting on the background creates a floating canvas image, which can be dragged onto a node or table cell |
 | Add toggle / original / link | `+ Toggle` · `+ Original` · `+ Link` buttons at the bottom of an expanded node |
-| Resize node | Drag the right / bottom / corner handles of an expanded node (min 160×60) |
+| Resize node | **Right-click → `Resize this node`**, then drag the right / bottom / corner handles (min 160×60). Selecting a node no longer grows handles on its own, so picking a card up to move it can't change its width by accident. The mode ends when the node leaves the selection — `Escape`, a background click, or selecting something else |
 
 ### Toolbar
 
@@ -367,6 +368,7 @@ npx vsce package -o packages/nodegraph-<version>.vsix
 | Block LaTeX | `$$formula$$` |
 | Bold | `**text**` (markers hidden when rendered) |
 | Literal dollar (currency) | `\$` — a bare `$` would open an inline-math region (in JSON strings write `\\$`) |
+| Literal pipe inside a table cell | `\|` — a bare `|` becomes a column separator and shifts the row, even inside backticks (in JSON strings write `\\|`) |
 | Image token | `[[IMG:filename.png:400x300]]` |
 
 Images are stored in a `.<graphname>-imgs/` folder next to the JSON file.

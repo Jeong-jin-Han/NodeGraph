@@ -194,6 +194,23 @@ Connect each sub-node to its parent backbone node with a `line` edge.
 **Tables (Markdown)**
 - Use GFM table syntax with a separator row (`|---|---|`).
 - Works in both `node.content` and `toggleItems[].content`.
+- **A `|` inside a cell must be written `\|`** — and because `content` is a JSON string,
+  that reaches the file as `\\|`. This applies everywhere in the cell, **including inside
+  backticks**: a code span does not protect a pipe. An unescaped `|` is silently promoted to
+  a column separator, so the row shifts one cell to the left and the table still renders —
+  which is why this is easy to ship without noticing. It bites most often on bitwise-or,
+  shell pipes, regex alternation, and union types:
+
+  ```
+  "content": "| op | meaning |\n|---|---|\n| `a \\| b` | bitwise or |\n| `x \\| y` | union |"
+  ```
+
+  Two backslashes in the JSON string arrive as one `\|` in the table, which the renderer
+  turns into a single `|` in the cell.
+
+  `&#124;` does not work — it survives parsing but is escaped at render time and shows up
+  literally. The verifier checks every row's cell count against its header, so a forgotten
+  escape fails `tools/verify-nodegraph.js` instead of reaching the reader.
 - Benchmark tables, ablation results, and hyperparameter tables all deserve their own node — put secondary/supporting tables inside a toggle to keep the main node compact.
 - **Don't just paste the table.** Next to it, write 1–2 sentences on what the numbers show and how that connects back to the Killer Application — e.g. "removing the residual connection drops BLEU by 3.2, confirming the depth this architecture needs would otherwise be untrainable." A table with no interpretation is incomplete.
 
